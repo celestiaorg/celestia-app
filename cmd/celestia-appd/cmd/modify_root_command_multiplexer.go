@@ -42,10 +42,11 @@ var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, default
 // doesn't define. TestUnsupportedFlagsMatchEmbeddedBinaries checks this table
 // against every current start flag and embedded binary when either changes.
 func unsupportedFlags(appVersion uint64) map[string]struct{} {
-	result := map[string]struct{}{
-		flagOTelEndpoint:             {},
-		FlagFibrePromiseCache:        {},
-		FlagPrivValGRPCAllowInsecure: {},
+	result := map[string]struct{}{}
+	if appVersion <= 9 {
+		result[flagOTelEndpoint] = struct{}{}
+		result[FlagFibrePromiseCache] = struct{}{}
+		result[FlagPrivValGRPCAllowInsecure] = struct{}{}
 	}
 	if appVersion <= 5 {
 		result[bypassOverridesFlagKey] = struct{}{}
@@ -133,6 +134,16 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
+	v10Tag, v10CompressedBinary, err := embedding.CelestiaAppV10()
+	if err != nil {
+		panic(err)
+	}
+
+	appdV10, err := appd.New(v10Tag, v10CompressedBinary)
+	if err != nil {
+		panic(err)
+	}
+
 	v3Args := interBlockCacheOnArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
@@ -198,6 +209,11 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV9,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  9,
+			StartArgs:   defaultArgs,
+		}, abci.Version{
+			Appd:        appdV10,
+			ABCIVersion: abci.ABCIClientVersion2,
+			AppVersion:  10,
 			StartArgs:   defaultArgs,
 		})
 	if err != nil {

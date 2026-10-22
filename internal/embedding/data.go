@@ -10,13 +10,14 @@ import (
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
 const (
-	v3Version = "v3.13.0"
-	v4Version = "v4.1.0"
-	v5Version = "v5.0.12"
-	v6Version = "v6.4.10"
-	v7Version = "v7.0.3-mocha"
-	v8Version = "v8.0.8"
-	v9Version = "v9.0.8"
+	v3Version  = "v3.13.0"
+	v4Version  = "v4.1.0"
+	v5Version  = "v5.0.12"
+	v6Version  = "v6.4.10"
+	v7Version  = "v7.0.3-mocha"
+	v8Version  = "v8.0.8"
+	v9Version  = "v9.0.8"
+	v10Version = "v10.4.0"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
@@ -88,6 +89,16 @@ func CelestiaAppV9() (version string, compressedBinary []byte, err error) {
 	}
 
 	return v9Version, v9binaryCompressed, nil
+}
+
+// CelestiaAppV10 returns the compressed platform specific Celestia binary and
+// the version.
+func CelestiaAppV10() (version string, compressedBinary []byte, err error) {
+	if len(v10binaryCompressed) == 0 {
+		return "", nil, fmt.Errorf("no binary data available for platform %s", platform())
+	}
+
+	return v10Version, v10binaryCompressed, nil
 }
 
 // platform returns a string representing the current operating system and architecture

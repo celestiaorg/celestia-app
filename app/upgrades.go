@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -76,53 +73,7 @@ func (app App) RegisterUpgradeHandlers() {
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
-
-			if err := app.SetEvidenceParams(ctx); err != nil {
-				return nil, err
-			}
-			app.ensureFibreModuleAccount(ctx)
-
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
-
-	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
-	if err != nil {
-		panic(err)
-	}
-
-	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{fibretypes.StoreKey, valaddrtypes.StoreKey},
-		}
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
-	}
-}
-
-// ensureFibreModuleAccount replaces any account at Fibre's address with the
-// registered Fibre module account. Balances are stored separately by x/bank
-// and remain at the same address when the x/auth account is replaced.
-func (app App) ensureFibreModuleAccount(ctx context.Context) {
-	address := app.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
-	if account := app.AccountKeeper.GetAccount(ctx, address); account != nil {
-		app.AccountKeeper.RemoveAccount(ctx, account)
-	}
-
-	app.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
-}
-
-// SetEvidenceParams writes the evidence params from appconsts into the
-// consensus param store. Evidence params are not modifiable by governance, so
-// applying a new value to a running chain requires this upgrade migration.
-func (app App) SetEvidenceParams(ctx context.Context) error {
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		return err
-	}
-
-	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
-	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
-
-	return app.ConsensusKeeper.ParamsStore.Set(ctx, params)
 }

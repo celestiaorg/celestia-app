@@ -18,7 +18,6 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
@@ -145,69 +144,25 @@ func TestEndBlockerUpgradeFailureIsNotCommitted(t *testing.T) {
 	}
 }
 
-func TestRegisterUpgradeHandlersStoreLoader(t *testing.T) {
-	t.Run("malformed upgrade info panics", func(t *testing.T) {
-		home := setNodeHome(t)
-		writeUpgradeInfo(t, home, []byte("not json"))
-		require.Panics(t, func() { util.NewTestApp() })
+// TestNewAppWithPendingV11Upgrade checks that a node restarted at the v11
+// upgrade height loads its existing stores. The v11 upgrade adds no stores, so
+// it must not install an upgrade store loader.
+func TestNewAppWithPendingV11Upgrade(t *testing.T) {
+	home := setNodeHome(t)
+	db := tmdb.NewMemDB()
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, 0, util.EmptyAppOptions{}, baseapp.SetChainID(util.ChainID))
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp)
+	testApp = util.InitialiseTestAppWithGenesis(testApp, app.DefaultConsensusParams(), genesisState)
+	finalizeAndCommit(t, testApp)
+
+	height := testApp.LastBlockHeight() + 1
+	plan, err := json.Marshal(upgradetypes.Plan{Name: fmt.Sprintf("v%d", appconsts.Version), Height: height})
+	require.NoError(t, err)
+	writeUpgradeInfo(t, home, plan)
+
+	require.NotPanics(t, func() {
+		app.New(log.NewNopLogger(), db, nil, 0, 0, util.EmptyAppOptions{}, baseapp.SetChainID(util.ChainID))
 	})
-
-	// The v10 store loader adds the fibre and valaddr stores. They already
-	// exist in this database, so loading fails only when that loader is used.
-	tests := []struct {
-		name      string
-		planName  string
-		skip      bool
-		wantPanic bool
-	}{
-		{name: "current upgrade selects store loader", planName: "v10", wantPanic: true},
-		{name: "skipped current upgrade", planName: "v10", skip: true},
-		{name: "other upgrade", planName: "v9"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			home := setNodeHome(t)
-			db := tmdb.NewMemDB()
-			testApp := app.New(log.NewNopLogger(), db, nil, 0, 0, util.EmptyAppOptions{}, baseapp.SetChainID(util.ChainID))
-			genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp)
-			testApp = util.InitialiseTestAppWithGenesis(testApp, app.DefaultConsensusParams(), genesisState)
-			finalizeAndCommit(t, testApp)
-
-			height := testApp.LastBlockHeight() + 1
-			plan, err := json.Marshal(upgradetypes.Plan{Name: tc.planName, Height: height})
-			require.NoError(t, err)
-			writeUpgradeInfo(t, home, plan)
-			opts := skipUpgradeOptions{}
-			if tc.skip {
-				opts = skipUpgradeOptions{int(height)}
-			}
-
-			var loadErr error
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						loadErr = r.(error)
-					}
-				}()
-				app.New(log.NewNopLogger(), db, nil, 0, 0, opts, baseapp.SetChainID(util.ChainID))
-			}()
-			if tc.wantPanic {
-				require.ErrorContains(t, loadErr, "initial version set to 2, but found earlier version 1")
-				return
-			}
-			require.NoError(t, loadErr)
-		})
-	}
-}
-
-// skipUpgradeOptions sets the heights of upgrades to skip.
-type skipUpgradeOptions []int
-
-func (o skipUpgradeOptions) Get(key string) any {
-	if key == server.FlagUnsafeSkipUpgrades {
-		return []int(o)
-	}
-	return nil
 }
 
 // newEndBlockerTestApp returns an initialised app whose upgrade info is
