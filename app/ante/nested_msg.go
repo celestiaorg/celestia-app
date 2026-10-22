@@ -16,8 +16,9 @@ var _ sdk.AnteDecorator = NestedMsgDecorator{}
 // that must not skip the ante handler: MsgPayForBlobs, MsgPayForFibre, and the
 // fibre escrow messages (which would otherwise bypass PFF signature verification
 // or the proposal-time settlement replay). ZK proof messages are rejected in
-// governance proposals because their deferred execution would bypass the per-block
-// proof-work budget. It also rejects a nested MsgExec or MsgSubmitProposal so
+// governance proposals, including ISM creation's verifying-key pairing work,
+// because their deferred execution would bypass the per-block proof-work budget.
+// It also rejects a nested MsgExec or MsgSubmitProposal so
 // those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}
 
@@ -67,7 +68,7 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 			return sdkerrors.ErrNotSupported.Wrapf("MsgExec inside %s is not supported", container)
 		case *govv1.MsgSubmitProposal:
 			return sdkerrors.ErrNotSupported.Wrapf("MsgSubmitProposal inside %s is not supported", container)
-		case *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
 			if container == "MsgSubmitProposal" {
 				return sdkerrors.ErrNotSupported.Wrapf("ZK proof verification inside %s is not supported", container)
 			}

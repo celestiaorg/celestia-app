@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -254,6 +255,22 @@ func TestCountZKProofMsgs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: tc.encoding}, tc.msgs))
+		})
+	}
+
+	// Creating an ISM parses a verifying key and performs pairing work too.
+	// Check the block boundary through every dispatch path, not only direct msgs.
+	for _, count := range []int{appconsts.MaxZKProofMessages, appconsts.MaxZKProofMessages + 1} {
+		t.Run("create boundary "+strconv.Itoa(count), func(t *testing.T) {
+			msgs := make([]sdk.Msg, count)
+			for i := range msgs {
+				msgs[i] = &zkismtypes.MsgCreateInterchainSecurityModule{}
+			}
+			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
+			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
+			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+				require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
+			}
 		})
 	}
 }

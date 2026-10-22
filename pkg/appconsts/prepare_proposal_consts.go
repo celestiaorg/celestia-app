@@ -13,6 +13,6 @@ const (
 	// MaxSDKMessages is the maximum number of SDK messages, aside from PFBs, that a block can contain.
 	MaxSDKMessages = 600
 
-	// MaxZKProofMessages is the maximum number of messages that verify a ZK proof in a block.
+	// MaxZKProofMessages bounds messages that verify a ZK proof or parse a verifying key in a block.
 	MaxZKProofMessages = 64
 )

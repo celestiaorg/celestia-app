@@ -48,8 +48,8 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 	return count
 }
 
-// countZKProofMsgs counts messages that perform ZK proof verification when
-// executed, including messages dispatched by authz and ICA wrappers.
+// countZKProofMsgs counts messages that perform ZK proof verification or
+// verifying-key pairing work, including messages dispatched by authz and ICA wrappers.
 func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 	count := 0
@@ -64,7 +64,7 @@ func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 
 func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	switch msg := msg.(type) {
-	case *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
 		return 1
 	case *authz.MsgExec:
 		nested, err := msg.GetMessages()
@@ -295,7 +295,8 @@ func isFanOutTypeURL(typeURL string) bool {
 }
 
 func isZKProofTypeURL(typeURL string) bool {
-	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
+	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{}) ||
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
 		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{})
 }
 

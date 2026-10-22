@@ -33,6 +33,8 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithPayForBlobs := newMsgSubmitProposal(t, &blobtypes.MsgPayForBlobs{})
 	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
 	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
+	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
+	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -104,6 +106,15 @@ func TestNestedMsgDecorator(t *testing.T) {
 			name:    "Reject proposal with ZK proof",
 			msg:     proposalWithZKProof,
 			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with verifying-key pairing work",
+			msg:     proposalWithISMCreation,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted verifying-key pairing work",
+			msg:  &msgExecWithISMCreation,
 		},
 		{
 			name:    "Reject proposal with MsgExec",
