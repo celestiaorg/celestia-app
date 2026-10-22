@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - rachid/ci-speed-combined
     paths:
       - go.sum
       - test/docker-e2e/go.sum
@@ -31,9 +32,8 @@ jobs:
         id: go
       - name: Download e2e Go modules
         run: sh docker/download-go-modules.sh test/docker-e2e
-      - name: Start from an empty build cache
-        # Keeps entries for superseded commits and dependencies out of the save.
-        run: go clean -cache
+      - name: Retain compiled packages for incremental benchmark warm-up
+        run: go env GOCACHE
       - name: Compile go-test packages
         run: go test -count=1 -run '^$' ./...
       - name: Compile build jobs
@@ -79,8 +79,8 @@ jobs:
         id: go
         with:
           cache-key-suffix: test-arm64
-      - name: Start from an empty build cache
-        run: go clean -cache
+      - name: Retain compiled packages for incremental benchmark warm-up
+        run: go env GOCACHE
       - name: Compile test-arm64 packages
         run: |
           go test -count=1 -run '^$' ./pkg/rsema1d/... ./fibre/internal/row/...
