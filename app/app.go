@@ -307,8 +307,9 @@ func New(
 
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
+	stakingStore := runtime.NewKVStoreService(keys[stakingtypes.StoreKey])
 	app.StakingKeeper = stakingkeeper.NewKeeper(
-		encodingConfig.Codec, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, govModuleAddr, encodingConfig.ValidatorAddressCodec, encodingConfig.ConsensusAddressCodec,
+		encodingConfig.Codec, stakingStore, app.AccountKeeper, app.BankKeeper, govModuleAddr, encodingConfig.ValidatorAddressCodec, encodingConfig.ConsensusAddressCodec,
 	)
 
 	app.MintKeeper = mintkeeper.NewKeeper(encodingConfig.Codec, keys[minttypes.StoreKey], app.StakingKeeper, app.AccountKeeper, app.BankKeeper, authtypes.FeeCollectorName)
@@ -475,7 +476,7 @@ func New(
 		encodingConfig.Codec,
 		keys[fibretypes.StoreKey],
 		app.BankKeeper,
-		app.StakingKeeper,
+		fibreStakingKeeper{app.StakingKeeper, stakingStore},
 		govModuleAddr,
 		enablePromiseCache,
 		app.sigCache,

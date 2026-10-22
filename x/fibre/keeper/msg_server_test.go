@@ -539,8 +539,7 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 			ValidatorSignatures: validSignatures,
 		}
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
-		suite.Error(err)
-		suite.Contains(err.Error(), "failed to get historical validator set")
+		require.ErrorContains(t, err, "failed to get historical validator set")
 
 		// A sig cache hit checks only availability and must fail the same way.
 		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
@@ -551,6 +550,39 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 	suite.T().Run("validator set available", func(t *testing.T) {
 		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
 	})
+}
+
+// TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet checks that
+// a cached validator set conversion fails a pruned height like a cold keeper does.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	msg := &types.MsgPayForFibre{
+		PaymentPromise:      paymentPromise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&paymentPromise),
+	}
+	pruned := func(context.Context, int64) (stakingtypes.HistoricalInfo, error) {
+		return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+	}
+	defer func() { suite.stakingKeeper.GetHistoricalInfoFn = nil }()
+
+	// Cold: nothing converted yet, so this is the decoding path.
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	coldErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().ErrorContains(coldErr, "failed to get historical validator set")
+
+	// Warm the conversion; a warm, still-stored height must not decode again.
+	suite.stakingKeeper.GetHistoricalInfoFn = nil
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	gets := suite.stakingKeeper.getCalls.Load()
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	suite.Require().Equal(gets, suite.stakingKeeper.getCalls.Load(), "warm height decoded again")
+
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	warmErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().Error(warmErr)
+	suite.Require().Equal(coldErr.Error(), warmErr.Error())
 }
 
 // TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum pins where the
