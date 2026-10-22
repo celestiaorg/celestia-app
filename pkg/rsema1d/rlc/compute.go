@@ -24,6 +24,9 @@ func Compute(rows [][]byte, coeffs Vector, workers int) Vector {
 	if origK == 0 {
 		return nil
 	}
+	if v, ok := computeFast(rows, coeffs, workers); ok {
+		return v
+	}
 
 	rows, k := padToSymbolsPerChunk(rows)
 	numChunks := len(rows[0]) / chunkSize
@@ -164,19 +167,8 @@ func transposeChunk(cols []byte, k int, rows [][]byte, c int) {
 			copy(tile[r*chunkSize:(r+1)*chunkSize], rows[firstRow+r][chunkOff:chunkOff+chunkSize])
 		}
 
-		// Scatter the tile into the columns. Column j's 64-byte window for this
-		// row block holds 32 low bytes then 32 high bytes, one per row; filling
-		// it sequentially keeps the writes within one cache line.
 		colOff := rb * chunkSize
-		for j := range symbolsPerChunk {
-			window := cols[j*stride+colOff : j*stride+colOff+chunkSize]
-			for r := range symbolsPerChunk {
-				row := tile[r*chunkSize:]
-				// Symbol j of row r: low byte, then high byte (Leopard planes).
-				window[r] = row[j]
-				window[symbolsPerChunk+r] = row[symbolsPerChunk+j]
-			}
-		}
+		transposeTile(cols[colOff:(symbolsPerChunk-1)*stride+colOff+chunkSize], stride, &tile)
 	}
 }
 

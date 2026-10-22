@@ -19,6 +19,7 @@ import (
 	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -144,6 +145,33 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: "0utia",
 		},
 		{
+			name:        "zero local minimum accepts network minimum",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)),
+			gasLimit:    1_000_000,
+			isCheckTx:   true,
+			minGasPrice: "0utia",
+		},
+		{
+			name:        "zero local minimum still enforces network minimum",
+			fee:         sdk.NewCoins(),
+			gasLimit:    1_000_000,
+			isCheckTx:   true,
+			expErr:      true,
+			minGasPrice: "0utia",
+		},
+		{
+			name:      "empty local minimum rejects network minimum in CheckTx",
+			fee:       sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)),
+			gasLimit:  1_000_000,
+			isCheckTx: true,
+			expErr:    true,
+		},
+		{
+			name:     "empty local minimum does not affect DeliverTx",
+			fee:      sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)),
+			gasLimit: 1_000_000,
+		},
+		{
 			name: "bad tx; fee contains a non-utia denom",
 			fee: sdk.NewCoins(
 				sdk.NewInt64Coin(appconsts.BondDenom, feeAmount),
@@ -171,9 +199,8 @@ func TestValidateTxFee(t *testing.T) {
 			tx := builder.GetTx()
 
 			ctx := sdk.NewContext(stateStore, tmproto.Header{}, tc.isCheckTx, log.NewNopLogger())
-			minPrice, err := sdk.ParseDecCoins(tc.minGasPrice)
-			require.NoError(t, err)
-			ctx = ctx.WithMinGasPrices(minPrice)
+			baseApp := baseapp.NewBaseApp("fee-test", log.NewNopLogger(), dbm.NewMemDB(), enc.TxConfig.TxDecoder(), baseapp.SetMinGasPrices(tc.minGasPrice))
+			ctx = ctx.WithMinGasPrices(baseApp.GetMinGasPrices())
 
 			networkMinGasPriceDec, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 			require.NoError(t, err)
@@ -200,10 +227,12 @@ func TestParseMinGasPrice(t *testing.T) {
 	emptyCoins, err := sdk.ParseDecCoins("")
 	require.NoError(t, err)
 	require.Equal(t, emptyCoins.String(), "")
-	require.Len(t, emptyCoins, 0)
+	require.Nil(t, emptyCoins)
 
 	oneCoin, err := sdk.ParseDecCoins("0utia")
 	require.NoError(t, err)
+	require.NotNil(t, oneCoin)
+	require.Empty(t, oneCoin)
 	require.Zero(t, oneCoin.AmountOf(appconsts.BondDenom).BigInt().Int64())
 }
 

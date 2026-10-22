@@ -19,6 +19,7 @@ jobs:
         run: |
           bash scripts/test_race_recipe_test.sh
           bash scripts/test_cover_test.sh
+          bash scripts/hardfork/recovery_test.sh
         timeout-minutes: 10
 
   test-e2e-compile:

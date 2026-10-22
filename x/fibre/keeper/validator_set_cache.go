@@ -17,11 +17,7 @@ var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
 // certificateValidatorSet returns the converted validator set a certificate at
 // height is checked against, rejecting signatures that cannot be positional over it.
 func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64, signatures [][]byte) (*convertedValidatorSet, error) {
-	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
-	if err != nil {
-		return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
-	}
-	converted, err := k.validatorSetAtHeight(height, historicalInfo.Valset)
+	converted, err := k.resolveValidatorSet(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +27,24 @@ func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64, signature
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(converted.validators))
 	}
 	return converted, nil
+}
+
+// resolveValidatorSet returns the converted validator set at height. A cached
+// conversion still needs the height stored, but not decoded again.
+func (k Keeper) resolveValidatorSet(ctx sdk.Context, height int64) (*convertedValidatorSet, error) {
+	if k.valSetCache != nil {
+		if cached, ok := k.valSetCache.Get(height); ok {
+			if err := k.checkHistoricalInfo(ctx, height); err != nil {
+				return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+			}
+			return cached, nil
+		}
+	}
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
+	if err != nil {
+		return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+	}
+	return k.validatorSetAtHeight(height, historicalInfo.Valset)
 }
 
 // validatorSetCacheSize is the number of heights whose converted validator set
