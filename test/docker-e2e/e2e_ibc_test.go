@@ -15,10 +15,12 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/query"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	cometcfg "github.com/cometbft/cometbft/config"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -451,6 +453,12 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			// tastora fixes simapp blocks at 2s; match the fast celestia chain.
+			return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+				cfg.Consensus.TimeoutCommit = 200 * time.Millisecond
+			})
+		}).
 		WithNode(cosmos.NewChainNodeConfigBuilder().Build())
 }
 
