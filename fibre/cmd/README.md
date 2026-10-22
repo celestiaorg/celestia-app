@@ -147,10 +147,19 @@ fibre store check-bucket
 ```
 
 The command reports the bucket-level check and the canary `PUT` and `DELETE`
-separately. It writes the canary under `<prefix>/.fibre-check/` and does not
-open Pebble, so Fibre can remain running. The configured credentials must allow
-writes and deletes under `<prefix>/.fibre-check/`, even if normal shard access
-is restricted to a validator-specific path.
+separately, along with the AWS credential source and the final four characters
+of the access key ID. By default it writes the canary under
+`<prefix>/.fibre-check/`. For credentials restricted to a validator's shard
+path, pass both namespace flags so it writes under
+`<prefix>/<chain-id>/<validator-address>/shards/.fibre-check/`:
+
+```sh
+fibre store check-bucket \
+  --chain-id mocha-4 \
+  --validator-address celestiavalcons1...
+```
+
+The command does not open Pebble, so Fibre can remain running.
 
 ## Config
 
@@ -209,6 +218,31 @@ Fibre needs credentials to reach the bucket configured in `[object_storage]`. It
    If Fibre exits with `loading object storage credentials`, the service did not receive the key. Check the file and the service override, then restart. A key with wrong permissions shows up later as access denied errors in the logs.
 
 To rotate keys, update `/etc/fibre/s3.env` and restart Fibre. If the host already has credentials from an IAM role or the shared AWS credentials file, Fibre uses them, and you can skip this section.
+
+Run the check without `sudo` when the current shell already contains the same
+AWS credentials used by the Fibre service. Otherwise, the check may test
+different credentials and produce a false pass or failure:
+
+```sh
+fibre store check-bucket --home /path/to/fibre-home
+```
+
+Use `sudo` when `/etc/fibre/s3.env` is readable only by root. Because `sudo`
+changes the user environment and default home directory, load the environment
+file explicitly and pass the Fibre service's actual home:
+
+```sh
+sudo -i
+set -a
+. /etc/fibre/s3.env
+set +a
+
+/path/to/fibre store check-bucket --home /path/to/fibre-home
+```
+
+Add `--chain-id` and `--validator-address` to either command when the service
+uses path-scoped credentials, as shown above. Exit the root shell after the
+check completes.
 
 ### Switching shard storage backends
 

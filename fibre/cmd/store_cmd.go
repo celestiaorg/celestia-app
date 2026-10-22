@@ -31,7 +31,12 @@ func newStoreCmd() *cobra.Command {
 }
 
 func newStoreCheckBucketCmd() *cobra.Command {
-	return &cobra.Command{
+	return newStoreCheckBucketCmdWithCheck(fibre.CheckObjectStorage)
+}
+
+func newStoreCheckBucketCmdWithCheck(check func(context.Context, fibre.ObjectStorageConfig) (fibre.ObjectStorageCheckResult, error)) *cobra.Command {
+	var chainID, validatorAddress string
+	cmd := &cobra.Command{
 		Use:   "check-bucket",
 		Short: "Check object storage connectivity and permissions",
 		Args:  cobra.NoArgs,
@@ -44,7 +49,9 @@ func newStoreCheckBucketCmd() *cobra.Command {
 			if err := cfg.Load(fibre.DefaultConfigPath(home)); err != nil {
 				return err
 			}
-			result, err := fibre.CheckObjectStorage(cmd.Context(), cfg.ObjectStorage)
+			cfg.ObjectStorage.ChainID = chainID
+			cfg.ObjectStorage.ValidatorAddress = validatorAddress
+			result, err := check(cmd.Context(), cfg.ObjectStorage)
 			if err != nil {
 				return err
 			}
@@ -57,6 +64,9 @@ func newStoreCheckBucketCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&chainID, "chain-id", "", "chain ID for a validator-scoped canary")
+	cmd.Flags().StringVar(&validatorAddress, "validator-address", "", "validator consensus address for a validator-scoped canary")
+	return cmd
 }
 
 func writeObjectStorageCheck(out io.Writer, result fibre.ObjectStorageCheckResult) error {
@@ -66,7 +76,17 @@ func writeObjectStorageCheck(out io.Writer, result fibre.ObjectStorageCheckResul
 	writeCheckResult(w, "put canary", result.PutCanaryErr)
 	writeCheckResult(w, "delete canary", result.DeleteCanaryErr)
 	fmt.Fprintf(w, "\ncanary key: %s\n", result.CanaryKey)
+	fmt.Fprintf(w, "credential source: %s\n", result.CredentialSource)
+	fmt.Fprintf(w, "access key ID suffix: %s\n", result.AccessKeyIDSuffix)
+	if !result.NamespaceScoped && hasObjectStorageErrorCode(result.PutCanaryErr, "AccessDenied") {
+		fmt.Fprintln(w, "hint: path-scoped credentials may require --chain-id and --validator-address")
+	}
 	return w.Flush()
+}
+
+func hasObjectStorageErrorCode(err error, code string) bool {
+	apiErr, ok := errors.AsType[smithy.APIError](err)
+	return ok && apiErr.ErrorCode() == code
 }
 
 func writeCheckResult(w io.Writer, name string, err error) {

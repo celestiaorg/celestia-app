@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,6 +54,68 @@ func TestObjectCheckKeyUsesCanonicalPrefix(t *testing.T) {
 	cfg := testObjectStorageConfig()
 	cfg.Prefix = "/fibre/"
 	require.Equal(t, "fibre/.fibre-check/canary", objectCheckKey(cfg, "canary"))
+}
+
+func TestObjectCheckKeyUsesValidatorNamespace(t *testing.T) {
+	validValidator, err := bech32.ConvertAndEncode(validatorConsensusAddressPrefix, bytes.Repeat([]byte{1}, consensusAddressLength))
+	require.NoError(t, err)
+	cfg := testObjectStorageConfig()
+	cfg.Prefix = "/fibre/"
+	cfg.ChainID = "mocha-4"
+	cfg.ValidatorAddress = validValidator
+	require.Equal(t, "fibre/mocha-4/"+validValidator+"/shards/.fibre-check/canary", objectCheckKey(cfg, "canary"))
+}
+
+func TestNormalizeObjectCheckNamespace(t *testing.T) {
+	validValidator, err := bech32.ConvertAndEncode(validatorConsensusAddressPrefix, bytes.Repeat([]byte{1}, consensusAddressLength))
+	require.NoError(t, err)
+	tests := []struct {
+		name      string
+		chainID   string
+		validator string
+		wantChain string
+		wantVal   string
+		wantErr   string
+	}{
+		{name: "empty", wantChain: ""},
+		{name: "valid and trimmed", chainID: " mocha-4 ", validator: " " + validValidator + " ", wantChain: "mocha-4", wantVal: validValidator},
+		{name: "uppercase canonicalized", chainID: "mocha-4", validator: strings.ToUpper(validValidator), wantChain: "mocha-4", wantVal: validValidator},
+		{name: "only chain", chainID: "mocha-4", wantErr: "provided together"},
+		{name: "only validator", validator: validValidator, wantErr: "provided together"},
+		{name: "parent chain", chainID: "..", validator: validValidator, wantErr: "path segment"},
+		{name: "chain with slash", chainID: "mocha/4", validator: validValidator, wantErr: "path segment"},
+		{name: "invalid validator", chainID: "mocha-4", validator: "../../evil", wantErr: "validator address"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := testObjectStorageConfig()
+			cfg.ChainID, cfg.ValidatorAddress = tt.chainID, tt.validator
+			err := normalizeObjectCheckNamespace(&cfg)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantChain, cfg.ChainID)
+			require.Equal(t, tt.wantVal, cfg.ValidatorAddress)
+		})
+	}
+}
+
+func TestObjectStorageCheckClientErrorAddsCredentialHintOnly(t *testing.T) {
+	cause := errors.New("not found")
+	credentialErr := &objectStorageCredentialsError{cause: cause}
+	err := objectStorageCheckClientError(credentialErr)
+	require.ErrorIs(t, err, cause)
+	require.ErrorContains(t, err, "load the service credential environment before running the check")
+
+	otherErr := errors.New("loading AWS configuration")
+	require.Same(t, otherErr, objectStorageCheckClientError(otherErr))
+}
+
+func TestAccessKeyIDSuffix(t *testing.T) {
+	require.Equal(t, "CDEF", accessKeyIDSuffix("ABCDEFGHIJABCDEF"))
+	require.Equal(t, "ABC", accessKeyIDSuffix("ABC"))
 }
 
 func TestCheckObjectStorageUsesShardPutOptions(t *testing.T) {

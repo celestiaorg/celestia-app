@@ -18,6 +18,18 @@ import (
 
 const defaultObjectRequestTimeout = 30 * time.Second
 
+type objectStorageCredentialsError struct {
+	cause error
+}
+
+func (e *objectStorageCredentialsError) Error() string {
+	return fmt.Sprintf("loading object storage credentials: %v", e.cause)
+}
+
+func (e *objectStorageCredentialsError) Unwrap() error {
+	return e.cause
+}
+
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
 	// ChainID and ValidatorAddress are derived by the server at startup.
@@ -126,7 +138,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	client, err := newS3Client(ctx, cfg)
+	client, _, err := newS3Client(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +148,7 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 	return client, nil
 }
 
-func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
+func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, aws.Credentials, error) {
 	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
 		tr.ForceAttemptHTTP2 = false
 		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
@@ -148,16 +160,17 @@ func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, erro
 	})
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region), config.WithHTTPClient(httpClient))
 	if err != nil {
-		return nil, fmt.Errorf("loading AWS configuration: %w", err)
+		return nil, aws.Credentials{}, fmt.Errorf("loading AWS configuration: %w", err)
 	}
 	// The SDK resolves credentials lazily; fail startup if none can be retrieved.
-	if _, err := awsConfig.Credentials.Retrieve(ctx); err != nil {
-		return nil, fmt.Errorf("loading object storage credentials: %w", err)
+	credentials, err := awsConfig.Credentials.Retrieve(ctx)
+	if err != nil {
+		return nil, aws.Credentials{}, &objectStorageCredentialsError{cause: err}
 	}
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
-	return client, nil
+	return client, credentials, nil
 }
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
