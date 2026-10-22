@@ -18,6 +18,12 @@ same paths, so local and Codecov reports agree.
 The report is replaced only after all tests pass. A failed run leaves an existing
 report unchanged, so check the command's exit status before using the report.
 Run `bash scripts/test_cover_test.sh` for a small regression check of the script.
+
+CI splits the suite into shards on separate runners. `COVER_SHARD=<name> make test-coverage`
+runs one shard, and `bash scripts/test_cover.sh --list-shards` lists them. The
+`rest` shard runs every package that no named shard owns. Every shard instruments
+the full scope, so `bash scripts/merge_coverage.sh coverage.txt <profiles>` combines
+shard profiles into the same report as a full run.
 See [coverage reports and staged checks](../docs/coverage.md) for the global rule,
 proposal exceptions, the handler execution assertion, and the accept/reject invariant matrix.
 

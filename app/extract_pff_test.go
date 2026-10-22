@@ -140,7 +140,8 @@ func TestPayForFibreMsg(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pff, ok := payForFibreMsg(decodeTx(t, txConfig, tc.txBytes))
+			pff := fibretypes.PayForFibreMsg(decodeTx(t, txConfig, tc.txBytes))
+			ok := pff != nil
 			require.Equal(t, tc.wantOK, ok)
 			if tc.wantOK {
 				require.NotNil(t, pff)

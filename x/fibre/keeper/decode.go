@@ -13,21 +13,18 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 	if !isPFF || err != nil {
 		return nil
 	}
-	d := &types.DecodedPayForFibre{Raw: raw, Msg: msg}
+	return DerivePayForFibre(raw, msg)
+}
+
+// DerivePayForFibre is DecodePayForFibre for a caller that already holds the
+// non-nil message decoded from raw.
+func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
+	certKey, certKeyed := sigcache.Key{}, false
 	if key, err := msg.SigCacheKey(); err == nil {
-		d.CertKey, d.CertKeyed = key, true
+		certKey, certKeyed = key, true
 	}
-	promise := &fibre.PaymentPromise{}
-	if err := promise.FromProto(&msg.PaymentPromise); err != nil || promise.SignerKey == nil {
-		return d
-	}
-	signBytes, err := promise.SignBytes()
-	if err != nil {
-		return d
-	}
-	d.PromiseSignBytes = signBytes
-	d.PromiseKey = promiseSigCacheKeyFromSignBytes(promise, signBytes)
-	d.PromiseKeyed = true
+	d := decodedFrom(msg, certKey, certKeyed)
+	d.Raw = raw
 	return d
 }
 
@@ -35,7 +32,13 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 // around the certificate key it already derived: DecodePayForFibre without the
 // unmarshal. Raw stays nil, so it must never be attached to a context.
 func DecodedFromMsg(msg *types.MsgPayForFibre, certKey sigcache.Key) *types.DecodedPayForFibre {
-	d := &types.DecodedPayForFibre{Msg: msg, CertKey: certKey, CertKeyed: true}
+	return decodedFrom(msg, certKey, true)
+}
+
+// decodedFrom builds the view around msg with the promise sign bytes and key, both
+// unset when the promise is too malformed to key (the sequential verifier reports it).
+func decodedFrom(msg *types.MsgPayForFibre, certKey sigcache.Key, certKeyed bool) *types.DecodedPayForFibre {
+	d := &types.DecodedPayForFibre{Msg: msg, CertKey: certKey, CertKeyed: certKeyed}
 	promise := &fibre.PaymentPromise{}
 	if err := promise.FromProto(&msg.PaymentPromise); err != nil || promise.SignerKey == nil {
 		return d
@@ -46,6 +49,5 @@ func DecodedFromMsg(msg *types.MsgPayForFibre, certKey sigcache.Key) *types.Deco
 	}
 	d.PromiseSignBytes = signBytes
 	d.PromiseKey = promiseSigCacheKeyFromSignBytes(promise, signBytes)
-	d.PromiseKeyed = true
 	return d
 }
