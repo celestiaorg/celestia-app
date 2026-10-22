@@ -34,7 +34,7 @@ jobs:
         working-directory: test/docker-e2e
         run: |
           go test -run '^$' ./...
-          go test ./networks
+          go test ./networks ./internal
 
   go-test:
     runs-on: ubuntu-latest
