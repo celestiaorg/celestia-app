@@ -137,7 +137,7 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 
 ## Events
 
-The following is an exhaustive list of supported events for app version 11.
+The following is a list of the typed (protobuf) events that app version 11 can emit. Cosmos SDK modules such as bank and staking also emit untyped string events, which are not listed here.
 
 ```ascii
 celestia.blob.v1.EventPayForBlobs
@@ -158,24 +158,6 @@ celestia.zkism.v1.EventUpdateInterchainSecurityModule
 cosmos.authz.v1beta1.EventGrant
 cosmos.authz.v1beta1.EventPruneExpiredGrants
 cosmos.authz.v1beta1.EventRevoke
-cosmos.base.abci.v1beta1.StringEvent
-cosmos.distribution.v1beta1.ValidatorSlashEvent
-cosmos.distribution.v1beta1.ValidatorSlashEventRecord
-cosmos.distribution.v1beta1.ValidatorSlashEvents
-cosmos.group.v1.EventCreateGroup
-cosmos.group.v1.EventCreateGroupPolicy
-cosmos.group.v1.EventExec
-cosmos.group.v1.EventLeaveGroup
-cosmos.group.v1.EventProposalPruned
-cosmos.group.v1.EventSubmitProposal
-cosmos.group.v1.EventTallyError
-cosmos.group.v1.EventUpdateGroup
-cosmos.group.v1.EventUpdateGroupPolicy
-cosmos.group.v1.EventVote
-cosmos.group.v1.EventWithdrawProposal
-cosmos.tx.v1beta1.GetTxsEventRequest
-cosmos.tx.v1beta1.GetTxsEventResponse
-envoy.config.core.v3.EventServiceConfig
 hyperlane.core.interchain_security.v1.EventAnnounceStorageLocation
 hyperlane.core.interchain_security.v1.EventCreateMerkleRootMultisigIsm
 hyperlane.core.interchain_security.v1.EventCreateMessageIdMultisigIsm
@@ -203,6 +185,4 @@ hyperlane.warp.v1.EventReceiveRemoteTransfer
 hyperlane.warp.v1.EventSendRemoteTransfer
 hyperlane.warp.v1.EventSetToken
 hyperlane.warp.v1.EventUnrollRemoteRouter
-tendermint.abci.Event
-tendermint.abci.EventAttribute
 ```
