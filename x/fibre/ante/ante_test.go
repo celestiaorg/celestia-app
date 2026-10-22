@@ -567,7 +567,7 @@ func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
 		keeper := &fakeFibreKeeper{}
 		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: decodedKey, failOnCacheWrite: true}
 		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
-		ctx := fibretypes.WithDecodedPayForFibre(
+		ctx := fibretypes.WithCertKey(
 			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
 			&fibretypes.DecodedPayForFibre{Raw: txBytes, CertKey: decodedKey, CertKeyed: true},
 		)
@@ -582,7 +582,7 @@ func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
 		keeper := &fakeFibreKeeper{}
 		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: mustPffSigCacheKey(t, msg), failOnCacheWrite: true}
 		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
-		ctx := fibretypes.WithDecodedPayForFibre(
+		ctx := fibretypes.WithCertKey(
 			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
 			&fibretypes.DecodedPayForFibre{Raw: []byte{0x09}, CertKey: decodedKey, CertKeyed: true},
 		)
