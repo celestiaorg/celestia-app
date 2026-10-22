@@ -9,6 +9,7 @@ WORKDIR /app
 
 # Copy go module files
 COPY go.mod go.sum ./
+COPY rsmt2d/go.mod rsmt2d/go.sum ./rsmt2d/
 
 # Download dependencies
 RUN go mod download

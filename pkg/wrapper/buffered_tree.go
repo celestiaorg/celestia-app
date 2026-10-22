@@ -5,10 +5,10 @@ import (
 	"runtime"
 	"slices"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // TreePool provides a fixed-size pool of resizeableBufferTree instances.
