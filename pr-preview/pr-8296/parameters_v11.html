@@ -174,9 +174,9 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>consensus.block.MaxBytes</td><td>32 MiB</td><td>Governance parameter for the maximum size of the protobuf encoded block. Set via the v9 upgrade handler.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
-<tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>False</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>11</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
 <tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint denomination for proposing a block.</td><td>True</td></tr>
