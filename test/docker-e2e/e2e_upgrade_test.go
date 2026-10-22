@@ -377,12 +377,17 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to query ABCIInfo")
-
-	currentAppVersion := abciInfo.Response.GetAppVersion()
-	s.Require().Equal(targetAppVersion, currentAppVersion,
-		"upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
+	// ABCIInfo fails while the multiplexer swaps binaries at the upgrade height.
+	var currentAppVersion uint64
+	err = wait.ForCondition(ctx, 30*time.Second, time.Second, func() (bool, error) {
+		abciInfo, err := rpcClient.ABCIInfo(ctx)
+		if err != nil {
+			return false, nil
+		}
+		currentAppVersion = abciInfo.Response.GetAppVersion()
+		return currentAppVersion == targetAppVersion, nil
+	})
+	s.Require().NoError(err, "upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
 
 	// The upgrade was already applied. Compute the expected upgrade height
 	// from the height at which MsgTryUpgrade was included.
