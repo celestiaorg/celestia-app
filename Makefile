@@ -60,7 +60,7 @@ CELESTIA_V6_VERSION := v6.4.10
 CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
 CELESTIA_V9_VERSION := v9.0.8
-CELESTIA_V10_VERSION := v10.4.0
+CELESTIA_V10_VERSION := v10.5.0
 
 ## help: Get more info on make commands.
 help: Makefile

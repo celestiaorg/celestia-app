@@ -19,7 +19,7 @@ ARG CELESTIA_VERSION_V6="v6.4.10"
 ARG CELESTIA_VERSION_V7="v7.0.3-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
 ARG CELESTIA_VERSION_V9="v9.0.8"
-ARG CELESTIA_VERSION_V10="v10.4.0"
+ARG CELESTIA_VERSION_V10="v10.5.0"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
