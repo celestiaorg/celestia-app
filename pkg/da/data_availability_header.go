@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
@@ -16,7 +17,6 @@ import (
 	sharev3 "github.com/celestiaorg/go-square/v3/share"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	sharev4 "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/types"
 )
