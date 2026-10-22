@@ -378,9 +378,11 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	s.Require().NoError(err, "failed to get RPC client")
 
 	// ABCIInfo fails while the multiplexer swaps binaries at the upgrade height.
+	pollCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	var currentAppVersion uint64
-	err = wait.ForCondition(ctx, 30*time.Second, time.Second, func() (bool, error) {
-		abciInfo, err := rpcClient.ABCIInfo(ctx)
+	err = wait.ForCondition(pollCtx, 30*time.Second, time.Second, func() (bool, error) {
+		abciInfo, err := rpcClient.ABCIInfo(pollCtx)
 		if err != nil {
 			return false, nil
 		}
