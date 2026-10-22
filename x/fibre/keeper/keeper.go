@@ -354,22 +354,7 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 // recordVerifiedPromise once that is settled, so a rejected message buys no
 // entry and cannot evict the entries of accepted ones.
 func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
-	key, keyed := promiseSigCacheKey(pp)
-	return k.validatePromiseStatelessKeyed(pp, key, keyed)
-}
-
-// validatePromiseStatelessDecoded is ValidatePromiseStateless reusing the key
-// from ctx's decoded view. source is the proto promise pp came from: matching
-// it stops a caller from borrowing the key for a different promise.
-func (k Keeper) validatePromiseStatelessDecoded(ctx sdk.Context, pp *fibre.PaymentPromise, source *types.PaymentPromise) error {
-	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.PromiseKeyed && d.Msg != nil && &d.Msg.PaymentPromise == source {
-		return k.validatePromiseStatelessKeyed(pp, d.PromiseKey, true)
-	}
-	return k.ValidatePromiseStateless(pp)
-}
-
-func (k Keeper) validatePromiseStatelessKeyed(pp *fibre.PaymentPromise, key sigcache.Key, keyed bool) error {
-	if keyed && k.sigCache != nil && k.sigCache.Has(key) {
+	if key, keyed := promiseSigCacheKey(pp); keyed && k.sigCache != nil && k.sigCache.Has(key) {
 		return nil
 	}
 	return pp.Validate()
