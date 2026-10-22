@@ -31,7 +31,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
 	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
-	if req.Type == abci.CheckTxType_Recheck && fibretypes.IsPayForFibreTx(tx) {
+	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
 		return app.BaseApp.CheckTx(req)
 	}
 
