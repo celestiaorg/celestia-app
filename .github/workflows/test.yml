@@ -72,7 +72,7 @@ jobs:
           set -o pipefail
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v10/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v11/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.skip }}" ]; then
             go test -timeout 30m -skip "${{ matrix.skip }}" ${{ matrix.package }}
           elif [ -n "${{ matrix.pattern }}" ]; then
