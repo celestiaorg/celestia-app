@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
@@ -134,6 +135,10 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 
 // Validate validates the ClientConfig and sets default values for unset fields.
 func (cfg *ClientConfig) Validate() error {
+	if cfg.MaxMessageSize <= 0 || int64(cfg.MaxMessageSize) > math.MaxInt32 {
+		return fmt.Errorf("MaxMessageSize must be between 1 and %d", math.MaxInt32)
+	}
+
 	if cfg.StateClientFn == nil {
 		if cfg.StateAddress == "" {
 			return fmt.Errorf("state address is required for default state client")

@@ -104,6 +104,7 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 		&fixedHostRegistry{addr: fibreAddr},
 		func() string { return s.fibreClient.ChainID() },
 		clientCfg.MaxMessageSize,
+		fibre.DefaultProtocolParams.MaxRowsPerValidator(), fibre.DefaultProtocolParams.MerkleProofDepth(),
 		nil,
 	)
 
