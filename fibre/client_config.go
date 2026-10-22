@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"

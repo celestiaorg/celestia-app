@@ -4,7 +4,7 @@ import (
 	"math/bits"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
 )
 
 // The RLC of a row is Σ_i s_i·c_i over Leopard's GF(2^16), whose elements are

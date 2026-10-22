@@ -2,8 +2,8 @@ package app
 
 import (
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

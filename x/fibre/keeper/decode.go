@@ -1,9 +1,9 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 )
 
 // DecodePayForFibre decodes a MsgPayForFibre tx once and derives its signature

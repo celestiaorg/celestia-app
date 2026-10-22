@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 )
 
