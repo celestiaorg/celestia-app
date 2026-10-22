@@ -636,15 +636,20 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
+	// Settlement stores the block time, whose protobuf encoding length varies
+	// with its nanoseconds, so every measurement and proposal uses one time.
+	blockTime := time.Now()
+
 	// Measure ante-only and full execution gas. Neither call commits state.
-	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+	referenceTx := newSignedPayForFibreTxAt(t, newSigner(0), accounts[0], true, blockTime,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	anteGas := uint64(checkResp.GasUsed)
 
 	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:   time.Now(),
+		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
 		Hash:   testApp.LastCommitID().Hash,
 		Txs:    [][]byte{referenceTx},
@@ -657,22 +662,22 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 
 	// The proposal is otherwise valid, so only the gas limit decides the result.
 	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
-		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+		underTx := newSignedPayForFibreTxAt(t, newSigner(1), accounts[1], true, blockTime,
 			user.SetGasLimit(anteGas-1), user.SetFee(4_000))
 		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{underTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
 
 	t.Run("reject gas limit one below the FinalizeBlock cost", func(t *testing.T) {
 		// Reject a tx without enough gas to execute its payment.
-		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+		underTx := newSignedPayForFibreTxAt(t, newSigner(1), accounts[1], true, blockTime,
 			user.SetGasLimit(finalizeGas-1), user.SetFee(4_000))
 		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{underTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
@@ -680,11 +685,11 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	t.Run("accept gas limit just above the FinalizeBlock cost", func(t *testing.T) {
 		// Store value sizes make gas vary slightly by account. This small margin
 		// allows that variation while keeping the boundary tight.
-		coveredTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
+		coveredTx := newSignedPayForFibreTxAt(t, newSigner(2), accounts[2], true, blockTime,
 			user.SetGasLimit(finalizeGas+2_000), user.SetFee(4_000))
 		require.Len(t, coveredTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{coveredTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{coveredTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 	})
@@ -692,6 +697,13 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 
 // processProposalRequest builds a valid ProcessProposal request for the txs.
 func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+	t.Helper()
+	return processProposalRequestAt(t, testApp, txs, time.Now())
+}
+
+// processProposalRequestAt builds a valid ProcessProposal request for the txs
+// at the given block time.
+func processProposalRequestAt(t testing.TB, testApp *app.App, txs [][]byte, blockTime time.Time) *abci.RequestProcessProposal {
 	t.Helper()
 	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
 	require.NoError(t, err)
@@ -701,7 +713,7 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 	require.NoError(t, err)
 	return &abci.RequestProcessProposal{
 		Height:       testApp.LastBlockHeight() + 1,
-		Time:         time.Now(),
+		Time:         blockTime,
 		Txs:          txs,
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
