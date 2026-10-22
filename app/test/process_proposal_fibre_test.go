@@ -806,6 +806,34 @@ func TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned(t *testing.T
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, pffTx))
 }
 
+// TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning pins the
+// miss path: a node that converted the promise height for another certificate
+// must vote like a cold one once that height is pruned.
+func TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+	setHistoricalEntries(t, testApp, 2)
+	opts := []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)}
+	warmTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true, testutil.GenesisTime.Add(time.Second), opts...)
+	// Same promise height, different certificate: a sig-cache miss over a warm validator set.
+	otherTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true, testutil.GenesisTime.Add(2*time.Second), opts...)
+
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: warmTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err = testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "the promise height must be pruned for this test to mean anything")
+
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, otherTx))
+}
+
 // processProposalStatus proposes txs at the chain's clock and returns the vote.
 func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
 	t.Helper()
