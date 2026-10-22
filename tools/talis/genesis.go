@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
 	"github.com/spf13/cobra"
 )
 

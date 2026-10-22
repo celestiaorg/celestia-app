@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"

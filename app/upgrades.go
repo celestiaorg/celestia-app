@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
