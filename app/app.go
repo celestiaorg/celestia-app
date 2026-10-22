@@ -69,6 +69,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/baseapp/oe"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -248,6 +249,8 @@ func New(
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
+	// Prepended so a caller's DisableOptimisticExecution wins.
+	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(stripBlobTxs))}, baseAppOptions...)
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
