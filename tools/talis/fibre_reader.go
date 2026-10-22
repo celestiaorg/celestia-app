@@ -15,6 +15,7 @@ func fibreReaderCmd() *cobra.Command {
 		rootDir             string
 		SSHKeyPath          string
 		instances           int
+		readsPerBlob        int
 		downloadConcurrency int
 		downloadTimeout     time.Duration
 		duration            time.Duration
@@ -26,6 +27,9 @@ func fibreReaderCmd() *cobra.Command {
 		Short: "Start fibre-reader on remote reader instances via SSH + tmux",
 		Long:  "Starts fibre-reader tmux sessions on dedicated reader instances. Each reader trails the chain via a pinned validator's RPC, scans for MsgPayForFibre, and downloads owned blobs (hash-modulo sharded across the reader cluster). The fibre-reader binary must already be deployed via 'talis deploy'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if readsPerBlob < 1 {
+				return fmt.Errorf("--reads-per-blob must be >= 1, got %d", readsPerBlob)
+			}
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
@@ -46,7 +50,7 @@ func fibreReaderCmd() *cobra.Command {
 			readers := cfg.Readers[:n]
 			readerCount := len(readers)
 
-			fmt.Printf("Starting fibre-reader on %d reader(s)...\n", readerCount)
+			fmt.Printf("Starting fibre-reader on %d reader(s), %d reads per blob across the cluster...\n", readerCount, readsPerBlob)
 
 			// Use the slice position as readerIndex, not the suffix parsed from
 			// r.Name. Reader names can be non-contiguous (e.g. after destroying
@@ -60,11 +64,12 @@ func fibreReaderCmd() *cobra.Command {
 				grpcEndpoint := fmt.Sprintf("%s:9091", target.PrivateIP)
 
 				remoteCmd := fmt.Sprintf(
-					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
+					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --reader-index %d --reader-count %d --reads-per-blob %d --download-concurrency %d --download-timeout %s --duration %s",
 					rpcEndpoint,
 					grpcEndpoint,
 					readerIndex,
 					readerCount,
+					readsPerBlob,
 					downloadConcurrency,
 					downloadTimeout,
 					duration,
@@ -96,6 +101,7 @@ func fibreReaderCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "max number of reader instances to launch (0 = all)")
+	cmd.Flags().IntVar(&readsPerBlob, "reads-per-blob", 1, "total download attempts per blob across all readers (>=1)")
 	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads per reader (semaphore bound; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs.")
 	cmd.Flags().DurationVar(&downloadTimeout, "download-timeout", 2*time.Minute, "per-blob download timeout")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
