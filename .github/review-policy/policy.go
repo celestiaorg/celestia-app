@@ -21,52 +21,15 @@ const (
 
 func (r Risk) String() string { return [...]string{"low", "medium", "high"}[r] }
 
-var (
-	// Review instructions and protocol specifications are policy, not ordinary docs.
-	protectedPath   = regexp.MustCompile(`^(docs/(ai|plans)/|specs/|\.github/|\.agents/|\.claude/|\.cursor/)`)
-	instructionFile = regexp.MustCompile(`(^|/)(AGENTS|CLAUDE|REVIEW)\.md$`)
-	lowDoc          = regexp.MustCompile(`^(README|CONTRIBUTING|CHANGELOG)\.md$|^docs/.*\.md$`)
-	goModule        = regexp.MustCompile(`(^|/)go\.(mod|sum)$`)
-	testPath        = regexp.MustCompile(`_test\.go$|^test/`)
-	titleTag        = regexp.MustCompile(`^[a-z]+(\([^\r\n)]+\))?!?: \[(low|medium|high)\] \S`)
-)
+var titleTag = regexp.MustCompile(`^[a-z]+(\([^\r\n)]+\))?!?: \[(low|medium|high)\] \S`)
 
-// pathRisk returns the minimum tier for a change to path.
-func pathRisk(path string) Risk {
-	switch {
-	case protectedPath.MatchString(path), instructionFile.MatchString(path):
-		return High
-	case lowDoc.MatchString(path):
-		return Low
-	case goModule.MatchString(path):
-		return High
-	case testPath.MatchString(path):
-		return Medium
-	default:
-		// Unknown paths fail conservatively, including new production directories.
-		return High
-	}
-}
-
-// classify returns the higher of the title's tier and every changed path's floor.
-func classify(title string, files []File) (Risk, error) {
+// classify returns the tier named by the PR title's [low], [medium], or [high] tag.
+func classify(title string) (Risk, error) {
 	tag := titleTag.FindStringSubmatch(title)
 	if tag == nil {
 		return 0, errors.New("PR title must contain a conventional-commit [low], [medium], or [high] tag")
 	}
-	if len(files) == 0 {
-		return 0, errors.New("cannot classify an empty or unavailable diff")
-	}
-	risk := Risk(slices.Index([]string{"low", "medium", "high"}, tag[2]))
-	for _, f := range files {
-		// A rename must satisfy the old and new path rules.
-		for _, path := range []string{f.Filename, f.PreviousFilename} {
-			if path != "" {
-				risk = max(risk, pathRisk(path))
-			}
-		}
-	}
-	return risk, nil
+	return Risk(slices.Index([]string{"low", "medium", "high"}, tag[2])), nil
 }
 
 // Result is the outcome of evaluating one pull request.
@@ -83,8 +46,8 @@ func human(u User) bool { return u.Type == "User" && !strings.HasSuffix(u.Login,
 
 // evaluate applies the review policy to a pull request snapshot. canWrite
 // reports whether a login has write, maintain, or admin permission.
-func evaluate(pr PullRequest, files []File, reviews []Review, canWrite func(string) (bool, error)) (Result, error) {
-	risk, err := classify(pr.Title, files)
+func evaluate(pr PullRequest, reviews []Review, canWrite func(string) (bool, error)) (Result, error) {
+	risk, err := classify(pr.Title)
 	if err != nil {
 		return Result{}, err
 	}

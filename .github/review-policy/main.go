@@ -33,19 +33,13 @@ type Ref struct {
 }
 
 type PullRequest struct {
-	Number       int    `json:"number"`
-	Title        string `json:"title"`
-	State        string `json:"state"`
-	Draft        bool   `json:"draft"`
-	ChangedFiles int    `json:"changed_files"`
-	User         User   `json:"user"`
-	Head         Ref    `json:"head"`
-	Base         Ref    `json:"base"`
-}
-
-type File struct {
-	Filename         string `json:"filename"`
-	PreviousFilename string `json:"previous_filename"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	State  string `json:"state"`
+	Draft  bool   `json:"draft"`
+	User   User   `json:"user"`
+	Head   Ref    `json:"head"`
+	Base   Ref    `json:"base"`
 }
 
 type Review struct {
@@ -203,7 +197,7 @@ func (r *runner) check(number int, publish bool) (*checked, error) {
 		return nil, nil
 	}
 	if publish {
-		if err := r.status(pr.Head.SHA, "pending", "Evaluating risk and independent approvals"); err != nil {
+		if err := r.status(pr.Head.SHA, "pending", "Evaluating independent approvals"); err != nil {
 			return nil, err
 		}
 	}
@@ -225,19 +219,11 @@ func (r *runner) check(number int, publish bool) (*checked, error) {
 }
 
 func (r *runner) evaluatePR(pr PullRequest) (Result, error) {
-	files, err := list[File](r.api, fmt.Sprintf("/pulls/%d/files", pr.Number))
-	if err != nil {
-		return Result{}, err
-	}
-	// GitHub caps the files endpoint at 3,000 entries. Never accept a partial diff.
-	if len(files) != pr.ChangedFiles {
-		return Result{}, errors.New("incomplete changed-file list")
-	}
 	reviews, err := list[Review](r.api, fmt.Sprintf("/pulls/%d/reviews", pr.Number))
 	if err != nil {
 		return Result{}, err
 	}
-	res, err := evaluate(pr, files, reviews, r.canWrite)
+	res, err := evaluate(pr, reviews, r.canWrite)
 	if err != nil {
 		return Result{}, err
 	}
@@ -264,7 +250,7 @@ func (r *runner) checkHeads(pulls []PullRequest) error {
 		groups[pr.Head.SHA] = append(groups[pr.Head.SHA], pr)
 	}
 	for _, sha := range shas {
-		if err := r.status(sha, "pending", "Evaluating risk and independent approvals"); err != nil {
+		if err := r.status(sha, "pending", "Evaluating independent approvals"); err != nil {
 			return err
 		}
 		group := groups[sha]

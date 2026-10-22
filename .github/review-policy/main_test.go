@@ -18,7 +18,6 @@ type status struct {
 // fakeAPI serves canned GitHub responses and records published statuses.
 type fakeAPI struct {
 	pulls      []PullRequest
-	files      []File
 	reviews    []Review
 	comparison string
 	mutate     bool
@@ -39,8 +38,6 @@ func (f *fakeAPI) Get(path string, out any) error {
 		v = map[string]string{"status": f.comparison}
 	case strings.HasPrefix(path, "/pulls?"):
 		v = f.pulls
-	case strings.Contains(path, "/files?"):
-		v = f.files
 	case strings.Contains(path, "/reviews?"):
 		v = f.reviews
 	case pullPath.MatchString(path):
@@ -70,7 +67,7 @@ func (f *fakeAPI) Post(path string, body any) error {
 func (f *fakeAPI) last() status { return f.statuses[len(f.statuses)-1] }
 
 func newFake() *fakeAPI {
-	return &fakeAPI{pulls: []PullRequest{basePR()}, files: []File{{Filename: "docs/usage.md"}}, comparison: "ahead"}
+	return &fakeAPI{pulls: []PullRequest{basePR()}, comparison: "ahead"}
 }
 
 func invoke(t *testing.T, f *fakeAPI, eventName string, event Event) {
@@ -107,11 +104,11 @@ func TestPullRequestStatus(t *testing.T) {
 }
 
 func TestHeadStatusFailsClosed(t *testing.T) {
-	truncated := newFake()
-	truncated.files = nil
+	untagged := newFake()
+	untagged.pulls[0].Title = "docs: missing tag"
 	mutated := newFake()
 	mutated.mutate = true
-	for name, f := range map[string]*fakeAPI{"truncated diff": truncated, "PR changed": mutated} {
+	for name, f := range map[string]*fakeAPI{"untagged title": untagged, "PR changed": mutated} {
 		invoke(t, f, "pull_request_target", prEvent())
 		if got := f.last().state; got != "failure" {
 			t.Errorf("%s: got %s, want failure", name, got)
