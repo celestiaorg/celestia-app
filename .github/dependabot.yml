@@ -126,3 +126,22 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
     labels:
       - dependencies
+
+  - package-ecosystem: gomod
+    directory: "/rsmt2d"
+    commit-message:
+      prefix: "chore(deps): [high] "
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      rsmt2d-deps:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies

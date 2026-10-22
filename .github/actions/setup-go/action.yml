@@ -12,6 +12,7 @@ runs:
         go-version-file: go.mod
         cache-dependency-path: |
           go.sum
+          rsmt2d/go.sum
           test/docker-e2e/go.sum
     - name: Download Go modules
       shell: bash

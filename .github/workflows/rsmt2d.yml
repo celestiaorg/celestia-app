@@ -1,0 +1,40 @@
+name: rsmt2d
+
+on:
+  pull_request:
+    paths:
+      - "rsmt2d/**"
+      - ".github/workflows/rsmt2d.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "rsmt2d/**"
+      - ".github/workflows/rsmt2d.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOWORK: "off"
+    defaults:
+      run:
+        working-directory: rsmt2d
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        with:
+          go-version-file: rsmt2d/go.mod
+          cache-dependency-path: rsmt2d/go.sum
+      - name: Check dependencies
+        run: go mod tidy -diff
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Test with race detector
+        run: go test -mod=readonly -race -count=3 -timeout=10m ./...
