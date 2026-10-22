@@ -217,7 +217,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/multiplexer.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
+	@hadolint docker/multiplexer.Dockerfile docker/e2e.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
