@@ -32,6 +32,9 @@ func (ms msgServer) SetFibreProviderInfo(goCtx context.Context, msg *types.MsgSe
 	if err != nil {
 		return nil, errors.Wrapf(types.ErrInvalidValidator, "validator not found: %v", err)
 	}
+	if !validator.IsBonded() {
+		return nil, errors.Wrap(types.ErrInvalidValidator, "validator must be bonded")
+	}
 
 	consPubKey, err := validator.ConsPubKey()
 	if err != nil {
