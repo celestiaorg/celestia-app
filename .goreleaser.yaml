@@ -377,6 +377,8 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 checksum:
   name_template: "checksums.txt"
+  extra_files:
+    - glob: ./scripts/hardfork/recovery.sh
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:
@@ -387,5 +389,7 @@ changelog:
       - "^test:"
 release:
   prerelease: auto
+  extra_files:
+    - glob: ./scripts/hardfork/recovery.sh
 git:
   prerelease_suffix: "-"
