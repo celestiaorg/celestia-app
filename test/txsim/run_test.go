@@ -97,6 +97,7 @@ func TestTxSimulator(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			keyring, rpcAddr, grpcAddr := Setup(t)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
