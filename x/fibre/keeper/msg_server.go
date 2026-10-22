@@ -388,8 +388,11 @@ func (k Keeper) checkHistoricalInfo(ctx sdk.Context, height int64) error {
 
 // validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
-	converted, err := k.certificateValidatorSet(ctx, height, signatures)
+	converted, err := k.certificateValidatorSet(ctx, height)
 	if err != nil {
+		return err
+	}
+	if err := checkSignatureCount(converted, signatures); err != nil {
 		return err
 	}
 	cmtValidators := converted.validators

@@ -14,24 +14,9 @@ import (
 // quorumFraction is the share of voting power a certificate must carry.
 var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
 
-// certificateValidatorSet returns the converted validator set a certificate at
-// height is checked against, rejecting signatures that cannot be positional over it.
-func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64, signatures [][]byte) (*convertedValidatorSet, error) {
-	converted, err := k.resolveValidatorSet(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	// A positional list longer than the validator set is malformed; rejecting it also
-	// keeps every index in range, so a quorum short-circuit cannot skip a trailing entry.
-	if len(signatures) > len(converted.validators) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(converted.validators))
-	}
-	return converted, nil
-}
-
-// resolveValidatorSet returns the converted validator set at height. A cached
-// conversion still needs the height stored, but not decoded again.
-func (k Keeper) resolveValidatorSet(ctx sdk.Context, height int64) (*convertedValidatorSet, error) {
+// certificateValidatorSet returns the converted validator set a certificate at height is
+// checked against. A cached conversion still needs the height stored, but not decoded again.
+func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64) (*convertedValidatorSet, error) {
 	if k.valSetCache != nil {
 		if cached, ok := k.valSetCache.Get(height); ok {
 			if err := k.checkHistoricalInfo(ctx, height); err != nil {
@@ -45,6 +30,15 @@ func (k Keeper) resolveValidatorSet(ctx sdk.Context, height int64) (*convertedVa
 		return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
 	}
 	return k.validatorSetAtHeight(height, historicalInfo.Valset)
+}
+
+// checkSignatureCount rejects a positional list longer than the validator set, which also
+// keeps every index in range so a quorum short-circuit cannot skip a trailing entry.
+func checkSignatureCount(converted *convertedValidatorSet, signatures [][]byte) error {
+	if len(signatures) > len(converted.validators) {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(converted.validators))
+	}
+	return nil
 }
 
 // validatorSetCacheSize is the number of heights whose converted validator set

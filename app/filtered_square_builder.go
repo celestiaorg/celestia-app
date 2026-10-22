@@ -421,6 +421,8 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
 	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
 	settled := make(map[sigcache.Key]struct{})
+	certKeys := &fibretypes.CertKeyHolder{}
+	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
 	for i := range payForFibreTxs {
 		// Every tx decodeFibreTx accepts weighs exactly one message, so nothing more fits.
@@ -464,7 +466,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		// behind for the txs that follow it.
 		txCtx, commit := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx = fibretypes.WithCertKey(txCtx, entry.decoded)
+		certKeys.Set(entry.decoded)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
@@ -496,7 +498,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		// behind. A promise that cannot settle (overdraw, duplicate, out of
 		// gas) would commit its blob to the square without payment in
 		// FinalizeBlock, so drop the tx.
-		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+		if err := runMsgs(txCtx, sdkTx.GetMsgs(), fsb.msgRouter); err != nil {
 			logger.Error(
 				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
 				"tx", lazyTxHash(rawTx),

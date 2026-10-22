@@ -567,7 +567,7 @@ func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
 		keeper := &fakeFibreKeeper{}
 		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: decodedKey, failOnCacheWrite: true}
 		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
-		ctx := fibretypes.WithCertKey(
+		ctx := withCertKey(
 			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
 			&fibretypes.DecodedPayForFibre{Raw: txBytes, CertKey: decodedKey, CertKeyed: true},
 		)
@@ -582,7 +582,7 @@ func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
 		keeper := &fakeFibreKeeper{}
 		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: mustPffSigCacheKey(t, msg), failOnCacheWrite: true}
 		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
-		ctx := fibretypes.WithCertKey(
+		ctx := withCertKey(
 			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
 			&fibretypes.DecodedPayForFibre{Raw: []byte{0x09}, CertKey: decodedKey, CertKeyed: true},
 		)
@@ -696,4 +696,11 @@ func TestFibreSignatureVerificationDecoratorSkipsThePrePassOnACacheHit(t *testin
 	require.NoError(t, err)
 	require.Zero(t, keeper.preverifyCalls)
 	require.Zero(t, keeper.calls)
+}
+
+// withCertKey attaches a fresh holder pointed at d.
+func withCertKey(ctx sdk.Context, d *fibretypes.DecodedPayForFibre) sdk.Context {
+	h := &fibretypes.CertKeyHolder{}
+	h.Set(d)
+	return fibretypes.WithCertKeyHolder(ctx, h)
 }

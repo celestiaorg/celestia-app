@@ -208,7 +208,7 @@ func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibr
 }
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
-// ParsePayForFibreMsg reads.
+// ParsePayForFibreTx reads.
 func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
 

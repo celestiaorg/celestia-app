@@ -54,6 +54,8 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 		result.err = fmt.Errorf("failure to compute extended data square from transactions: %w", err)
 		return result
 	}
+	// Halve the EDS width rather than double the proposer's value: doubling an attacker
+	// controlled uint64 wraps, making SquareSize and SquareSize+2^63 indistinguishable.
 	result.size = uint64(eds.Width()) / 2
 	if result.size != expectedSize {
 		return result
