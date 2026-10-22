@@ -143,6 +143,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	)
 
 	modifyRootCommand(rootCommand)
+	if err := addRollbackAppVersionCheck(rootCommand); err != nil {
+		panic(fmt.Errorf("failed to add rollback check: %w", err))
+	}
 
 	// Add hooks run prior to the start command
 	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
