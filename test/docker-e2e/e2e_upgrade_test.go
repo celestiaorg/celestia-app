@@ -275,7 +275,13 @@ func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes
 	kr := cfg.Genesis.Keyring()
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
-	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
+	validators := 0
+	for _, node := range chain.GetNodes() {
+		if node.GetType() == tastoratypes.NodeTypeValidator {
+			validators++
+		}
+	}
+	s.Require().Len(records, validators, "number of accounts should match number of validators")
 
 	upgradeHeight = s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, appVersion)
 
