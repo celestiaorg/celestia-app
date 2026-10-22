@@ -263,8 +263,8 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
-		// Expire before the next block so the fast-polling client can't see the commit.
-		confirmCtx, confirmCancel := context.WithTimeout(ctx, time.Millisecond)
+		// An expired deadline avoids racing confirmation against the next block.
+		confirmCtx, confirmCancel := context.WithDeadline(ctx, time.Now().Add(-time.Second))
 		defer confirmCancel()
 		_, err = suite.txClient.ConfirmTx(confirmCtx, resp.TxHash)
 		require.Error(t, err)
