@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"

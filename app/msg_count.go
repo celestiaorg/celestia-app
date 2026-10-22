@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"

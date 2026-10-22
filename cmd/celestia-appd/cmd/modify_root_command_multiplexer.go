@@ -5,12 +5,12 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v11/multiplexer/cmd"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -18,8 +18,8 @@ import (
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
 
 var defaultArgs = []string{

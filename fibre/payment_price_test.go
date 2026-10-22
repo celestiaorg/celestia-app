@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 

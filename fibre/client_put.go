@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"

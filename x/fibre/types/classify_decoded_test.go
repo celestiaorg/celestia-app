@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"

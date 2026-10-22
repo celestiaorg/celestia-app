@@ -3,8 +3,8 @@ package types_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )

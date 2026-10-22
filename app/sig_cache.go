@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cast"
 )
