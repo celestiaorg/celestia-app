@@ -8,11 +8,13 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
+	"text/template"
 
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/creachadair/tomledit"
 	"github.com/creachadair/tomledit/parser"
 	"github.com/creachadair/tomledit/transform"
@@ -30,7 +32,7 @@ type configFile struct {
 func syncConfigCmd() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
-		Use: "sync", Short: "Add missing config.toml and Fibre server_config.toml settings and their documentation", Args: cobra.NoArgs,
+		Use: "sync", Short: "Add missing config.toml, app.toml and Fibre server_config.toml settings and their documentation", Args: cobra.NoArgs,
 		// Skip the root loader, which can create files even for a dry run.
 		PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -56,6 +58,10 @@ func syncConfigCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			appReference, err := renderAppConfig()
+			if err != nil {
+				return err
+			}
 			fibreReference, err := renderFibreConfig()
 			if err != nil {
 				return err
@@ -63,6 +69,7 @@ func syncConfigCmd() *cobra.Command {
 			home := v.GetString(flags.FlagHome)
 			files := []configFile{
 				{path: filepath.Join(home, "config", "config.toml"), reference: consensus},
+				{path: filepath.Join(home, "config", "app.toml"), reference: appReference},
 				{path: fibre.DefaultConfigPath(fibreHome), reference: fibreReference},
 			}
 			// Hosts that run only the node or only Fibre have just one of the files.
@@ -119,6 +126,17 @@ func renderConsensusConfig() ([]byte, error) {
 	return reference.Bytes(), err
 }
 
+// renderAppConfig renders app.toml as the node writes it on first start.
+func renderAppConfig() ([]byte, error) {
+	tmpl, err := template.New("app.toml").Parse(serverconfig.DefaultConfigTemplate)
+	if err != nil {
+		return nil, err
+	}
+	var reference bytes.Buffer
+	err = tmpl.Execute(&reference, app.DefaultAppConfig())
+	return reference.Bytes(), err
+}
+
 // renderFibreConfig renders server_config.toml as the Fibre server saves it.
 func renderFibreConfig() ([]byte, error) {
 	return toml.Marshal(fibre.DefaultServerConfig())
@@ -148,29 +166,31 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 		if section == nil {
 			continue
 		}
+		if section.Heading != nil && section.IsArray {
+			return nil, nil, fmt.Errorf("unsupported template section %s", section.TableName())
+		}
 		name := section.TableName()
-		// The core template uses top-level settings and single-level sections.
-		if len(name) > 1 || (section.Heading != nil && section.IsArray) {
-			return nil, nil, fmt.Errorf("unsupported template section %s", name)
+		actual, err := existingTable(before, name)
+		if err != nil {
+			return nil, nil, err
 		}
 		destination := current.Global
-		dotted := false
-		if len(name) == 1 {
-			actualKey, exists, err := configKey(before, name[0])
-			if err != nil {
-				return nil, nil, err
-			}
-			if exists {
-				name = parser.Key{actualKey}
-				if table := transform.FindTable(current, name...); table != nil {
+		var prefix parser.Key
+		if len(actual) == len(name) {
+			// Add to the closest existing table, as dotted keys if its own heading is absent.
+			depth := len(actual)
+			for ; depth > 0; depth-- {
+				if table := transform.FindTable(current, actual[:depth]...); table != nil {
 					destination = table.Section
-				} else {
-					dotted = true
+					break
 				}
-			} else {
-				destination = &tomledit.Section{Heading: section.Heading}
-				current.Sections = append(current.Sections, destination)
 			}
+			prefix = actual[depth:]
+		} else {
+			heading := *section.Heading
+			heading.Name = append(append(parser.Key(nil), actual...), name[len(actual):]...)
+			destination = &tomledit.Section{Heading: &heading}
+			current.Sections = append(current.Sections, destination)
 		}
 		for _, item := range section.Items {
 			kv, ok := item.(*parser.KeyValue)
@@ -183,9 +203,7 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 			}
 			added = append(added, strings.Join(full, "."))
 			copyKV := *kv
-			if dotted {
-				copyKV.Name = full
-			}
+			copyKV.Name = append(append(parser.Key(nil), prefix...), kv.Name...)
 			transform.InsertMapping(destination, &copyKV, false)
 		}
 	}
@@ -219,6 +237,25 @@ func configValuesPreserved(before, after map[string]any) bool {
 		}
 	}
 	return true
+}
+
+// existingTable returns the longest prefix of name that the config defines, in the config's spelling.
+// It reads the original values, so a table added during the merge relies on the template listing parents first.
+func existingTable(values map[string]any, name parser.Key) (parser.Key, error) {
+	var actual parser.Key
+	for _, key := range name {
+		actualKey, exists, err := configKey(values, key)
+		if err != nil || !exists {
+			return actual, err
+		}
+		actual = append(actual, actualKey)
+		table, ok := values[actualKey].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("config key %s is not a table", strings.Join(actual, "."))
+		}
+		values = table
+	}
+	return actual, nil
 }
 
 // Match the SDK's case-insensitive keys without introducing ambiguous duplicates.
