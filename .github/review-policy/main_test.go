@@ -30,6 +30,16 @@ var pullPath = regexp.MustCompile(`^/pulls/(\d+)$`)
 func (f *fakeAPI) Get(path string, out any) error {
 	var v any
 	switch {
+	case strings.HasPrefix(path, "/commits/"):
+		sha := strings.Split(path, "/")[2]
+		var latest []map[string]string
+		for i := len(f.statuses) - 1; i >= 0; i-- {
+			if s := f.statuses[i]; s.sha == sha {
+				latest = append(latest, map[string]string{"context": statusContext, "state": s.state, "description": s.description})
+				break
+			}
+		}
+		v = map[string]any{"statuses": latest}
 	case strings.Contains(path, "page=") && !strings.HasSuffix(path, "page=1"):
 		v = []any{}
 	case strings.HasSuffix(path, "/permission"):
@@ -122,8 +132,25 @@ func TestSharedCommitUsesStrictestResult(t *testing.T) {
 	other.Number, other.Title = 2, "docs: [high] protocol note"
 	f.pulls = append(f.pulls, other)
 	invoke(t, f, "pull_request_target", prEvent())
-	if len(f.statuses) != 2 || f.statuses[0].state != "pending" || f.statuses[1].state != "failure" {
-		t.Errorf("got %+v, want pending then failure", f.statuses)
+	if len(f.statuses) != 1 || f.statuses[0].state != "failure" {
+		t.Errorf("got %+v, want one failure", f.statuses)
+	}
+}
+
+// GitHub rejects more than 1000 statuses per commit and context, so repeated
+// sweeps must not republish an unchanged status.
+func TestUnchangedStatusIsNotRepublished(t *testing.T) {
+	f := newFake()
+	for range 3 {
+		invoke(t, f, "schedule", Event{})
+	}
+	if len(f.statuses) != 1 || f.statuses[0].state != "success" {
+		t.Fatalf("got %+v, want one success", f.statuses)
+	}
+	f.pulls[0].Title = "docs: [high] policy"
+	invoke(t, f, "schedule", Event{})
+	if len(f.statuses) != 2 || f.last().state != "failure" {
+		t.Errorf("got %+v, want a new failure after the result changed", f.statuses)
 	}
 }
 

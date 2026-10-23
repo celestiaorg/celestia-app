@@ -166,12 +166,17 @@ func (r *runner) canWrite(login string) (bool, error) {
 	return ok, nil
 }
 
-func (r *runner) status(sha, state, description string) error {
+// truncate shortens a description to GitHub's 140-character status limit.
+func truncate(description string) string {
 	if d := []rune(description); len(d) > 140 {
-		description = string(d[:140])
+		return string(d[:140])
 	}
+	return description
+}
+
+func (r *runner) status(sha, state, description string) error {
 	return r.api.Post("/statuses/"+sha, map[string]string{
-		"context": statusContext, "state": state, "description": description, "target_url": r.targetURL,
+		"context": statusContext, "state": state, "description": truncate(description), "target_url": r.targetURL,
 	})
 }
 
@@ -238,8 +243,31 @@ func (r *runner) evaluatePR(pr PullRequest) (Result, error) {
 	return res, nil
 }
 
+// current returns the latest review-policy status on a commit, if any.
+func (r *runner) current(sha string) (state, description string, err error) {
+	var combined struct {
+		Statuses []struct {
+			Context     string `json:"context"`
+			State       string `json:"state"`
+			Description string `json:"description"`
+		} `json:"statuses"`
+	}
+	if err := r.api.Get("/commits/"+sha+"/status?per_page=100", &combined); err != nil {
+		return "", "", err
+	}
+	for _, s := range combined.Statuses {
+		if s.Context == statusContext {
+			return s.State, s.Description, nil
+		}
+	}
+	return "", "", nil
+}
+
 // checkHeads publishes one status per head commit. Statuses belong to
 // commits, not PRs, so every PR sharing a commit must pass for it to pass.
+// GitHub rejects more than 1000 statuses per commit and context, so a status
+// is published only when it changes; otherwise the 15-minute sweep would
+// exhaust the limit on any head commit older than about five days.
 func (r *runner) checkHeads(pulls []PullRequest) error {
 	var shas []string
 	groups := map[string][]PullRequest{}
@@ -250,9 +278,6 @@ func (r *runner) checkHeads(pulls []PullRequest) error {
 		groups[pr.Head.SHA] = append(groups[pr.Head.SHA], pr)
 	}
 	for _, sha := range shas {
-		if err := r.status(sha, "pending", "Evaluating independent approvals"); err != nil {
-			return err
-		}
 		group := groups[sha]
 		ok := true
 		var summary string
@@ -273,6 +298,13 @@ func (r *runner) checkHeads(pulls []PullRequest) error {
 			} else {
 				summary += "review required"
 			}
+		}
+		state, description, err := r.current(sha)
+		if err != nil {
+			return err
+		}
+		if state == outcome(ok) && description == truncate(summary) {
+			continue
 		}
 		if err := r.status(sha, outcome(ok), summary); err != nil {
 			return err
