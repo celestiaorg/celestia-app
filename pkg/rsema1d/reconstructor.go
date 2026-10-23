@@ -14,8 +14,21 @@ import (
 var ErrNotEnoughRows = errors.New("not enough rows to reconstruct")
 
 // ErrInvalidEncoding is returned when committed original rows do not match the
-// committed RLC values, so the blob was not encoded correctly.
+// committed RLC values.
 var ErrInvalidEncoding = errors.New("original rows do not match committed RLC values")
+
+// InvalidRowsError lists the original rows whose committed bytes do not match
+// their committed RLC values. It wraps [ErrInvalidEncoding]. The listed rows
+// can be dropped with [Reconstructor.Reject] and recovered from parity.
+type InvalidRowsError struct {
+	Indices []int
+}
+
+func (e *InvalidRowsError) Error() string {
+	return fmt.Sprintf("%v: rows %v", ErrInvalidEncoding, e.Indices)
+}
+
+func (e *InvalidRowsError) Unwrap() error { return ErrInvalidEncoding }
 
 // Reconstructor is the download-path row collector: it collects verified row
 // proofs from many sources and recovers the K original rows once enough unique
@@ -23,7 +36,9 @@ var ErrInvalidEncoding = errors.New("original rows do not match committed RLC va
 // commitment as it lands, and parity rows are RLC-checked too. Original rows
 // are RLC-checked once, in one batch, by [Reconstructor.Reconstruct]: a source
 // cannot change them without breaking their proofs, so a mismatch there means
-// the blob itself was encoded wrongly.
+// the committed row itself is wrong. Reconstruct then reports every such row in
+// an [InvalidRowsError]; the caller drops them with [Reconstructor.Reject] and
+// fetches more rows, recovering the dropped ones from parity.
 //
 // Reconstructor does not own row storage. The caller supplies a row buffer to
 // [Reconstructor.Reconstruct]; dedup happens internally via a per-index seen
@@ -49,9 +64,10 @@ type Reconstructor struct {
 	verifierRLC atomic.Bool
 	verifier    *Verifier
 
-	seenMu sync.Mutex
-	seen   []bool
-	have   int
+	seenMu   sync.Mutex
+	seen     []bool
+	rejected []bool // committed original rows that failed their RLC check
+	have     int
 }
 
 // NewReconstructor builds a Reconstructor bound to this Coder's config and the
@@ -66,6 +82,7 @@ func (c *Coder) NewReconstructor(commitment Commitment) (*Reconstructor, error) 
 		commitment: commitment,
 		verifier:   verifier,
 		seen:       make([]bool, c.config.K+c.config.N),
+		rejected:   make([]bool, c.config.K),
 	}, nil
 }
 
@@ -96,7 +113,7 @@ func (r *Reconstructor) addVerified(proofs []*RowProof) []*RowProof {
 	defer r.seenMu.Unlock()
 	n := 0
 	for _, p := range proofs {
-		if r.seen[p.Index] {
+		if r.seen[p.Index] { // rejected rows stay seen, so they are never re-added
 			continue
 		}
 		r.seen[p.Index] = true
@@ -105,6 +122,26 @@ func (r *Reconstructor) addVerified(proofs []*RowProof) []*RowProof {
 		r.have++
 	}
 	return proofs[:n]
+}
+
+// Reject drops original rows that failed their RLC check, as reported by an
+// [InvalidRowsError] from [Reconstructor.Reconstruct], so they no longer count
+// towards K and are never accepted again. The caller must also clear their
+// slots in its row buffer before calling Reconstruct again. Caller must ensure
+// no Add is in flight.
+func (r *Reconstructor) Reject(indices []int) {
+	r.seenMu.Lock()
+	defer r.seenMu.Unlock()
+	for _, idx := range indices {
+		if idx < 0 || idx >= len(r.rejected) || r.rejected[idx] {
+			continue
+		}
+		r.rejected[idx] = true
+		if r.seen[idx] {
+			r.have--
+		}
+		r.seen[idx] = true
+	}
 }
 
 // Have returns the number of unique rows seen so far.
@@ -129,6 +166,9 @@ func (r *Reconstructor) Want() int {
 // data-shard recovery. rows must have length K+N, with previously-Added rows
 // placed at their reported indices and missing entries set to nil. Caller
 // must ensure no Add is in flight.
+//
+// If committed original rows fail their RLC check, Reconstruct leaves rows
+// untouched and returns an [InvalidRowsError] listing all of them.
 func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 	if want := r.Want(); want > 0 {
 		return fmt.Errorf("%w: need %d more rows", ErrNotEnoughRows, want)
@@ -167,7 +207,8 @@ func (r *Reconstructor) verify(rlc rlc.Vector, proofs []*RowProof) error {
 	return nil
 }
 
-// verifyOriginals runs the deferred RLC check over the original rows present in rows.
+// verifyOriginals runs the deferred RLC check over the original rows present in
+// rows, skipping rejected ones.
 func (r *Reconstructor) verifyOriginals(rows [][]byte) error {
 	k := r.coder.config.K
 	if len(rows) < k {
@@ -176,7 +217,7 @@ func (r *Reconstructor) verifyOriginals(rows [][]byte) error {
 	var present [][]byte
 	var indices []int
 	for i, row := range rows[:k] {
-		if len(row) > 0 {
+		if len(row) > 0 && !r.rejected[i] {
 			present = append(present, row)
 			indices = append(indices, i)
 		}

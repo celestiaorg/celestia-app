@@ -151,3 +151,83 @@ func TestReconstructorRejectsTamperedRowsOnAdd(t *testing.T) {
 		}
 	}
 }
+
+// poisonedEncode builds a blob whose row tree commits a garbage original row at
+// bad, while the committed RLC vector and parity come from the honest rows. A
+// validator holding row bad signs it; every other row verifies. It returns the
+// committed rows, the honest rows and the commitment.
+func poisonedEncode(t *testing.T, bad int) (*Coder, [][]byte, [][]byte, rlc.Vector, *merkle.Tree, Commitment) {
+	t.Helper()
+	coder, ed := deferredEncode(t)
+	honest := make([][]byte, deferredK+deferredN)
+	for i := range honest {
+		honest[i] = bytes.Clone(ed.Row(i))
+	}
+	committed := append([][]byte(nil), honest...)
+	committed[bad] = bytes.Repeat([]byte{0xAB}, deferredRowSize)
+
+	tree := merkle.NewTree(committed, 1)
+	rowRoot := tree.Root()
+	coeffs := rlc.DeriveCoefficients(rowRoot, deferredK, deferredN, deferredRowSize, 1)
+	vec := rlc.Compute(honest[:deferredK], coeffs, 1)
+	var leaf [field.GF128Size]byte
+	rlcRoot := computeRLCRoot(vec, make([]byte, deferredK*merkle.NodeSize), leaf[:])
+	return coder, committed, honest, vec, tree, sha256.Sum256(append(rowRoot[:], rlcRoot[:]...))
+}
+
+// TestReconstructorRecoversFromPoisonedOriginal: the poisoned row passes Add,
+// Reconstruct reports it, and after Reject plus one parity row the honest data
+// is recovered.
+func TestReconstructorRecoversFromPoisonedOriginal(t *testing.T) {
+	const bad = 5
+	coder, committed, honest, vec, tree, commitment := poisonedEncode(t, bad)
+	proofsFor := func(indices []int) []*RowProof {
+		out := make([]*RowProof, len(indices))
+		for i, idx := range indices {
+			proof, err := tree.Proof(idx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out[i] = &RowProof{Index: idx, Row: bytes.Clone(committed[idx]), RowProof: proof}
+		}
+		return out
+	}
+
+	r, err := coder.NewReconstructor(commitment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := addInShards(t, r, proofsFor(indexRange(0, deferredK)), vec)
+
+	var invalid *InvalidRowsError
+	if err := r.Reconstruct(rows); !errors.As(err, &invalid) || !errors.Is(err, ErrInvalidEncoding) {
+		t.Fatalf("expected InvalidRowsError, got %v", err)
+	}
+	if len(invalid.Indices) != 1 || invalid.Indices[0] != bad {
+		t.Fatalf("invalid rows %v, want [%d]", invalid.Indices, bad)
+	}
+
+	r.Reject(invalid.Indices)
+	rows[bad] = rows[bad][:0]
+	if r.Want() != 1 {
+		t.Fatalf("Want = %d after Reject, want 1", r.Want())
+	}
+	// the poisoned row is never accepted again
+	if novel, err := r.Add(proofsFor([]int{bad}), vec); err != nil || len(novel) != 0 {
+		t.Fatalf("re-added rejected row: novel=%d err=%v", len(novel), err)
+	}
+	novel, err := r.Add(proofsFor([]int{deferredK}), vec)
+	if err != nil || len(novel) != 1 {
+		t.Fatalf("parity Add: novel=%d err=%v", len(novel), err)
+	}
+	rows[deferredK] = novel[0].Row
+
+	if err := r.Reconstruct(rows); err != nil {
+		t.Fatal(err)
+	}
+	for i := range deferredK {
+		if !bytes.Equal(rows[i], honest[i]) {
+			t.Fatalf("row %d differs from the honest row", i)
+		}
+	}
+}

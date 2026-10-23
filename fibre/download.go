@@ -34,7 +34,13 @@ type download struct {
 	slab     []byte // K*rowSize contiguous pool region; nil until first Add and after Free
 
 	rows [][]byte // K+N; rows[:K] become slab-backed after the first Add
+
+	refetched bool // invalid original rows were already dropped once
 }
+
+// errRefetch tells the caller of [download.Blob] that invalid original rows
+// were dropped and the shard loop must run again to replace them.
+var errRefetch = errors.New("refetching rows to replace invalid original rows")
 
 func newDownload(
 	blobCfg BlobConfig,
@@ -182,6 +188,10 @@ func (s *download) release(from validator.SelectedValidator) {
 // [Blob.Free]. Call after the [download.ShardSources] range has exited. On
 // error Blob releases the slab itself, so callers do not need a deferred Free
 // on the error path.
+//
+// If committed original rows fail their RLC check, Blob drops them, keeps the
+// slab and returns [errRefetch] once: the caller runs the shard loop again so
+// the dropped rows are recovered from parity, then calls Blob again.
 func (s *download) Blob(ctx context.Context) (*Blob, error) {
 	s.inflightWg.Wait()
 
@@ -191,6 +201,9 @@ func (s *download) Blob(ctx context.Context) (*Blob, error) {
 	}
 
 	if err := s.reconstruct(); err != nil {
+		if s.dropInvalidRows(err) {
+			return nil, errRefetch
+		}
 		s.freeSlab()
 		return nil, err
 	}
@@ -229,6 +242,22 @@ func (s *download) reconstruct() error {
 	}
 
 	return fmt.Errorf("%w: %w", ErrNotFound, err)
+}
+
+// dropInvalidRows handles the first [rsema1d.InvalidRowsError]: it rejects the
+// listed rows and clears their slots so the next shard loop replaces them.
+// Reports whether the caller should refetch.
+func (s *download) dropInvalidRows(err error) bool {
+	var invalid *rsema1d.InvalidRowsError
+	if s.refetched || !errors.As(err, &invalid) {
+		return false
+	}
+	s.refetched = true
+	s.reconstructor.Reject(invalid.Indices)
+	for _, idx := range invalid.Indices {
+		s.rows[idx] = s.rows[idx][:0]
+	}
+	return true
 }
 
 // acquireSlab grabs a K*rowSize region from DataPool and points the
