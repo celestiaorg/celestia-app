@@ -33,6 +33,17 @@ var (
 )
 
 func RandMsgPayForBlobsWithSigner(rand *rand.Rand, signer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*share.Blob) {
+	blobs := RandV0Blobs(rand, size, blobCount)
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.Version, blobs...)
+	if err != nil {
+		panic(err)
+	}
+	return msg, blobs
+}
+
+// RandV0Blobs returns the blobs of RandMsgPayForBlobsWithSigner without
+// computing the share commitments of the msg.
+func RandV0Blobs(rand *rand.Rand, size, blobCount int) []*share.Blob {
 	blobs := make([]*share.Blob, blobCount)
 	for i := range blobCount {
 		blob, err := blobtypes.NewV0Blob(testfactory.RandomBlobNamespaceWithPRG(rand), random.Bytes(size))
@@ -41,12 +52,7 @@ func RandMsgPayForBlobsWithSigner(rand *rand.Rand, signer string, size, blobCoun
 		}
 		blobs[i] = blob
 	}
-
-	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.Version, blobs...)
-	if err != nil {
-		panic(err)
-	}
-	return msg, blobs
+	return blobs
 }
 
 func RandV0BlobsWithNamespace(namespaces []share.Namespace, sizes []int) []*share.Blob {
@@ -116,7 +122,6 @@ func RandBlobTxsWithAccounts(
 	opts := DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := range accounts {
-		addr := testfactory.GetAddress(kr, accounts[i])
 		client, err := user.SetupTxClient(context.Background(), kr, conn, enc)
 		if err != nil {
 			panic(err)
@@ -137,7 +142,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		_, blobs := RandMsgPayForBlobsWithSigner(r, addr.String(), randomizedSize, randomizedBlobCount)
+		blobs := RandV0Blobs(r, randomizedSize, randomizedBlobCount)
 		cTx, _, err := client.Signer().CreatePayForBlobs(accounts[i], blobs, opts...)
 		if err != nil {
 			panic(err)
@@ -149,10 +154,9 @@ func RandBlobTxsWithAccounts(
 }
 
 func RandBlobTxs(signer *user.Signer, r *rand.Rand, count, blobsPerTx, size int) coretypes.Txs {
-	addr := signer.Account(testfactory.TestAccName).Address()
 	txs := make([]coretypes.Tx, count)
 	for i := range count {
-		_, blobs := RandMsgPayForBlobsWithSigner(r, addr.String(), size, blobsPerTx)
+		blobs := RandV0Blobs(r, size, blobsPerTx)
 		tx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)

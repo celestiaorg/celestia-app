@@ -5,10 +5,12 @@ import (
 	"net"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
-	"github.com/celestiaorg/celestia-app/v11/pkg/user/utils"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -173,8 +175,11 @@ func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHan
 		otherConns = conns[1:]
 	}
 
-	// Create TxClient with mock connection
-	encCfg, txClient, _ := utils.SetupTxClientWithDefaultParams(t)
+	// The mocks never check signatures, so a keyring-only signer is enough.
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	kr := testfactory.TestKeyring(encCfg.Codec)
+	signer, err := user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, user.NewAccount(testfactory.TestAccName, 1, 0))
+	require.NoError(t, err)
 
 	// Build options list
 	clientOpts := opts
@@ -184,7 +189,7 @@ func setupTxClientWithMockServers(t *testing.T, broadcastHandlers []BroadcastHan
 
 	mockTxClient, err := user.NewTxClient(
 		encCfg.Codec,
-		txClient.Signer(),
+		signer,
 		primaryConn,
 		encCfg.InterfaceRegistry,
 		clientOpts...,
