@@ -1,7 +1,10 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"errors"
 	"math/rand/v2"
 	"testing"
 
@@ -9,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
@@ -229,4 +233,103 @@ func TestDownload_DispatchCount(t *testing.T) {
 			require.NotNil(t, blob)
 		})
 	}
+}
+
+// A validator certifies a blob whose row tree commits a garbage original row
+// while the RLC vector and parity come from the honest rows. The row passes its
+// Merkle proof and is stored; Blob reports it once, the shard loop re-enters,
+// and the blob is recovered from another validator's parity rows.
+func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
+	const bad = 3
+	cfg := &rsema1d.Config{K: testK, N: testN, WorkerCount: 1}
+	coder, err := rsema1d.NewCoder(cfg)
+	require.NoError(t, err)
+
+	r := rand.New(rand.NewPCG(5, 6))
+	rows := make([][]byte, testK+testN)
+	for i := range rows {
+		rows[i] = make([]byte, testRowSize)
+		if i < testK {
+			for j := range rows[i] {
+				rows[i][j] = byte(r.IntN(256))
+			}
+		}
+	}
+	hdr := newBlobHeaderV0(testK*testRowSize - blobHeaderLen)
+	hdr.marshalTo(rows[0])
+	ed, err := coder.Encode(rows)
+	require.NoError(t, err)
+
+	honest := make([][]byte, testK+testN)
+	for i := range honest {
+		honest[i] = bytes.Clone(ed.Row(i))
+	}
+	committed := append([][]byte(nil), honest...)
+	committed[bad] = bytes.Repeat([]byte{0xAB}, testRowSize)
+
+	tree := merkle.NewTree(committed, 1)
+	rowRoot := tree.Root()
+	coeffs := rlc.DeriveCoefficients(rowRoot, testK, testN, testRowSize, 1)
+	vec := rlc.Compute(honest[:testK], coeffs, 1)
+	rlcRoot := merkle.NewTreeFuncInto(make([]byte, merkle.TreeBufferSize(testK)), 1, func(i int, dst []byte) []byte {
+		if cap(dst) == 0 {
+			dst = make([]byte, field.GF128Size)
+		}
+		field.EncodeGF128(dst, vec[i])
+		return dst
+	}).Root()
+	commitment := sha256.Sum256(append(rowRoot[:], rlcRoot[:]...))
+
+	proofsFor := func(from, to int) []*rsema1d.RowProof {
+		out := make([]*rsema1d.RowProof, 0, to-from)
+		for idx := from; idx < to; idx++ {
+			proof, err := tree.Proof(idx)
+			require.NoError(t, err)
+			out = append(out, &rsema1d.RowProof{Index: idx, Row: bytes.Clone(committed[idx]), RowProof: proof})
+		}
+		return out
+	}
+	// validator 0 holds all originals, including the poisoned one; validator 1 holds parity
+	shards := [][]*rsema1d.RowProof{proofsFor(0, testK), proofsFor(testK, testK+testN)}
+
+	selected := make([]validator.SelectedValidator, len(shards))
+	for i := range shards {
+		priv := cmted25519.GenPrivKey()
+		selected[i] = validator.SelectedValidator{
+			Validator:    &core.Validator{Address: priv.PubKey().Address(), PubKey: priv.PubKey(), VotingPower: 1},
+			ExpectedRows: testK,
+		}
+	}
+	blobCfg := BlobConfig{
+		OriginalRows: testK,
+		ParityRows:   testN,
+		MaxDataSize:  testK*testRowSize - blobHeaderLen,
+		Coder:        coder,
+		DataPool:     row.NewPool(testRowSize, testK),
+	}
+	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
+	require.NoError(t, err)
+	t.Cleanup(d.freeSlab)
+
+	ctx := context.Background()
+	dispatched, refetches := 0, 0
+	var blob *Blob
+	for {
+		for from := range d.ShardSources(ctx) {
+			require.NoError(t, d.AddShard(from, shards[dispatched], vec))
+			dispatched++
+		}
+		blob, err = d.Blob(ctx)
+		if errors.Is(err, errRefetch) {
+			refetches++
+			continue
+		}
+		break
+	}
+	require.NoError(t, err)
+	require.Equal(t, 1, refetches)
+	require.Equal(t, 2, dispatched)
+
+	want := bytes.Join(honest[:testK], nil)[blobHeaderLen:]
+	require.Equal(t, want, blob.Data())
 }
