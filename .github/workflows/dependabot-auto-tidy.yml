@@ -7,7 +7,7 @@ name: dependabot-auto-tidy
 # red, which a maintainer then has to fix by hand. Regenerate and push the result
 # so those pull requests stay green on their own. See #7641.
 #
-# The push uses DEPENDABOT_AUTO_TIDY_TOKEN, a personal access token that needs
+# The API commit uses DEPENDABOT_AUTO_TIDY_TOKEN, a personal access token that needs
 # only Contents: write on this repository. It is deliberately not granted
 # Workflows: write -- scripts/commit-tidy-changes.sh refuses to commit anything
 # other than go.mod/go.sum, so the token never needs to touch .github/workflows.
@@ -55,14 +55,8 @@ jobs:
           # Check out the branch itself rather than the detached merge commit,
           # so the tidy commit can be pushed back to the pull request.
           ref: ${{ github.event.pull_request.head.ref }}
-          # Passing the token here is what makes the push work. A push made with
-          # the default GITHUB_TOKEN does not retrigger workflows, so
-          # go-mod-tidy-check would never re-run and the pull request would stay
-          # red. Note that checkout persists whatever token it is given into
-          # local git config as an http.extraheader, which takes precedence over
-          # any credential helper -- configuring a token any other way leaves
-          # GITHUB_TOKEN in place and silently reintroduces that failure.
           token: ${{ secrets.DEPENDABOT_AUTO_TIDY_TOKEN }}
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         if: steps.creds.outputs.configured == 'true'
@@ -77,4 +71,8 @@ jobs:
       # push below terminates instead of looping.
       - name: Commit and push any changes
         if: steps.creds.outputs.configured == 'true'
+        env:
+          # This token retriggers CI; createCommitOnBranch supplies the verified
+          # signature without requiring a signing key in Actions.
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTO_TIDY_TOKEN }}
         run: ./scripts/commit-tidy-changes.sh
