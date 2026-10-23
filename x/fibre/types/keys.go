@@ -35,6 +35,9 @@ var (
 	// still treat as fresh. It only ever moves forward, which is what stops a settled,
 	// already-pruned promise from being replayed after governance raises WithdrawalDelay.
 	PromiseFreshnessFloorKey = []byte{0x07}
+	// GenesisHeightKey holds the height of the first block this chain's state executed,
+	// recorded by InitGenesis. Its signing set has no historical info at the height before.
+	GenesisHeightKey = []byte{0x08}
 )
 
 // EscrowAccountKey returns the store key for an escrow account
