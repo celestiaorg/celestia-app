@@ -99,7 +99,7 @@ attributes:
 
 ## Queries
 
-The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is jailed, unbonded, and past its unbonding time plus a seven-day grace period.
+The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is not bonded and is past its unbonding time plus a seven-day grace period, whether or not it is jailed.
 
 ### FibreProviderInfo
 
