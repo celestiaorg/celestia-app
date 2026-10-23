@@ -13,8 +13,10 @@ Its version is independent of the app's major version.
 ## Source and compatibility
 
 Imported from [celestiaorg/rsmt2d v0.15.3](https://github.com/celestiaorg/rsmt2d/tree/fb27392a895e911649bc811bb186673508f925a8).
-The runtime Go files, dependencies, LICENSE, and NOTICE are unchanged. The module
-declaration and external test imports use the new path. All tests from that
+The dependencies, LICENSE, and NOTICE are unchanged. The runtime Go files are
+unchanged except that the unexported, test-only `deepCopy` method now checks
+the import error before dereferencing. The module declaration and external test
+imports use the new path. All tests from that
 release are retained. The original [audit](https://github.com/celestiaorg/rsmt2d/blob/fb27392a895e911649bc811bb186673508f925a8/audit/informal-systems.pdf)
 and [design paper](https://arxiv.org/abs/1809.09044) remain available.
 

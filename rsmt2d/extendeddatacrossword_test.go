@@ -261,7 +261,7 @@ func TestCorruptedEdsReturnsErrByzantineData(t *testing.T) {
 }
 
 // TestRepairVerifiesOrthogonalVectorsAgainstRoots is a regression test for
-// https://github.com/celestiaorg/celestia-app/rsmt2d/issues/118. It guards the fix from
+// https://github.com/celestiaorg/rsmt2d/issues/118. It guards the fix from
 // PR #114 (originally reported as #113): when a row solve newly completes an
 // orthogonal column (or a column solve completes a row), that vector must be
 // verified against its committed Merkle root including the just-rebuilt share.
