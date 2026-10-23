@@ -65,15 +65,15 @@ func TestEvaluate(t *testing.T) {
 			reviews: []Review{approve("prompter", 1)}, ok: true, approved: []string{"prompter"},
 		},
 		{name: "outside author needs one maintainer", pr: func(p *PullRequest) { p.User = person("outsider") }},
-		{name: "medium needs one approval", title: medium},
-		{name: "medium with one approval", title: medium, reviews: []Review{approve("alice", 1)}, ok: true, approved: []string{"alice"}},
-		{name: "high counts each reviewer once", title: high, reviews: []Review{approve("alice", 1), approve("Alice", 2)}, approved: []string{"alice"}},
+		{name: "medium needs no reviewer", title: medium, ok: true},
+		{name: "high needs one approval", title: high},
+		{name: "high with one approval", title: high, reviews: []Review{approve("alice", 1)}, ok: true, approved: []string{"alice"}},
 		{
-			name: "high with two distinct approvals", title: high, reviews: []Review{approve("bob", 2), approve("alice", 1)},
-			ok: true, approved: []string{"alice", "bob"},
+			name: "each reviewer counts once", title: high, reviews: []Review{approve("alice", 1), approve("Alice", 2)},
+			ok: true, approved: []string{"alice"},
 		},
 		{
-			name: "bots, readers, and stale approvals do not count", title: medium,
+			name: "bots, readers, and stale approvals do not count", title: high,
 			reviews: []Review{
 				{ID: 1, User: agent, State: "APPROVED", CommitID: sha},
 				approve("reader", 2),
@@ -81,11 +81,11 @@ func TestEvaluate(t *testing.T) {
 			},
 		},
 		{
-			name: "dismissal erases approval", title: medium,
+			name: "dismissal erases approval", title: high,
 			reviews: []Review{approve("alice", 1), {ID: 2, User: person("alice"), State: "DISMISSED", CommitID: sha}},
 		},
 		{
-			name: "comment does not erase approval", title: medium,
+			name: "comment does not erase approval", title: high,
 			reviews: []Review{approve("alice", 1), {ID: 2, User: person("alice"), State: "COMMENTED", CommitID: sha}},
 			ok:      true, approved: []string{"alice"},
 		},

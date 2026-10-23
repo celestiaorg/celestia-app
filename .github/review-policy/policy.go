@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// Risk is the review tier of a pull request. Its value is the number of
-// independent human approvals the tier requires.
+// Risk is the review tier of a pull request.
 type Risk int
 
 const (
@@ -20,6 +19,9 @@ const (
 )
 
 func (r Risk) String() string { return [...]string{"low", "medium", "high"}[r] }
+
+// Approvals returns the number of independent human approvals the tier requires.
+func (r Risk) Approvals() int { return [...]int{0, 0, 1}[r] }
 
 var titleTag = regexp.MustCompile(`^[a-z]+(\([^\r\n)]+\))?!?: \[(low|medium|high)\] \S`)
 
@@ -60,7 +62,7 @@ func evaluate(pr PullRequest, reviews []Review, canWrite func(string) (bool, err
 	}
 	// Bot-authored and external PRs always need one maintainer. For agent PRs,
 	// the maintainer who prompted the agent may be that approver.
-	required := int(risk)
+	required := risk.Approvals()
 	if !trusted {
 		required = max(required, 1)
 	}

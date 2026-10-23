@@ -180,7 +180,7 @@ func TestWorkflowRunFiltering(t *testing.T) {
 		Number int `json:"number"`
 	}{1})
 	f = newFake()
-	f.pulls[0].Title = "docs: [medium] update"
+	f.pulls[0].Title = "docs: [high] update"
 	f.reviews = []Review{approve("alice", 1), {ID: 2, User: person("alice"), State: "DISMISSED", CommitID: sha}}
 	invoke(t, f, "workflow_run", Event{WorkflowRun: review})
 	if got := f.last().state; got != "failure" {

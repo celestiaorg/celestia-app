@@ -11,8 +11,8 @@ tiered approval counts, commit-bound approvals, and agent approvals never count.
 | Title tag | Independent human approvals |
 | --- | --- |
 | Low | 0 for a trusted author; otherwise 1 |
-| Medium | 1 |
-| High | 2 |
+| Medium | 0 for a trusted author; otherwise 1 |
+| High | 1 |
 
 A trusted author is a human with current write, maintain, or admin permission.
 Bot-authored PRs (including coding agents and Dependabot) and PRs from people
@@ -61,12 +61,11 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
 1. Merge these files through the existing review process. Privileged evaluation
    uses default-branch code, so this initial PR cannot bootstrap its own check.
 2. Open a small PR or manually run `review-policy-evaluator` to publish the first
-   `review-policy` status. Confirm a low-risk trusted PR passes, a medium PR
-   waits for one other person, a high PR waits for two, and an agent PR waits
-   for one.
+   `review-policy` status. Confirm low and medium PRs from trusted authors pass,
+   a high PR waits for one other person, and an agent PR waits for one.
 3. Protect enforcement before reducing blanket review counts. Because the tier
    comes only from the title, a `[low]` PR could otherwise change this policy
-   without review. In a branch ruleset, require two approvals from
+   without review. In a branch ruleset, require an approval from
    `@celestiaorg/protocol` for `.github/**`, `.agents/**`, `.claude/**`,
    `.cursor/**`, agent/reviewer instruction files, and `docs/ai/**`.
 4. Require the **`review-policy` commit status**, selecting GitHub Actions as its
