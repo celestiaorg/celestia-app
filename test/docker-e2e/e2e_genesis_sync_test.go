@@ -93,7 +93,7 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	// start means genesis was processed and the first blocks were synced.
 	nodes := chain.GetNodes()
 	s.Require().Len(nodes, 1, "expected exactly one node")
-	probe := s.genesisSyncProbe(nodes[0].Name(), peers)
+	probe := s.genesisSyncProbe(chain.GetNode().Name(), peers)
 	if err := startWithArchivePeerCheck(ctx, chain.Start, probe, archivePeerTimeout, 5*time.Second); err != nil {
 		s.logNodeDiagnostics(ctx, chain.GetNodes())
 		s.Require().NoError(err, "%s genesis sync failed (archive peers: %s)", netCfg.Name, peers)
