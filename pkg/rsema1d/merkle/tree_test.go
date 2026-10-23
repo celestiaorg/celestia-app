@@ -2,6 +2,7 @@ package merkle_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -287,6 +288,63 @@ func TestRootFromProof(t *testing.T) {
 			t.Errorf("Index %d: expected oversized-sibling error, got %v", i, err)
 		}
 	}
+}
+
+// TestTreeRootPinned pins Merkle roots for fixed leaf sets, captured from an
+// independent crypto/sha256 reference (a plain leaf=sha256(0x00||data),
+// node=sha256(0x01||l||r) tree). Every tree constructor must reproduce them, so
+// the test holds on every architecture and dispatch path: a two-lane SHA-256 bug
+// on arm64 or a divergence between the paired and portable paths is caught even
+// if both the implementation and its in-repo reference drift together.
+func TestTreeRootPinned(t *testing.T) {
+	cases := []struct {
+		name   string
+		leaves [][]byte
+		want   string
+	}{
+		{
+			"64x32768", patternLeaves(64, 32768, func(i, j int) byte { return byte(i*7 + j) }),
+			"d60a298d50c078ab36e021e25c407c1a89e1b94e7333099aa642251be551bcd1",
+		},
+		{
+			"16x1000", patternLeaves(16, 1000, func(i, j int) byte { return byte(3*i + 5*j + 1) }),
+			"96595229e3a864d4f9c5027dd0996f03ad9d67205f860a4d776518e1edd7f8f9",
+		},
+		{
+			"1x70000", patternLeaves(1, 70000, func(_, j int) byte { return byte(j) }),
+			"64cd5f1181b788c7139fa2067e0c64aaf07af49d0ef97775f7bee9d1978d2085",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			n := len(tc.leaves)
+			roots := map[string][32]byte{
+				"NewTree":     merkle.NewTree(tc.leaves, 4).Root(),
+				"NewTreeInto": merkle.NewTreeInto(make([]byte, merkle.TreeBufferSize(n)), tc.leaves, 4).Root(),
+				"NewTreeFuncInto": merkle.NewTreeFuncInto(make([]byte, merkle.TreeBufferSize(n)), 4,
+					func(i int, _ []byte) []byte { return tc.leaves[i] }).Root(),
+				"RootFromFunc": merkle.RootFromFunc(make([]byte, n*merkle.NodeSize),
+					func(i int, _ []byte) []byte { return tc.leaves[i] }),
+			}
+			for name, got := range roots {
+				if hex.EncodeToString(got[:]) != tc.want {
+					t.Errorf("%s: root %x, want %s", name, got[:], tc.want)
+				}
+			}
+		})
+	}
+}
+
+// patternLeaves builds n leaves of size bytes, leaf i byte j set to fill(i, j).
+func patternLeaves(n, size int, fill func(i, j int) byte) [][]byte {
+	leaves := make([][]byte, n)
+	for i := range leaves {
+		leaves[i] = make([]byte, size)
+		for j := range leaves[i] {
+			leaves[i][j] = fill(i, j)
+		}
+	}
+	return leaves
 }
 
 // makeTestLeaves builds n 32-byte leaves with a deterministic per-index pattern.

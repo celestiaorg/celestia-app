@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand/v2"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -23,11 +25,14 @@ func randBytes(rng *rand.Rand, n int) []byte {
 
 func TestHashLeaf2(t *testing.T) {
 	rng := rand.New(rand.NewPCG(1, 2))
-	var lengths []int
+	// 0–300 densely, then larger sizes up to 70 KiB including SHA-256 block
+	// boundaries around 64 KiB.
+	large := []int{32768, 32769, 65535, 65536, 65537, 65553, 70000, 71680}
+	lengths := make([]int, 0, 301+len(large))
 	for n := range 301 {
 		lengths = append(lengths, n)
 	}
-	lengths = append(lengths, 32768, 32769, 65553)
+	lengths = append(lengths, large...)
 	for _, n := range lengths {
 		a, b := randBytes(rng, n), randBytes(rng, n)
 		da, db := make([]byte, NodeSize), make([]byte, NodeSize)
@@ -38,9 +43,38 @@ func TestHashLeaf2(t *testing.T) {
 	}
 }
 
+// TestRequireASM logs which leaf-hash path is in use. When RSEMA1D_REQUIRE_ASM=1
+// it FAILS (does not skip) if an asm-capable arm64 build is not actually running
+// the two-lane SHA-256 path, so a runner-image or CPU regression cannot silently
+// drop asm coverage in CI. It mirrors the rlc package's TestRequireASM.
+func TestRequireASM(t *testing.T) {
+	var path string
+	switch {
+	case !sha2x2Build:
+		path = "portable (two-lane SHA-256 excluded by GOARCH or build tags)"
+	case hasSHA2x2:
+		path = "arm64 two-lane SHA-256"
+	default:
+		path = "portable (arm64 CPU lacks SHA2)"
+	}
+	t.Logf("Merkle leaf-hash path: %s (GOARCH=%s)", path, runtime.GOARCH)
+
+	if os.Getenv("RSEMA1D_REQUIRE_ASM") != "1" {
+		return
+	}
+	switch {
+	case runtime.GOARCH != "arm64":
+		t.Logf("RSEMA1D_REQUIRE_ASM=1 not enforced on GOARCH=%s", runtime.GOARCH)
+	case !sha2x2Build:
+		t.Logf("RSEMA1D_REQUIRE_ASM=1 not enforced: two-lane SHA-256 excluded by build tags (purego)")
+	case !hasSHA2x2:
+		t.Fatal("RSEMA1D_REQUIRE_ASM=1 but the two-lane SHA-256 path is inactive on this arm64 CPU (missing SHA2?)")
+	}
+}
+
 func TestHashLeaf2Unaligned(t *testing.T) {
 	rng := rand.New(rand.NewPCG(3, 4))
-	for _, n := range []int{63, 64, 100, 1000, 32768} {
+	for _, n := range []int{63, 64, 100, 1000, 32768, 65537, 71680} {
 		for off := range 8 {
 			backing := randBytes(rng, 2*n+16)
 			a, b := backing[off:off+n], backing[off+n+3:off+2*n+3]
@@ -108,7 +142,11 @@ func TestNewTreeIntoMatchesFuncInto(t *testing.T) {
 func FuzzHashLeaf2(f *testing.F) {
 	f.Add([]byte{}, []byte{})
 	f.Add(bytes.Repeat([]byte{1}, 63), bytes.Repeat([]byte{2}, 63))
+	f.Add(bytes.Repeat([]byte{1}, 64), bytes.Repeat([]byte{2}, 64))
 	f.Add(bytes.Repeat([]byte{1}, 200), bytes.Repeat([]byte{2}, 200))
+	f.Add(bytes.Repeat([]byte{1}, 1000), bytes.Repeat([]byte{2}, 1000))
+	// a ~70 KiB seed so normal `go test` exercises the long multi-block path
+	f.Add(bytes.Repeat([]byte{1}, 71680), bytes.Repeat([]byte{2}, 71680))
 	f.Fuzz(func(t *testing.T, a, b []byte) {
 		da, db := make([]byte, NodeSize), make([]byte, NodeSize)
 		hashLeaf2(a, b, da, db)
