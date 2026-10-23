@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/cosmos/cosmos-sdk/server"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -344,11 +345,13 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 		name      string
 		useEnv    bool // pass the Fibre home via FIBRE_HOME instead of --fibre-home
 		coreFile  bool // whether a config.toml exists in the node home
+		appFile   bool // whether an app.toml exists in the node home
 		fibreFile bool // whether a server_config.toml exists in the Fibre home
 	}{
-		{name: "fibre home from flag", coreFile: true, fibreFile: true},
-		{name: "fibre home from env", useEnv: true, coreFile: true, fibreFile: true},
-		{name: "no fibre file is skipped", coreFile: true},
+		{name: "fibre home from flag", coreFile: true, appFile: true, fibreFile: true},
+		{name: "fibre home from env", useEnv: true, coreFile: true, appFile: true, fibreFile: true},
+		{name: "no fibre file is skipped", coreFile: true, appFile: true},
+		{name: "no app.toml is skipped", coreFile: true, fibreFile: true},
 		{name: "fibre-only host skips config.toml", fibreFile: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -356,6 +359,9 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 			if tc.coreFile {
 				require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
 				require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("moniker='mine'\n"), 0o600))
+			}
+			if tc.appFile {
+				require.NoError(t, os.WriteFile(filepath.Join(home, "config", "app.toml"), []byte("minimum-gas-prices='0.002utia'\n"), 0o600))
 			}
 			if tc.fibreFile {
 				require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
@@ -381,6 +387,11 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 				require.Contains(t, out, "config.toml not found at "+filepath.Join(home, "config", "config.toml"), "missing config.toml should be reported")
 				_, err := os.Stat(filepath.Join(home, "config"))
 				require.True(t, os.IsNotExist(err), "sync should not create a node config dir")
+			}
+			if tc.appFile {
+				require.Contains(t, out, "Added settings to app.toml: ", "app.toml should be synced")
+			} else {
+				require.Contains(t, out, "app.toml not found at "+filepath.Join(home, "config", "app.toml"), "missing app.toml should be reported")
 			}
 			if tc.fibreFile {
 				require.Contains(t, out, "Added settings to server_config.toml: ", "Fibre file should be synced")
@@ -457,4 +468,123 @@ func TestSyncConfigReadOnlyFiles(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, coreOriginal, data, "config.toml must not be written when the Fibre file cannot be")
 	})
+}
+
+func TestMergeConfigNestedTables(t *testing.T) {
+	reference := []byte("# Streaming\n[streaming]\n# ABCI\n[streaming.abci]\n# Keys\nkeys = []\n# Plugin\nplugin = ''\n")
+	both := []string{"streaming.abci.keys", "streaming.abci.plugin"}
+	for _, tc := range []struct {
+		name     string
+		original string
+		table    []string // the table path as the config spells it
+		want     map[string]any
+		added    []string
+		contains string
+	}{
+		{name: "empty", original: "", table: []string{"streaming", "abci"}, added: both, contains: "# ABCI\n[streaming.abci]\n\n# Keys\nkeys = []\n"},
+		{name: "parent only", original: "[streaming]\n", table: []string{"streaming", "abci"}, added: both, contains: "[streaming.abci]\n"},
+		{name: "parent spelled differently", original: "[STREAMING]\n", table: []string{"STREAMING", "abci"}, added: both, contains: "[STREAMING.abci]\n"},
+		{name: "dotted parent spelled differently", original: "STREAMING.x=1\n", table: []string{"STREAMING", "abci"}, added: both, contains: "[STREAMING.abci]\n"},
+		{name: "partial table", original: "[streaming.abci]\nkeys=['bank'] # custom\n", table: []string{"streaming", "abci"}, want: map[string]any{"keys": []any{"bank"}, "plugin": ""}, added: []string{"streaming.abci.plugin"}, contains: "# custom\n\n# Plugin\nplugin = ''"},
+		{name: "dotted under parent", original: "[streaming]\nabci.keys=['bank']\n", table: []string{"streaming", "abci"}, want: map[string]any{"keys": []any{"bank"}, "plugin": ""}, added: []string{"streaming.abci.plugin"}, contains: "abci.plugin = ''"},
+		{name: "dotted at top level", original: "streaming.abci.keys=['bank']\n", table: []string{"streaming", "abci"}, want: map[string]any{"keys": []any{"bank"}, "plugin": ""}, added: []string{"streaming.abci.plugin"}, contains: "streaming.abci.plugin = ''"},
+		{name: "only a deeper table", original: "[streaming.abci.sub]\nx=1\n", table: []string{"streaming", "abci"}, want: map[string]any{"keys": []any{}, "plugin": "", "sub": map[string]any{"x": int64(1)}}, added: both, contains: "streaming.abci.keys = []"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			updated, added, err := mergeConfig([]byte(tc.original), reference)
+			require.NoError(t, err)
+			require.Equal(t, tc.added, added)
+			require.Contains(t, string(updated), tc.contains)
+			var after map[string]any
+			require.NoError(t, toml.Unmarshal(updated, &after))
+			require.Len(t, after, 1, "no table should be duplicated under another spelling")
+			table := after
+			for _, key := range tc.table {
+				table = table[key].(map[string]any)
+			}
+			want := tc.want
+			if want == nil {
+				want = map[string]any{"keys": []any{}, "plugin": ""}
+			}
+			require.Equal(t, want, table)
+			second, added, err := mergeConfig(updated, reference)
+			require.NoError(t, err)
+			require.Empty(t, added)
+			require.Equal(t, updated, second)
+		})
+	}
+	// Values that are not tables, and inline tables that would need new keys, cannot be extended.
+	for _, original := range []string{"streaming=1", "[streaming]\nabci=2", "[[streaming]]\n", "streaming={abci={keys=[]}}"} {
+		_, _, err := mergeConfig([]byte(original), reference)
+		require.Error(t, err, original)
+	}
+}
+
+func TestSyncAppConfigFile(t *testing.T) {
+	reference, err := renderAppConfig()
+	require.NoError(t, err)
+
+	t.Log("the app.toml a node writes on first start is up to date")
+	home := t.TempDir()
+	cmd := &cobra.Command{}
+	cmd.Flags().String("home", home, "")
+	_, err = server.InterceptConfigsAndCreateContext(cmd, serverconfig.DefaultConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+	require.NoError(t, err)
+	added, _, err := syncConfigFile(filepath.Join(home, "config", "app.toml"), reference, false)
+	require.NoError(t, err)
+	require.Empty(t, added)
+
+	t.Log("dry run reports an older app.toml's missing settings and writes nothing")
+	path := filepath.Join(t.TempDir(), "app.toml")
+	original := []byte("# operator\nminimum-gas-prices = \"0.002utia\"\nmin-retain-blocks = 0 # archival\n[grpc]\nenable = true\naddress = \"10.0.0.5:9090\"\n[state-sync]\nsnapshot-interval = 0\n")
+	require.NoError(t, os.WriteFile(path, original, 0o640))
+	added, backup, err := syncConfigFile(path, reference, true)
+	require.NoError(t, err)
+	require.Contains(t, added, "streaming.abci.keys")
+	require.Empty(t, backup)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, data)
+
+	t.Log("sync adds the missing settings and keeps the operator's values")
+	added, backup, err = syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.Subset(t, added, []string{"query-gas-limit", "grpc.max-recv-msg-size", "streaming.abci.keys", "mempool.max-txs"})
+	saved, err := os.ReadFile(backup)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
+	data, err = os.ReadFile(path)
+	require.NoError(t, err)
+	for _, text := range []string{"# operator", "# archival", "# Streaming allows nodes to stream state", "[streaming.abci]", "[mempool]"} {
+		require.Contains(t, string(data), text)
+	}
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o640), info.Mode().Perm())
+	cfg, err := loadServerConfig(path)
+	require.NoError(t, err)
+	defaults := app.DefaultAppConfig()
+	require.Equal(t, "0.002utia", cfg.MinGasPrices)
+	require.Zero(t, cfg.MinRetainBlocks)
+	require.True(t, cfg.GRPC.Enable)
+	require.Equal(t, "10.0.0.5:9090", cfg.GRPC.Address)
+	require.Zero(t, cfg.StateSync.SnapshotInterval)
+	require.Equal(t, defaults.GRPC.MaxRecvMsgSize, cfg.GRPC.MaxRecvMsgSize)
+	require.Equal(t, defaults.Mempool.MaxTxs, cfg.Mempool.MaxTxs)
+	require.Equal(t, defaults.Streaming, cfg.Streaming)
+
+	t.Log("second sync is a no-op")
+	added, second, err := syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.Empty(t, added)
+	require.Empty(t, second)
+
+	t.Log("a later sync never overwrites an earlier backup")
+	require.NoError(t, os.WriteFile(path, original, 0o640))
+	_, second, err = syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.NotEqual(t, backup, second)
+	saved, err = os.ReadFile(backup)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
 }
