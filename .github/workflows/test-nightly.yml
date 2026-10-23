@@ -132,6 +132,7 @@ jobs:
             max-attempts: 2
           - test: TestGenesisSyncMainnet
             max-attempts: 2
+          - test: TestRollback
           - test: TestCortoLoad
             extra-image: true
     steps:
@@ -139,9 +140,9 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: "go.mod"
+          module-directory: test/docker-e2e
 
       - name: Download Docker image artifact
         if: ${{ inputs.tag == '' }}
@@ -208,15 +209,30 @@ jobs:
 
   test-race:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [unit, ./app/test, ./fibre/..., ./tools/fibre-txsim]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
 
       - name: Run tests in race mode
-        run: make test-race
+        env:
+          RACE_PACKAGE: ${{ matrix.package }}
+          # Avoid compiling and running several memory-heavy packages together.
+          GOFLAGS: -p=2
+        run: |
+          set -o pipefail
+          if [ "$RACE_PACKAGE" = unit ]; then
+            excluded=$(go list ./app/test ./fibre/... ./tools/fibre-txsim)
+            packages=$(go list ./... | grep -Fxv -f <(printf '%s\n' "$excluded") | tr '\n' ' ')
+            make test-race PACKAGES="$packages"
+          else
+            make test-race PACKAGES="$RACE_PACKAGE"
+          fi
 
   # WARNING: Required job — a defense line against codec / wire-format bugs,
   # including the fibre scatter codec. The fuzz targets live in
@@ -227,9 +243,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
 
       - name: Run fuzz tests
         run: make test-fuzz
@@ -237,8 +251,8 @@ jobs:
   notify-slack-on-failure:
     name: Notify Slack on failure
     runs-on: ubuntu-latest
-    needs: [test-nightly, test-race, test-fuzz]
-    if: ${{ always() && (needs.test-nightly.result == 'failure' || needs.test-race.result == 'failure' || needs.test-fuzz.result == 'failure') }}
+    needs: [build-e2e-image, build-latency-monitor-image, test-nightly, test-race, test-fuzz]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
     steps:
       - name: Slack Notification
         uses: slackapi/slack-github-action@v4.0.0

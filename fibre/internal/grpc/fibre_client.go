@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/tlsid"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	grpclib "google.golang.org/grpc"
@@ -91,7 +91,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 
 		conn, err := grpclib.NewClient(host.String(),
 			grpclib.WithIdleTimeout(20*time.Second),
-			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
+			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),

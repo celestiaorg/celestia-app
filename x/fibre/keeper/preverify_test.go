@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -14,11 +15,11 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -126,8 +127,9 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 			Tokens:          math.NewInt(1_000_000),
 		}
 	}
+	// Staking records the set that signs block H under historical info H-1.
 	stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		ctx.BlockHeight(): {Header: cmtproto.Header{Height: ctx.BlockHeight()}, Valset: valset},
+		ctx.BlockHeight() - 1: {Header: cmtproto.Header{Height: ctx.BlockHeight() - 1}, Valset: valset},
 	}
 
 	signerPrivKey := secp256k1.GenPrivKey()
@@ -207,7 +209,7 @@ func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibr
 }
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
-// ParsePayForFibreMsg reads.
+// ParsePayForFibreTx reads.
 func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
 
@@ -325,9 +327,9 @@ func TestPreverifySignaturesIsSafeToSkip(t *testing.T) {
 	}
 }
 
-// batchBoundaryValidators makes the 2/3 quorum prefix 67 signatures, so a
-// certificate is split across a full 64-signature batch and a short one.
-const batchBoundaryValidators = 100
+// batchBoundaryValidators makes the 2/3 quorum prefix 134 signatures, so a
+// certificate is split across a full 128-signature batch and a short one.
+const batchBoundaryValidators = 200
 
 // newMessage returns a valid message for the same validator set, set apart
 // from the fixture's by adding delta to its blob size, so one call can carry
@@ -362,8 +364,8 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}{
 		"all signatures valid":           {corrupt: -1, wantCached: true},
 		"failure in the first batch":     {corrupt: 0, wantCached: false},
-		"failure on the batch boundary":  {corrupt: 63, wantCached: false},
-		"failure in the second batch":    {corrupt: 65, wantCached: false},
+		"failure on the batch boundary":  {corrupt: 127, wantCached: false},
+		"failure in the second batch":    {corrupt: 129, wantCached: false},
 		"failure past the quorum prefix": {corrupt: batchBoundaryValidators - 1, wantCached: true},
 	}
 
@@ -390,14 +392,11 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
-// TestPreverifySignaturesRecordsEachTransaction covers a call carrying three
-// messages: one accepted, one whose certificate carries a forged signature,
-// and one the pass bails out of before it queues anything. A failure in one
-// must not keep the accepted one from being recorded, must record neither of
-// the failing messages' keys, and must not let either message's rollback
-// truncate the accepted message's items - which is why the accepted message
-// is placed first.
+// TestPreverifySignaturesRecordsEachTransaction covers an accepted, a forged and a
+// bailed-out message in one batch, on one worker so they share a chunk.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
+	prev := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	accepted := f.newMessage(t, 1)
 	acceptedKey, err := accepted.SigCacheKey()
@@ -405,7 +404,7 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 
 	// The pass queues this one's items and then fails one of them.
 	forged := f.newMessage(t, 2)
-	forged.ValidatorSignatures[65] = make([]byte, 64)
+	forged.ValidatorSignatures[129] = make([]byte, 64)
 	forgedKey, err := forged.SigCacheKey()
 	require.NoError(t, err)
 
@@ -420,13 +419,52 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 		f.txBytesFor(t, accepted), f.txBytesFor(t, forged), f.txBytesFor(t, bailed),
 	}, keeper.PreverifyOptions{Certificates: true})
 
-	require.True(t, f.cache.Has(acceptedKey), "the valid certificate must still be recorded")
-	require.True(t, f.cache.Has(promiseSigCacheKey(t, accepted)), "and so must its promise")
+	require.False(t, f.cache.Has(acceptedKey),
+		"a chunk is all or nothing, so the valid certificate in it is not recorded either")
+	require.False(t, f.cache.Has(promiseSigCacheKey(t, accepted)), "nor the promise it carried")
 	require.False(t, f.cache.Has(forgedKey), "the forged certificate must not be recorded")
 	require.False(t, f.cache.Has(promiseSigCacheKey(t, forged)), "nor the promise it carried")
 	require.False(t, f.cache.Has(bailedKey), "the bailed-out certificate must not be recorded")
 	require.False(t, f.cache.Has(promiseSigCacheKey(t, bailed)), "nor the promise it carried")
-	require.Equal(t, 2, f.cache.Len(), "exactly the accepted message's two entries")
+	require.Zero(t, f.cache.Len(), "the whole chunk went unrecorded")
+	// Losing a cache entry costs work, never correctness: the ordered verifier
+	// still accepts the valid message.
+	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, accepted))
+}
+
+// TestPreverifySignaturesReusesVerifierAfterFailure checks a failing chunk does not
+// break the shared batch verifier for the next; one worker keeps both on it.
+func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
+	prev := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
+	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	f.msg.ValidatorSignatures[129] = make([]byte, 64)
+	f.refreshCertKey(t)
+
+	// Each certificate makes two batch items at this validator count, so five
+	// transactions produce more items than one chunk holds.
+	messages := make([]*types.MsgPayForFibre, 0, 5)
+	messages = append(messages, f.msg)
+	for i := range 4 {
+		messages = append(messages, f.newMessage(t, uint32(i)+1))
+	}
+
+	txs := make([][]byte, 0, len(messages))
+	for _, msg := range messages {
+		txs = append(txs, f.txBytesFor(t, msg))
+	}
+	f.keeper.PreverifySignatures(f.ctx, txs, keeper.PreverifyOptions{Certificates: true})
+
+	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
+	recorded := 0
+	for _, msg := range messages[1:] {
+		key, err := msg.SigCacheKey()
+		require.NoError(t, err)
+		if f.cache.Has(key) {
+			recorded++
+		}
+	}
+	require.Positive(t, recorded, "a chunk after the failed one must still record its certificates")
 }
 
 // TestPreverifySignaturesRecordsNothingForRejectedMessages covers the shapes in
@@ -519,51 +557,31 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 }
 
 // TestPreverifyDeduplicatesRepeatedCertificates checks a repeated certificate
-// costs one verification, and that deduplication leaves the cache exactly as a
-// single copy would.
+// costs one verification and leaves the cache exactly as a single copy would.
 func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	const repeats = 8
 
-	collect := func(seen map[sigcache.Key]struct{}, n int) *preverifyFixture {
+	collect := func(n int) *preverifyFixture {
 		f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 		decoded := make([]*types.DecodedPayForFibre, n)
 		for i := range decoded {
 			decoded[i] = f.decodedMessage(t, f.msg)
 		}
-		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{
-			Certificates:     true,
-			SeenCertificates: seen,
-		})
+		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{Certificates: true})
 		return f
 	}
 
-	single := collect(nil, 1)
+	single := collect(1)
+	require.True(t, single.cache.Has(single.certKey))
 
-	seen := make(map[sigcache.Key]struct{}, repeats)
-	deduped := collect(seen, repeats)
-	require.Len(t, seen, 1, "one distinct certificate, however many times it repeats")
+	deduped := collect(repeats)
 	require.True(t, deduped.cache.Has(deduped.certKey))
 	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
 		"deduplication must not change what ends up cached")
 
-	// Without the map every repeat is collected again. Same verdict either
-	// way, so this is a bound and not a correctness fix.
-	unbounded := collect(nil, repeats)
-	require.Equal(t, deduped.cache.Len(), unbounded.cache.Len())
-	require.True(t, unbounded.cache.Has(unbounded.certKey))
-
-	// The map is consulted, not merely populated. Skipping drops the whole
-	// entry, promise included, which is safe: the sequential loop still
+	// Skipping a repeat drops its promise too, which is safe: the sequential loop still
 	// decides every check the pass leaves uncached.
-	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
-	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
-		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},
-		keeper.PreverifyOptions{
-			Certificates:     true,
-			SeenCertificates: map[sigcache.Key]struct{}{preseeded.certKey: {}},
-		})
-	require.Zero(t, preseeded.cache.Len(), "a certificate already seen is not collected again")
-	require.NoError(t, preseeded.keeper.ValidatePayForFibreSignatures(preseeded.ctx, preseeded.msg),
+	require.NoError(t, deduped.keeper.ValidatePayForFibreSignatures(deduped.ctx, deduped.msg),
 		"and the sequential path still accepts it")
 }
 
@@ -587,7 +605,7 @@ func TestDecodePayForFibre(t *testing.T) {
 	require.NoError(t, pp.FromProto(&f.msg.PaymentPromise))
 	signBytes, err := pp.SignBytes()
 	require.NoError(t, err)
-	require.True(t, d.PromiseKeyed)
+	require.True(t, d.PromiseKeyed())
 	require.Equal(t, signBytes, d.PromiseSignBytes)
 
 	fibreTx, err := d.FibreTx()
@@ -618,33 +636,6 @@ func TestPreverifyDecodedMatchesPreverifySignatures(t *testing.T) {
 	require.True(t, fresh.cache.Has(f.certKey))
 	require.True(t, fresh.cache.Has(d.PromiseKey))
 	require.Equal(t, f.cache.Len(), fresh.cache.Len())
-}
-
-// TestValidatePayForFibreSignaturesWithDecodedContext checks a context carrying
-// the decoded view reaches the same verdict and cache state as one without it.
-func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
-	f := newPreverifyFixture(t)
-	raw := f.txBytes(t)
-	d := keeper.DecodePayForFibre(raw)
-
-	plain := f.withFreshCache(t)
-	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
-
-	decoded := f.withFreshCache(t)
-	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw), d)
-	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
-	require.Equal(t, plain.cache.Len(), decoded.cache.Len())
-	require.True(t, decoded.cache.Has(d.PromiseKey))
-
-	// A tampered promise signature fails on both paths.
-	bad := *f.msg
-	bad.PaymentPromise.Signature = append([]byte{}, bad.PaymentPromise.Signature...)
-	bad.PaymentPromise.Signature[0] ^= 0xff
-	badRaw := (&preverifyFixture{msg: &bad}).txBytes(t)
-	badDecoded := keeper.DecodePayForFibre(badRaw)
-	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw), badDecoded)
-	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
-	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
 }
 
 // TestPreverifyCapsAtCandidateBound pins the backstop: the pass covers at most

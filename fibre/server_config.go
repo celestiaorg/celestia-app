@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/sign"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"
@@ -223,7 +223,7 @@ func (cfg *ServerConfig) Validate() error {
 			return fmt.Errorf("app gRPC address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log)
+			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log, nil)
 		}
 	}
 

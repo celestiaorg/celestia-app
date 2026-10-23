@@ -3,10 +3,11 @@ package grpc
 import (
 	"bytes"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 )
 
@@ -144,6 +145,49 @@ func TestScatterMarshalWireParity(t *testing.T) {
 	}
 }
 
+func TestScatterMarshalWireParity128MiB(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping 128 MiB scatter codec test in short mode")
+	}
+
+	const rowCount, rowSize = 512, 256 << 10
+	rows := make([]*types.BlobRow, rowCount)
+	for i := range rows {
+		rows[i] = &types.BlobRow{
+			Index: uint32(i),
+			Data:  bytes.Repeat([]byte{byte(i), byte(i >> 8)}, rowSize/2),
+			Proof: [][]byte{bytes.Repeat([]byte{byte(i)}, 32)},
+		}
+	}
+	req := &types.UploadShardRequest{
+		Promise: &types.PaymentPromise{ChainId: "scatter-test", BlobSize: rowCount * rowSize},
+		Shard:   &types.BlobShard{Rows: rows, Rlcs: bytes.Repeat([]byte{0xa5}, rowSize)},
+	}
+
+	canonical, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("canonical marshal: %v", err)
+	}
+	scattered, err := marshalUploadShardRequestScatter(req)
+	if err != nil {
+		t.Fatalf("scatter marshal: %v", err)
+	}
+	defer scattered.Free()
+	if scattered.Len() != len(canonical) {
+		t.Fatalf("wire length mismatch: canonical %d, scattered %d", len(canonical), scattered.Len())
+	}
+	// Compare segments directly to avoid another 128 MiB allocation and a huge
+	// hex dump on failure.
+	offset := 0
+	for i, segment := range scattered {
+		data := segment.ReadOnlyData()
+		if !bytes.Equal(data, canonical[offset:offset+len(data)]) {
+			t.Fatalf("wire mismatch at segment %d (offset %d)", i, offset)
+		}
+		offset += len(data)
+	}
+}
+
 // FuzzScatterMarshalParity drives the scatter marshaler with random message
 // shapes and asserts byte equality against gogoproto's canonical marshal.
 // Catches drift if new fields are added to UploadShardRequest / BlobShard /
@@ -217,4 +261,92 @@ func FuzzScatterMarshalParity(f *testing.F) {
 				len(canonical), canonical, len(scattered), scattered)
 		}
 	})
+}
+
+// TestScatterMarshalBufferCount checks that only row data and RLCs are views,
+// so the buffer count stays linear in rows rather than in proof segments.
+func TestScatterMarshalBufferCount(t *testing.T) {
+	const rows, depth = 16, 14
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+
+	bs, err := marshalUploadShardRequestScatter(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, limit := len(bs), 2*rows+3; got > limit {
+		t.Fatalf("got %d buffers, want at most %d", got, limit)
+	}
+	var aliased int
+	for _, b := range bs {
+		d := b.ReadOnlyData()
+		for _, row := range shard.Rows {
+			if len(d) > 0 && &d[0] == &row.Data[0] {
+				aliased++
+			}
+		}
+	}
+	if aliased != rows {
+		t.Fatalf("%d row data buffers are views, want %d", aliased, rows)
+	}
+}
+
+// TestScatterCodecCoversAllFields fails when a field is added to a message the
+// scatter codec hand-encodes. Update marshalUploadShardRequestScatter and
+// blobRowSize/blobShardSize, then this count.
+func TestScatterCodecCoversAllFields(t *testing.T) {
+	for typ, want := range map[reflect.Type]int{
+		reflect.TypeFor[types.UploadShardRequest](): 2,
+		reflect.TypeFor[types.BlobShard]():          2,
+		reflect.TypeFor[types.BlobRow]():            3,
+	} {
+		if got := typ.NumField(); got != want {
+			t.Errorf("%s has %d fields, scatter codec handles %d", typ.Name(), got, want)
+		}
+	}
+}
+
+func scatterTestRequest(rows, depth int) *types.UploadShardRequest {
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	return &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+}
+
+// TestScatterMarshalAllocsConstant checks that allocations do not grow with
+// the number of buffer views: views are not boxed one by one.
+func TestScatterMarshalAllocsConstant(t *testing.T) {
+	allocs := func(rows int) float64 {
+		req := scatterTestRequest(rows, 14)
+		return testing.AllocsPerRun(20, func() {
+			if _, err := marshalUploadShardRequestScatter(req); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if small, large := allocs(16), allocs(256); large != small {
+		t.Fatalf("allocs grew with rows: %v at 16 rows, %v at 256 rows", small, large)
+	}
+}
+
+func BenchmarkScatterMarshal(b *testing.B) {
+	req := scatterTestRequest(168, 14)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := marshalUploadShardRequestScatter(req); err != nil {
+			b.Fatal(err)
+		}
+	}
 }

@@ -4,8 +4,8 @@ import (
 	"math"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -79,7 +79,7 @@ func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 // getMaxSquareSize returns the max effective square size.
 func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	govMax := d.k.GetParams(ctx).GovMaxSquareSize
-	hardMax := appconsts.GetSquareSizeUpperBound(ctx.ChainID())
+	hardMax := appconsts.SquareSizeUpperBound
 	return min(int(govMax), hardMax)
 }
 

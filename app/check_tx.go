@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,19 +29,10 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
-	// A recheck runs on the exact bytes a previous CheckTx admitted, so this
-	// wrapper's work is skipped: the blob-tx unmarshal, the decode, the SDK
-	// message count and the PayForFibre shape check. BaseApp still decodes the
-	// bytes and re-runs message ValidateBasic, so what is skipped is the
-	// wrapper, not the SDK.
-	if req.Type == abci.CheckTxType_Recheck {
-		if signer, ok := app.pffTxCache.Get(tx); ok {
-			res, err := app.recheckAdmittedTx(req, signer)
-			if err != nil || res.Code != abci.CodeTypeOK {
-				app.pffTxCache.Drop(tx)
-			}
-			return res, err
-		}
+	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
+	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
+	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
+		return app.BaseApp.CheckTx(req)
 	}
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
@@ -82,21 +73,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	_, isPFF := payForFibreMsg(sdkTx)
-	res, err := app.forwardCheckTx(req, sdkTx)
-	if err != nil || res.Code != abci.CodeTypeOK {
-		return res, err
-	}
-
-	// Only a newly admitted PFF is recorded: a recheck that missed is walking
-	// a working set larger than the cache, and admitting each miss would evict
-	// the entries the same pass is about to ask for. The isPFF gate is also
-	// what keeps skipping the state dependent countExecutableMsgs sound: a
-	// single MsgPayForFibre always scores 1 against MaxSDKMessages.
-	if isPFF && req.Type == abci.CheckTxType_New {
-		app.pffTxCache.Set(tx, pffSignerData{addr: res.Address, seq: res.Sequence})
-	}
-	return res, nil
+	return app.forwardCheckTx(req, sdkTx)
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {
@@ -154,21 +131,6 @@ func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.Re
 
 	res.Address = signerAddr
 	res.Sequence = signerSeq
-	return res, nil
-}
-
-// recheckAdmittedTx runs the same BaseApp pass as forwardCheckTx on bytes a
-// previous CheckTx admitted, stamping the signer data derived back then. Signer
-// data is a pure function of the bytes, so it is the data forwardCheckTx would
-// derive again.
-func (app *App) recheckAdmittedTx(req *abci.RequestCheckTx, signer pffSignerData) (*abci.ResponseCheckTx, error) {
-	res, err := app.BaseApp.CheckTx(req)
-	if err != nil || res.Code != abci.CodeTypeOK {
-		return res, err
-	}
-
-	res.Address = signer.addr
-	res.Sequence = signer.seq
 	return res, nil
 }
 
@@ -234,16 +196,6 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 		}
 	}
 	return nil
-}
-
-// payForFibreMsg returns the MsgPayForFibre from a single-message tx.
-func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return nil, false
-	}
-	pff, ok := msgs[0].(*fibretypes.MsgPayForFibre)
-	return pff, ok
 }
 
 // containsFibreStateMsg reports whether the tx carries a fibre message that

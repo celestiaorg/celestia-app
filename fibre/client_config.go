@@ -1,13 +1,15 @@
 package fibre
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"
@@ -22,6 +24,8 @@ type ClientConfig struct {
 	// StateAddress is the gRPC address of the celestia-app node.
 	// Used to build the default [StateClientFn] when it is nil.
 	StateAddress string
+	// StateTLSConfig enables TLS for the default app connection. Nil uses plaintext.
+	StateTLSConfig *tls.Config
 
 	// SafetyThreshold is the fraction of stake needed to cause a safety failure (typically 2/3).
 	SafetyThreshold cmtmath.Fraction
@@ -75,6 +79,14 @@ type ClientConfig struct {
 	// Escrow configures client-side escrow auto-funding so uploads don't fail
 	// when the escrow account runs low.
 	Escrow EscrowConfig
+
+	// AcquirePutMemory, if set, admits each Put before it encodes the blob, so
+	// callers can bound how many encoded blobs are in memory at once. It should
+	// block until capacity is available or ctx is done. Fibre calls the returned
+	// release exactly once, when the blob's encoded storage is freed: after the
+	// last upload to a validator finishes, which may be after Put returns. Waiting
+	// for PayForFibre confirmation holds no capacity.
+	AcquirePutMemory func(ctx context.Context) (release func(), err error)
 }
 
 // defaultEscrowConfig derives escrow auto-funding defaults from the protocol
@@ -127,7 +139,7 @@ func (cfg *ClientConfig) Validate() error {
 			return fmt.Errorf("state address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log,
+			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log, cfg.StateTLSConfig,
 				fibregrpc.WithClock(cfg.Clock),
 				fibregrpc.WithRefreshInterval(cfg.HostRefreshInterval),
 				fibregrpc.WithQueryTimeout(cfg.RPCTimeout),

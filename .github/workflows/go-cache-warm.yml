@@ -1,0 +1,121 @@
+name: go-cache-warm
+
+# The only workflow that saves Go caches. Every other job restores them through
+# .github/actions/setup-go, so the saved build cache holds compiled packages.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - go.sum
+      - test/docker-e2e/go.sum
+      - .github/**
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: ./.github/actions/setup-go
+        id: go
+      - name: Download e2e Go modules
+        run: sh docker/download-go-modules.sh test/docker-e2e
+      - name: Start from an empty build cache
+        # Keeps entries for superseded commits and dependencies out of the save.
+        run: go clean -cache
+      - name: Compile go-test packages
+        run: go test -count=1 -run '^$' ./...
+      - name: Compile build jobs
+        run: |
+          make build
+          make build-fibre-server
+          GOOS=linux GOARCH=mips CGO_ENABLED=0 go build ./...
+          CGO_ENABLED=0 GOOS=linux go build -tags=ledger,multiplexer -o /dev/null ./cmd/celestia-appd
+      - name: Compile multiplexer tests
+        run: go test -count=1 -run '^$' -tags multiplexer ./multiplexer/... ./cmd/celestia-appd/cmd
+      - name: Compile e2e tests
+        working-directory: test/docker-e2e
+        run: |
+          go test -count=1 -run '^$' ./...
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -o "$RUNNER_TEMP/e2e.test" .
+      - name: Compile govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -version
+      - name: Run golangci-lint
+        # Findings on main must not stop the cache save.
+        continue-on-error: true
+        run: go tool golangci-lint run --timeout 10m
+      - name: Report cache sizes
+        run: du -sh "$(go env GOMODCACHE)" "$(go env GOCACHE)" ~/.cache/golangci-lint
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gomodcache }}
+          key: ${{ steps.go.outputs.gomod-key }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gocache }}
+          key: ${{ steps.go.outputs.gobuild-key }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: ${{ steps.go.outputs.golangci-lint-key }}
+
+  warm-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: ./.github/actions/setup-go
+        id: go
+        with:
+          cache-key-suffix: test-arm64
+      - name: Start from an empty build cache
+        run: go clean -cache
+      - name: Compile test-arm64 packages
+        run: |
+          go test -count=1 -run '^$' ./pkg/rsema1d/... ./fibre/internal/row/...
+          go test -count=1 -run '^$' -tags noasm ./pkg/rsema1d/...
+          go test -count=1 -run '^$' -race ./pkg/rsema1d/...
+      - name: Report cache sizes
+        run: du -sh "$(go env GOMODCACHE)" "$(go env GOCACHE)"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gomodcache }}
+          key: ${{ steps.go.outputs.gomod-key }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gocache }}
+          key: ${{ steps.go.outputs.gobuild-key }}
+
+  prune:
+    # Keeps the newest two build and lint cache generations saved on this ref.
+    needs: [warm, warm-arm64]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Delete older cache generations
+        run: |
+          for prefix in gobuild- golangci-lint-; do
+            gh cache list --ref "$GITHUB_REF" --key "$prefix" --limit 100 --json id,key,createdAt |
+              jq -r 'group_by(.key | sub("-[^-]+-[0-9]{8}$"; ""))[]
+                | sort_by(.createdAt) | reverse | .[2:][] | "\(.id) \(.key)"' |
+              while read -r id key; do
+                echo "Deleting $key"
+                gh cache delete "$id"
+              done
+          done

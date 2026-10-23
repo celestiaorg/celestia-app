@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
 	"github.com/spf13/pflag"
 )
 

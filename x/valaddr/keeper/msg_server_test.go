@@ -4,11 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/x/valaddr/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/x/valaddr/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -167,6 +168,22 @@ func TestMsgSetFibreProviderInfo(t *testing.T) {
 		// Call the message server handler - should fail (validator not found)
 		msgServer := keeper.NewMsgServerImpl(testApp.ValAddrKeeper)
 		_, err = msgServer.SetFibreProviderInfo(ctx, msg)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidValidator))
+	})
+
+	t.Run("unbonded validator", func(t *testing.T) {
+		validator := validators[0]
+		validator.Status = stakingtypes.Unbonded
+		require.NoError(t, testApp.StakingKeeper.SetValidator(ctx, validator))
+
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddrStr,
+			Host:   "inactive.validator.com:7980",
+		}
+
+		msgServer := keeper.NewMsgServerImpl(testApp.ValAddrKeeper)
+		_, err := msgServer.SetFibreProviderInfo(ctx, msg)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, types.ErrInvalidValidator))
 	})

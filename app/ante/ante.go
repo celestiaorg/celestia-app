@@ -4,12 +4,12 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
-	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
+	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v11/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -76,7 +76,7 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(blobKeeper),
+		blobante.NewMinGasPFBDecorator(),
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),

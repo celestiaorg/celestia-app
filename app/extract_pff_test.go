@@ -3,10 +3,10 @@ package app
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -140,7 +140,8 @@ func TestPayForFibreMsg(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pff, ok := payForFibreMsg(decodeTx(t, txConfig, tc.txBytes))
+			pff := fibretypes.PayForFibreMsg(decodeTx(t, txConfig, tc.txBytes))
+			ok := pff != nil
 			require.Equal(t, tc.wantOK, ok)
 			if tc.wantOK {
 				require.NotNil(t, pff)

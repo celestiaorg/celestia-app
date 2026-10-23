@@ -60,6 +60,11 @@ func TestMochaConfigPeers(t *testing.T) {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
 	}
+	// A single archive peer makes genesis sync fail whenever that node ignores
+	// our dials (celestia-app#8142).
+	if n := len(nodeIDs(config.Peers)); n < 2 {
+		t.Errorf("Expected at least 2 distinct archive peers, got %d", n)
+	}
 	assertNoSeedsInPeers(t, config)
 }
 
@@ -108,4 +113,5 @@ func TestMainnetConfig(t *testing.T) {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
 	}
+	assertNoSeedsInPeers(t, config)
 }

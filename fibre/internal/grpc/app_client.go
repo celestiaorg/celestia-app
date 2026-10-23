@@ -2,20 +2,22 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"math"
 	"strings"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpclib "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -37,10 +39,14 @@ type AppClient struct {
 // The underlying gRPC connection is lazy — no network I/O happens until the first RPC.
 // Call [Start] to auto-detect the chain ID from the node.
 // hostOpts are forwarded to the embedded [HostRegistry].
-func NewAppClient(addr string, log *slog.Logger, hostOpts ...HostRegistryOption) (*AppClient, error) {
+func NewAppClient(addr string, log *slog.Logger, tlsConfig *tls.Config, hostOpts ...HostRegistryOption) (*AppClient, error) {
+	creds := insecure.NewCredentials()
+	if tlsConfig != nil {
+		creds = credentials.NewTLS(tlsConfig)
+	}
 	conn, err := grpclib.NewClient(
 		addr,
-		grpclib.WithTransportCredentials(insecure.NewCredentials()),
+		grpclib.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create app gRPC client (%s): %w", addr, err)

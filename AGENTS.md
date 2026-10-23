@@ -7,8 +7,8 @@
 When editing Go code, always run `make build` after changes to catch compilation errors immediately.
 
 ```bash
-make build              # Build multiplexer version (embeds v3-v9 binaries) into ./build/
-make build-standalone   # Build v10-only version (no embedded binaries)
+make build              # Build multiplexer version (embeds v3-v10 binaries) into ./build/
+make build-standalone   # Build v11-only version (no embedded binaries)
 make mod                # Update all go.mod files
 ```
 
@@ -45,8 +45,8 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 
 ### Multiplexer vs Standalone
 
-- **`make build`** (default): Multiplexer build embeds v3-v9 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
-- **`make build-standalone`**: v10-only, lighter. Build tag: `ledger`
+- **`make build`** (default): Multiplexer build embeds v3-v10 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
+- **`make build-standalone`**: v11-only, lighter. Build tag: `ledger`
 
 ### Dependency Forks
 
@@ -71,6 +71,7 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 - **Interactive gate**: before implementing or reviewing any change, triage the tier. For light changes, state the tier in one line and proceed. For risky and consensus-critical changes, ask the engineer whether to run the invariant workflow (the `/implement` skill, or the reviewer agents in `.claude/agents/` for a review). Give a 2–3 line overview — tier, paths touched, what the workflow would add — and recommend running it. Skip the question when the engineer invoked `/implement` directly. In non-interactive runs, run it.
 - **Declined workflow on a risky change**: still state assumptions and get engineer confirmation before writing code; no reviewer agents unless the engineer asks.
 - **Assumptions notes** live in `docs/plans/` and are never committed.
+- **Working notes are never committed**: implementation plans, review or audit findings, investigation logs, and similar agent working documents (e.g. `docs/<topic>-review.md`) go in the gitignored `docs/plans/` or the PR description, not in the diff. Before opening or updating a PR, check the diff for such files and remove them.
 
 ## Pull Requests
 

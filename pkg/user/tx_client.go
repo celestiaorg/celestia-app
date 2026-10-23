@@ -11,14 +11,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -46,9 +46,9 @@ const (
 	SendGasLimit         = 100000
 	FeegrantGasLimit     = 800000
 	DefaultWorkerBalance = 1
-	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// defaultEvictionPollTimeout is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTimeOut = 3 * time.Minute
+	defaultEvictionPollTimeout = 3 * time.Minute
 )
 
 var (
@@ -207,9 +207,7 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.txQueue != nil {
-			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
-		}
+		c.parallelQueueSize = size
 	}
 }
 
@@ -225,6 +223,8 @@ type TxClient struct {
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
+	// how long to keep polling an evicted tx after a failed resubmission
+	evictionPollTimeout time.Duration
 	// sets the default account with which to submit transactions
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
@@ -234,6 +234,8 @@ type TxClient struct {
 	gasEstimationClient gasestimation.GasEstimatorClient
 	// txQueue manages parallel transaction submission when enabled
 	txQueue *txQueue
+	// parallelQueueSize is the buffer size used when starting the tx queue.
+	parallelQueueSize int
 }
 
 // NewTxClient returns a new TxClient
@@ -263,11 +265,13 @@ func NewTxClient(
 		registry:            registry,
 		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
+		evictionPollTimeout: defaultEvictionPollTimeout,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
+		parallelQueueSize:   defaultParallelQueueSize,
 	}
 
 	for _, opt := range options {
@@ -778,7 +782,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		}
 
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
+			if time.Since(*evictionPollTimeStart) > client.evictionPollTimeout {
 				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}

@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 )
 
 const (

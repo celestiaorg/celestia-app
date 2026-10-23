@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v11/app"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -143,6 +143,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	)
 
 	modifyRootCommand(rootCommand)
+	if err := addRollbackAppVersionCheck(rootCommand); err != nil {
+		panic(fmt.Errorf("failed to add rollback check: %w", err))
+	}
 
 	// Add hooks run prior to the start command
 	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {

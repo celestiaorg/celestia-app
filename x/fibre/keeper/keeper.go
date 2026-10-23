@@ -1,15 +1,16 @@
 package keeper
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -115,6 +116,22 @@ func (k Keeper) GetPromiseFreshnessFloor(ctx sdk.Context) (time.Time, error) {
 func (k Keeper) SetPromiseFreshnessFloor(ctx sdk.Context, floor time.Time) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.PromiseFreshnessFloorKey, sdk.FormatTimeBytes(floor))
+}
+
+// getGenesisHeight returns the height of the first block, or 0 if InitGenesis predates
+// recording it. The read is not charged so every verification path costs the same gas.
+func (k Keeper) getGenesisHeight(ctx sdk.Context) int64 {
+	store := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()).KVStore(k.storeKey)
+	bz := store.Get(types.GenesisHeightKey)
+	if len(bz) != 8 {
+		return 0
+	}
+	return int64(binary.BigEndian.Uint64(bz))
+}
+
+// setGenesisHeight records the height of the first block.
+func (k Keeper) setGenesisHeight(ctx sdk.Context, height int64) {
+	ctx.KVStore(k.storeKey).Set(types.GenesisHeightKey, binary.BigEndian.AppendUint64(nil, uint64(height)))
 }
 
 // GetEscrowAccount retrieves an escrow account by signer address.
@@ -354,22 +371,7 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 // recordVerifiedPromise once that is settled, so a rejected message buys no
 // entry and cannot evict the entries of accepted ones.
 func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
-	key, keyed := promiseSigCacheKey(pp)
-	return k.validatePromiseStatelessKeyed(pp, key, keyed)
-}
-
-// validatePromiseStatelessDecoded is ValidatePromiseStateless reusing the key
-// from ctx's decoded view. source is the proto promise pp came from: matching
-// it stops a caller from borrowing the key for a different promise.
-func (k Keeper) validatePromiseStatelessDecoded(ctx sdk.Context, pp *fibre.PaymentPromise, source *types.PaymentPromise) error {
-	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.PromiseKeyed && d.Msg != nil && &d.Msg.PaymentPromise == source {
-		return k.validatePromiseStatelessKeyed(pp, d.PromiseKey, true)
-	}
-	return k.ValidatePromiseStateless(pp)
-}
-
-func (k Keeper) validatePromiseStatelessKeyed(pp *fibre.PaymentPromise, key sigcache.Key, keyed bool) error {
-	if keyed && k.sigCache != nil && k.sigCache.Has(key) {
+	if key, keyed := promiseSigCacheKey(pp); keyed && k.sigCache != nil && k.sigCache.Has(key) {
 		return nil
 	}
 	return pp.Validate()

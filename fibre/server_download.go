@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -54,7 +54,7 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		s.log.ErrorContext(ctx, "failed to retrieve blob shard", "blob_commitment", id.Commitment().String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve blob shard")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to retrieve blob shard: %v", err))
+		return nil, status.Error(grpccodes.Internal, "failed to retrieve blob shard")
 	}
 
 	var rowSize int
