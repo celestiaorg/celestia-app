@@ -32,3 +32,17 @@ func TestProcessProposalRejectsTxCountBeforeStateAccess(t *testing.T) {
 		require.Zero(t, meter.GasConsumed(), "the count guard must precede all store access")
 	}
 }
+
+// TestProcessProposalTxCountGuardAllowsLimit checks the boundary: a proposal
+// with exactly MaxBlockTxs transactions passes the count guard and reaches
+// state access, which the one-gas meter records.
+func TestProcessProposalTxCountGuardAllowsLimit(t *testing.T) {
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "account")
+	req := &abci.RequestProcessProposal{Txs: make([][]byte, coretypes.MaxBlockTxs)}
+	meter := storetypes.NewGasMeter(1)
+	ctx := testApp.NewProposalContext(cmtproto.Header{Height: 1}).
+		WithExecMode(sdk.ExecModeProcessProposal).WithGasMeter(meter)
+	_, err := testApp.ProcessProposalHandler(ctx, req)
+	require.NoError(t, err)
+	require.NotZero(t, meter.GasConsumed(), "a proposal at the limit must pass the count guard")
+}
