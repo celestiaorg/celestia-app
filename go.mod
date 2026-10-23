@@ -26,11 +26,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.0
 	github.com/aws/smithy-go v1.28.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
+	github.com/celestiaorg/celestia-app/rsmt2d v0.0.0-20261022181216-098fd7ed9ebc
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.1
 	github.com/celestiaorg/nmt v0.24.5
-	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cockroachdb/pebble/v2 v2.1.7
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
