@@ -9,7 +9,8 @@ usage() {
 Usage: recovery.sh <mode> [flags]
 
 Modes:
-  rollback   stop the node, roll back to --height, start the node
+  rollback   stop the node, roll back to --height, delete the snapshots
+             above it, start the node
   verify     wait for --check-height and compare its app hash
 
 Common flags:
@@ -203,7 +204,11 @@ load_config() {
     *) PV_STATE=$NODE_HOME/$PV_STATE ;;
     esac
     REMOTE_SIGNER=$(toml_value priv_validator_laddr)
+    INDEXER=$(toml_value indexer)
     SIGNER_SUM=$NODE_HOME/data/recovery-signer.sha256
+    HALT=$(in_node cat "$NODE_HOME/config/app.toml" |
+        grep -E '^[[:space:]]*halt-(height|time)[[:space:]]*=' |
+        grep -Ev '=[[:space:]]*0[[:space:]]*(#.*)?$' || true)
 }
 
 # require_signer_state aborts if a local signer has no readable state file.
@@ -293,6 +298,12 @@ precheck() {
     if [ -n "$REMOTE_SIGNER" ]; then
         echo "warning: signer state not checked; check the remote signer by hand"
     fi
+    if [ -n "$HALT" ]; then
+        echo "warning: app.toml sets $HALT; the node stops again there"
+    fi
+    if [ "$INDEXER" = kv ]; then
+        echo "warning: the kv tx index keeps results from before the rollback; tx and block search above height $HEIGHT can be wrong"
+    fi
     free=$(in_node df -Pk "$NODE_HOME/data" | awk 'NR == 2 { print $4 }')
     [ "$free" -ge $((1024 * 1024)) ] || die "less than 1 GiB free in $NODE_HOME/data"
 }
@@ -323,6 +334,22 @@ verify_app_hash() {
     echo "app hash at height $CHECK_HEIGHT matches"
 }
 
+# delete_snapshots deletes the local state sync snapshots above HEIGHT. They hold
+# the state from before the rollback, and peers that restore one fail state sync.
+delete_snapshots() {
+    local list height format
+    if [ "$DRY_RUN" = 1 ] && svc_running; then
+        echo "snapshot cleanup skipped: the node is running"
+        return 0
+    fi
+    list=$(run_bin snapshots list --home "$NODE_HOME" 2>&1) || die "snapshots list failed: $list"
+    while read -r _ height _ format _; do
+        if [ "$height" -gt "$HEIGHT" ]; then
+            change run_bin snapshots delete --home "$NODE_HOME" "$height" "$format"
+        fi
+    done < <(grep '^height: ' <<<"$list" || true)
+}
+
 mode_rollback() {
     precheck
     svc_stop
@@ -333,6 +360,7 @@ mode_rollback() {
     fi
     save_signer_digest
     change run_bin "${ROLLBACK_ARGS[@]}"
+    delete_snapshots
     require_signer_state
     check_signer_digest
     svc_start
