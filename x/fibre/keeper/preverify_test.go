@@ -15,11 +15,11 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -208,7 +208,7 @@ func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibr
 }
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
-// ParsePayForFibreMsg reads.
+// ParsePayForFibreTx reads.
 func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
 

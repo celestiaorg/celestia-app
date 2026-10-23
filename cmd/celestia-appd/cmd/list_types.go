@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v11/app"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/spf13/cobra"

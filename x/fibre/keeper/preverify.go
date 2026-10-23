@@ -6,11 +6,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -63,10 +63,10 @@ func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.Decoded
 	}
 	return func() {
 		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
-			work.record(k.sigCache, func(i int) bool { return results[i].Load() }, start, end)
+			work.record(k.sigCache, results, start, end)
 		})
 		// Groups crossing worker boundaries are published after all workers finish.
-		work.record(k.sigCache, func(i int) bool { return verified[i] }, 0, len(work.items))
+		work.record(k.sigCache, verified, 0, len(work.items))
 	}
 }
 
@@ -105,14 +105,18 @@ func (v verification) run() bool {
 		return v.pubKeys[0].VerifySignature(v.message, v.signatures[0])
 	}
 
-	batch := ed25519.NewBatchVerifier()
+	batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 	if !v.addTo(batch) {
 		return false
 	}
-	// A failing batch falls back to verifying each entry, so the verdict is the
-	// same one the sequential walk reaches.
-	allValid, _ := batch.Verify()
-	return allValid
+	return verifyBatchOnly(batch)
+}
+
+// verifyBatchOnly checks the batch equation alone: Verify's fallback re-verifies
+// every entry serially for a vector the pass discards, on a rejection that
+// replays for free. A false verdict only costs a cache entry.
+func verifyBatchOnly(batch *ed25519.BatchVerifier) bool {
+	return batch.VerifyBatchOnly(crypto.CReader())
 }
 
 // addTo queues the item's validator signatures on batch and reports whether
@@ -145,7 +149,7 @@ type preverification struct {
 
 // record adds the cache entries of every group whose items all succeeded and
 // that lies wholly inside [start, end).
-func (p *preverification) record(cache SigCache, verified func(int) bool, start, end int) {
+func (p *preverification) record(cache SigCache, verified []atomic.Bool, start, end int) {
 	first := sort.Search(len(p.groups), func(i int) bool { return p.groups[i].first >= start })
 	for _, group := range p.groups[first:] {
 		if group.first >= end {
@@ -156,7 +160,7 @@ func (p *preverification) record(cache SigCache, verified func(int) bool, start,
 		}
 		complete := true
 		for i := group.first; i < group.end; i++ {
-			if !verified(i) {
+			if !verified[i].Load() {
 				complete = false
 				break
 			}
@@ -265,13 +269,12 @@ func (k Keeper) appendCertificateItems(
 	converted, ok := valSets[height]
 	if !ok {
 		var err error
-		if converted, err = k.certificateValidatorSet(ctx, height, msg.ValidatorSignatures); err != nil {
+		if converted, err = k.certificateValidatorSet(ctx, height); err != nil {
 			return false
 		}
 		valSets[height] = converted
-	} else if len(msg.ValidatorSignatures) > len(converted.validators) {
-		// certificateValidatorSet applies this to the heights it resolves; a
-		// height already in valSets still has to pass it.
+	}
+	if checkSignatureCount(converted, msg.ValidatorSignatures) != nil {
 		return false
 	}
 
@@ -283,7 +286,11 @@ func (k Keeper) appendCertificateItems(
 	}
 
 	certFirst := len(work.items)
-	batch := verification{message: signBytes}
+	newBatch := func(remaining int) verification {
+		n := min(remaining, batchSize)
+		return verification{message: signBytes, pubKeys: make([]crypto.PubKey, 0, n), signatures: make([][]byte, 0, n)}
+	}
+	batch := newBatch(prefix)
 	for i := range prefix {
 		signature := msg.ValidatorSignatures[i]
 		if len(signature) == 0 {
@@ -293,7 +300,7 @@ func (k Keeper) appendCertificateItems(
 		batch.signatures = append(batch.signatures, signature)
 		if len(batch.pubKeys) == batchSize {
 			work.items = append(work.items, batch)
-			batch = verification{message: signBytes}
+			batch = newBatch(prefix - i - 1)
 		}
 	}
 	if len(batch.pubKeys) > 0 {
@@ -309,17 +316,15 @@ func (k Keeper) appendCertificateItems(
 // Items are independent and each result is stored at its own index, so the
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
-func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]atomic.Bool, int, int)) []bool {
-	verified := make([]bool, len(items))
-	if len(items) == 1 {
-		// One item has nothing to spread; the fan-out would be pure overhead.
-		verified[0] = items[0].run()
-		return verified
-	}
-
+func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]atomic.Bool, int, int)) []atomic.Bool {
 	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
 	// false-share one cache line (about 1% of ProcessProposal, measured).
 	results := make([]atomic.Bool, len(items))
+	if len(items) == 1 {
+		// One item has nothing to spread; the fan-out would be pure overhead.
+		results[0].Store(items[0].run())
+		return results
+	}
 
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
@@ -354,11 +359,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool, publish fun
 		})
 	}
 	wg.Wait()
-
-	for i := range results {
-		verified[i] = results[i].Load()
-	}
-	return verified
+	return results
 }
 
 // maxChunkSize is how many items one worker claims, and combines into one
@@ -395,7 +396,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 		return allValid
 	}
 	if batchReady {
-		if valid, _ := batch.Verify(); valid {
+		if verifyBatchOnly(batch) {
 			for i := start; i < end; i++ {
 				if items[i].promise == nil {
 					results[i].Store(true)

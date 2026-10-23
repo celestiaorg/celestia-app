@@ -19,6 +19,7 @@ jobs:
         run: |
           bash scripts/test_race_recipe_test.sh
           bash scripts/test_cover_test.sh
+          bash scripts/hardfork/recovery_test.sh
         timeout-minutes: 10
 
   test-e2e-compile:
@@ -44,24 +45,24 @@ jobs:
           # sentinel value to run all other tests.
           - package: "unit"
           # split the heaviest ones
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestPrepareProposalConsistency|TestPrepareProposalCappingNumberOfMessages"
           # Run tests outside the explicit heavy groups, including newly added tests.
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             skip: "^(TestIntegration.*|TestBigBlob.*|TestStandardSDK.*|TestSquareSize.*|TestPriority.*|TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector|TestPrepareProposalConsistency|TestPrepareProposalCappingNumberOfMessages)$"
-          - package: "github.com/celestiaorg/celestia-app/v10/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v10/pkg/user"
-          - package: "github.com/celestiaorg/celestia-app/v10/test/ledger"
-          - package: "github.com/celestiaorg/celestia-app/v10/fibre/..."
-          - package: "github.com/celestiaorg/celestia-app/v10/tools/chainbuilder"
+          - package: "github.com/celestiaorg/celestia-app/v11/test/txsim"
+          - package: "github.com/celestiaorg/celestia-app/v11/pkg/user"
+          - package: "github.com/celestiaorg/celestia-app/v11/test/ledger"
+          - package: "github.com/celestiaorg/celestia-app/v11/fibre/..."
+          - package: "github.com/celestiaorg/celestia-app/v11/tools/chainbuilder"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
@@ -72,7 +73,7 @@ jobs:
           set -o pipefail
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v10/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v11/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.skip }}" ]; then
             go test -timeout 30m -skip "${{ matrix.skip }}" ${{ matrix.package }}
           elif [ -n "${{ matrix.pattern }}" ]; then
@@ -91,6 +92,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: ./.github/actions/setup-go
+        with:
+          cache-key-suffix: test-arm64
 
       - name: Show CPU features
         run: grep -m1 Features /proc/cpuinfo

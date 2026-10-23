@@ -32,37 +32,37 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v10/app/ante"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v10/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/celestiaorg/celestia-app/v10/x/forwarding"
-	forwardingkeeper "github.com/celestiaorg/celestia-app/v10/x/forwarding/keeper"
-	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
-	"github.com/celestiaorg/celestia-app/v10/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v10/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v10/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v10/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v10/x/valaddr"
-	valaddrkeeper "github.com/celestiaorg/celestia-app/v10/x/valaddr/keeper"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
-	"github.com/celestiaorg/celestia-app/v10/x/zkism"
-	zkismkeeper "github.com/celestiaorg/celestia-app/v10/x/zkism/keeper"
-	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/forwarding"
+	forwardingkeeper "github.com/celestiaorg/celestia-app/v11/x/forwarding/keeper"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v11/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v11/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v11/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v11/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v11/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v11/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v11/x/valaddr"
+	valaddrkeeper "github.com/celestiaorg/celestia-app/v11/x/valaddr/keeper"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -307,8 +307,9 @@ func New(
 
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
+	stakingStore := runtime.NewKVStoreService(keys[stakingtypes.StoreKey])
 	app.StakingKeeper = stakingkeeper.NewKeeper(
-		encodingConfig.Codec, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, govModuleAddr, encodingConfig.ValidatorAddressCodec, encodingConfig.ConsensusAddressCodec,
+		encodingConfig.Codec, stakingStore, app.AccountKeeper, app.BankKeeper, govModuleAddr, encodingConfig.ValidatorAddressCodec, encodingConfig.ConsensusAddressCodec,
 	)
 
 	app.MintKeeper = mintkeeper.NewKeeper(encodingConfig.Codec, keys[minttypes.StoreKey], app.StakingKeeper, app.AccountKeeper, app.BankKeeper, authtypes.FeeCollectorName)
@@ -475,7 +476,7 @@ func New(
 		encodingConfig.Codec,
 		keys[fibretypes.StoreKey],
 		app.BankKeeper,
-		app.StakingKeeper,
+		fibreStakingKeeper{app.StakingKeeper, stakingStore},
 		govModuleAddr,
 		enablePromiseCache,
 		app.sigCache,

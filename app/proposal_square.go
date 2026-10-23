@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/da"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -54,6 +54,8 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 		result.err = fmt.Errorf("failure to compute extended data square from transactions: %w", err)
 		return result
 	}
+	// Halve the EDS width rather than double the proposer's value: doubling an attacker
+	// controlled uint64 wraps, making SquareSize and SquareSize+2^63 indistinguishable.
 	result.size = uint64(eds.Width()) / 2
 	if result.size != expectedSize {
 		return result

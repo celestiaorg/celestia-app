@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.10
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v10.
 
     ```shell
     make install
@@ -345,16 +345,17 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 The source of truth for dependencies is the `go.mod` file but the table below describes the compatible branches for celestiaorg repos.
 
-| celestia-app | celestia-core      | cosmos-sdk                 |
-|--------------|--------------------|----------------------------|
-| `main`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
-| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
+| celestia-app | celestia-core      | cosmos-sdk                  |
+|--------------|--------------------|-----------------------------|
+| `main`       | `v0.42.x`          | `main` (`v0.53.x` releases) |
+| `v10.x`      | `v0.42.x`          | `release/v0.52.x-celestia`  |
+| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia`  |
+| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia`  |
+| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia`  |
+| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia`  |
+| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia`  |
+| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia`  |
+| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia`  |
 
 ## Audits
 

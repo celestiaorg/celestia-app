@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"

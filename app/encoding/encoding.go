@@ -3,7 +3,7 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v10/pkg/txutil"
+	"github.com/celestiaorg/celestia-app/v11/pkg/txutil"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
