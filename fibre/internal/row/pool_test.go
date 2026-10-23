@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 // Test shape — small values so tests stay fast.
@@ -445,4 +446,55 @@ func TestPool_Concurrent(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+func TestWorkPoolPadsRows(t *testing.T) {
+	p := NewWorkPool(4096, 8)
+	bufs := p.Get(8, 4096)
+	for i := range bufs {
+		if len(bufs[i]) != 4096 || cap(bufs[i]) != 4096 {
+			t.Fatalf("row %d: len %d cap %d", i, len(bufs[i]), cap(bufs[i]))
+		}
+		if i > 0 {
+			if stride := int(uintptr(unsafe.Pointer(&bufs[i][0])) - uintptr(unsafe.Pointer(&bufs[i-1][0]))); stride != 4096+rowSizeAlign {
+				t.Fatalf("row %d: stride %d", i, stride)
+			}
+		}
+	}
+	p.Put(bufs)
+}
+
+// TestWorkPoolPaddedReuse checks that a padded slab reused for a smaller size
+// within slack, then for its original size, keeps the padded stride and rows
+// that don't overlap.
+func TestWorkPoolPaddedReuse(t *testing.T) {
+	const rows = 8
+	p := NewWorkPool(4096, rows)
+	for _, size := range []int{4096, 4096 - rowSizeAlign, 4096} {
+		bufs := p.Get(rows, size)
+		for i := range bufs {
+			if len(bufs[i]) != size || cap(bufs[i]) != size {
+				t.Fatalf("size %d row %d: len %d cap %d", size, i, len(bufs[i]), cap(bufs[i]))
+			}
+			if i > 0 {
+				if stride := int(uintptr(unsafe.Pointer(&bufs[i][0])) - uintptr(unsafe.Pointer(&bufs[i-1][0]))); stride != size+rowSizeAlign {
+					t.Fatalf("size %d row %d: stride %d, want %d", size, i, stride, size+rowSizeAlign)
+				}
+			}
+			for j := range bufs[i] {
+				bufs[i][j] = byte(i + 1)
+			}
+		}
+		for i := range bufs {
+			for j, b := range bufs[i] {
+				if b != byte(i+1) {
+					t.Fatalf("size %d row %d byte %d: got %d, want %d", size, i, j, b, i+1)
+				}
+			}
+		}
+		p.Put(bufs)
+		if got := p.Slabs(); got != 1 {
+			t.Fatalf("size %d: Slabs=%d, want 1", size, got)
+		}
+	}
 }
