@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 // StateTransitionValues are the set of proof public values used when verifying state transition proofs.
@@ -86,83 +87,47 @@ func (v *StateTransitionValues) Unmarshal(data []byte) error {
 	return nil
 }
 
-// StateMembershipValues are the set of proof public values used when verifying state membership inclusion of
-// Hyperlane messages.
+// StateMembershipValues are the set of proof public values used when verifying state membership of the
+// source chain Hyperlane merkle tree.
 type StateMembershipValues struct {
 	StateRoot         [32]byte
 	MerkleTreeAddress [32]byte
-	MessageIds        [][32]byte
+	// TreeRoot is the root of the merkle tree at MerkleTreeAddress in StateRoot.
+	TreeRoot [32]byte
+	// Count is the number of leaves inserted into the merkle tree.
+	Count uint32
 }
 
-// Marshal encodes the EvHyperlanePublicValues struct into a bincode-compatible byte slice.
-// The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers, length-prefixed slices).
+// Marshal encodes the StateMembershipValues struct into a bincode-compatible byte slice.
+// The output format uses Rust bincode's default configuration: (little-endian, fixed-width integers).
+// Count is encoded as a u64.
 func (v *StateMembershipValues) Marshal() ([]byte, error) {
-	var buf bytes.Buffer
+	bz := make([]byte, 0, StateMembershipValuesBytes)
+	bz = append(bz, v.StateRoot[:]...)
+	bz = append(bz, v.MerkleTreeAddress[:]...)
+	bz = append(bz, v.TreeRoot[:]...)
+	bz = binary.LittleEndian.AppendUint64(bz, uint64(v.Count))
 
-	if err := writeBytes(&buf, v.StateRoot[:]); err != nil {
-		return nil, fmt.Errorf("write StateRoot: %w", err)
-	}
-
-	if err := writeBytes(&buf, v.MerkleTreeAddress[:]); err != nil {
-		return nil, fmt.Errorf("write MerkleTreeAddress: %w", err)
-	}
-
-	count := uint64(len(v.MessageIds))
-	if err := binary.Write(&buf, binary.LittleEndian, count); err != nil {
-		return nil, fmt.Errorf("write MessageIds length: %w", err)
-	}
-
-	for i, id := range v.MessageIds {
-		if err := writeBytes(&buf, id[:]); err != nil {
-			return nil, fmt.Errorf("write MessageIds[%d]: %w", i, err)
-		}
-	}
-
-	return buf.Bytes(), nil
+	return bz, nil
 }
 
-// Unmarshal decodes a bincode-serialized EvHyperlanePublicValues struct.
+// Unmarshal decodes a bincode-serialized StateMembershipValues struct.
 // This function expects the input byte slice to be encoded using Rust bincode's
-// default configuration: (little-endian, fixed-width integers, length-prefixed slices).
+// default configuration: (little-endian, fixed-width integers).
 func (v *StateMembershipValues) Unmarshal(data []byte) error {
-	buf := bytes.NewReader(data)
-
-	// Use io.ReadFull on fixed-size fields. bytes.Reader.Read returns (n, nil)
-	// on partial reads, which would silently zero-pad fields and admit
-	// non-canonical encodings.
-	if _, err := io.ReadFull(buf, v.StateRoot[:]); err != nil {
-		return fmt.Errorf("read StateRoot: %w", err)
+	if len(data) != StateMembershipValuesBytes {
+		return fmt.Errorf("invalid state membership values length: expected %d, got %d", StateMembershipValuesBytes, len(data))
 	}
 
-	if _, err := io.ReadFull(buf, v.MerkleTreeAddress[:]); err != nil {
-		return fmt.Errorf("read MerkleTreeAddress: %w", err)
-	}
+	copy(v.StateRoot[:], data[0:32])
+	copy(v.MerkleTreeAddress[:], data[32:64])
+	copy(v.TreeRoot[:], data[64:96])
 
-	var count uint64 // read uint64 (little-endian) length prefix
-	if err := binary.Read(buf, binary.LittleEndian, &count); err != nil {
-		return fmt.Errorf("read message ids length: %w", err)
+	count := binary.LittleEndian.Uint64(data[96:104])
+	if count > math.MaxUint32 {
+		return fmt.Errorf("merkle tree count %d exceeds maximum %d", count, uint64(math.MaxUint32))
 	}
-
-	if count > MaxMessageIdsCount {
-		return fmt.Errorf("message ids count %d exceeds maximum allowed %d", count, MaxMessageIdsCount)
-	}
-
-	// Use int64 to avoid uint64 wrap on count*32.
-	if int64(buf.Len()) != int64(count)*32 {
-		return fmt.Errorf("buffer length mismatch: need exactly %d, have %d", int64(count)*32, buf.Len())
-	}
-
-	v.MessageIds = make([][32]byte, count)
-	for i := 0; i < int(count); i++ {
-		if _, err := io.ReadFull(buf, v.MessageIds[i][:]); err != nil {
-			return fmt.Errorf("read message_id %d: %w", i, err)
-		}
-	}
+	v.Count = uint32(count)
 
 	return nil
-}
-
-func writeBytes(w io.Writer, b []byte) error {
-	_, err := w.Write(b)
-	return err
 }

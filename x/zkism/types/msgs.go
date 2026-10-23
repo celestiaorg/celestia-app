@@ -11,6 +11,7 @@ var (
 	_ sdk.HasValidateBasic = (*MsgCreateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitMessages)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateVerifyingKeys)(nil)
 )
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
@@ -27,19 +28,24 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
 	}
 
-	if err := ValidateGroth16Vkey(msg.Groth16Vkey); err != nil {
+	return validateVerifyingKeys(msg.Groth16Vkey, msg.StateTransitionVkey, msg.StateMembershipVkey)
+}
+
+// validateVerifyingKeys validates the groth16 verifying key and the program verifying key commitments of an ism.
+func validateVerifyingKeys(groth16Vkey, stateTransitionVkey, stateMembershipVkey []byte) error {
+	if err := ValidateGroth16Vkey(groth16Vkey); err != nil {
 		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "%v", err)
 	}
 
-	if _, err := groth16.NewVerifyingKey(msg.Groth16Vkey); err != nil {
+	if _, err := groth16.NewVerifyingKey(groth16Vkey); err != nil {
 		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "invalid groth16 verifying key")
 	}
 
-	if len(msg.StateTransitionVkey) != 32 {
+	if len(stateTransitionVkey) != 32 {
 		return errorsmod.Wrap(ErrInvalidVerifyingKey, "program verifying key commitment must be exactly 32 bytes")
 	}
 
-	if len(msg.StateMembershipVkey) != 32 {
+	if len(stateMembershipVkey) != 32 {
 		return errorsmod.Wrap(ErrInvalidVerifyingKey, "program verifying key commitment must be exactly 32 bytes")
 	}
 
@@ -73,9 +79,18 @@ func (msg *MsgSubmitMessages) ValidateBasic() error {
 		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", ProofBytesLen, len(msg.Proof))
 	}
 
-	if len(msg.PublicValues) > MaxStateMembershipValuesBytes {
-		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxStateMembershipValuesBytes)
+	if len(msg.PublicValues) != StateMembershipValuesBytes {
+		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must be exactly %d bytes", StateMembershipValuesBytes)
 	}
 
 	return nil
+}
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgUpdateVerifyingKeys) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+
+	return validateVerifyingKeys(msg.Groth16Vkey, msg.StateTransitionVkey, msg.StateMembershipVkey)
 }

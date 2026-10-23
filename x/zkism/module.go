@@ -27,7 +27,7 @@ var (
 )
 
 // ConsensusVersion defines the current module consensus version.
-const ConsensusVersion = 1
+const ConsensusVersion = 2
 
 // AppModule defines the zkism module.
 type AppModule struct {
@@ -75,6 +75,11 @@ func (AppModule) ConsensusVersion() uint64 { return ConsensusVersion }
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(am.keeper))
 	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServerImpl(am.keeper))
+
+	m := keeper.NewMigrator(am.keeper)
+	if err := cfg.RegisterMigration(types.ModuleName, 1, m.Migrate1to2); err != nil {
+		panic(err)
+	}
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the module.
