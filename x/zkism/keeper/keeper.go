@@ -24,10 +24,6 @@ type Keeper struct {
 	treeStates  collections.Map[uint64, types.MerkleTreeState]
 	schema      collections.Schema
 
-	// legacyMessages holds message IDs authorized before ConsensusVersion 2.
-	// It is only used by the v1 to v2 migration to clear the legacy entries.
-	legacyMessages collections.KeySet[collections.Pair[uint64, []byte]]
-
 	coreKeeper types.HyperlaneKeeper
 	authority  string
 }
@@ -37,7 +33,6 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	sb := collections.NewSchemaBuilder(storeService)
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
-	legacyMessages := collections.NewKeySet(sb, types.LegacyMessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
 	submissions := collections.NewMap(sb, types.MessageProofSubmittedPrefix, "message_proof_submitted", collections.Uint64Key, collections.BoolValue)
 	treeStates := collections.NewMap(sb, types.MerkleTreeStateKeyPrefix, "merkle_tree_states", collections.Uint64Key, codec.CollValue[types.MerkleTreeState](cdc))
 
@@ -47,13 +42,12 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	}
 
 	keeper := &Keeper{
-		coreKeeper:     hyperlaneKeeper,
-		isms:           isms,
-		submissions:    submissions,
-		treeStates:     treeStates,
-		legacyMessages: legacyMessages,
-		schema:         schema,
-		authority:      authority,
+		coreKeeper:  hyperlaneKeeper,
+		isms:        isms,
+		submissions: submissions,
+		treeStates:  treeStates,
+		schema:      schema,
+		authority:   authority,
 	}
 
 	router := hyperlaneKeeper.IsmRouter()
