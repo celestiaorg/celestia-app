@@ -332,6 +332,9 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 // instead of leaving it to the suite cleanup's 10s graceful stop.
 func forceRemoveOnCleanup(t *testing.T, rly *hyperlane.ForwardRelayer) {
 	t.Cleanup(func() {
+		if t.Failed() || os.Getenv("KEEP_CONTAINERS") != "" || os.Getenv("SHOW_CONTAINER_LOGS") == "always" {
+			return
+		}
 		if err := rly.RemoveContainer(context.Background(), tastoratypes.WithPreserveVolumes()); err != nil {
 			t.Logf("Error removing %s: %v", rly.Name(), err)
 		}
