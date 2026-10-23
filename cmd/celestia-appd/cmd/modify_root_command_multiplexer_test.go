@@ -11,7 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
@@ -96,4 +98,16 @@ func TestUnsupportedFlagsMatchEmbeddedBinaries(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Regression for #8307: this is the same version table used by snapshot and
+// block execution. v10 history must select an embedded app rather than native v11.
+func TestV10EmbeddedV11Native(t *testing.T) {
+	root := &cobra.Command{Use: "celestia-appd"}
+	modifyRootCommand(root)
+	passthrough, _, err := root.Find([]string{"passthrough"})
+	require.NoError(t, err)
+	require.NoError(t, passthrough.RunE(passthrough, []string{"v10", "version"}))
+	require.ErrorContains(t, passthrough.RunE(passthrough, []string{"v11", "version"}), "requires the latest app")
+	require.Equal(t, uint64(11), appconsts.Version)
 }
