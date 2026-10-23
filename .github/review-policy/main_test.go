@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,8 +34,8 @@ func (f *fakeAPI) Get(path string, out any) error {
 	case strings.HasPrefix(path, "/commits/"):
 		sha := strings.Split(path, "/")[2]
 		var latest []map[string]string
-		for i := len(f.statuses) - 1; i >= 0; i-- {
-			if s := f.statuses[i]; s.sha == sha {
+		for _, s := range slices.Backward(f.statuses) {
+			if s.sha == sha {
 				latest = append(latest, map[string]string{"context": statusContext, "state": s.state, "description": s.description})
 				break
 			}
@@ -98,7 +99,7 @@ func prEvent() Event {
 
 func queueRun() *WorkflowRun {
 	run := &WorkflowRun{
-		Path: eventsWorkflow, Event: "merge_group", HeadBranch: "gh-readonly-queue/main/pr-1-abc",
+		Path: testsWorkflow, Event: "merge_group", HeadBranch: "gh-readonly-queue/main/pr-1-abc",
 		HeadSHA: strings.Repeat("d", 40), Conclusion: "success",
 	}
 	run.HeadRepository.FullName = "celestiaorg/celestia-app"
@@ -191,9 +192,18 @@ func TestWorkflowRunFiltering(t *testing.T) {
 		t.Errorf("unrelated workflow published %+v", f.statuses)
 	}
 
+	// Merge groups are revalidated only after the policy tests finish.
+	notifier := queueRun()
+	notifier.Path = eventsWorkflow
+	f = newFake()
+	invoke(t, f, "workflow_run", Event{WorkflowRun: notifier})
+	if len(f.statuses) != 0 {
+		t.Errorf("notifier merge group published %+v", f.statuses)
+	}
+
 	// Fork review events have no PR numbers and fall back to a sweep.
 	fork := queueRun()
-	fork.Event, fork.HeadRepository.FullName = "pull_request_review", "contributor/fork"
+	fork.Path, fork.Event, fork.HeadRepository.FullName = eventsWorkflow, "pull_request_review", "contributor/fork"
 	f = newFake()
 	invoke(t, f, "workflow_run", Event{WorkflowRun: fork})
 	if got := f.last(); got.sha != sha || got.state != "success" {
@@ -202,7 +212,7 @@ func TestWorkflowRunFiltering(t *testing.T) {
 
 	// A dismissed approval refreshes the PR named by the review event.
 	review := queueRun()
-	review.Event = "pull_request_review"
+	review.Path, review.Event = eventsWorkflow, "pull_request_review"
 	review.PullRequests = append(review.PullRequests, struct {
 		Number int `json:"number"`
 	}{1})

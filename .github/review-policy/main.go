@@ -20,6 +20,7 @@ import (
 const (
 	statusContext  = "review-policy"
 	eventsWorkflow = ".github/workflows/review-policy-events.yml"
+	testsWorkflow  = ".github/workflows/review-policy-tests.yml"
 )
 
 type User struct {
@@ -395,13 +396,14 @@ func (r *runner) handle(eventName string, event Event) error {
 		return r.refresh(event.PullRequest.Number)
 	case "workflow_run":
 		run := event.WorkflowRun
-		if run == nil || run.Path != eventsWorkflow {
+		if run == nil {
 			return nil
 		}
-		if run.Event == "merge_group" {
+		// Queue revalidation waits for the policy tests on the merge-group commit.
+		if run.Path == testsWorkflow && run.Event == "merge_group" {
 			return r.mergeGroup(run)
 		}
-		if run.Event != "pull_request_review" {
+		if run.Path != eventsWorkflow || run.Event != "pull_request_review" {
 			return nil
 		}
 		// Fork review events carry no PR numbers, so sweep every open PR.

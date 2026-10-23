@@ -1,32 +1,19 @@
 name: review-policy-events
 
 # This workflow has no write token. Its completion wakes the trusted evaluator.
+# Its job name differs from review-policy-tests so a review event can never
+# satisfy that required check without running the tests.
 on:
-  pull_request:
   pull_request_review:
     types: [submitted, edited, dismissed]
-  merge_group:
 
 permissions:
   contents: read
 
 jobs:
   notify:
-    name: review-policy-tests
+    name: review-policy-notify
     runs-on: ubuntu-latest
     steps:
       - name: Notify trusted evaluator
         run: echo 'Review policy event received'
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        if: github.event_name != 'pull_request_review'
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        if: github.event_name != 'pull_request_review'
-        with:
-          go-version-file: .github/review-policy/go.mod
-          cache: false
-      - name: Test review policy
-        if: github.event_name != 'pull_request_review'
-        working-directory: .github/review-policy
-        run: go vet ./... && go test ./...

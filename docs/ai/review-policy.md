@@ -42,9 +42,11 @@ default branch, disables stored checkout credentials and Go caches, and runs it
 from there. It never checks out or executes PR code with its status-writing
 token.
 
-`review-policy-events.yml` is a separate read-only notifier for review and merge
-queue events; it also runs the policy's Go tests against proposed changes. Its
-completion wakes the trusted evaluator through `workflow_run`. The evaluator
+Two read-only workflows wake the trusted evaluator through `workflow_run`:
+`review-policy-events.yml` notifies it of review events, and
+`review-policy-tests.yml` runs the policy's Go tests on PRs and merge-group
+commits. They use different job names so a review event can never satisfy the
+required `review-policy-tests` check without running the tests. The evaluator
 reads current PRs, reviews, and permissions from GitHub, never notifier
 artifacts. PR changes refresh the status directly. Scheduled and manual
 refreshes reconcile missed events and permission changes.
