@@ -230,7 +230,8 @@ func (v *Verifier) verifyDeferred(commitment Commitment, proofs []*RowProof) err
 
 // verifyOriginalRLCs checks that each original row matches its committed RLC
 // value. rows[i] is the original row at indices[i]; all were accepted by
-// verifyDeferred, so they share the cached coefficients.
+// verifyDeferred, so they share the cached coefficients. Every mismatching
+// index is reported in one [InvalidRowsError].
 func (v *Verifier) verifyOriginalRLCs(rows [][]byte, indices []int) error {
 	if v.rlcCoeffs == nil {
 		return errors.New("no verified rows")
@@ -241,10 +242,14 @@ func (v *Verifier) verifyOriginalRLCs(rows [][]byte, indices []int) error {
 		}
 	}
 	computed := rlc.Compute(rows, v.rlcCoeffs, v.config.WorkerCount)
+	var bad []int
 	for i, idx := range indices {
 		if !field.Equal128(computed[i], v.rlcOrig[idx]) {
-			return fmt.Errorf("%w: row %d", ErrInvalidEncoding, idx)
+			bad = append(bad, idx)
 		}
+	}
+	if len(bad) > 0 {
+		return &InvalidRowsError{Indices: bad}
 	}
 	return nil
 }
