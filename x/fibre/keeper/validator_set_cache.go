@@ -18,8 +18,9 @@ var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
 // set that signs certificates for promiseHeight. Staking records historical info for height H in
 // BeginBlock from the validators EndBlock(H-1) produced, and CometBFT only adopts those at H+1.
 // The set that signs block H, which clients read through BlockAPI ValidatorSet(H), is therefore
-// the one recorded at H-1. The first block has no H-1; the genesis set signs it and is what
-// staking records at that block.
+// the one recorded at H-1. Staking's BeginBlocker runs before slashing and evidence, so a slash
+// in block H-1 does not change the powers or order recorded there. The first block has no H-1;
+// the genesis set signs it and is what staking records at that block.
 func (k Keeper) certificateHistoricalHeight(ctx sdk.Context, promiseHeight int64) int64 {
 	if promiseHeight == k.getGenesisHeight(ctx) {
 		return promiseHeight
