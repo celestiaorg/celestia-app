@@ -301,7 +301,7 @@ PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indica
 
 Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
 
-Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level and add it to the PR description with a brief explanation.
+Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level in the title.
 
 External contributions must reference a meaningful issue. Open an issue explaining the value of your change before submitting unsolicited work. Trivial PRs limited to comment wording, typos, formatting, or irrelevant test updates may be closed. Low-effort AI-generated PRs will be closed; contributors using AI must understand, review, and revise its output before submission.
 
