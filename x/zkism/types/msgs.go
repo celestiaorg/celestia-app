@@ -2,7 +2,6 @@ package types
 
 import (
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/internal/groth16"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -27,12 +26,10 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
 	}
 
+	// Only the cheap structural check runs here. Deserializing the key performs
+	// pairing work, so the message handler does it after fees and gas apply.
 	if err := ValidateGroth16Vkey(msg.Groth16Vkey); err != nil {
 		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "%v", err)
-	}
-
-	if _, err := groth16.NewVerifyingKey(msg.Groth16Vkey); err != nil {
-		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "invalid groth16 verifying key")
 	}
 
 	if len(msg.StateTransitionVkey) != 32 {
