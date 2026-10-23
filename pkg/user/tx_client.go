@@ -46,9 +46,9 @@ const (
 	SendGasLimit         = 100000
 	FeegrantGasLimit     = 800000
 	DefaultWorkerBalance = 1
-	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// defaultEvictionPollTimeout is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTimeOut = 3 * time.Minute
+	defaultEvictionPollTimeout = 3 * time.Minute
 )
 
 var (
@@ -223,6 +223,8 @@ type TxClient struct {
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
+	// how long to keep polling an evicted tx after a failed resubmission
+	evictionPollTimeout time.Duration
 	// sets the default account with which to submit transactions
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
@@ -263,6 +265,7 @@ func NewTxClient(
 		registry:            registry,
 		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
+		evictionPollTimeout: defaultEvictionPollTimeout,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
@@ -779,7 +782,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		}
 
 		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > evictionPollTimeOut {
+			if time.Since(*evictionPollTimeStart) > client.evictionPollTimeout {
 				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 			}
 		}

@@ -50,6 +50,8 @@ func SetupTxClient(
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
 
+	// Poll fast so tests don't wait up to a second per confirmation; callers can override.
+	opts = append([]user.Option{user.WithPollTime(50 * time.Millisecond)}, opts...)
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
 
