@@ -377,12 +377,19 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to query ABCIInfo")
-
-	currentAppVersion := abciInfo.Response.GetAppVersion()
-	s.Require().Equal(targetAppVersion, currentAppVersion,
-		"upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
+	// ABCIInfo fails while the multiplexer swaps binaries at the upgrade height.
+	pollCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	var currentAppVersion uint64
+	err = wait.ForCondition(pollCtx, 30*time.Second, time.Second, func() (bool, error) {
+		abciInfo, err := rpcClient.ABCIInfo(pollCtx)
+		if err != nil {
+			return false, nil
+		}
+		currentAppVersion = abciInfo.Response.GetAppVersion()
+		return currentAppVersion == targetAppVersion, nil
+	})
+	s.Require().NoError(err, "upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
 
 	// The upgrade was already applied. Compute the expected upgrade height
 	// from the height at which MsgTryUpgrade was included.
@@ -431,7 +438,7 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
 	// CIP-048: Consensus timeout parameters
-	s.validateTimeoutInfo(ctx, node)
+	s.validateTimeoutInfo(ctx, node, cfg)
 	// Evidence params: MaxAgeNumBlocks bounded to the unbonding period.
 	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV10Blocks, appVersion)
 	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
@@ -441,22 +448,28 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the expected v9 values per CIP-048.
-func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode) {
+// parameters match the expected v9 values per CIP-048, or the start-flag
+// overrides the test chain runs with.
+func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, cfg *dockerchain.Config) {
 	rpcClient, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
+	timeoutCommit, delayedPrecommitTimeout := dockerchain.TimeoutCommit, dockerchain.DelayedPrecommitTimeout
+	if cfg.DefaultBlockTime {
+		timeoutCommit, delayedPrecommitTimeout = appconsts.TimeoutCommit, appconsts.DelayedPrecommitTimeout
+	}
+
 	ti := abciInfo.Response.TimeoutInfo
 	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
-	s.Require().Equal(appconsts.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(delayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "DelayedPrecommitTimeout mismatch")
 	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
 	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
 	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
 	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(appconsts.TimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
+	s.Require().Equal(timeoutCommit, ti.TimeoutCommit, "TimeoutCommit mismatch")
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and

@@ -58,8 +58,9 @@ jobs:
           # Run tests outside the explicit heavy groups, including newly added tests.
           - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             skip: "^(TestIntegration.*|TestBigBlob.*|TestStandardSDK.*|TestSquareSize.*|TestPriority.*|TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector|TestPrepareProposalConsistency|TestPrepareProposalCappingNumberOfMessages)$"
-          - package: "github.com/celestiaorg/celestia-app/v11/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v11/pkg/user"
+          # Both are bound by block/poll waits, not CPU, so they share a job.
+          - package: "github.com/celestiaorg/celestia-app/v11/pkg/user github.com/celestiaorg/celestia-app/v11/test/txsim"
+            flags: "-parallel 6"
           - package: "github.com/celestiaorg/celestia-app/v11/test/ledger"
           - package: "github.com/celestiaorg/celestia-app/v11/fibre/..."
           - package: "github.com/celestiaorg/celestia-app/v11/tools/chainbuilder"
@@ -81,7 +82,7 @@ jobs:
             go test -timeout 30m -run "^(${{ matrix.pattern }})$" ${{ matrix.package }}
           else
             # run specific package
-            make test PACKAGES="${{ matrix.package }}"
+            go test -timeout 30m ${{ matrix.flags }} ${{ matrix.package }}
           fi
 
   test-arm64:
@@ -92,6 +93,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: ./.github/actions/setup-go
+        with:
+          cache-key-suffix: test-arm64
 
       - name: Show CPU features
         run: grep -m1 Features /proc/cpuinfo

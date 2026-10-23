@@ -168,7 +168,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[4]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[4]).Address().String(), 10_000, 10)
+				blobs := blobfactory.RandV0Blobs(random.New(), 10_000, 10)
 				tx, _, err := signer.CreatePayForBlobs(accounts[4], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -180,7 +180,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[5]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[5]).Address().String(), 1_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 1_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[5], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -192,7 +192,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[6]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[6]).Address().String(), 10_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 10_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[6], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -204,7 +204,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[7]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[7]).Address().String(), 100_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 100_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[7], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -216,7 +216,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[8]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[8]).Address().String(), 1_000_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 1_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[8], blobs, opts...)
 				require.NoError(t, err)
 				return tx

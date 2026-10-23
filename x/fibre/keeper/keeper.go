@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -115,6 +116,22 @@ func (k Keeper) GetPromiseFreshnessFloor(ctx sdk.Context) (time.Time, error) {
 func (k Keeper) SetPromiseFreshnessFloor(ctx sdk.Context, floor time.Time) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.PromiseFreshnessFloorKey, sdk.FormatTimeBytes(floor))
+}
+
+// getGenesisHeight returns the height of the first block, or 0 if InitGenesis predates
+// recording it. The read is not charged so every verification path costs the same gas.
+func (k Keeper) getGenesisHeight(ctx sdk.Context) int64 {
+	store := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()).KVStore(k.storeKey)
+	bz := store.Get(types.GenesisHeightKey)
+	if len(bz) != 8 {
+		return 0
+	}
+	return int64(binary.BigEndian.Uint64(bz))
+}
+
+// setGenesisHeight records the height of the first block.
+func (k Keeper) setGenesisHeight(ctx sdk.Context, height int64) {
+	ctx.KVStore(k.storeKey).Set(types.GenesisHeightKey, binary.BigEndian.AppendUint64(nil, uint64(height)))
 }
 
 // GetEscrowAccount retrieves an escrow account by signer address.

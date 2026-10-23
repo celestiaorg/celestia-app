@@ -73,22 +73,20 @@ func TestSeparateTxs(t *testing.T) {
 			wantPFF:  0,
 		},
 		{
-			// A proto-valid v4.BlobTx with TypeId="BLOB" but no blobs causes
-			// UnmarshalBlobTx to return (isBlob=true, err!=nil). The function
-			// must drop it instead of panicking.
-			name:     "malformed blob tx with no blobs is dropped without panicking",
+			// A proto-valid v4.BlobTx with TypeId="BLOB" but no blobs is classified as a
+			// blob tx by its type ID; Fill decodes and drops it.
+			name:     "malformed blob tx with no blobs is classified as a blob tx",
 			rawTxs:   [][]byte{mustMarshal(t, &v4.BlobTx{TypeId: "BLOB"})},
 			wantNorm: 0,
-			wantBlob: 0,
+			wantBlob: 1,
 			wantPFF:  0,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, tc.rawTxs)
+			normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, tc.rawTxs)
 			require.Len(t, normalTxs, tc.wantNorm)
-			require.Len(t, blobTxs, tc.wantBlob)
 			require.Len(t, rawBlobTxs, tc.wantBlob)
 			require.Len(t, payForFibreTxs, tc.wantPFF)
 		})

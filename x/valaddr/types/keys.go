@@ -17,13 +17,13 @@ const (
 	RouterKey = ModuleName
 )
 
-// JailedGracePeriod is how long a validator may remain jailed and unbonded
-// before the EndBlocker sweep garbage-collects its Info entry. A
-// validator that recovers before this elapses keeps its
-// registration. This is a cleanup threshold, not a consensus-critical value, so
-// the exact duration is intentionally approximate. A week is plenty: a healthy
-// validator unjails within hours to at most a few days.
-const JailedGracePeriod = 7 * 24 * time.Hour
+// UnbondedGracePeriod is how long after its UnbondingTime a validator may
+// remain not bonded before the EndBlocker sweep garbage-collects its
+// FibreProviderInfo entry. A validator that rebonds before this elapses keeps
+// its registration. This is a cleanup threshold, not a consensus-critical
+// value, so the exact duration is intentionally approximate. A week is plenty:
+// a healthy validator unjails or rebonds within hours to at most a few days.
+const UnbondedGracePeriod = 7 * 24 * time.Hour
 
 // Store key prefixes
 var (

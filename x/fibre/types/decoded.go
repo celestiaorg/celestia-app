@@ -46,7 +46,6 @@ type certKeyContextKey struct{}
 type CertKeyHolder struct {
 	raw []byte
 	key sigcache.Key
-	set bool
 }
 
 // Set points the holder at the key derived for the transaction about to be
@@ -56,7 +55,7 @@ func (h *CertKeyHolder) Set(d *DecodedPayForFibre) {
 		*h = CertKeyHolder{}
 		return
 	}
-	*h = CertKeyHolder{raw: d.Raw, key: d.CertKey, set: true}
+	*h = CertKeyHolder{raw: d.Raw, key: d.CertKey}
 }
 
 // WithCertKeyHolder attaches h to ctx once, for a whole walk.
@@ -67,14 +66,6 @@ func WithCertKeyHolder(ctx sdk.Context, h *CertKeyHolder) sdk.Context {
 	return ctx.WithValue(certKeyContextKey{}, h)
 }
 
-// WithCertKey attaches d's certificate key to ctx for a single transaction; a loop
-// over many should use [WithCertKeyHolder] so the context chain does not grow.
-func WithCertKey(ctx sdk.Context, d *DecodedPayForFibre) sdk.Context {
-	h := &CertKeyHolder{}
-	h.Set(d)
-	return WithCertKeyHolder(ctx, h)
-}
-
 // CertKeyFromContext returns the certificate cache key attached to ctx, only if it
 // was derived from exactly ctx.TxBytes().
 func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
@@ -82,7 +73,7 @@ func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
 		return sigcache.Key{}, false
 	}
 	h, _ := ctx.Value(certKeyContextKey{}).(*CertKeyHolder)
-	if h == nil || !h.set || !bytes.Equal(h.raw, ctx.TxBytes()) {
+	if h == nil || len(h.raw) == 0 || !bytes.Equal(h.raw, ctx.TxBytes()) {
 		return sigcache.Key{}, false
 	}
 	return h.key, true

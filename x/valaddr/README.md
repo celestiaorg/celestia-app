@@ -18,7 +18,7 @@ message FibreProviderInfo {
 }
 ```
 
-Entries are garbage-collected in `EndBlock`: a record is deleted once its validator has either been removed from staking state entirely, or has been jailed and unbonded for longer than a 7-day grace period (`JailedGracePeriod`). A re-registered validator simply submits a new `MsgSetFibreProviderInfo`.
+Entries are garbage-collected in `EndBlock`: a record is deleted once its validator has either been removed from staking state entirely, or has not been bonded for longer than a 7-day grace period (`UnbondedGracePeriod`) past its unbonding time. This applies whether or not the validator is jailed. A validator that never bonded has no unbonding time, so its record is deleted in the next `EndBlock`. A validator that is still unbonding keeps its record. A validator that rebonds after its record was deleted submits a new `MsgSetFibreProviderInfo`.
 
 The module has no parameters. Genesis contains `fibre_providers`, a list of validator consensus addresses and their `FibreProviderInfo`. Export includes every stored registration in consensus address order, and initialization restores those records. Empty genesis remains supported. Genesis validation rejects invalid or duplicate addresses but preserves historical host values.
 
