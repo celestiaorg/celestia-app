@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - rachid/ci-speed-combined
     paths:
       - go.sum
       - test/docker-e2e/go.sum
@@ -101,7 +100,7 @@ jobs:
   prune:
     # Keeps the newest two build and lint cache generations saved on this ref.
     needs: [warm, warm-arm64]
-    if: ${{ false }}
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       actions: write
