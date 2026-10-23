@@ -168,12 +168,9 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 	}
 }
 
-// TODO: regenerate x/zkism/internal/testdata/state_membership from the SP1 membership program once it outputs the
-// merkle tree root and count, then remove this skip.
-const skipStateMembershipFixtures = "state membership fixtures predate the merkle tree root public values"
-
-// stateMembershipTrustedState is the trusted state that the state membership fixtures are bound to.
-const stateMembershipTrustedState = "93feaeaf040d7b179d2d9dc8fc3900308fece8ec5b678816c583861a5ba9aa7da704000000000000548dde286a0ffb85381e5258af5ca042715f745c43ad0389b4834bf608695bf6d70000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443964a68700cf76e215626e076e76d23bd1f4c3b31184b5822fd7b4df15d5ce9a"
+// stateMembershipTrustedState is the trusted state that the state membership fixtures are bound to:
+// the EVM state root followed by the EVM height (u64, little-endian) at which the merkle tree was proven.
+const stateMembershipTrustedState = "29f5291fbbbf562ad5436a70a5c31ac0f178a26df4881f0783338a87f78006fbc500000000000000"
 
 func (suite *KeeperTestSuite) TestSubmitMessages() {
 	trustedState, err := hex.DecodeString(stateMembershipTrustedState)
@@ -289,8 +286,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 }
 
 func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
-	suite.T().Skip(skipStateMembershipFixtures)
-
 	trustedState, err := hex.DecodeString(stateMembershipTrustedState)
 	suite.Require().NoError(err)
 
@@ -300,12 +295,14 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 	var publicValues types.StateMembershipValues
 	suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
-	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-	res, err := msgServer.SubmitMessages(suite.ctx, &types.MsgSubmitMessages{
+	msg := &types.MsgSubmitMessages{
 		Id:           ism.Id,
 		Proof:        proofBz,
 		PublicValues: pubValues,
-	})
+	}
+
+	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+	res, err := msgServer.SubmitMessages(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
 	suite.Require().Equal(types.EncodeHex(publicValues.TreeRoot[:]), res.TreeRoot)
@@ -315,45 +312,33 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 	suite.Require().NoError(err)
 	suite.Require().Equal(publicValues.TreeRoot[:], treeState.Root)
 	suite.Require().Equal(publicValues.Count, treeState.Count)
-}
 
-func (suite *KeeperTestSuite) TestSubmitMessagesAfterUpdate() {
-	suite.T().Skip(skipStateMembershipFixtures)
-
-	// Test that after UpdateInterchainSecurityModule, a new SubmitMessages is allowed
-	trustedState1, err := hex.DecodeString("cba82bb5e1679482417a2f3e702afcfcac71d635b39983aea1ec90662c295b4fcd00000000000000306a35299603c1c3225e813951f37a3a527d516a17e124aa5f1765ccdcf0bd792e0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443964a68700cf76e215626e076e76d23bd1f4c3b31184b5822fd7b4df15d5ce9a")
-	suite.Require().NoError(err)
-
-	ism := suite.CreateTestIsm(trustedState1)
-	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-
-	// Update to new state
-	updateProof, updatePubValues := readStateTransitionProofData(suite.T())
-	updateMsg := &types.MsgUpdateInterchainSecurityModule{
-		Id:           ism.Id,
-		Proof:        updateProof,
-		PublicValues: updatePubValues,
-	}
-	updateRes, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, updateMsg)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(updateRes)
-
-	// Now SubmitMessages should work with the new state
-	submitProof, submitPubValues := readStateMembershipProofData(suite.T())
-	submitMsg := &types.MsgSubmitMessages{
-		Id:           ism.Id,
-		Proof:        submitProof,
-		PublicValues: submitPubValues,
-	}
-	submitRes, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(submitRes)
-
-	// Second SubmitMessages should fail
-	submitRes2, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
-	suite.Require().Error(err)
+	// A second submission for the same state root is rejected.
+	_, err = msgServer.SubmitMessages(suite.ctx, msg)
 	suite.Require().ErrorIs(err, types.ErrMessageProofAlreadySubmitted)
-	suite.Require().Nil(submitRes2)
+
+	// Every message dispatched on the source chain verifies against the proven root.
+	messages := readStateMembershipMessages(suite.T())
+	suite.Require().Len(messages, int(publicValues.Count))
+
+	leaves := make([][32]byte, len(messages))
+	for i, message := range messages {
+		leaves[i] = message.Id()
+	}
+
+	for i, message := range messages {
+		authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(leaves, uint32(i)), message)
+		suite.Require().NoError(err)
+		suite.Require().True(authorized, "message %d not authorized", i)
+	}
+
+	// A message that was not dispatched on the source chain is rejected.
+	forged := messages[0]
+	forged.Body = append([]byte{}, forged.Body...)
+	forged.Body[len(forged.Body)-1] ^= 1
+	authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(leaves, 0), forged)
+	suite.Require().NoError(err)
+	suite.Require().False(authorized)
 }
 
 // ismSnapshot holds the ISM state that a rejected message must not change.

@@ -414,9 +414,6 @@ func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateMembership() {
 	if testing.Short() {
 		t.Skip("skipping hyperlane zkism state membership test in short mode")
 	}
-	// TODO: regenerate internal/testdata/zkism/state_membership from the SP1 membership program once it outputs the
-	// merkle tree root and count, then remove this skip.
-	t.Skip("state membership fixtures predate the merkle tree root public values")
 
 	ctx := context.Background()
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
@@ -787,7 +784,7 @@ func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, ch
 
 	var (
 		stateVkeyHash     = "0x004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
-		messageVkeyHash   = "0x00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
+		messageVkeyHash   = "0x0050c34eb85f056c00820f052a625e806699088b245b01f8866b845f44afb3a0"
 		merkleTreeAddress = "0000000000000000000000006007ce81d2fd7b9b7f22e71ce9896e00d6017ba8"
 	)
 

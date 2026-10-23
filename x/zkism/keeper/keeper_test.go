@@ -26,7 +26,7 @@ import (
 
 var (
 	stateVkeyHash     = "0x004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
-	messageVkeyHash   = "0x00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
+	messageVkeyHash   = "0x0050c34eb85f056c00820f052a625e806699088b245b01f8866b845f44afb3a0"
 	merkleTreeAddress = "0000000000000000000000006007ce81d2fd7b9b7f22e71ce9896e00d6017ba8"
 )
 
@@ -118,6 +118,35 @@ func readStateMembershipProofData(t *testing.T) ([]byte, []byte) {
 	return proofBz, inputsBz
 }
 
+// readStateMembershipMessages reads the hyperlane messages, in dispatch order, that the state membership fixtures prove.
+func readStateMembershipMessages(t *testing.T) []util.HyperlaneMessage {
+	t.Helper()
+
+	bz, err := os.ReadFile("../internal/testdata/state_membership/messages.hex")
+	require.NoError(t, err, "failed to read messages file")
+
+	lines := strings.Fields(string(bz))
+	messages := make([]util.HyperlaneMessage, 0, len(lines))
+	for _, line := range lines {
+		raw, err := hex.DecodeString(line)
+		require.NoError(t, err)
+		message, err := util.ParseHyperlaneMessage(raw)
+		require.NoError(t, err)
+		messages = append(messages, message)
+	}
+
+	return messages
+}
+
+// merkleProofMetadata encodes the ISM metadata proving leaves[index] in a hyperlane merkle tree containing leaves.
+func merkleProofMetadata(leaves [][32]byte, index uint32) []byte {
+	bz := binary.BigEndian.AppendUint32(nil, index)
+	for _, node := range merkleBranch(leaves, int(index)) {
+		bz = append(bz, node[:]...)
+	}
+	return bz
+}
+
 func (suite *KeeperTestSuite) TestVerify() {
 	ism := suite.CreateTestIsm([]byte("trusted_root"))
 
@@ -132,11 +161,7 @@ func (suite *KeeperTestSuite) TestVerify() {
 
 	treeState := types.MerkleTreeState{Root: root[:], Count: 5}
 	metadata := func(index uint32) []byte {
-		bz := binary.BigEndian.AppendUint32(nil, index)
-		for _, node := range merkleBranch(leaves, int(index)) {
-			bz = append(bz, node[:]...)
-		}
-		return bz
+		return merkleProofMetadata(leaves, index)
 	}
 
 	testCases := []struct {

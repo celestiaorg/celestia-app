@@ -100,6 +100,8 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 		return false, nil
 	}
 
+	// The leaf is always message.Id(), computed here rather than supplied, and BranchRoot always hashes TreeDepth
+	// levels, so only a message that is a leaf of the proven tree can match the root.
 	root := util.BranchRoot(message.Id(), proof.Branch, proof.Index)
 	return bytes.Equal(root[:], treeState.Root), nil
 }
