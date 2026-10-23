@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/celestia-app/v11 v11.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.2.0
-	github.com/celestiaorg/tastora v0.21.3-0.20261022222307-73cc95d87c40
+	github.com/celestiaorg/tastora v0.21.3-0.20261023072854-e069448e512c
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/gogoproto v1.7.2
