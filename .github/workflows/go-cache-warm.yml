@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - go.sum
+      - rsmt2d/go.sum
       - test/docker-e2e/go.sum
       - .github/**
   schedule:

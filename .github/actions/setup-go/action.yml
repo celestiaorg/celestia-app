@@ -39,7 +39,7 @@ runs:
       id: keys
       shell: bash
       env:
-        HASH: ${{ hashFiles('go.sum', 'test/docker-e2e/go.sum') }}
+        HASH: ${{ hashFiles('go.sum', 'rsmt2d/go.sum', 'test/docker-e2e/go.sum') }}
         SUFFIX: ${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}
       run: |
         base="${RUNNER_OS}-${RUNNER_ARCH}"

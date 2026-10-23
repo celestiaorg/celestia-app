@@ -2,5 +2,6 @@ go 1.26.10
 
 use (
 	.
+	./rsmt2d
 	./test/docker-e2e
 )

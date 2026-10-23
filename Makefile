@@ -126,6 +126,8 @@ $(EMBEDDED_BINARY_TARGETS): download-v%-binaries:
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
+	@echo "--> Updating go.mod in ./rsmt2d"
+	@(cd ./rsmt2d && GOWORK=off go mod tidy)
 	@echo "--> Updating go.mod in ./test/docker-e2e"
 	@(cd ./test/docker-e2e && go mod tidy)
 .PHONY: mod
@@ -266,6 +268,11 @@ test-short:
 	@echo "--> Running tests in short mode"
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
+
+## test-rsmt2d: Test the independent rsmt2d module with the race detector.
+test-rsmt2d:
+	@cd rsmt2d && GOWORK=off go test -mod=readonly -race -count=3 -timeout=10m ./...
+.PHONY: test-rsmt2d
 
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:

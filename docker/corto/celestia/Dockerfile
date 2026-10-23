@@ -4,6 +4,7 @@ FROM docker.io/golang:1.26.10-bookworm AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY rsmt2d/go.mod rsmt2d/go.sum ./rsmt2d/
 RUN go mod download
 COPY . .
 RUN make build-standalone

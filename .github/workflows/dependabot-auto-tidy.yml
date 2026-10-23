@@ -16,6 +16,8 @@ on:
     paths:
       - "go.mod"
       - "go.sum"
+      - "rsmt2d/go.mod"
+      - "rsmt2d/go.sum"
       - "test/docker-e2e/go.mod"
       - "test/docker-e2e/go.sum"
 

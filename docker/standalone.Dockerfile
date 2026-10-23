@@ -31,6 +31,7 @@ WORKDIR /celestia-app
 
 # cache go module dependencies
 COPY go.mod go.sum ./
+COPY rsmt2d/go.mod rsmt2d/go.sum ./rsmt2d/
 COPY docker/download-go-modules.sh /usr/local/bin/download-go-modules.sh
 RUN sh /usr/local/bin/download-go-modules.sh
 

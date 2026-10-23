@@ -3,6 +3,7 @@ FROM golang:1.26.10-bookworm AS build
 WORKDIR /src
 ENV GOWORK=off GOMAXPROCS=4
 COPY go.mod go.sum ./
+COPY rsmt2d/go.mod rsmt2d/go.sum ./rsmt2d/
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
