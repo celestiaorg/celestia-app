@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
@@ -72,6 +72,24 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 	}())
 	require.NoError(t, err)
 
+	// Non-PFF shapes carrying the MsgPayForFibre type URL: a blob whose payload
+	// carries the string, and a BlobTx wrapping a real pay-for-fibre tx.
+	typeURLInBlob, err := squaretx.MarshalBlobTx([]byte("inner"), func() *share.Blob {
+		blob, err := share.NewBlob(testNamespace, []byte(fibretypes.MsgPayForFibreTypeURL), share.ShareVersionZero, nil)
+		require.NoError(t, err)
+		return blob
+	}())
+	require.NoError(t, err)
+
+	wrappedFibre, err := squaretx.MarshalBlobTx(
+		fibreTxBytes(t, signer, testNamespace.Bytes(), testCommitment),
+		func() *share.Blob {
+			blob, err := share.NewBlob(testNamespace, []byte("payload"), share.ShareVersionZero, nil)
+			require.NoError(t, err)
+			return blob
+		}())
+	require.NoError(t, err)
+
 	corpus := []struct {
 		name string
 		raw  []byte
@@ -86,6 +104,8 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 		{"blob tx, multi-share blob", blobTxBytes(t, rng, 2500)},
 		{"non-canonical blob tx", append(append([]byte(nil), oneBlob...), 0x78, 0x01)},
 		{"nested blob tx", nested},
+		{"blob tx whose blob carries the fibre type URL", typeURLInBlob},
+		{"blob tx wrapping a fibre tx", wrappedFibre},
 	}
 
 	for _, maxSquareSize := range []int{8, 64, 128} {

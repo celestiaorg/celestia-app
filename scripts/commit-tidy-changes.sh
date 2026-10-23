@@ -5,7 +5,7 @@
 # run only from CI, on Dependabot pull requests -- it creates commits and pushes.
 #
 # test/docker-e2e is a separate Go module that pins the root module by relative
-# path (github.com/celestiaorg/celestia-app/v10 => ../..), so its indirect
+# path (github.com/celestiaorg/celestia-app/v11 => ../..), so its indirect
 # requirements are a derived artifact of the root go.mod. A Dependabot bump to a
 # root dependency can therefore leave test/docker-e2e untidy and turn
 # go-mod-tidy-check red, which a maintainer then has to fix by hand. Regenerating

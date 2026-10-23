@@ -2,8 +2,9 @@ package app
 
 import (
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -90,7 +91,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		for _, tx := range txs {
 			txProtoSize := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
 			if currentTxBytes+txProtoSize > maxTxBytes {
-				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+				logger.Debug("skipping tx because it was too large to fit in the block", "tx", lazyTxHash(tx))
 				continue
 			}
 			currentTxBytes += txProtoSize
@@ -99,15 +100,20 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, fsb.decodePFF, filteredByMaxBytes)
+	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
+	dec := fsb.txConfig.TxDecoder()
 
 	// Warm the signature cache across every CPU before filling. Failures are
 	// not recorded, so the fill still performs and decides each check itself.
-	// separateTxsDecoded bounds that candidate list.
 	if fsb.preverifyPFF != nil {
-		decoded := make([]*fibretypes.DecodedPayForFibre, len(payForFibreTxs))
-		for i, fibreTx := range payForFibreTxs {
-			decoded[i] = fibreTx.decoded
+		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
+		for i := range payForFibreTxs {
+			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
+				break
+			}
+			if fsb.decodeFibreTx(logger, dec, &payForFibreTxs[i]) {
+				decoded = append(decoded, payForFibreTxs[i].decoded)
+			}
 		}
 		fsb.preverifyPFF(ctx, decoded)
 	}
@@ -116,25 +122,31 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		sdkMessageCount = 0
 		zkProofMsgCount = 0
 		pfbMessageCount = 0
-		dec             = fsb.txConfig.TxDecoder()
 		n               = 0
 		m               = 0
 	)
 
 	for _, tx := range normalTxs {
+		// CheckTx rejects txs without messages, so every tx here weighs at least one message
+		// and nothing more fits once the cap is reached.
+		if sdkMessageCount >= appconsts.MaxSDKMessages {
+			break
+		}
+		// separateTxsDecoded leaves these undecoded; drop what it drops on a full decode.
 		sdkTx, err := dec(tx)
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
+		if _, has := hasPFB(sdkTx.GetMsgs()); has || countMsgPayForFibre(sdkTx) > 0 {
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
-		msgTypes := msgTypes(sdkTx)
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
-			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
 			continue
 		}
 		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
@@ -144,7 +156,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		if !fsb.builder.AppendTx(tx) {
-			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(tx))
 			continue
 		}
 
@@ -158,9 +170,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if err != nil {
 			logger.Error(
 				"filtering already checked transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"tx", lazyTxHash(tx),
 				"error", err,
-				"msgs", msgTypes,
+				"msgs", msgTypes(sdkTx),
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			err = fsb.builder.RevertLastTx()
@@ -177,7 +189,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// message keeps the tx (gas only), so ignore the error.
 		if containsFibreStateMsg(sdkTx) {
 			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
-				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", lazyTxHash(tx), "error", err)
 			}
 		}
 
@@ -187,35 +199,48 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		n++
 	}
 
-	for i, tx := range blobTxs {
-		sdkTx, err := dec(tx.Tx)
+	var keptBlobTxs []*tx.BlobTx
+	for _, rawTx := range rawBlobTxs {
+		// validateBlobTx keeps only single-PFB blob txs, so nothing more fits once the cap is reached.
+		if pfbMessageCount >= appconsts.MaxPFBMessages {
+			break
+		}
+		bTx, _, err := tx.UnmarshalBlobTx(rawTx)
 		if err != nil {
-			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			// Drop malformed blob txs. Matches ProcessProposalHandler. CheckTx should have
+			// rejected this; reaching here indicates a regression so log + count it.
+			logger.Error("dropping malformed blob tx", "tx", lazyTxHash(rawTx), "err", err)
+			telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
+			continue
+		}
+		sdkTx, err := dec(bTx.Tx)
+		if err != nil {
+			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx.Tx)
+		ctx = ctx.WithTxBytes(bTx.Tx)
 
 		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", lazyTxHash(bTx.Tx))
 			continue
 		}
 
 		if fsb.validateBlobTx != nil {
-			if _, err := fsb.validateBlobTx(tx); err != nil {
-				logger.Error("dropping invalid blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			if _, err := fsb.validateBlobTx(bTx); err != nil {
+				logger.Error("dropping invalid blob tx", "tx", lazyTxHash(bTx.Tx), "error", err)
 				continue
 			}
 		}
 
-		ok, err := fsb.builder.AppendBlobTx(tx)
+		ok, err := fsb.builder.AppendBlobTx(bTx)
 		if err != nil {
-			logger.Debug("skipping blob tx due to error", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "err", err)
+			logger.Debug("skipping blob tx due to error", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
 		if !ok {
-			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(bTx.Tx))
 			continue
 		}
 
@@ -226,7 +251,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
-				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
+				"filtering already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			err = fsb.builder.RevertLastBlobTx()
@@ -239,16 +264,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		rawBlobTxs[m] = rawBlobTxs[i]
-		blobTxs[m] = blobTxs[i]
+		rawBlobTxs[m] = rawTx
+		keptBlobTxs = append(keptBlobTxs, bTx)
 		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
-	// separateTxsDecoded only keeps canonically encoded blob txs, so the raw bytes
+	// UnmarshalBlobTx only accepts canonically encoded blob txs, so the raw bytes
 	// are identical to re-marshaling the decoded blob txs and can be reused.
 	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
@@ -256,7 +281,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// Record where the decoded blob txs ended up so ProcessProposal reuses
 	// them. Only blob txs occupy this range; normal and fibre txs stay nil.
 	fsb.keptBlobTxs = make([]*tx.BlobTx, len(kept))
-	copy(fsb.keptBlobTxs[n:n+m], blobTxs[:m])
+	copy(fsb.keptBlobTxs[n:n+m], keptBlobTxs)
 	return kept
 }
 
@@ -269,28 +294,54 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-// decodedFibreTx pairs a raw pay-for-fibre tx with its decoded forms.
+// decodedFibreTx pairs a raw pay-for-fibre tx with its decoded forms, filled on first use.
 type decodedFibreTx struct {
 	raw     []byte
 	sdkTx   sdk.Tx
 	decoded *fibretypes.DecodedPayForFibre
+	// checked is set once decodeFibreTx ran; valid is its result.
+	checked, valid bool
 }
 
-// separateTxsDecoded decodes raw tendermint txs into normal, blob, and
+// decodeFibreTx decodes e once and reports whether ProcessProposal accepts its shape.
+// decodePFF and the shape check are stateless, so when this runs does not matter.
+func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDecoder, e *decodedFibreTx) bool {
+	if e.checked {
+		return e.valid
+	}
+	e.checked = true
+	if e.sdkTx == nil {
+		sdkTx, err := dec(e.raw)
+		if err != nil {
+			return false
+		}
+		e.sdkTx = sdkTx
+	}
+	// Reuse the predicate ProcessProposal enforces so a proposer never
+	// builds a block its own ProcessProposal would reject.
+	if err := validatePayForFibreTxShape(e.sdkTx); err != nil {
+		logger.Debug("dropping invalid pay-for-fibre tx", "tx", lazyTxHash(e.raw), "err", err)
+		return false
+	}
+	if fsb.decodePFF != nil {
+		e.decoded = fsb.decodePFF(e.raw)
+	}
+	e.valid = true
+	return true
+}
+
+// separateTxsDecoded separates raw tendermint txs into normal, blob, and
 // pay-for-fibre txs.
 // This function filters out:
 //   - transactions that exceed MaxTxSize
 //   - transactions that fail SDK decoding
 //   - non-blob transactions containing MsgPayForBlobs
-//   - transactions containing MsgPayForFibre mixed with other messages
-//   - transactions containing more than one MsgPayForFibre
-//   - transactions whose payment promise fails stateless validation
 //
-// Pay-for-fibre txs carry their decoded forms so later steps reuse them.
-// decodePFF may be nil.
-func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF func([]byte) *fibretypes.DecodedPayForFibre, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
+// Txs whose first message parses from the wire are not decoded here; Fill decodes and
+// filters them when it reaches them (pay-for-fibre txs through decodeFibreTx). Blob txs
+// are only classified by their type ID; Fill decodes them and drops malformed ones.
+func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
-	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
 	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
@@ -303,18 +354,19 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 			continue
 		}
 
-		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
-		if isBlob {
-			if err != nil {
-				// Drop malformed blob txs. Matches ProcessProposalHandler.
-				// CheckTx should have rejected this; reaching here indicates a
-				// regression so log + count it for visibility.
-				logger.Error("dropping malformed blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
-				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
-				continue
-			}
-			blobTxs = append(blobTxs, bTx)
+		// The same predicate as UnmarshalBlobTx's isBlob, without decoding the blobs.
+		if tx.HasBlobTxTypeID(rawTx) {
 			rawBlobTxs = append(rawBlobTxs, rawTx)
+			continue
+		}
+
+		// Fill decodes these lazily and stops at each cap; a failed peek takes the full decode.
+		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok {
+			if isPFF {
+				payForFibreTxs = append(payForFibreTxs, decodedFibreTx{raw: rawTx})
+			} else {
+				normalTxs = append(normalTxs, rawTx)
+			}
 			continue
 		}
 
@@ -331,30 +383,29 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 		}
 
 		if countMsgPayForFibre(sdkTx) > 0 {
-			// Bound the candidate list so the pre-verification pass that
-			// reads it is bounded too. Candidates arrive in mempool priority
-			// order, so the drop takes the lowest priority first.
-			if len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates {
-				logger.Debug("dropping pay-for-fibre tx because the candidate bound was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-				continue
-			}
-			// Reuse the predicate ProcessProposal enforces so a proposer never
-			// builds a block its own ProcessProposal would reject.
-			if err := validatePayForFibreTxShape(sdkTx); err != nil {
-				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
-				continue
-			}
-			entry := decodedFibreTx{raw: rawTx, sdkTx: sdkTx}
-			if decodePFF != nil {
-				entry.decoded = decodePFF(rawTx)
-			}
-			payForFibreTxs = append(payForFibreTxs, entry)
+			payForFibreTxs = append(payForFibreTxs, decodedFibreTx{raw: rawTx, sdkTx: sdkTx})
 			continue
 		}
 
 		normalTxs = append(normalTxs, rawTx)
 	}
-	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
+	return normalTxs, rawBlobTxs, payForFibreTxs
+}
+
+var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
+
+// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre, decoding
+// only the body and the type URLs. ok is false if either does not unmarshal.
+func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
+	var raw fibretypes.TxRawBody
+	if err := raw.Unmarshal(rawTx); err != nil {
+		return false, false
+	}
+	var body fibretypes.TxBodyTypeURLs
+	if err := body.Unmarshal(raw.BodyBytes); err != nil {
+		return false, false
+	}
+	return len(body.Messages) > 0 && body.Messages[0].TypeUrl == payForFibreTypeURL, true
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
@@ -371,17 +422,34 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs []decodedFibreTx) [][]byte {
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
-	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
+	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
+	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
+	settled := make(map[sigcache.Key]struct{})
+	certKeys := &fibretypes.CertKeyHolder{}
+	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
-	for _, entry := range payForFibreTxs {
+	for i := range payForFibreTxs {
+		// Every tx decodeFibreTx accepts weighs exactly one message, so nothing more fits.
+		if pffMessageCount >= appconsts.MaxPayForFibreMessages {
+			break
+		}
+		entry := &payForFibreTxs[i]
+		if !fsb.decodeFibreTx(logger, dec, entry) {
+			continue
+		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
+		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
+			if _, ok := settled[entry.decoded.PromiseKey]; ok {
+				continue
+			}
+		}
 
-		// The system blob comes from the decoded view, or from parsing when
-		// there is none. separateTxsDecoded guarantees exactly one
-		// MsgPayForFibre, so isFibreTx is always true.
+		// The system blob comes from the decoded view, or from parsing when there is none. Only txs
+		// with a MsgPayForFibre are routed here and the shape check allows no other message,
+		// so isFibreTx is always true.
 		var (
 			fibreTx   *tx.FibreTx
 			isFibreTx = true
@@ -393,16 +461,11 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(rawTx)
 		}
 		if err != nil {
-			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			logger.Error("synthesizing fibre tx", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
 		if !isFibreTx {
-			logger.Error("expected pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-			continue
-		}
-
-		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPayForFibreMessages {
-			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			logger.Error("expected pay-for-fibre tx", "tx", lazyTxHash(rawTx))
 			continue
 		}
 
@@ -410,15 +473,15 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		// behind for the txs that follow it.
 		txCtx, commit := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx = fibretypes.WithDecodedPayForFibre(txCtx, entry.decoded)
+		certKeys.Set(entry.decoded)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
-			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			logger.Error("appending pay-for-fibre transaction to builder", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
 		if !ok {
-			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", lazyTxHash(rawTx))
 			continue
 		}
 
@@ -426,7 +489,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"tx", lazyTxHash(rawTx),
 				"error", err,
 				"msgs", msgTypes(sdkTx),
 			)
@@ -442,10 +505,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		// behind. A promise that cannot settle (overdraw, duplicate, out of
 		// gas) would commit its blob to the square without payment in
 		// FinalizeBlock, so drop the tx.
-		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+		if err := runMsgs(txCtx, sdkTx.GetMsgs(), fsb.msgRouter); err != nil {
 			logger.Error(
 				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
-				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"tx", lazyTxHash(rawTx),
 				"error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "unsettleable_pay_for_fibre_txs")
@@ -455,10 +518,26 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 		commit()
+		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
+			settled[entry.decoded.PromiseKey] = struct{}{}
+		}
 
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)
 	}
 
 	return fibreTxs
+}
+
+// lazyTxHash defers hashing a transaction until a log line is written, so
+// lines below the logger's level cost nothing. It renders like the hash's
+// tmbytes.HexBytes.
+type lazyTxHash []byte
+
+func (h lazyTxHash) String() string {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).String()
+}
+
+func (h lazyTxHash) MarshalJSON() ([]byte, error) {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).MarshalJSON()
 }

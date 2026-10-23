@@ -7,8 +7,8 @@
 When editing Go code, always run `make build` after changes to catch compilation errors immediately.
 
 ```bash
-make build              # Build multiplexer version (embeds v3-v9 binaries) into ./build/
-make build-standalone   # Build v10-only version (no embedded binaries)
+make build              # Build multiplexer version (embeds v3-v10 binaries) into ./build/
+make build-standalone   # Build v11-only version (no embedded binaries)
 make mod                # Update all go.mod files
 ```
 
@@ -45,8 +45,8 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 
 ### Multiplexer vs Standalone
 
-- **`make build`** (default): Multiplexer build embeds v3-v9 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
-- **`make build-standalone`**: v10-only, lighter. Build tag: `ledger`
+- **`make build`** (default): Multiplexer build embeds v3-v10 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
+- **`make build-standalone`**: v11-only, lighter. Build tag: `ledger`
 
 ### Dependency Forks
 

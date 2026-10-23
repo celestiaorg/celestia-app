@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

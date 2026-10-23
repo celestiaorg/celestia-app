@@ -3,12 +3,13 @@ package dockerchain
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 )
 
 const (
@@ -16,6 +17,11 @@ const (
 	defaultCelestiaTag  = "v6.2.5"
 	celestiaTagEnvVar   = "CELESTIA_TAG"
 	celestiaImageEnvVar = "CELESTIA_IMAGE"
+
+	// TimeoutCommit and DelayedPrecommitTimeout are passed to celestia-appd
+	// start so test chains produce sub-second blocks.
+	TimeoutCommit           = 250 * time.Millisecond
+	DelayedPrecommitTimeout = 250 * time.Millisecond
 )
 
 // Config represents the configuration for a docker Celestia setup.
@@ -25,6 +31,9 @@ type Config struct {
 	Tag             string
 	DockerClient    tastoratypes.TastoraDockerClient
 	DockerNetworkID string
+	// DefaultBlockTime runs the chain at the app's default block time instead
+	// of the fast test timeouts.
+	DefaultBlockTime bool
 }
 
 // DefaultConfig returns a configured instance of Config with a custom genesis and validators.

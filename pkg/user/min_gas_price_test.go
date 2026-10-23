@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

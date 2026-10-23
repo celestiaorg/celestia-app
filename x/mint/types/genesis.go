@@ -3,7 +3,7 @@ package types
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-app/v10/app/params"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
 )
 
 // NewGenesisState creates a new GenesisState object

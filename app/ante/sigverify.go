@@ -3,13 +3,18 @@ package ante
 import (
 	"context"
 	"encoding/binary"
+	"runtime"
+	"sync"
 
 	txsigning "cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // NewCachedSigVerificationDecorator returns the SDK's signature verification
@@ -44,6 +49,97 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 			sigCache.Add(key)
 		}
 		return nil
+	}
+}
+
+// PreverifyTxSignatures warms the signature cache for single-signer direct-sign txs
+// before ante runs; sound because the key binds every sign-bytes input.
+func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx) {
+	if sigCache == nil {
+		return
+	}
+	verify := cachedVerifier(sigCache)
+	type workItem struct {
+		pubKey     cryptotypes.PubKey
+		signerData txsigning.SignerData
+		sigData    signing.SignatureData
+		txData     txsigning.TxData
+	}
+	// Account reads stay on this goroutine; the verify-only pool is sized by the work
+	// found, up to GOMAXPROCS (NumCPU over-subscribes a CPU-limited container).
+	maxWorkers := runtime.GOMAXPROCS(0)
+	jobs := make(chan workItem, 2*maxWorkers)
+	var (
+		wg      sync.WaitGroup
+		workers int
+	)
+	worker := func() {
+		for item := range jobs {
+			func() {
+				defer func() { _ = recover() }()
+				_ = verify(ctx, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData)
+			}()
+		}
+	}
+	defer func() {
+		close(jobs)
+		wg.Wait()
+		_ = recover() // malformed txs remain for the ante handler
+	}()
+	for _, tx := range txs {
+		sigTx, ok := tx.(authsigning.Tx)
+		if !ok {
+			continue
+		}
+		sigs, err := sigTx.GetSignaturesV2()
+		if err != nil || len(sigs) != 1 {
+			continue
+		}
+		single, ok := sigs[0].Data.(*signing.SingleSignatureData)
+		if !ok || single.SignMode != signing.SignMode_SIGN_MODE_DIRECT {
+			continue
+		}
+		signers, err := sigTx.GetSigners()
+		if err != nil || len(signers) != 1 {
+			continue
+		}
+		acc, err := ante.GetSignerAcc(ctx, ak, signers[0])
+		if err != nil {
+			continue
+		}
+		pubKey := acc.GetPubKey()
+		if pubKey == nil {
+			pubKey = sigs[0].PubKey
+		}
+		if pubKey == nil {
+			continue
+		}
+		anyPk, err := codectypes.NewAnyWithValue(pubKey)
+		if err != nil {
+			continue
+		}
+		var accNum uint64
+		if ctx.BlockHeight() != 0 {
+			accNum = acc.GetAccountNumber()
+		}
+		adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
+		if !ok {
+			continue
+		}
+		if workers < maxWorkers {
+			workers++
+			wg.Go(worker)
+		}
+		jobs <- workItem{
+			pubKey: pubKey,
+			signerData: txsigning.SignerData{
+				Address: acc.GetAddress().String(), ChainID: ctx.ChainID(),
+				AccountNumber: accNum, Sequence: sigs[0].Sequence,
+				PubKey: &anypb.Any{TypeUrl: anyPk.TypeUrl, Value: anyPk.Value},
+			},
+			sigData: sigs[0].Data,
+			txData:  adaptableTx.GetSigningTxData(),
+		}
 	}
 }
 

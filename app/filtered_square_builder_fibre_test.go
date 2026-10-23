@@ -12,10 +12,10 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -101,11 +101,17 @@ func TestSeparateTxsFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, tc.rawTxs)
+			normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, tc.rawTxs)
 			require.Len(t, normalTxs, tc.wantNorm)
-			require.Len(t, blobTxs, tc.wantBlob)
 			require.Len(t, rawBlobTxs, tc.wantBlob)
-			require.Len(t, payForFibreTxs, tc.wantPFF)
+			// Fill drops what decodeFibreTx rejects.
+			var valid int
+			for i := range payForFibreTxs {
+				if (&FilteredSquareBuilder{}).decodeFibreTx(log.NewNopLogger(), txConfig.TxDecoder(), &payForFibreTxs[i]) {
+					valid++
+				}
+			}
+			require.Equal(t, tc.wantPFF, valid)
 		})
 	}
 }
@@ -293,29 +299,6 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 
 	kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
 	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
-}
-
-// TestSeparateTxsDecodedBoundsPayForFibreCandidates pins the bound on the
-// candidate list, which is what bounds the pre-verification pass that reads it.
-func TestSeparateTxsDecodedBoundsPayForFibreCandidates(t *testing.T) {
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	txConfig := encConf.TxConfig
-
-	require.Greater(t, appconsts.MaxPayForFibreCandidates, appconsts.MaxPayForFibreMessages,
-		"the candidate bound must leave headroom over the block limit")
-
-	rawTxs := make([][]byte, appconsts.MaxPayForFibreCandidates+1)
-	for i := range rawTxs {
-		rawTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	}
-
-	_, _, _, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, rawTxs)
-	require.Len(t, payForFibreTxs, appconsts.MaxPayForFibreCandidates)
-
-	// The bound drops the tail, so the kept candidates are the highest priority.
-	for i, entry := range payForFibreTxs {
-		require.Equal(t, rawTxs[i], entry.raw, "candidate %d is not the one at that position in the input", i)
-	}
 }
 
 // newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.

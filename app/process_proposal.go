@@ -3,24 +3,25 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	squarev4 "github.com/celestiaorg/go-square/v4"
-	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
@@ -82,8 +83,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		blobTxs = cached.blobTxs
 	}
 
-	// Decode every tx once, up front. Oversize txs are left to the loop, which
-	// rejects them without decoding.
+	// Decode blob txs and pick out PFF decode candidates up front. Oversize txs are
+	// left to the walk, which rejects them without decoding.
+	var decodeCandidates []int
 	for idx, rawTx := range req.Txs {
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
@@ -98,41 +100,77 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				blobTxs[idx] = decodedBlob
 			}
 		}
-		if blobTxs[idx] == nil {
-			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
-		}
-		if decoded[idx] == nil {
+		if blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
 			continue
 		}
 
-		// Reject an over-full proposal here rather than in the loop below,
-		// which only runs after every tx is decoded and pre-verified. Same
-		// verdict, same bound: DecodePayForFibre accepts a tx only when it
-		// carries exactly one MsgPayForFibre, which is what the loop counts.
+		// Reject an over-full proposal before decoding. Same bound: pffDecodeCandidate also
+		// counts malformed PayForFibre txs, which the loop rejects anyway.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 			return reject(), nil
 		}
+		decodeCandidates = append(decodeCandidates, idx)
 	}
+	sdkTxs := make([]sdk.Tx, len(req.Txs))
+	decoder := app.encodingConfig.TxConfig.TxDecoder()
+	waitDecode := forEachParallel(len(decodeCandidates), func(candidate int) {
+		idx := decodeCandidates[candidate]
+		sdkTx, err := decoder(req.Txs[idx])
+		if err != nil {
+			return
+		}
+		sdkTxs[idx] = sdkTx
+		if msg := fibretypes.PayForFibreMsg(sdkTx); msg != nil {
+			decoded[idx] = fibrekeeper.DerivePayForFibre(req.Txs[idx], msg)
+		}
+		// Prime the SDK wrapper's lazy signer cache while each tx has one worker; ante still
+		// reports any signer error or panic in block order.
+		defer func() { _ = recover() }()
+		if sigTx, ok := sdkTx.(authsigning.SigVerifiableTx); ok {
+			_, _ = sigTx.GetSigners()
+		}
+	})
 
-	// Verify the block's pay-for-fibre signatures across every CPU before the
-	// sequential loop reaches them. This only warms the signature cache: a
-	// failed check is not recorded, so the loop below still performs it and
-	// still decides. Any failure rejects the whole block, so the pass stops
-	// claiming work at the first one.
-	// A block may repeat one certificate across many PayForFibre txs;
-	// SeenCertificates holds that to one verification per distinct certificate.
-	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
+	waitDecode()
+
+	// Warm the signature cache across every CPU alongside the sequential loop, once per
+	// distinct certificate; the loop still decides.
+	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
-		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
 	})
+	ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
+	if verifyPFF != nil {
+		// Runs alongside the walk; a panic is re-raised after it, so the recover above rejects the block.
+		waitVerify := goWait(verifyPFF)
+		defer waitVerify()
+	}
 
 	// One holder for the whole walk, so the context does not grow by a value
 	// per transaction.
-	decodedHolder := &fibretypes.DecodedHolder{}
-	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
+	certKeys := &fibretypes.CertKeyHolder{}
+	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
+
+	// The data root depends only on the tx bytes and the decodes above, so build it
+	// during the walk; a cache hit already has it.
+	var (
+		square       proposalSquareResult
+		squareCancel atomic.Bool
+		waitSquare   func()
+	)
+	if cached == nil {
+		waitSquare = goWait(func() {
+			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+		})
+		defer func() {
+			// Cancel before waiting, so a proposal rejected at its first
+			// tx does not pay for a whole square first.
+			squareCancel.Store(true)
+			waitSquare()
+		}()
+	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -154,11 +192,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			sdkTxBytes = blobTx.Tx
 		}
 
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
+		// Pay-for-fibre txs were decoded above; every other tx is decoded here.
+		sdkTx := sdkTxs[idx]
+		var err error
+		if decoded[idx] == nil {
+			sdkTx, err = decoder(sdkTxBytes)
+		}
 		ctx = ctx.WithTxBytes(sdkTxBytes)
-		// Hand the ante handler and the message server what was already
-		// decoded from this tx; nil clears the previous tx's value.
-		decodedHolder.Set(decoded[idx])
+		// Hand the ante handler the certificate key already derived from this
+		// tx; a nil view clears the previous tx's key.
+		certKeys.Set(decoded[idx])
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
@@ -184,7 +227,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			_, isPFF := payForFibreMsg(sdkTx)
+			isPFF := fibretypes.PayForFibreMsg(sdkTx) != nil
 			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
@@ -213,14 +256,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// Settle after ante so later promises see the updated state and the tx
-			// pays the same gas it would in FinalizeBlock. This ante pass is also
-			// the consensus enforcement point for PFF validator signatures:
-			// FinalizeBlock never re-verifies them (see
-			// FibreSignatureVerificationDecorator), so removing it would let a
-			// proposer settle promises without a validator quorum.
+			// Settle after ante so later promises see the updated state and the tx pays
+			// FinalizeBlock's gas. This ante pass is the only consensus check of PFF validator
+			// signatures. No per-tx branch: any failure rejects the whole proposal.
 			if isPFF {
-				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+				if execErr := runMsgs(ctx, msgs, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
@@ -277,50 +317,60 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	// Classify txs (marking pay-for-fibre txs and synthesizing their system
-	// blobs) before constructing the square; go-square no longer decodes
-	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxsDecoded(req.Txs, blobTxs, decoded)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
-		return reject(), nil
-	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
+	waitSquare()
+	if square.err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build proposal square", square.err)
 		return reject(), nil
 	}
 
-	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
-		return reject(), nil
-	}
-
-	// Assert that the square size stated by the proposer is correct. Compare
-	// the halved EDS width rather than the doubled proposer value: doubling an
-	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
-	// otherwise be indistinguishable.
-	if uint64(eds.Width())/2 != req.SquareSize {
+	// Assert that the square size stated by the proposer is correct.
+	if square.size != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
 		return reject(), nil
 	}
 
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+	if !bytes.Equal(square.root, req.DataRootHash) {
+		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, square.root))
 		return reject(), nil
 	}
 
 	return accept(), nil
+}
+
+// forEachParallel calls fn(i) for every i in [0, n) on up to GOMAXPROCS goroutines;
+// the returned wait re-raises a panic from fn on the caller's goroutine.
+func forEachParallel(n int, fn func(i int)) (wait func()) {
+	var (
+		next     atomic.Int64
+		panicked atomic.Pointer[any]
+		wg       sync.WaitGroup
+	)
+	for range min(runtime.GOMAXPROCS(0), n) {
+		wg.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicked.CompareAndSwap(nil, &r)
+				}
+			}()
+			for i := int(next.Add(1)) - 1; i < n; i = int(next.Add(1)) - 1 {
+				fn(i)
+			}
+		})
+	}
+	return func() {
+		wg.Wait()
+		if r := panicked.Load(); r != nil {
+			panic(*r)
+		}
+	}
+}
+
+// goWait runs fn on its own goroutine; wait blocks until fn returns and re-raises its panic.
+func goWait(fn func()) (wait func()) {
+	return forEachParallel(1, func(int) { fn() })
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {

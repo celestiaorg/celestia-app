@@ -3,11 +3,43 @@ package keeper
 import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
+
+// quorumFraction is the share of voting power a certificate must carry.
+var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
+
+// certificateValidatorSet returns the converted validator set a certificate at height is
+// checked against. A cached conversion still needs the height stored, but not decoded again.
+func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64) (*convertedValidatorSet, error) {
+	if k.valSetCache != nil {
+		if cached, ok := k.valSetCache.Get(height); ok {
+			if err := k.checkHistoricalInfo(ctx, height); err != nil {
+				return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+			}
+			return cached, nil
+		}
+	}
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
+	if err != nil {
+		return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+	}
+	return k.validatorSetAtHeight(height, historicalInfo.Valset)
+}
+
+// checkSignatureCount rejects a positional list longer than the validator set, which also
+// keeps every index in range so a quorum short-circuit cannot skip a trailing entry.
+func checkSignatureCount(converted *convertedValidatorSet, signatures [][]byte) error {
+	if len(signatures) > len(converted.validators) {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(converted.validators))
+	}
+	return nil
+}
 
 // validatorSetCacheSize is the number of heights whose converted validator set
 // is kept. Payment promises reference recent heights, so a few hundred entries

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -18,66 +18,63 @@ type DecodedPayForFibre struct {
 	// CertKeyed is false when the certificate could not be keyed.
 	CertKey   sigcache.Key
 	CertKeyed bool
-	// PromiseSignBytes is what the validators signed, PromiseKey the promise's
-	// cache key. PromiseKeyed is false when the promise is too malformed.
+	// PromiseSignBytes is what the validators signed, PromiseKey the promise's cache key;
+	// both are unset (empty PromiseSignBytes) when the promise is too malformed to key.
 	PromiseSignBytes []byte
 	PromiseKey       sigcache.Key
-	PromiseKeyed     bool
-
-	fibreTx *squaretx.FibreTx
 }
 
-// FibreTx returns the tx with its synthesized system blob, built on first use.
+// PromiseKeyed reports whether PromiseKey identifies this promise.
+func (d *DecodedPayForFibre) PromiseKeyed() bool {
+	return len(d.PromiseSignBytes) > 0
+}
+
+// FibreTx returns the tx with its synthesized system blob. It is derived, not
+// memoized, so the view has no mutable field and can be shared across CPUs.
 func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
-	if d.fibreTx != nil {
-		return d.fibreTx, nil
-	}
 	systemBlob, err := d.Msg.SystemBlob()
 	if err != nil {
 		return nil, err
 	}
-	d.fibreTx = &squaretx.FibreTx{Tx: d.Raw, SystemBlob: systemBlob}
-	return d.fibreTx, nil
+	return &squaretx.FibreTx{Tx: d.Raw, SystemBlob: systemBlob}, nil
 }
 
-type decodedPayForFibreKey struct{}
+type certKeyContextKey struct{}
 
-// DecodedHolder carries the current tx's decoded view through a sequential
-// walk, so the context takes one value for the walk instead of one per tx.
-// Not safe for concurrent use.
-type DecodedHolder struct {
-	decoded *DecodedPayForFibre
+// CertKeyHolder carries the certificate cache key of the tx a sequential walk is
+// processing: one context value per walk. Not safe for concurrent use.
+type CertKeyHolder struct {
+	raw []byte
+	key sigcache.Key
 }
 
-// Set points the holder at the decoded view of the transaction about to be
-// processed. A nil d clears the one left by the previous transaction.
-func (h *DecodedHolder) Set(d *DecodedPayForFibre) {
-	h.decoded = d
+// Set points the holder at the key derived for the transaction about to be
+// processed. A nil view, or one with no usable key, clears the previous one.
+func (h *CertKeyHolder) Set(d *DecodedPayForFibre) {
+	if d == nil || !d.CertKeyed || len(d.Raw) == 0 {
+		*h = CertKeyHolder{}
+		return
+	}
+	*h = CertKeyHolder{raw: d.Raw, key: d.CertKey}
 }
 
-// WithDecodedHolder attaches h to ctx once, for a whole walk.
-func WithDecodedHolder(ctx sdk.Context, h *DecodedHolder) sdk.Context {
+// WithCertKeyHolder attaches h to ctx once, for a whole walk.
+func WithCertKeyHolder(ctx sdk.Context, h *CertKeyHolder) sdk.Context {
 	if ctx.Context() == nil {
 		ctx = ctx.WithContext(context.Background())
 	}
-	return ctx.WithValue(decodedPayForFibreKey{}, h)
+	return ctx.WithValue(certKeyContextKey{}, h)
 }
 
-// WithDecodedPayForFibre attaches d to ctx for a single transaction. Prefer
-// `WithDecodedHolder` where a loop processes many transactions on one context.
-func WithDecodedPayForFibre(ctx sdk.Context, d *DecodedPayForFibre) sdk.Context {
-	return WithDecodedHolder(ctx, &DecodedHolder{decoded: d})
-}
-
-// DecodedPayForFibreFromContext returns the view attached to ctx, but only if
-// it was decoded from exactly ctx.TxBytes(), never one left by another tx.
-func DecodedPayForFibreFromContext(ctx sdk.Context) *DecodedPayForFibre {
+// CertKeyFromContext returns the certificate cache key attached to ctx, only if it
+// was derived from exactly ctx.TxBytes().
+func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
 	if ctx.Context() == nil {
-		return nil
+		return sigcache.Key{}, false
 	}
-	h, _ := ctx.Value(decodedPayForFibreKey{}).(*DecodedHolder)
-	if h == nil || h.decoded == nil || !bytes.Equal(h.decoded.Raw, ctx.TxBytes()) {
-		return nil
+	h, _ := ctx.Value(certKeyContextKey{}).(*CertKeyHolder)
+	if h == nil || len(h.raw) == 0 || !bytes.Equal(h.raw, ctx.TxBytes()) {
+		return sigcache.Key{}, false
 	}
-	return h.decoded
+	return h.key, true
 }

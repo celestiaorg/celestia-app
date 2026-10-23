@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
