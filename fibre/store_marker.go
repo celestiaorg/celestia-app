@@ -3,16 +3,31 @@ package fibre
 import (
 	"encoding/binary"
 	"fmt"
+
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 )
 
 const (
 	shardMarkerVersion = 1
 	shardMarkerSize    = 10
-
-	// Largest serialized shard readable under the codec's per-field limits:
-	// version, RLC length/data, row count, then row and proof headers/data.
-	maxPlausibleShardSize int64 = 12 + shardLengthLimit + int64(maxShardRows)*(12+shardLengthLimit+int64(maxRowProofSegments)*(4+shardLengthLimit))
 )
+
+// maxPlausibleShardSize is the serialized size of the largest shard a
+// validator can accept under [DefaultProtocolParams].
+var maxPlausibleShardSize = maxShardBinarySize(DefaultProtocolParams)
+
+// maxShardBinarySize returns the largest [shardBinarySize] of a shard that
+// passes upload verification under p: one RLC per original row, and at most
+// [ProtocolParams.MaxRowsPerValidator] rows of [ProtocolParams.MaxRowSize]
+// bytes, each with a [ProtocolParams.MerkleProofDepth]-segment proof.
+func maxShardBinarySize(p ProtocolParams) int64 {
+	// version + rlcs-len prefix + rlcs + rows-count prefix
+	size := int64(4 + 4 + p.Rows*field.GF128Size + 4)
+	// index + data-len prefix + data + proof-count prefix + (seg-len prefix + seg) per segment
+	rowSize := int64(4 + 4 + p.MaxRowSize(0) + 4 + p.MerkleProofDepth()*(4+merkle.NodeSize))
+	return size + int64(p.MaxRowsPerValidator())*rowSize
+}
 
 type shardBackendTag byte
 
