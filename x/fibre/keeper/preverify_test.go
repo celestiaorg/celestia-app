@@ -127,8 +127,9 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 			Tokens:          math.NewInt(1_000_000),
 		}
 	}
+	// Staking records the set that signs block H under historical info H-1.
 	stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		ctx.BlockHeight(): {Header: cmtproto.Header{Height: ctx.BlockHeight()}, Valset: valset},
+		ctx.BlockHeight() - 1: {Header: cmtproto.Header{Height: ctx.BlockHeight() - 1}, Valset: valset},
 	}
 
 	signerPrivKey := secp256k1.GenPrivKey()

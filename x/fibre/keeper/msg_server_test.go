@@ -1344,10 +1344,11 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 	suite.NoError(err)
 	val.ConsensusPubkey = anyPubKey
 
-	// Create historical info
+	// Staking records the set that signs block H under historical info H-1.
+	historicalHeight := suite.ctx.BlockHeight() - 1
 	historicalInfo := stakingtypes.HistoricalInfo{
 		Header: cmtproto.Header{
-			Height: suite.ctx.BlockHeight(),
+			Height: historicalHeight,
 			Time:   suite.ctx.BlockTime(),
 		},
 		Valset: []stakingtypes.Validator{val},
@@ -1360,7 +1361,7 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 
 	// Update mock to return this validator set
 	suite.stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		suite.ctx.BlockHeight(): historicalInfo,
+		historicalHeight: historicalInfo,
 	}
 }
 
