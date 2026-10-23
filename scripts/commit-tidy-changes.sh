@@ -38,13 +38,12 @@ fi
 echo "Committing tidied modules:"
 printf '%s\n' "${changed}"
 
-git config user.name "github-actions[bot]"
-git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
 # Safe because every path reported above was validated as a go.mod or go.sum,
 # and --all sees exactly that same set (both respect .gitignore).
 git add --all
-git commit --quiet -m "chore: run make mod to tidy all modules"
-git push
+# GitHub signs API-created commits. expectedHeadOid also prevents overwriting
+# a Dependabot rebase or a maintainer's concurrent update.
+python3 .github/scripts/commit-signed-changes.py \
+    "$(git branch --show-current)" "chore: run make mod to tidy all modules"
 
 echo "Pushed tidied modules."
