@@ -122,8 +122,13 @@ func TestValidatorSetAvailableAgreesWithStaking(t *testing.T) {
 
 	stored := map[int64]bool{}
 	for height := int64(-1); height <= current+2; height++ {
-		// A promise at height is signed by the set staking records at height-1.
-		_, getErr := testApp.StakingKeeper.GetHistoricalInfo(ctx, height-1)
+		// A promise at height is signed by the set staking records at height-1,
+		// except the first block, which the genesis set recorded at it signs.
+		signingHeight := height - 1
+		if height == 1 {
+			signingHeight = 1
+		}
+		_, getErr := testApp.StakingKeeper.GetHistoricalInfo(ctx, signingHeight)
 		availErr := testApp.FibreKeeper.ValidateValidatorSetAvailable(ctx, height)
 		stored[height] = getErr == nil
 		if getErr == nil {

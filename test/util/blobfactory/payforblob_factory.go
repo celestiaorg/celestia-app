@@ -328,7 +328,7 @@ func NewMsgPayForFibre(t *testing.T, pubKey *secp256k1.PubKey, chainID string) *
 		Signer: addr.String(),
 		PaymentPromise: fibretypes.PaymentPromise{
 			ChainId:           chainID,
-			Height:            2, // signed by historical info 1, the first height staking records
+			Height:            1,
 			Namespace:         ns.Bytes(),
 			BlobSize:          100,
 			BlobVersion:       fibretypes.BlobVersionZero,

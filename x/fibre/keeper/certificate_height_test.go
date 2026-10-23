@@ -102,3 +102,57 @@ func (suite *MsgServerTestSuite) TestValidatorSetAvailableReadsSigningSet() {
 	suite.Require().NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, height))
 	suite.Require().Error(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, height-1))
 }
+
+// TestCertificateAtGenesisHeight covers the first block, which has no historical info
+// before it: the genesis set signs it and staking records that set at the block itself.
+// A regenesis starts at InitialHeight, so the first block is not always 1.
+func (suite *MsgServerTestSuite) TestCertificateAtGenesisHeight() {
+	for _, tc := range []struct {
+		name string
+		// initChainHeight is the context height InitChain runs InitGenesis at.
+		initChainHeight int64
+		genesisHeight   int64
+	}{
+		{name: "initial height 1", initChainHeight: 0, genesisHeight: 1},
+		{name: "regenesis at a later initial height", initChainHeight: 500, genesisHeight: 500},
+	} {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			suite.keeper.InitGenesis(suite.ctx.WithBlockHeight(tc.initChainHeight), *types.DefaultGenesis())
+			suite.ctx = suite.ctx.WithBlockHeight(tc.genesisHeight)
+
+			valPrivKey := ed25519.GenPrivKey()
+			pk, err := cryptocodec.FromCmtPubKeyInterface(valPrivKey.PubKey())
+			suite.Require().NoError(err)
+			anyPubKey, err := codectypes.NewAnyWithValue(pk)
+			suite.Require().NoError(err)
+			genesisSet := stakingtypes.HistoricalInfo{
+				Header: cmtproto.Header{Height: tc.genesisHeight},
+				Valset: []stakingtypes.Validator{{
+					OperatorAddress: sdk.ValAddress(valPrivKey.PubKey().Address()).String(),
+					ConsensusPubkey: anyPubKey,
+					Tokens:          math.NewInt(1_000_000),
+				}},
+			}
+			// Only the first block's entry exists; anything else is missing.
+			suite.stakingKeeper.GetHistoricalInfoFn = func(_ context.Context, h int64) (stakingtypes.HistoricalInfo, error) {
+				if h != tc.genesisHeight {
+					return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+				}
+				return genesisSet, nil
+			}
+			suite.stakingKeeper.validatorKeys = map[int64]ed25519.PrivKey{tc.genesisHeight: valPrivKey}
+
+			signerPubKey, privKey, _ := suite.newSigner()
+			promise := suite.createPaymentPromise(signerPubKey, privKey)
+			suite.Require().Equal(tc.genesisHeight, promise.Height)
+			msg := &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: suite.generateValidatorSignatures(&promise)}
+
+			suite.Require().NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, tc.genesisHeight))
+			suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+			// The genesis set also signs the next block, read at the first block's entry.
+			suite.Require().NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, tc.genesisHeight+1))
+		})
+	}
+	suite.stakingKeeper.GetHistoricalInfoFn = nil
+}

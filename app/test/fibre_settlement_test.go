@@ -60,7 +60,7 @@ func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
 	creation := ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
 	// Height must be positive for stateless validation; the timeout path does
 	// not enforce the height window, so any positive height works.
-	promise := buildSignedPromise(t, 2, creation, *ownerPub, ownerPriv)
+	promise := buildSignedPromise(t, 1, creation, *ownerPub, ownerPriv)
 
 	payment := fibretypes.PaymentAmount(promise.BlobSize)
 	feeBefore := testApp.BankKeeper.GetBalance(ctx, feeCollectorAddr, appconsts.BondDenom)

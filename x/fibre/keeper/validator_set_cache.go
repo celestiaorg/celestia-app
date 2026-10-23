@@ -18,15 +18,19 @@ var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
 // set that signs certificates for promiseHeight. Staking records historical info for height H in
 // BeginBlock from the validators EndBlock(H-1) produced, and CometBFT only adopts those at H+1.
 // The set that signs block H, which clients read through BlockAPI ValidatorSet(H), is therefore
-// the one recorded at H-1.
-func certificateHistoricalHeight(promiseHeight int64) int64 {
+// the one recorded at H-1. The first block has no H-1; the genesis set signs it and is what
+// staking records at that block.
+func (k Keeper) certificateHistoricalHeight(ctx sdk.Context, promiseHeight int64) int64 {
+	if promiseHeight == k.getGenesisHeight(ctx) {
+		return promiseHeight
+	}
 	return promiseHeight - 1
 }
 
 // certificateValidatorSet returns the converted validator set a certificate at promiseHeight is
 // checked against. A cached conversion still needs the height stored, but not decoded again.
 func (k Keeper) certificateValidatorSet(ctx sdk.Context, promiseHeight int64) (*convertedValidatorSet, error) {
-	height := certificateHistoricalHeight(promiseHeight)
+	height := k.certificateHistoricalHeight(ctx, promiseHeight)
 	if k.valSetCache != nil {
 		if cached, ok := k.valSetCache.Get(height); ok {
 			if err := k.checkHistoricalInfo(ctx, height); err != nil {

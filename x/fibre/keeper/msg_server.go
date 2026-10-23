@@ -368,7 +368,7 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 // promises at promiseHeight is no longer stored, matching the error
 // ValidatePayForFibreSignatures returns.
 func (k Keeper) ValidateValidatorSetAvailable(ctx sdk.Context, promiseHeight int64) error {
-	height := certificateHistoricalHeight(promiseHeight)
+	height := k.certificateHistoricalHeight(ctx, promiseHeight)
 	if err := k.checkHistoricalInfo(ctx, height); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: failed to get historical validator set at height %d: %s", height, err)
 	}
