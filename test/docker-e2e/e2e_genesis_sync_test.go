@@ -3,12 +3,15 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
+	"github.com/celestiaorg/tastora/framework/docker/port"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
+	mobyclient "github.com/moby/moby/client"
 
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
 )
@@ -18,6 +21,9 @@ const (
 	// InitChain on the full genesis, peer discovery, and block syncing the
 	// first blocks from live peers.
 	genesisSyncTimeout = 15 * time.Minute
+	// Start the shorter peer deadline only once RPC responds, allowing genesis
+	// initialization to finish before diagnosing external peer availability.
+	archivePeerTimeout = 3 * time.Minute
 	// mainnetV2UpgradeHeight is the height at which Mainnet Beta upgraded from
 	// app version 1 to 2. The embedded v3 binary needs it to replay v1 blocks.
 	mainnetV2UpgradeHeight = 2371495
@@ -85,14 +91,14 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 
 	// Start returns only after the node reports two blocks, so a successful
 	// start means genesis was processed and the first blocks were synced.
-	if err := chain.Start(ctx); err != nil {
-		s.logNodeDiagnostics(ctx, chain.GetNodes())
-		s.Require().NoError(err, "%s node did not process the first block within %s", netCfg.Name, genesisSyncTimeout)
-	}
-	t.Logf("%s node reached its first blocks after %s", netCfg.Name, time.Since(startTime))
-
 	nodes := chain.GetNodes()
 	s.Require().Len(nodes, 1, "expected exactly one node")
+	probe := s.genesisSyncProbe(chain.GetNode().Name(), peers)
+	if err := startWithArchivePeerCheck(ctx, chain.Start, probe, archivePeerTimeout, 5*time.Second); err != nil {
+		s.logNodeDiagnostics(ctx, chain.GetNodes())
+		s.Require().NoError(err, "%s genesis sync failed (archive peers: %s)", netCfg.Name, peers)
+	}
+	t.Logf("%s node reached its first blocks after %s", netCfg.Name, time.Since(startTime))
 
 	client, err := nodes[0].GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -106,6 +112,51 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	block, err := client.Block(ctx, &height)
 	s.Require().NoError(err, "failed to fetch block 1 from %s node", netCfg.Name)
 	s.Require().Equal(netCfg.ChainID, block.Block.ChainID, "block 1 has unexpected chain ID")
+}
+
+// genesisSyncProbe uses its own RPC client. Tastora assigns the node's client
+// during Start, so reading GetRPCClient concurrently with Start would race.
+func (s *CelestiaTestSuite) genesisSyncProbe(nodeName, peers string) func(context.Context) (bool, bool) {
+	archiveIDs := make(map[string]bool)
+	for peer := range strings.SplitSeq(peers, ",") {
+		id, _, _ := strings.Cut(peer, "@")
+		archiveIDs[id] = true
+	}
+	return func(ctx context.Context) (ready, connected bool) {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		inspect, err := s.client.ContainerInspect(ctx, nodeName, mobyclient.ContainerInspectOptions{})
+		if err != nil {
+			return false, false
+		}
+		addr := port.GetForHost(inspect.Container, "26657/tcp")
+		if addr == "" {
+			return false, false
+		}
+		client, err := networks.NewClient("http://" + addr)
+		if err != nil {
+			return false, false
+		}
+		status, err := client.Status(ctx)
+		if err != nil {
+			return false, false
+		}
+		// Processing block 1 proves that a peer served genesis history, even
+		// if it disconnected or was discovered via a seed rather than our list.
+		if status.SyncInfo.LatestBlockHeight >= 1 {
+			return true, true
+		}
+		netInfo, err := client.NetInfo(ctx)
+		if err != nil {
+			return true, false
+		}
+		for _, peer := range netInfo.Peers {
+			if archiveIDs[string(peer.NodeInfo.DefaultNodeID)] {
+				return true, true
+			}
+		}
+		return true, false
+	}
 }
 
 // archivePeers returns the peers to block sync genesis from: the addresses the
