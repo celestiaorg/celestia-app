@@ -81,9 +81,8 @@ const (
 
 var (
 	IsmsKeyPrefix = collections.NewPrefix(0)
-	// LegacyMessageKeyPrefix stored authorized message IDs before ConsensusVersion 2.
-	// It is only used by the v1 to v2 migration to clear the legacy entries.
-	LegacyMessageKeyPrefix      = collections.NewPrefix(1)
+	// Prefix 1 held authorized message IDs before ConsensusVersion 2. The entries are left in place because nothing
+	// reads them and deleting an attacker-sized set in the upgrade block is unbounded work. Do not reuse prefix 1.
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
 	MerkleTreeStateKeyPrefix    = collections.NewPrefix(3)
 
