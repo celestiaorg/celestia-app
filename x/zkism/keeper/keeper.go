@@ -1,7 +1,9 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
+	"errors"
 
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
@@ -18,9 +20,13 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 // Keeper implements the InterchainSecurityModule interface required by the Hyperlane ISM Router.
 type Keeper struct {
 	isms        collections.Map[uint64, types.InterchainSecurityModule]
-	messages    collections.KeySet[collections.Pair[uint64, []byte]]
 	submissions collections.Map[uint64, bool]
+	treeStates  collections.Map[uint64, types.MerkleTreeState]
 	schema      collections.Schema
+
+	// legacyMessages holds message IDs authorized before ConsensusVersion 2.
+	// It is only used by the v1 to v2 migration to clear the legacy entries.
+	legacyMessages collections.KeySet[collections.Pair[uint64, []byte]]
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -31,8 +37,9 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	sb := collections.NewSchemaBuilder(storeService)
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
-	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
+	legacyMessages := collections.NewKeySet(sb, types.LegacyMessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
 	submissions := collections.NewMap(sb, types.MessageProofSubmittedPrefix, "message_proof_submitted", collections.Uint64Key, collections.BoolValue)
+	treeStates := collections.NewMap(sb, types.MerkleTreeStateKeyPrefix, "merkle_tree_states", collections.Uint64Key, codec.CollValue[types.MerkleTreeState](cdc))
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -40,12 +47,13 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	}
 
 	keeper := &Keeper{
-		coreKeeper:  hyperlaneKeeper,
-		isms:        isms,
-		messages:    messages,
-		submissions: submissions,
-		schema:      schema,
-		authority:   authority,
+		coreKeeper:     hyperlaneKeeper,
+		isms:           isms,
+		submissions:    submissions,
+		treeStates:     treeStates,
+		legacyMessages: legacyMessages,
+		schema:         schema,
+		authority:      authority,
 	}
 
 	router := hyperlaneKeeper.IsmRouter()
@@ -64,8 +72,10 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 	return k.isms.Has(ctx, ismId.GetInternalId())
 }
 
-// Verify implements hyperlane util.InterchainSecurityModule.
-func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, message util.HyperlaneMessage) (bool, error) {
+// Verify implements the util.InterchainSecurityModule interface. The metadata must contain a merkle proof of the
+// message id against the source chain merkle tree root most recently proven via SubmitMessages.
+// Replay protection is provided by the Hyperlane mailbox, which rejects message ids it has already received.
+func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {
 		return false, errorsmod.Wrap(types.ErrIsmNotFound, err.Error())
@@ -73,16 +83,23 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 
 	k.Logger(ctx).Info("processing message", "id", message.Id().String(), "ism", ism.Id.String())
 
-	authorized, err := k.messages.Has(ctx, collections.Join(ism.Id.GetInternalId(), message.Id().Bytes()))
+	proof, err := types.ParseMerkleProofMetadata(metadata)
+	if err != nil {
+		return false, errorsmod.Wrap(types.ErrInvalidMetadata, err.Error())
+	}
+
+	treeState, err := k.treeStates.Get(ctx, ism.Id.GetInternalId())
+	if errors.Is(err, collections.ErrNotFound) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
 
-	if authorized {
-		if err := k.messages.Remove(ctx, collections.Join(ism.Id.GetInternalId(), message.Id().Bytes())); err != nil {
-			return false, err
-		}
+	if proof.Index >= treeState.Count {
+		return false, nil
 	}
 
-	return authorized, nil
+	root := util.BranchRoot(message.Id(), proof.Branch, proof.Index)
+	return bytes.Equal(root[:], treeState.Root), nil
 }

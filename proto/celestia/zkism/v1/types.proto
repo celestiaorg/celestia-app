@@ -29,3 +29,11 @@ message InterchainSecurityModule {
   // hash-based commitment to the verifier key used for state membership
   bytes state_membership_vkey = 7;
 }
+
+// MerkleTreeState is the source chain Hyperlane merkle tree state proven for an ISM.
+message MerkleTreeState {
+  // root of the source chain merkle tree
+  bytes root = 1;
+  // number of leaves inserted into the source chain merkle tree
+  uint32 count = 2;
+}

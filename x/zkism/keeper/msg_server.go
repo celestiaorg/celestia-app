@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 
-	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -145,13 +144,12 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
-	messages := make([]string, 0, len(publicValues.MessageIds))
-	for _, messageId := range publicValues.MessageIds {
-		if err := m.messages.Set(ctx, collections.Join(ism.Id.GetInternalId(), messageId[:])); err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, types.EncodeHex(messageId[:]))
+	treeState := types.MerkleTreeState{
+		Root:  publicValues.TreeRoot[:],
+		Count: publicValues.Count,
+	}
+	if err := m.treeStates.Set(ctx, ism.Id.GetInternalId(), treeState); err != nil {
+		return nil, err
 	}
 
 	// Mark that a message proof has been submitted for the current state root
@@ -159,12 +157,43 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
-	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism, publicValues.MessageIds); err != nil {
+	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism, treeState); err != nil {
 		return nil, err
 	}
 
 	return &types.MsgSubmitMessagesResponse{
 		StateRoot: types.EncodeHex(publicValues.StateRoot[:]),
-		Messages:  messages,
+		TreeRoot:  types.EncodeHex(treeState.Root),
+		Count:     treeState.Count,
 	}, nil
+}
+
+// UpdateVerifyingKeys implements types.MsgServer.
+func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdateVerifyingKeys) (*types.MsgUpdateVerifyingKeysResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	if msg.Owner != ism.Owner {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
+	}
+
+	ism.Groth16Vkey = msg.Groth16Vkey
+	ism.StateTransitionVkey = msg.StateTransitionVkey
+	ism.StateMembershipVkey = msg.StateMembershipVkey
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	// Allow a membership proof from the new program for the current state root.
+	if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateVerifyingKeysEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateVerifyingKeysResponse{}, nil
 }

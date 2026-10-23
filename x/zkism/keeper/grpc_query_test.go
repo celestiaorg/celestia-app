@@ -68,10 +68,10 @@ func (suite *KeeperTestSuite) TestQueryServerIsm() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestQueryServerMessages() {
+func (suite *KeeperTestSuite) TestQueryServerMerkleTreeState() {
 	var (
-		req        *types.QueryMessagesRequest
-		expResults []string
+		req       *types.QueryMerkleTreeStateRequest
+		expResult types.MerkleTreeState
 	)
 
 	testCases := []struct {
@@ -83,44 +83,20 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 			name: "success",
 			setupTest: func() {
 				ismID := util.CreateMockHexAddress("ism", 1)
-				req = &types.QueryMessagesRequest{Id: ismID.String()}
+				req = &types.QueryMerkleTreeStateRequest{Id: ismID.String()}
 
-				for i := range 5 {
-					id := bytes.Repeat([]byte{byte(i)}, 32)
-					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
-					suite.Require().NoError(err)
-					expResults = append(expResults, types.EncodeHex(id))
-				}
+				expResult = types.MerkleTreeState{Root: bytes.Repeat([]byte{0x01}, 32), Count: 5}
+				err := suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ismID, expResult)
+				suite.Require().NoError(err)
 			},
 			expErr: nil,
 		},
 		{
-			name: "success: paginated",
+			name: "merkle tree state not found",
 			setupTest: func() {
-				ismID := util.CreateMockHexAddress("ism", 2)
-				req = &types.QueryMessagesRequest{
-					Id:         ismID.String(),
-					Pagination: &query.PageRequest{Limit: 2},
-				}
-
-				for i := range 5 {
-					id := bytes.Repeat([]byte{byte(i)}, 32)
-					err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
-					suite.Require().NoError(err)
-					if i < 2 {
-						expResults = append(expResults, types.EncodeHex(id))
-					}
-				}
+				req = &types.QueryMerkleTreeStateRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
 			},
-			expErr: nil,
-		},
-		{
-			name: "no messages in store",
-			setupTest: func() {
-				req = &types.QueryMessagesRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
-				expResults = nil
-			},
-			expErr: nil,
+			expErr: errors.New("merkle tree state not found"),
 		},
 		{
 			name: "request cannot be empty",
@@ -132,7 +108,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 		{
 			name: "invalid ism id",
 			setupTest: func() {
-				req = &types.QueryMessagesRequest{Id: "invalid"}
+				req = &types.QueryMerkleTreeStateRequest{Id: "invalid"}
 			},
 			expErr: errors.New("invalid hex address"),
 		},
@@ -141,12 +117,11 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			suite.SetupTest()
-			expResults = nil
 
 			tc.setupTest()
 
 			queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
-			res, err := queryServer.Messages(suite.ctx, req)
+			res, err := queryServer.MerkleTreeState(suite.ctx, req)
 
 			if tc.expErr != nil {
 				suite.Require().Error(err)
@@ -154,7 +129,7 @@ func (suite *KeeperTestSuite) TestQueryServerMessages() {
 				suite.Require().Nil(res)
 			} else {
 				suite.Require().NoError(err)
-				suite.Require().Equal(expResults, res.Messages)
+				suite.Require().Equal(expResult, res.TreeState)
 			}
 		})
 	}
@@ -247,45 +222,4 @@ func (suite *KeeperTestSuite) TestQueryServerIsms() {
 			}
 		})
 	}
-}
-
-func (suite *KeeperTestSuite) TestQueryServerMessagesPaginationLimit() {
-	ismID := util.CreateMockHexAddress("ism", 1)
-	allExpected := make([]string, 0, 150)
-
-	for i := range 150 {
-		id := bytes.Repeat([]byte{byte(i)}, 32)
-		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismID, id)
-		suite.Require().NoError(err)
-		allExpected = append(allExpected, types.EncodeHex(id))
-	}
-
-	queryServer := keeper.NewQueryServerImpl(suite.zkISMKeeper)
-
-	// First request: ask for 200, should get 100 (capped)
-	req := &types.QueryMessagesRequest{
-		Id:         ismID.String(),
-		Pagination: &query.PageRequest{Limit: 200},
-	}
-
-	res, err := queryServer.Messages(suite.ctx, req)
-	suite.Require().NoError(err)
-	suite.Require().Len(res.Messages, int(types.MaxPaginationLimit))
-	suite.Require().Equal(allExpected[:100], res.Messages)
-	suite.Require().NotNil(res.Pagination.NextKey)
-
-	// Second request: use NextKey to get remaining 50
-	req = &types.QueryMessagesRequest{
-		Id: ismID.String(),
-		Pagination: &query.PageRequest{
-			Key:   res.Pagination.NextKey,
-			Limit: 200,
-		},
-	}
-
-	res, err = queryServer.Messages(suite.ctx, req)
-	suite.Require().NoError(err)
-	suite.Require().Len(res.Messages, 50)
-	suite.Require().Equal(allExpected[100:], res.Messages)
-	suite.Require().Nil(res.Pagination.NextKey)
 }

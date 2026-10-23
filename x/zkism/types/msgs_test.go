@@ -243,7 +243,14 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 		{
 			name: "public values too large",
 			malleate: func() {
-				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxStateMembershipValuesBytes+1)
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes+1)
+			},
+			expErr: types.ErrInvalidPublicValuesLength,
+		},
+		{
+			name: "public values too small",
+			malleate: func() {
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes-1)
 			},
 			expErr: types.ErrInvalidPublicValuesLength,
 		},
@@ -254,7 +261,75 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 			msg = &types.MsgSubmitMessages{
 				Id:           util.CreateMockHexAddress("module", 1),
 				Proof:        bytes.Repeat([]byte{0x01}, types.ProofBytesLen),
-				PublicValues: []byte{0x01, 0x02},
+				PublicValues: bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes),
+			}
+
+			tc.malleate()
+
+			err := msg.ValidateBasic()
+			if tc.expErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgUpdateVerifyingKeysValidateBasic(t *testing.T) {
+	var msg *types.MsgUpdateVerifyingKeys
+
+	groth16Vk := readGroth16Vkey(t)
+
+	tests := []struct {
+		name     string
+		malleate func()
+		expErr   error
+	}{
+		{
+			name:     "success",
+			malleate: func() {},
+			expErr:   nil,
+		},
+		{
+			name: "zero ism identifier",
+			malleate: func() {
+				msg.Id = util.NewZeroAddress()
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "invalid groth16 verifying key",
+			malleate: func() {
+				msg.Groth16Vkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
+			name: "invalid state transition verifying key length",
+			malleate: func() {
+				msg.StateTransitionVkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
+			name: "invalid state membership verifying key length",
+			malleate: func() {
+				msg.StateMembershipVkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg = &types.MsgUpdateVerifyingKeys{
+				Id:                  util.CreateMockHexAddress("module", 1),
+				Owner:               "owner",
+				Groth16Vkey:         groth16Vk,
+				StateTransitionVkey: bytes.Repeat([]byte{0x01}, 32),
+				StateMembershipVkey: bytes.Repeat([]byte{0x02}, 32),
 			}
 
 			tc.malleate()
