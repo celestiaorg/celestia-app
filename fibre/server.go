@@ -15,6 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -130,7 +132,14 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	s.grpc.Register(s,
+	admCfg := fibregrpc.AdmissionConfig{
+		Budget:     s.Config.MaxRequestMemory,
+		MaxMessage: int64(s.Config.MaxMessageSize),
+		OnReject: func(ctx context.Context, reason string) {
+			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+		},
+	}
+	s.grpc.Register(s, admCfg,
 		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
 		// Reject too many rows or proofs before protobuf allocates for them.

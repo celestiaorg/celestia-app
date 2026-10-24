@@ -13,38 +13,37 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/tap"
+	"google.golang.org/protobuf/proto"
 )
 
-// Connection and stream caps bound receive memory: gRPC buffers a full
-// UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
-// are intentionally conservative for a 32 GiB-RAM validator; operators can
-// override both caps via config to trade RAM for throughput.
-//
-// NewServerCodec separately limits rows and proofs before decoding allocates
-// memory for them, and rejects oversized DownloadShard requests before copying
-// them.
+// Connection and stream caps bound how many requests run at once; request receive
+// memory is bounded by the admission byte budget. See ADR-031.
 const (
 	// DefaultMaxConnections is the default total connection cap.
 	DefaultMaxConnections = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
 	DefaultMaxConcurrentStreams = 13
 
-	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
-	// LimitListener slot with a stalled handshake for the 120s gRPC default.
+	// Fixed receive windows (>=65535) disable BDP tuning; the stream window only
+	// bounds a paused stream, since RecvMsg grants a whole-message window.
+	uploadInitialWindowSize     = 64 << 10 // 64 KiB per stream
+	uploadInitialConnWindowSize = 16 << 20 // 16 MiB per connection
+
+	// connectionTimeout bounds the handshake so a stalled peer can't hold a slot
+	// for the 120s gRPC default.
 	connectionTimeout = 15 * time.Second
 
-	// KeepAlive drops idle or abusive connections.
 	keepAliveMinTime     = 10 * time.Second // reject clients that ping more often
 	keepAliveMaxConnIdle = 30 * time.Second // close idle connections
 	keepAlivePingTime    = 2 * time.Minute  // ping interval to detect dead peers
 	keepAlivePingTimeout = 20 * time.Second // ping ack deadline before drop
 )
 
-// Connection age caps how long a peer can hold a slot with streams that never
-// finish, which MaxConnectionIdle does not cover. The grace lets slow in-flight
-// uploads complete. Vars so tests can shorten them.
+// Cap how long a never-finishing stream holds a connection (MaxConnectionIdle
+// misses that). Vars so tests can shorten them.
 var (
 	keepAliveMaxConnAge      = 5 * time.Minute
 	keepAliveMaxConnAgeGrace = 2 * time.Minute
@@ -54,6 +53,7 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	adm                  *admission
 	done                 chan struct{} // closed when Serve returns
 	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
@@ -74,17 +74,18 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
 }
 
-// Register builds the underlying [grpc.Server] with opts and registers the
-// fibre service. It must be called exactly once before [Server.Serve].
-//
-// A panic-recovery interceptor is always installed as defense in depth: a
-// panic in any handler (e.g. a malformed request that slips past validation)
-// is converted into an Internal gRPC error instead of crashing the process.
-func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
+// Register builds the [grpc.Server] and registers the fibre service, gating every
+// method through memory admission (admCfg; a zero budget disables it). Call once
+// before [Server.Serve].
+func (s *Server) Register(service types.FibreServer, admCfg AdmissionConfig, opts ...grpc.ServerOption) {
+	s.adm = newAdmission(admCfg)
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
+		grpc.InitialWindowSize(uploadInitialWindowSize),
+		grpc.InitialConnWindowSize(uploadInitialConnWindowSize),
 		grpc.ConnectionTimeout(connectionTimeout),
+		grpc.InTapHandle(deadlineTap),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: keepAliveMinTime,
 		}),
@@ -97,12 +98,133 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
-	types.RegisterFibreServer(s.server, service)
+	s.server.RegisterService(admitServiceDesc(&types.Fibre_serviceDesc, s.adm), service)
 }
 
-// Registrar exposes the [grpc.ServiceRegistrar] for extra services such as gRPC health.
-// Use it between Register and Serve.
-func (s *Server) Registrar() grpc.ServiceRegistrar { return s.server }
+// deadlineTap bounds server-side handling of one request just above the client's
+// RPCTimeout. grpc uses the returned context as the stream context, so RecvMsg
+// returns when it expires. AfterFunc releases the timer promptly once done.
+func deadlineTap(ctx context.Context, _ *tap.Info) (context.Context, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestDeadline)
+	context.AfterFunc(ctx, cancel)
+	return ctx, nil
+}
+
+// Registrar exposes an admission-wrapping [grpc.ServiceRegistrar] for extra
+// services such as gRPC health, so their requests are gated too.
+func (s *Server) Registrar() grpc.ServiceRegistrar {
+	return admittingRegistrar{inner: s.server, adm: s.adm}
+}
+
+type admittingRegistrar struct {
+	inner grpc.ServiceRegistrar
+	adm   *admission
+}
+
+func (r admittingRegistrar) RegisterService(sd *grpc.ServiceDesc, impl any) {
+	r.inner.RegisterService(admitServiceDesc(sd, r.adm), impl)
+}
+
+// admitServiceDesc wraps every method of sd so admission reserves budget before
+// the request is read. Unary methods become stream handlers (unary on the wire,
+// so clients are unchanged); streaming methods gate each RecvMsg. A nil admission
+// returns the descriptor unchanged.
+func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission) *grpc.ServiceDesc {
+	if adm == nil {
+		return sd
+	}
+	out := *sd
+	out.Methods = nil
+	out.Streams = nil
+	for i := range sd.Methods {
+		m := sd.Methods[i]
+		out.Streams = append(out.Streams, grpc.StreamDesc{
+			StreamName: m.MethodName,
+			Handler:    unaryAdmitHandler(m, adm),
+		})
+	}
+	for i := range sd.Streams {
+		d := sd.Streams[i]
+		orig := d.Handler
+		d.Handler = func(srv any, ss grpc.ServerStream) error {
+			return orig(srv, &admittingStream{ServerStream: ss, adm: adm})
+		}
+		out.Streams = append(out.Streams, d)
+	}
+	return &out
+}
+
+// unaryAdmitHandler serves a unary method over a stream: admit, then run the
+// generated handler whose dec reads the request. Panic recovery is inline because
+// unary interceptors do not run on streams.
+func unaryAdmitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
+	return func(srv any, ss grpc.ServerStream) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in gRPC handler", "method", m.MethodName, "panic", r, "stack", string(debug.Stack()))
+				err = status.Errorf(codes.Internal, "internal error")
+			}
+		}()
+
+		ctx := ss.Context()
+		res, err := adm.admit(ctx, peerKey(ctx))
+		if err != nil {
+			return err
+		}
+		defer res.release()
+
+		dec := func(v any) error {
+			if err := ss.RecvMsg(v); err != nil {
+				return err
+			}
+			// Body received: shrink the max reservation to the decoded size and free
+			// the per-IP receive slot.
+			res.Shrink(msgSize(v))
+			res.releaseRecv()
+			return nil
+		}
+		resp, err := m.Handler(srv, ctx, dec, nil)
+		if err != nil {
+			return err
+		}
+		return ss.SendMsg(resp)
+	}
+}
+
+// admittingStream gates each RecvMsg on a streaming method so the request buffer
+// is bounded without holding budget for the stream's lifetime.
+type admittingStream struct {
+	grpc.ServerStream
+	adm *admission
+}
+
+func (s *admittingStream) RecvMsg(m any) error {
+	res, err := s.adm.admit(s.Context(), peerKey(s.Context()))
+	if err != nil {
+		return err
+	}
+	defer res.release()
+	return s.ServerStream.RecvMsg(m)
+}
+
+// peerKey buckets the request's source IP (IPv6 by /64) for the per-IP cap.
+func peerKey(ctx context.Context) string {
+	if p, ok := peer.FromContext(ctx); ok {
+		return connKey(p.Addr)
+	}
+	return ""
+}
+
+// msgSize is the decoded wire size of a request message.
+func msgSize(v any) int64 {
+	if s, ok := v.(interface{ Size() int }); ok { // gogoproto
+		return int64(s.Size())
+	}
+	if m, ok := v.(proto.Message); ok { // protobuf v2 (e.g. health)
+		return int64(proto.Size(m))
+	}
+	return 0
+}
 
 // Done is closed once Serve returned. Err then says why; nil after Stop.
 func (s *Server) Done() <-chan struct{} { return s.done }

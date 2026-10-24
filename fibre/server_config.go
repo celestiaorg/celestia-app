@@ -31,6 +31,10 @@ const (
 	EnvHome = "FIBRE_HOME"
 	// DefaultHomeDir is the Fibre home directory name under the user's home.
 	DefaultHomeDir = ".celestia-fibre"
+
+	// DefaultMaxRequestMemory budgets buffered request bytes (not RSS; decode/verify
+	// allocate on top), sized for a ~32 GiB validator. See ADR-031.
+	DefaultMaxRequestMemory int64 = 16 << 30 // 16 GiB
 )
 
 // DefaultHome returns the default Fibre home directory.
@@ -73,6 +77,8 @@ type ServerConfig struct {
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	// MaxRequestMemory is the budget, in bytes, for request messages buffered in memory.
+	MaxRequestMemory int64 `toml:"max_request_memory" comment:"Budget in bytes for request messages buffered in memory (default 16 GiB); not an RSS bound, decode/verify allocate on top, so leave headroom."`
 	// Health configures the readiness checks behind the gRPC health service.
 	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 
@@ -183,6 +189,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
+		MaxRequestMemory:     DefaultMaxRequestMemory,
 	}
 	return cfg
 }
@@ -254,6 +261,10 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if uint64(cfg.MaxConcurrentStreams) > math.MaxUint32 {
 		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
+	}
+	// Must fit one max message, else every request is rejected.
+	if cfg.MaxRequestMemory < int64(cfg.MaxMessageSize) {
+		return fmt.Errorf("max_request_memory must be at least one max message (%d bytes), got %d", cfg.MaxMessageSize, cfg.MaxRequestMemory)
 	}
 	return nil
 }
