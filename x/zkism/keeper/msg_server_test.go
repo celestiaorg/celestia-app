@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 
@@ -15,6 +16,18 @@ import (
 func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 	var msg *types.MsgCreateInterchainSecurityModule
 
+	groth16Vkey := readGroth16Vkey(suite.T())
+	newMsg := func(vkey []byte) *types.MsgCreateInterchainSecurityModule {
+		return &types.MsgCreateInterchainSecurityModule{
+			Creator:             testfactory.TestAccAddr,
+			State:               randBytes(128),
+			Groth16Vkey:         vkey,
+			MerkleTreeAddress:   randBytes(32),
+			StateTransitionVkey: randBytes(32),
+			StateMembershipVkey: randBytes(32),
+		}
+	}
+
 	testCases := []struct {
 		name      string
 		setupTest func()
@@ -23,15 +36,23 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 		{
 			name: "success",
 			setupTest: func() {
-				msg = &types.MsgCreateInterchainSecurityModule{
-					Creator:             testfactory.TestAccAddr,
-					State:               randBytes(128),
-					Groth16Vkey:         randBytes(32),
-					StateTransitionVkey: randBytes(32),
-					StateMembershipVkey: randBytes(32),
-				}
+				msg = newMsg(groth16Vkey)
 			},
 			expError: nil,
+		},
+		{
+			// ValidateBasic only checks the key's structure, so the handler
+			// must reject a key that is well formed but does not deserialize.
+			name: "verifying key that passes ValidateBasic but does not deserialize",
+			setupTest: func() {
+				vkey := bytes.Clone(groth16Vkey)
+				for i := 1; i < 32; i++ {
+					vkey[i] = 0xFF
+				}
+				msg = newMsg(vkey)
+				suite.Require().NoError(msg.ValidateBasic())
+			},
+			expError: types.ErrInvalidVerifyingKey,
 		},
 	}
 
@@ -45,12 +66,14 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 			res, err := msgServer.CreateInterchainSecurityModule(suite.ctx, msg)
 
 			if tc.expError != nil {
-				suite.Require().Error(err)
+				suite.Require().ErrorIs(err, tc.expError)
 				suite.Require().Nil(res)
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
 			}
+			// The key parse is charged whether or not it succeeds.
+			suite.Require().GreaterOrEqual(suite.ctx.GasMeter().GasConsumed(), uint64(types.DefaultProofVerifyCostGroth16))
 		})
 	}
 }

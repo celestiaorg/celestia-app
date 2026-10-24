@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -37,9 +39,55 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// CheckTx must reject work that cannot fit in any proposal before running
+// ValidateBasic (which parses ISM verifying keys) or charging the sender.
+func TestCheckTxZKProofMessageLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	seedICAHostChannel(t, testApp)
+
+	for _, msg := range []sdk.Msg{
+		&zkismtypes.MsgCreateInterchainSecurityModule{},
+		&zkismtypes.MsgUpdateInterchainSecurityModule{},
+		&zkismtypes.MsgSubmitMessages{},
+	} {
+		for _, count := range []int{appconsts.MaxZKProofMessages, appconsts.MaxZKProofMessages + 1} {
+			msgs := make([]sdk.Msg, count)
+			for i := range msgs {
+				msgs[i] = msg
+			}
+			exec := authz.NewMsgExec(sdk.AccAddress{}, msgs)
+			payload, err := icatypes.SerializeCosmosTx(encodingConfig.Codec, msgs, icaEncoding)
+			require.NoError(t, err)
+			data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+			packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+			recv := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), "signer")
+			for name, wrapped := range map[string][]sdk.Msg{"direct": msgs, "authz": {&exec}, "ICA": {recv}} {
+				for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+					t.Run(fmt.Sprintf("%T/%d/%s/%s", msg, count, name, checkType), func(t *testing.T) {
+						rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, wrapped...)
+						resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+						require.NoError(t, err)
+						if count > appconsts.MaxZKProofMessages {
+							require.Equal(t, apperr.ErrTxExceedsMaxZKProofMessages.ABCICode(), resp.Code, resp.Log)
+						} else {
+							// These unsigned fixtures fail later validation, but exactly
+							// one block's work must pass the admission budget check.
+							require.NotEqual(t, apperr.ErrTxExceedsMaxZKProofMessages.ABCICode(), resp.Code, resp.Log)
+						}
+					})
+				}
+			}
+		}
+	}
+}
 
 // TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's
 // payload rather than falling back to the fail-closed count. Both paths reject a

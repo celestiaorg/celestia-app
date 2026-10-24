@@ -120,6 +120,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	var (
 		sdkMessageCount = 0
+		zkProofMsgCount = 0
 		pfbMessageCount = 0
 		n               = 0
 		m               = 0
@@ -146,6 +147,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
+			continue
+		}
+		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		if zkProofMsgCount+zkProofCount > appconsts.MaxZKProofMessages {
+			logger.Debug("skipping tx because the max ZK proof message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 
@@ -188,6 +194,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		sdkMessageCount += execMsgCount
+		zkProofMsgCount += zkProofCount
 		normalTxs[n] = tx
 		n++
 	}

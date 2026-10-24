@@ -5,8 +5,10 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
@@ -44,6 +46,46 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 		}
 	}
 	return count
+}
+
+// countZKProofMsgs counts messages that perform ZK proof verification or
+// verifying-key pairing work, including messages dispatched by authz and ICA wrappers.
+func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
+	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	count := 0
+	for _, msg := range msgs {
+		count += zkProofMsgWeight(ctx, ck, msg)
+		if count > appconsts.MaxZKProofMessages {
+			return count
+		}
+	}
+	return count
+}
+
+func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+	switch msg := msg.(type) {
+	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+		return 1
+	case *authz.MsgExec:
+		nested, err := msg.GetMessages()
+		if err != nil {
+			return 0
+		}
+		count := 0
+		for _, nestedMsg := range nested {
+			// Ante rejects nested MsgExec. Do not recurse through attacker-controlled
+			// wrapper depth before that rejection.
+			if _, nestedExec := nestedMsg.(*authz.MsgExec); nestedExec {
+				continue
+			}
+			count += zkProofMsgWeight(ctx, ck, nestedMsg)
+		}
+		return count
+	case *channeltypes.MsgRecvPacket:
+		return countICAPacketZKProofMsgs(ctx, ck, msg.Packet)
+	default:
+		return 0
+	}
 }
 
 // msgWeight returns what a message costs: one for the message itself, plus the
@@ -138,6 +180,126 @@ func countICAPacketMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.P
 	return count
 }
 
+// countICAPacketZKProofMsgs returns how many ZK proof messages the ICA host
+// would dispatch. Malformed host payloads count over the limit because ante
+// validation occurs after proposal counting.
+func countICAPacketZKProofMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet) int {
+	if packet.DestinationPort != icatypes.HostPortID {
+		return 0
+	}
+
+	var data icatypes.InterchainAccountPacketData
+	if err := data.UnmarshalJSON(packet.Data); err != nil || data.Type != icatypes.EXECUTE_TX {
+		return 0
+	}
+	if err := host.ChannelIdentifierValidator(packet.DestinationChannel); err != nil {
+		return appconsts.MaxZKProofMessages + 1
+	}
+	version, ok := ck.GetAppVersion(ctx, packet.DestinationPort, packet.DestinationChannel)
+	if !ok {
+		return appconsts.MaxZKProofMessages + 1
+	}
+	metadata, err := icatypes.MetadataFromVersion(version)
+	if err != nil {
+		return appconsts.MaxZKProofMessages + 1
+	}
+
+	count := -1
+	switch metadata.Encoding {
+	case icatypes.EncodingProtobuf:
+		count = countProtoZKProofMsgs(data.Data)
+	case icatypes.EncodingProto3JSON:
+		count = countJSONZKProofMsgs(data.Data)
+	}
+	if count < 0 {
+		return appconsts.MaxZKProofMessages + 1
+	}
+	return count
+}
+
+func countProtoZKProofMsgs(bz []byte) int {
+	count := 0
+	for len(bz) > 0 {
+		num, typ, n := protowire.ConsumeTag(bz)
+		if n < 0 {
+			return -1
+		}
+		bz = bz[n:]
+		if typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+			return -1
+		}
+		if num == cosmosTxMsgsField && typ == protowire.BytesType {
+			anyBz, consumed := protowire.ConsumeBytes(bz)
+			if consumed < 0 {
+				return -1
+			}
+			bz = bz[consumed:]
+			typeURL, ok := protoAnyTypeURL(anyBz)
+			if !ok {
+				return -1
+			}
+			if isFanOutTypeURL(typeURL) {
+				return appconsts.MaxZKProofMessages + 1
+			}
+			if isZKProofTypeURL(typeURL) {
+				count++
+			}
+			continue
+		}
+		n = protowire.ConsumeFieldValue(num, typ, bz)
+		if n < 0 {
+			return -1
+		}
+		bz = bz[n:]
+	}
+	return count
+}
+
+func protoAnyTypeURL(bz []byte) (string, bool) {
+	var typeURL string
+	for len(bz) > 0 {
+		num, typ, n := protowire.ConsumeTag(bz)
+		if n < 0 {
+			return "", false
+		}
+		bz = bz[n:]
+		if typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+			return "", false
+		}
+		if num == 1 && typ == protowire.BytesType {
+			value, consumed := protowire.ConsumeBytes(bz)
+			if consumed < 0 {
+				return "", false
+			}
+			typeURL = string(value)
+			bz = bz[consumed:]
+			continue
+		}
+		n = protowire.ConsumeFieldValue(num, typ, bz)
+		if n < 0 {
+			return "", false
+		}
+		bz = bz[n:]
+	}
+	return typeURL, typeURL != ""
+}
+
+// isFanOutTypeURL reports whether a message dispatches further messages, which
+// the wire-level ICA counter cannot see into. None are on the default ICA allow
+// list, so fail closed if governance allows one rather than letting inner proof
+// work bypass the counter. See TestIcaAllowMessagesExcludeFanOutMsgs.
+func isFanOutTypeURL(typeURL string) bool {
+	return typeURL == sdk.MsgTypeURL(&authz.MsgExec{}) ||
+		typeURL == sdk.MsgTypeURL(&govv1.MsgSubmitProposal{}) ||
+		typeURL == sdk.MsgTypeURL(&channeltypes.MsgRecvPacket{})
+}
+
+func isZKProofTypeURL(typeURL string) bool {
+	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{}) ||
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{})
+}
+
 // countProtoMsgs counts the entries of a proto3 encoded CosmosTx, or -1 if the
 // bytes are not one. It walks the wire format instead of decoding, so the cost
 // does not depend on how many entries there are.
@@ -176,4 +338,28 @@ func countJSONMsgs(bz []byte) int {
 		return -1
 	}
 	return len(tx.Messages)
+}
+
+func countJSONZKProofMsgs(bz []byte) int {
+	var tx struct {
+		Messages []struct {
+			TypeURL string `json:"@type"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(bz, &tx); err != nil {
+		return -1
+	}
+	count := 0
+	for _, msg := range tx.Messages {
+		if msg.TypeURL == "" {
+			return -1
+		}
+		if isFanOutTypeURL(msg.TypeURL) {
+			return appconsts.MaxZKProofMessages + 1
+		}
+		if isZKProofTypeURL(msg.TypeURL) {
+			count++
+		}
+	}
+	return count
 }
