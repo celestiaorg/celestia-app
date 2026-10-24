@@ -138,10 +138,11 @@ func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission) *grpc.ServiceDesc {
 	out.Streams = nil
 	for i := range sd.Methods {
 		m := sd.Methods[i]
-		out.Streams = append(out.Streams, grpc.StreamDesc{
-			StreamName: m.MethodName,
-			Handler:    unaryAdmitHandler(m, adm),
-		})
+		h := unaryAdmitHandler(m, adm)
+		if m.MethodName == downloadMethod {
+			h = downloadAdmitHandler(m, adm) // also accounts the response
+		}
+		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: h})
 	}
 	for i := range sd.Streams {
 		d := sd.Streams[i]
@@ -187,6 +188,48 @@ func unaryAdmitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
 		if err != nil {
 			return err
 		}
+		return ss.SendMsg(resp)
+	}
+}
+
+const downloadMethod = "DownloadShard"
+
+// downloadAdmitHandler is unaryAdmitHandler plus response accounting: it keeps the
+// max reservation through the handler (which builds the shard), shrinks it to the
+// response size, and releases it when the stream ends rather than at return, so a
+// slow reader does not let the next download over-commit the budget.
+func downloadAdmitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
+	return func(srv any, ss grpc.ServerStream) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in gRPC handler", "method", m.MethodName, "panic", r, "stack", string(debug.Stack()))
+				err = status.Errorf(codes.Internal, "internal error")
+			}
+		}()
+
+		ctx := ss.Context()
+		res, err := adm.admit(ctx, peerKey(ctx))
+		if err != nil {
+			return err
+		}
+		// Release when the stream ends (finishStream cancels ss.Context() after the
+		// handler returns, http2_server.go). AfterFunc avoids a goroutine leak.
+		context.AfterFunc(ctx, res.release)
+
+		// Keep the max reservation through the handler so the response it builds is
+		// counted; free only the per-IP receive slot after the request is read.
+		dec := func(v any) error {
+			if err := ss.RecvMsg(v); err != nil {
+				return err
+			}
+			res.releaseRecv()
+			return nil
+		}
+		resp, err := m.Handler(srv, ctx, dec, nil)
+		if err != nil {
+			return err
+		}
+		res.Shrink(msgSize(resp))
 		return ss.SendMsg(resp)
 	}
 }
