@@ -34,6 +34,8 @@ type download struct {
 	slab     []byte // K*rowSize contiguous pool region; nil until first Add and after Free
 
 	rows [][]byte // K+N; rows[:K] become slab-backed after the first Add
+
+	releases []func() // shard buffers referenced by parity rows until reconstruction
 }
 
 func newDownload(
@@ -184,6 +186,7 @@ func (s *download) release(from validator.SelectedValidator) {
 // on the error path.
 func (s *download) Blob(ctx context.Context) (*Blob, error) {
 	s.inflightWg.Wait()
+	defer s.releaseShards()
 
 	if err := ctx.Err(); err != nil {
 		s.freeSlab()
@@ -253,6 +256,21 @@ func (s *download) freeSlab() {
 	}
 	s.cfg.DataPool.PutRegion(s.slab)
 	s.slab = nil
+}
+
+// retain defers release until [download.Blob] has run reconstruction. Must be
+// called before the worker's [download.AddShard].
+func (s *download) retain(release func()) {
+	s.mu.Lock()
+	s.releases = append(s.releases, release)
+	s.mu.Unlock()
+}
+
+func (s *download) releaseShards() {
+	for _, release := range s.releases {
+		release()
+	}
+	s.releases = nil
 }
 
 // RowsCount returns the number of unique rows currently stored. For instrumentation.
