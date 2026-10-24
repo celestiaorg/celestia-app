@@ -275,7 +275,13 @@ func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes
 	kr := cfg.Genesis.Keyring()
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
-	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
+	validators := 0
+	for _, node := range chain.GetNodes() {
+		if node.GetType() == tastoratypes.NodeTypeValidator {
+			validators++
+		}
+	}
+	s.Require().Len(records, validators, "number of accounts should match number of validators")
 
 	upgradeHeight = s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, appVersion)
 
@@ -294,9 +300,8 @@ func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", appVersion)
 
-	// Produce additional blocks at the target app version (TxSim is still running)
-	t.Logf("Producing 20 more blocks at app version %v", appVersion)
-	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
+	t.Logf("Producing 3 more blocks at app version %v", appVersion)
+	s.Require().NoError(wait.ForBlocks(ctx, 3, chain), "failed to wait for post-upgrade blocks")
 
 	return upgradeHeight
 }
@@ -322,7 +327,8 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		fee      = uint64(200_000)
 	)
 
-	// Signal for the upgrade
+	// Broadcast every signal before confirming so they land in the same block.
+	txHashes := make([]string, len(records))
 	for i, rec := range records {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
 
@@ -331,13 +337,15 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		valAddr := sdk.ValAddress(addr).String()
 		msg := signaltypes.NewMsgSignalVersion(valAddr, targetAppVersion)
 
-		resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+		resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
 		s.Require().NoError(err, "failed to broadcast signal tx")
+		txHashes[i] = resp.TxHash
+	}
+	for _, txHash := range txHashes {
+		resp, err := txClient.ConfirmTx(ctx, txHash)
+		s.Require().NoError(err, "failed to confirm signal tx")
 		s.Require().Equal(uint32(0), resp.Code, "signal tx failed with code %d", resp.Code)
 	}
-
-	// wait a block so the signals are included
-	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
