@@ -37,9 +37,7 @@ func NewTreeInto(buf []byte, leaves [][]byte, workerCount int) *Tree {
 	}
 	t := &Tree{nodes: buf}
 
-	parallelize(n, workerCount, func(i int) {
-		hashLeaf(leaves[i], t.node(n-1+i))
-	})
+	hashLeafPairs(n, workerCount, leaves, func(i int) []byte { return t.node(n - 1 + i) })
 	t.hashNodes(n, workerCount)
 	return t
 }
