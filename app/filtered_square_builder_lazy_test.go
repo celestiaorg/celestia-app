@@ -7,10 +7,10 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -108,7 +108,7 @@ func TestFillStopsSDKDecodesAtCap(t *testing.T) {
 	}
 
 	var calls int
-	normal, _, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, nil, txs)
+	normal, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, txs)
 	require.Equal(t, txs, normal)
 	require.Zero(t, calls)
 

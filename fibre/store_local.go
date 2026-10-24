@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cockroachdb/pebble/v2/vfs"
 )
 

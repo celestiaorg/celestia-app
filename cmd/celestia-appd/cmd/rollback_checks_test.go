@@ -3,9 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	cometbftdb "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/state"
@@ -47,6 +48,49 @@ func TestCheckRollbackAppVersion(t *testing.T) {
 			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestCheckPassthroughRollback(t *testing.T) {
+	v := appconsts.Version
+	tests := []struct {
+		name    string
+		version uint64 // 0 means no state
+		args    []string
+		wantErr string
+	}{
+		{name: "no state", args: []string{fmt.Sprintf("v%d", v-1), "rollback"}},
+		{name: "same version", version: v - 1, args: []string{fmt.Sprintf("v%d", v-1), "rollback"}},
+		{name: "other version", version: v, args: []string{fmt.Sprintf("v%d", v-1), "rollback", "--height", "5"}, wantErr: fmt.Sprintf("node is on app version %d, not %d", v, v-1)},
+		{name: "no v prefix", version: v, args: []string{fmt.Sprint(v - 1), "rollback"}, wantErr: "not"},
+		{name: "other command", version: v, args: []string{fmt.Sprintf("v%d", v-1), "status"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := cmtcfg.DefaultConfig()
+			cfg.SetRoot(t.TempDir())
+			if tc.version != 0 {
+				saveStateAppVersion(t, cfg, tc.version)
+			}
+
+			err := checkPassthroughRollback(cfg.RootDir, tc.args)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+
+	t.Run("db_dir from config.toml", func(t *testing.T) {
+		cfg := cmtcfg.DefaultConfig()
+		cfg.SetRoot(t.TempDir())
+		cfg.DBPath = "custom"
+		cmtcfg.EnsureRoot(cfg.RootDir)
+		cmtcfg.WriteConfigFile(filepath.Join(cfg.RootDir, "config", "config.toml"), cfg)
+		saveStateAppVersion(t, cfg, v)
+
+		require.ErrorContains(t, checkPassthroughRollback(cfg.RootDir, []string{fmt.Sprintf("v%d", v-1), "rollback"}), "not")
+	})
 }
 
 // saveStateAppVersion sets the app version of the CometBFT state, creating a minimal state if there is none.

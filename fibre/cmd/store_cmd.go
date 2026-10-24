@@ -12,7 +12,7 @@ import (
 
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )

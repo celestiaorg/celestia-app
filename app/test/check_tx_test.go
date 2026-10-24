@@ -2,23 +2,25 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -37,9 +39,55 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// CheckTx must reject work that cannot fit in any proposal before running
+// ValidateBasic (which parses ISM verifying keys) or charging the sender.
+func TestCheckTxZKProofMessageLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	seedICAHostChannel(t, testApp)
+
+	for _, msg := range []sdk.Msg{
+		&zkismtypes.MsgCreateInterchainSecurityModule{},
+		&zkismtypes.MsgUpdateInterchainSecurityModule{},
+		&zkismtypes.MsgSubmitMessages{},
+	} {
+		for _, count := range []int{appconsts.MaxZKProofMessages, appconsts.MaxZKProofMessages + 1} {
+			msgs := make([]sdk.Msg, count)
+			for i := range msgs {
+				msgs[i] = msg
+			}
+			exec := authz.NewMsgExec(sdk.AccAddress{}, msgs)
+			payload, err := icatypes.SerializeCosmosTx(encodingConfig.Codec, msgs, icaEncoding)
+			require.NoError(t, err)
+			data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+			packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+			recv := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), "signer")
+			for name, wrapped := range map[string][]sdk.Msg{"direct": msgs, "authz": {&exec}, "ICA": {recv}} {
+				for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+					t.Run(fmt.Sprintf("%T/%d/%s/%s", msg, count, name, checkType), func(t *testing.T) {
+						rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, wrapped...)
+						resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+						require.NoError(t, err)
+						if count > appconsts.MaxZKProofMessages {
+							require.Equal(t, apperr.ErrTxExceedsMaxZKProofMessages.ABCICode(), resp.Code, resp.Log)
+						} else {
+							// These unsigned fixtures fail later validation, but exactly
+							// one block's work must pass the admission budget check.
+							require.NotEqual(t, apperr.ErrTxExceedsMaxZKProofMessages.ABCICode(), resp.Code, resp.Log)
+						}
+					})
+				}
+			}
+		}
+	}
+}
 
 // TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's
 // payload rather than falling back to the fail-closed count. Both paths reject a
@@ -168,7 +216,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[4]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[4]).Address().String(), 10_000, 10)
+				blobs := blobfactory.RandV0Blobs(random.New(), 10_000, 10)
 				tx, _, err := signer.CreatePayForBlobs(accounts[4], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -180,7 +228,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[5]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[5]).Address().String(), 1_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 1_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[5], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -192,7 +240,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[6]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[6]).Address().String(), 10_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 10_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[6], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -204,7 +252,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[7]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[7]).Address().String(), 100_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 100_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[7], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -216,7 +264,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := signers[8]
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), signer.Account(accounts[8]).Address().String(), 1_000_000, 1)
+				blobs := blobfactory.RandV0Blobs(random.New(), 1_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accounts[8], blobs, opts...)
 				require.NoError(t, err)
 				return tx

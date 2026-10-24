@@ -19,6 +19,7 @@ ARG CELESTIA_VERSION_V6="v6.4.10"
 ARG CELESTIA_VERSION_V7="v7.0.3-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
 ARG CELESTIA_VERSION_V9="v9.0.8"
+ARG CELESTIA_VERSION_V10="v10.5.0"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -40,6 +41,9 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V8} AS base-v8
 
 # Stage 1g: this base image contains already released v9 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V9} AS base-v9
+
+# Stage 1h: this base image contains already released v10 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V10} AS base-v10
 
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -112,11 +116,18 @@ COPY --from=base-v9 /bin/celestia-appd /tmp/celestia-appd-v9
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v9_${TARGETARCH}.tar.gz /tmp/celestia-appd-v9 \
     && rm /tmp/celestia-appd-v9
 
+# Copy v10 binary from base-v10 and compress it
+COPY --from=base-v10 /bin/celestia-appd /tmp/celestia-appd-v10
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v10_${TARGETARCH}.tar.gz /tmp/celestia-appd-v10 \
+    && rm /tmp/celestia-appd-v10
+
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     make -o mod build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
+# docker/e2e.Dockerfile copies this stage for the CI e2e image; keep them in sync
+# (checked by scripts/e2e_dockerfile_test.sh).
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006

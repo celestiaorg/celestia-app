@@ -12,10 +12,10 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -36,6 +36,7 @@ type MsgServerTestSuite struct {
 	suite.Suite
 
 	ctx           sdk.Context
+	storeKey      *storetypes.KVStoreKey
 	keeper        *keeper.Keeper
 	msgServer     types.MsgServer
 	cdc           codec.Codec
@@ -50,6 +51,7 @@ func TestMsgServerTestSuite(t *testing.T) {
 
 func (suite *MsgServerTestSuite) SetupTest() {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	suite.storeKey = storeKey
 	tkey := storetypes.NewTransientStoreKey("transient_test")
 
 	db := dbm.NewMemDB()
@@ -539,8 +541,7 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 			ValidatorSignatures: validSignatures,
 		}
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
-		suite.Error(err)
-		suite.Contains(err.Error(), "failed to get historical validator set")
+		require.ErrorContains(t, err, "failed to get historical validator set")
 
 		// A sig cache hit checks only availability and must fail the same way.
 		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
@@ -551,6 +552,39 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 	suite.T().Run("validator set available", func(t *testing.T) {
 		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
 	})
+}
+
+// TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet checks that
+// a cached validator set conversion fails a pruned height like a cold keeper does.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	msg := &types.MsgPayForFibre{
+		PaymentPromise:      paymentPromise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&paymentPromise),
+	}
+	pruned := func(context.Context, int64) (stakingtypes.HistoricalInfo, error) {
+		return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+	}
+	defer func() { suite.stakingKeeper.GetHistoricalInfoFn = nil }()
+
+	// Cold: nothing converted yet, so this is the decoding path.
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	coldErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().ErrorContains(coldErr, "failed to get historical validator set")
+
+	// Warm the conversion; a warm, still-stored height must not decode again.
+	suite.stakingKeeper.GetHistoricalInfoFn = nil
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	gets := suite.stakingKeeper.getCalls.Load()
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	suite.Require().Equal(gets, suite.stakingKeeper.getCalls.Load(), "warm height decoded again")
+
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	warmErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().Error(warmErr)
+	suite.Require().Equal(coldErr.Error(), warmErr.Error())
 }
 
 // TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum pins where the
@@ -566,8 +600,8 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 	key := protoPromiseKey(suite.T(), &paymentPromise)
 
 	cache := newCountingSigCache()
-	// Signature verification reads no module state, so the store is never mounted.
-	k := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+	// Signature verification reads only the genesis height from module state.
+	k := keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
 
 	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
 		msg := &types.MsgPayForFibre{
@@ -1312,10 +1346,11 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 	suite.NoError(err)
 	val.ConsensusPubkey = anyPubKey
 
-	// Create historical info
+	// Staking records the set that signs block H under historical info H-1.
+	historicalHeight := suite.ctx.BlockHeight() - 1
 	historicalInfo := stakingtypes.HistoricalInfo{
 		Header: cmtproto.Header{
-			Height: suite.ctx.BlockHeight(),
+			Height: historicalHeight,
 			Time:   suite.ctx.BlockTime(),
 		},
 		Valset: []stakingtypes.Validator{val},
@@ -1328,7 +1363,7 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 
 	// Update mock to return this validator set
 	suite.stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		suite.ctx.BlockHeight(): historicalInfo,
+		historicalHeight: historicalInfo,
 	}
 }
 

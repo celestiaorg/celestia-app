@@ -12,11 +12,11 @@ import (
 	"cosmossdk.io/store/iavl"
 	pruningtypes "cosmossdk.io/store/pruning/types"
 	"cosmossdk.io/store/rootmulti"
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	cometbftdb "github.com/cometbft/cometbft-db"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	"github.com/cometbft/cometbft/state"
@@ -36,6 +36,7 @@ func TestRollbackSameCode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	before := runNode(t, cfg, NewAppServer, 8)
 	s := heights(t, cfg)[1]
@@ -51,6 +52,7 @@ func TestRollbackChangedCode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	before := runNode(t, cfg, NewAppServer, 8)
 	s := heights(t, cfg)[1]
@@ -65,7 +67,9 @@ func TestRollbackResumeAfterCrash(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	t.Run("core only", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		runNode(t, cfg, NewAppServer, 8)
 		s := heights(t, cfg)[1]
@@ -79,6 +83,7 @@ func TestRollbackResumeAfterCrash(t *testing.T) {
 	})
 
 	t.Run("app half rolled back", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		runNode(t, cfg, NewAppServer, 8)
 		s := heights(t, cfg)[1]
@@ -107,7 +112,9 @@ func TestRollbackPrunedState(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	t.Run("app versions", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		cfg.AppOptions.Set(server.FlagPruning, pruningtypes.PruningOptionCustom)
 		cfg.AppOptions.Set(server.FlagPruningKeepRecent, uint64(2))
@@ -120,6 +127,7 @@ func TestRollbackPrunedState(t *testing.T) {
 	})
 
 	t.Run("blocks", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		cfg.AppOptions.Set(server.FlagMinRetainBlocks, uint64(3))
 		// Snapshots off, so the snapshot window does not hold back block pruning.
@@ -137,6 +145,7 @@ func TestRollbackRefusesForeignAppVersion(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	runNode(t, cfg, NewAppServer, 3)
 	saveStateAppVersion(t, cfg.TmConfig, appconsts.Version-1)

@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,7 +31,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
 	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
-	if req.Type == abci.CheckTxType_Recheck && fibretypes.IsPayForFibreTx(tx) {
+	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
 		return app.BaseApp.CheckTx(req)
 	}
 
@@ -65,6 +65,10 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+	if proofCount := countZKProofMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 

@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/txsim"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/txsim"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -97,6 +97,7 @@ func TestTxSimulator(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			keyring, rpcAddr, grpcAddr := Setup(t)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)

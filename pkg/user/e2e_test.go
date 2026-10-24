@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
 )
@@ -24,9 +24,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	}
 
 	// Setup network
-	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Consensus.TimeoutCommit = 3 * time.Second
-	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
+	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig())
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
 
@@ -34,7 +32,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	numWorkers := 5
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txWorkersOpt := user.WithTxWorkers(numWorkers)
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt, user.WithPollTime(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// Pool should already be started by SetupTxClient

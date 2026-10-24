@@ -14,7 +14,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME := github.com/celestiaorg/celestia-app/v10
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v11
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag
 # and update GOLANG_CROSS_DIGEST to the digest of that tag's manifest index.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
@@ -27,7 +27,7 @@ V2_UPGRADE_HEIGHT ?= 0
 BUILD_TAGS_STANDALONE := ledger
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
@@ -60,6 +60,7 @@ CELESTIA_V6_VERSION := v6.4.10
 CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
 CELESTIA_V9_VERSION := v9.0.8
+CELESTIA_V10_VERSION := v10.5.0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -98,11 +99,11 @@ install: download-embedded-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9,download-v$(v)-binaries)
+EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9 10,download-v$(v)-binaries)
 # v3 release tarballs are named celestia-app_*; later ones are celestia-app-standalone_*.
 EMBEDDED_TARBALL_PREFIX = $(if $(filter 3,$*),celestia-app,celestia-app-standalone)
 
-## download-embedded-binaries: Download the celestia-app v3-v9 binaries for the current platform.
+## download-embedded-binaries: Download the celestia-app v3-v10 binaries for the current platform.
 download-embedded-binaries: $(EMBEDDED_BINARY_TARGETS)
 .PHONY: download-embedded-binaries
 
@@ -216,7 +217,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/multiplexer.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
+	@hadolint docker/multiplexer.Dockerfile docker/e2e.Dockerfile docker/standalone.Dockerfile docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint

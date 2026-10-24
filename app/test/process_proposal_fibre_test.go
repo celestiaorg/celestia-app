@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -636,15 +636,20 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
+	// Settlement stores the block time, whose protobuf encoding length varies
+	// with its nanoseconds, so every measurement and proposal uses one time.
+	blockTime := time.Now()
+
 	// Measure ante-only and full execution gas. Neither call commits state.
-	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+	referenceTx := newSignedPayForFibreTxAt(t, newSigner(0), accounts[0], true, blockTime,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	anteGas := uint64(checkResp.GasUsed)
 
 	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:   time.Now(),
+		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
 		Hash:   testApp.LastCommitID().Hash,
 		Txs:    [][]byte{referenceTx},
@@ -657,22 +662,22 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 
 	// The proposal is otherwise valid, so only the gas limit decides the result.
 	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
-		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+		underTx := newSignedPayForFibreTxAt(t, newSigner(1), accounts[1], true, blockTime,
 			user.SetGasLimit(anteGas-1), user.SetFee(4_000))
 		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{underTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
 
 	t.Run("reject gas limit one below the FinalizeBlock cost", func(t *testing.T) {
 		// Reject a tx without enough gas to execute its payment.
-		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+		underTx := newSignedPayForFibreTxAt(t, newSigner(1), accounts[1], true, blockTime,
 			user.SetGasLimit(finalizeGas-1), user.SetFee(4_000))
 		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{underTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
@@ -680,11 +685,11 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	t.Run("accept gas limit just above the FinalizeBlock cost", func(t *testing.T) {
 		// Store value sizes make gas vary slightly by account. This small margin
 		// allows that variation while keeping the boundary tight.
-		coveredTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
+		coveredTx := newSignedPayForFibreTxAt(t, newSigner(2), accounts[2], true, blockTime,
 			user.SetGasLimit(finalizeGas+2_000), user.SetFee(4_000))
 		require.Len(t, coveredTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{coveredTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, [][]byte{coveredTx}, blockTime))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 	})
@@ -692,6 +697,13 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 
 // processProposalRequest builds a valid ProcessProposal request for the txs.
 func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+	t.Helper()
+	return processProposalRequestAt(t, testApp, txs, time.Now())
+}
+
+// processProposalRequestAt builds a valid ProcessProposal request for the txs
+// at the given block time.
+func processProposalRequestAt(t testing.TB, testApp *app.App, txs [][]byte, blockTime time.Time) *abci.RequestProcessProposal {
 	t.Helper()
 	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
 	require.NoError(t, err)
@@ -701,7 +713,7 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 	require.NoError(t, err)
 	return &abci.RequestProcessProposal{
 		Height:       testApp.LastBlockHeight() + 1,
-		Time:         time.Now(),
+		Time:         blockTime,
 		Txs:          txs,
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
@@ -722,13 +734,7 @@ func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
 	valid := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-3*time.Second),
 		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 
-	var raw txtypes.TxRaw
-	require.NoError(t, raw.Unmarshal(valid))
-	require.Len(t, raw.Signatures, 1)
-	raw.Signatures[0] = bytes.Clone(raw.Signatures[0])
-	raw.Signatures[0][len(raw.Signatures[0])-1] ^= 0x01
-	tampered, err := raw.Marshal()
-	require.NoError(t, err)
+	tampered := withCorruptTxSignature(t, valid)
 
 	require.NoError(t, signer.IncrementSequence(accounts[0]))
 	aheadOfSequence := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-2*time.Second),
@@ -758,4 +764,76 @@ func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
 	}
+}
+
+// TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned pins the
+// invariant behind the signature cache: a node that admitted the tx must vote
+// like one that never saw it once the promise height's history is pruned.
+func TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Keep two historical entries so the promise height (1) is pruned while
+	// still inside PaymentPromiseHeightWindow. The chain clock runs from genesis.
+	setHistoricalEntries(t, testApp, 2)
+	pffTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true,
+		testutil.GenesisTime.Add(time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+
+	// Admitting it warms the cache, the only difference between the two nodes.
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: pffTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, testApp, pffTx))
+
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err = testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "the promise height must be pruned for this test to mean anything")
+
+	// A node that never ran CheckTx finds no historical info, so this one must not either.
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, pffTx))
+}
+
+// TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning pins the
+// miss path: a node that converted the promise height for another certificate
+// must vote like a cold one once that height is pruned.
+func TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+	setHistoricalEntries(t, testApp, 2)
+	opts := []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)}
+	warmTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true, testutil.GenesisTime.Add(time.Second), opts...)
+	// Same promise height, different certificate: a sig-cache miss over a warm validator set.
+	otherTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true, testutil.GenesisTime.Add(2*time.Second), opts...)
+
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: warmTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err = testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "the promise height must be pruned for this test to mean anything")
+
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, otherTx))
+}
+
+// processProposalStatus proposes txs at the chain's clock and returns the vote.
+func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
+	t.Helper()
+	req := processProposalRequest(t, testApp, txs)
+	req.Time = testutil.GenesisTime.Add(time.Duration(req.Height) * time.Second)
+	resp, err := testApp.ProcessProposal(req)
+	require.NoError(t, err)
+	return resp.Status
 }

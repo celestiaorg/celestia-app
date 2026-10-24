@@ -3,7 +3,7 @@ package sigcache_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	"github.com/stretchr/testify/require"
 )
 

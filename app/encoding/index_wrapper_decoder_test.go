@@ -3,8 +3,8 @@ package encoding
 import (
 	"testing"
 
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

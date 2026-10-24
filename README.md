@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.10
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v10.
 
     ```shell
     make install
@@ -293,7 +293,7 @@ If you are a new contributor, please read [contributing to Celestia](https://git
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
 
-PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indicate the review thoroughness needed. For example: `fix!: [high] correct gas accounting` or `docs: [low] clarify setup instructions`. Include the same tag in the PR description and explain why you chose it. Contributors should write their own PR titles; Dependabot generates its titles from the configured prefix.
+PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indicate the review thoroughness needed. For example: `fix!: [high] correct gas accounting` or `docs: [low] clarify setup instructions`. Contributors should write their own PR titles; Dependabot generates its titles from the configured prefix.
 
 - `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk.
 - `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
@@ -301,7 +301,7 @@ PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indica
 
 Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
 
-Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level and add it to the PR description with a brief explanation.
+Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level in the title.
 
 External contributions must reference a meaningful issue. Open an issue explaining the value of your change before submitting unsolicited work. Trivial PRs limited to comment wording, typos, formatting, or irrelevant test updates may be closed. Low-effort AI-generated PRs will be closed; contributors using AI must understand, review, and revise its output before submission.
 
@@ -345,16 +345,17 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 The source of truth for dependencies is the `go.mod` file but the table below describes the compatible branches for celestiaorg repos.
 
-| celestia-app | celestia-core      | cosmos-sdk                 |
-|--------------|--------------------|----------------------------|
-| `main`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
-| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
+| celestia-app | celestia-core      | cosmos-sdk                  |
+|--------------|--------------------|-----------------------------|
+| `main`       | `v0.42.x`          | `main` (`v0.53.x` releases) |
+| `v10.x`      | `v0.42.x`          | `release/v0.52.x-celestia`  |
+| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia`  |
+| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia`  |
+| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia`  |
+| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia`  |
+| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia`  |
+| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia`  |
+| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia`  |
 
 ## Audits
 
