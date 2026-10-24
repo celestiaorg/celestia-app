@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	rollbackHaltOffset = 10 // blocks from arming a halt height to the halt
+	rollbackHaltOffset = 30 // blocks from arming a halt height to the halt; covers the last validator's restart
 	rollbackDepth      = 3  // executed heights rolled back in phase 2
 	rollbackTimeout    = 5 * time.Minute
 	recoveryScriptPath = "../../scripts/hardfork/recovery.sh"
@@ -164,7 +164,11 @@ func (s *CelestiaTestSuite) TestRollback() {
 }
 
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
+// It stops every validator first so the chain cannot advance while the others are restarted.
 func (s *CelestiaTestSuite) armHaltHeight(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, peer string) int64 {
+	for _, v := range validators {
+		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
+	}
 	height, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 	haltHeight := height + rollbackHaltOffset
