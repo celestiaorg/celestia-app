@@ -52,9 +52,12 @@ artifacts. PR changes refresh the status directly. Scheduled and manual
 refreshes reconcile missed events and permission changes.
 
 Checks fail closed for invalid titles or changed PR snapshots. Multiple PRs sharing a head SHA are evaluated together so one cannot
-overwrite another's stricter result. Queue evaluation finds every open
-default-branch PR whose head is included in the merge-group commit and validates
-its current reviews before reporting on the group SHA.
+overwrite another's stricter result. Queue evaluation lists the commits the
+merge-group commit adds on top of its base (named in the queue branch), reads
+each PR number from the `(#N)` suffix GitHub appends to squash commits, and
+validates every one of those PRs' current reviews before reporting on the group
+SHA. This relies on the repository's squash merge method; any other commit in a
+merge group fails the check.
 
 ## Administrator activation
 

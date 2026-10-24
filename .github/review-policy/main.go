@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -337,54 +339,73 @@ func (r *runner) refresh(number int) error {
 
 // mergeGroup revalidates every queued PR against its current reviews and
 // publishes the result on the merge-group commit.
+// squashSuffix matches the "(#N)" GitHub appends to a squash commit's first line.
+var squashSuffix = regexp.MustCompile(`\(#(\d+)\)$`)
+
 func (r *runner) mergeGroup(run *WorkflowRun) error {
-	if run.HeadRepository.FullName != r.repository ||
-		!strings.HasPrefix(run.HeadBranch, "gh-readonly-queue/"+r.defaultBranch+"/pr-") {
+	// GitHub names queue branches gh-readonly-queue/<base branch>/pr-<N>-<base SHA>.
+	branch := regexp.MustCompile(`^gh-readonly-queue/` + regexp.QuoteMeta(r.defaultBranch) + `/pr-(\d+)-([0-9a-f]{40})$`)
+	m := branch.FindStringSubmatch(run.HeadBranch)
+	if run.HeadRepository.FullName != r.repository || m == nil {
 		return nil
 	}
 	sha := run.HeadSHA
 	if err := r.status(sha, "pending", "Revalidating every queued PR against current reviews"); err != nil {
 		return err
 	}
-	n, err := r.queuedPulls(run)
+	n, err := r.queuedPulls(run, m[1], m[2])
 	if err != nil {
 		return r.status(sha, "failure", err.Error())
 	}
 	return r.status(sha, "success", fmt.Sprintf("%d queued PR(s) satisfy review policy", n))
 }
 
-func (r *runner) queuedPulls(run *WorkflowRun) (int, error) {
+// queuedPulls checks every PR this merge-group commit adds on top of its base.
+// The queue squashes each PR into one commit, so PR heads are not ancestors
+// of the group commit; membership comes from the squash commits instead.
+func (r *runner) queuedPulls(run *WorkflowRun, last, base string) (int, error) {
 	if run.Conclusion != "success" {
 		return 0, errors.New("merge-group policy tests did not pass")
 	}
-	candidates, err := r.openPulls()
-	if err != nil {
+	var cmp struct {
+		Status       string `json:"status"`
+		TotalCommits int    `json:"total_commits"`
+		Commits      []struct {
+			SHA    string `json:"sha"`
+			Commit struct {
+				Message string `json:"message"`
+			} `json:"commit"`
+		} `json:"commits"`
+	}
+	if err := r.api.Get(fmt.Sprintf("/compare/%s...%s", base, run.HeadSHA), &cmp); err != nil {
 		return 0, err
 	}
-	n := 0
-	for _, pr := range candidates {
-		var cmp struct {
-			Status string `json:"status"`
+	if cmp.Status != "ahead" || len(cmp.Commits) == 0 || cmp.TotalCommits != len(cmp.Commits) {
+		return 0, errors.New("cannot identify PRs in merge group")
+	}
+	var numbers []string
+	for _, c := range cmp.Commits {
+		title, _, _ := strings.Cut(c.Commit.Message, "\n")
+		m := squashSuffix.FindStringSubmatch(strings.TrimSpace(title))
+		if m == nil {
+			return 0, fmt.Errorf("merge-group commit %.7s is not a squashed PR", c.SHA)
 		}
-		if err := r.api.Get(fmt.Sprintf("/compare/%s...%s", pr.Head.SHA, run.HeadSHA), &cmp); err != nil {
-			return 0, err
-		}
-		if cmp.Status != "ahead" && cmp.Status != "identical" {
-			continue
-		}
-		n++
-		c, err := r.check(pr.Number, false)
+		numbers = append(numbers, m[1])
+	}
+	if !slices.Contains(numbers, last) {
+		return 0, fmt.Errorf("merge group does not contain PR #%s", last)
+	}
+	for _, s := range numbers {
+		number, _ := strconv.Atoi(s)
+		c, err := r.check(number, false)
 		if err != nil {
 			return 0, err
 		}
-		if c == nil || !c.OK || c.sha != pr.Head.SHA {
-			return 0, fmt.Errorf("PR #%d no longer satisfies review policy", pr.Number)
+		if c == nil || !c.OK {
+			return 0, fmt.Errorf("PR #%d no longer satisfies review policy", number)
 		}
 	}
-	if n == 0 {
-		return 0, errors.New("cannot identify PRs in merge group")
-	}
-	return n, nil
+	return len(numbers), nil
 }
 
 func (r *runner) handle(eventName string, event Event) error {

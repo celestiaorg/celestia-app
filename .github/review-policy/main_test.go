@@ -21,6 +21,7 @@ type fakeAPI struct {
 	pulls      []PullRequest
 	reviews    []Review
 	comparison string
+	squashed   []string // first lines of the merge group's commits
 	mutate     bool
 	reads      int
 	statuses   []status
@@ -46,7 +47,11 @@ func (f *fakeAPI) Get(path string, out any) error {
 	case strings.HasSuffix(path, "/permission"):
 		v = map[string]string{"permission": "write"}
 	case strings.HasPrefix(path, "/compare/"):
-		v = map[string]string{"status": f.comparison}
+		commits := make([]map[string]any, 0, len(f.squashed))
+		for _, title := range f.squashed {
+			commits = append(commits, map[string]any{"sha": sha, "commit": map[string]string{"message": title + "\n\nbody"}})
+		}
+		v = map[string]any{"status": f.comparison, "total_commits": len(commits), "commits": commits}
 	case strings.HasPrefix(path, "/pulls?"):
 		v = f.pulls
 	case strings.Contains(path, "/reviews?"):
@@ -78,7 +83,10 @@ func (f *fakeAPI) Post(path string, body any) error {
 func (f *fakeAPI) last() status { return f.statuses[len(f.statuses)-1] }
 
 func newFake() *fakeAPI {
-	return &fakeAPI{pulls: []PullRequest{basePR()}, comparison: "ahead"}
+	return &fakeAPI{
+		pulls: []PullRequest{basePR()}, comparison: "ahead",
+		squashed: []string{"docs: [low] clarify usage (#1)"},
+	}
 }
 
 func invoke(t *testing.T, f *fakeAPI, eventName string, event Event) {
@@ -99,7 +107,7 @@ func prEvent() Event {
 
 func queueRun() *WorkflowRun {
 	run := &WorkflowRun{
-		Path: testsWorkflow, Event: "merge_group", HeadBranch: "gh-readonly-queue/main/pr-1-abc",
+		Path: testsWorkflow, Event: "merge_group", HeadBranch: "gh-readonly-queue/main/pr-1-" + strings.Repeat("b", 40),
 		HeadSHA: strings.Repeat("d", 40), Conclusion: "success",
 	}
 	run.HeadRepository.FullName = "celestiaorg/celestia-app"
@@ -168,6 +176,21 @@ func TestMergeGroup(t *testing.T) {
 		{name: "queued PR now needs review", setup: func(f *fakeAPI) { f.pulls[0].Title = "docs: [high] policy" }, run: queueRun(), want: "failure"},
 		{name: "unidentifiable group", setup: func(f *fakeAPI) { f.comparison = "diverged" }, run: queueRun(), want: "failure"},
 		{name: "failed policy tests", run: failedTests, want: "failure"},
+		{
+			name: "title cannot spoof its PR number", run: queueRun(), want: "success",
+			setup: func(f *fakeAPI) { f.squashed = []string{"docs: [low] fix (#2) (#1)"} },
+		},
+		{name: "non-squash commit", setup: func(f *fakeAPI) { f.squashed = []string{"Merge branch main"} }, run: queueRun(), want: "failure"},
+		{name: "branch PR missing from group", setup: func(f *fakeAPI) { f.squashed = []string{"docs: [low] x (#2)"} }, run: queueRun(), want: "failure"},
+		{
+			name: "every PR in a batched group is checked", run: queueRun(), want: "failure",
+			setup: func(f *fakeAPI) {
+				other := basePR()
+				other.Number, other.Title, other.Head.SHA = 2, "fix: [high] x", strings.Repeat("e", 40)
+				f.pulls = append(f.pulls, other)
+				f.squashed = []string{"fix: [high] x (#2)", "docs: [low] clarify usage (#1)"}
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
