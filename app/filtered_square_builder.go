@@ -120,6 +120,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	var (
 		sdkMessageCount = 0
+		zkProofMsgCount = 0
 		pfbMessageCount = 0
 		n               = 0
 		m               = 0
@@ -146,6 +147,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
+			continue
+		}
+		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		if zkProofMsgCount+zkProofCount > appconsts.MaxZKProofMessages {
+			logger.Debug("skipping tx because the max ZK proof message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 
@@ -188,6 +194,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		sdkMessageCount += execMsgCount
+		zkProofMsgCount += zkProofCount
 		normalTxs[n] = tx
 		n++
 	}
@@ -421,6 +428,8 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
 	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
 	settled := make(map[sigcache.Key]struct{})
+	certKeys := &fibretypes.CertKeyHolder{}
+	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
 	for i := range payForFibreTxs {
 		// Every tx decodeFibreTx accepts weighs exactly one message, so nothing more fits.
@@ -464,7 +473,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		// behind for the txs that follow it.
 		txCtx, commit := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx = fibretypes.WithCertKey(txCtx, entry.decoded)
+		certKeys.Set(entry.decoded)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
@@ -496,7 +505,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		// behind. A promise that cannot settle (overdraw, duplicate, out of
 		// gas) would commit its blob to the square without payment in
 		// FinalizeBlock, so drop the tx.
-		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+		if err := runMsgs(txCtx, sdkTx.GetMsgs(), fsb.msgRouter); err != nil {
 			logger.Error(
 				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
 				"tx", lazyTxHash(rawTx),

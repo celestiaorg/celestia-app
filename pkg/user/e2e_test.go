@@ -24,9 +24,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	}
 
 	// Setup network
-	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Consensus.TimeoutCommit = 3 * time.Second
-	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
+	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig())
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
 
@@ -34,7 +32,7 @@ func TestParallelTxSubmission(t *testing.T) {
 	numWorkers := 5
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txWorkersOpt := user.WithTxWorkers(numWorkers)
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, txWorkersOpt, user.WithPollTime(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// Pool should already be started by SetupTxClient

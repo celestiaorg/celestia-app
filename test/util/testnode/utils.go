@@ -38,8 +38,12 @@ var portWrapOffset atomic.Int64
 // Mimic cicaidas by using a prime number to avoid patterns and conflicts with other allocation schemes
 const portIncrement = 11
 
+// portBase offsets each process's port range by PID so test binaries running
+// in parallel (go test runs several packages at once) don't hand out the same ports.
+var portBase = 20000 + int64(os.Getpid()%40)*1000
+
 func init() {
-	portCounter.Store(20000)
+	portCounter.Store(portBase)
 }
 
 func TestAddress() sdk.AccAddress {
