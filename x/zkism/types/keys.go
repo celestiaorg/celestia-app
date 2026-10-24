@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"cosmossdk.io/collections"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 )
 
 const (
@@ -30,13 +31,14 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
-	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
-	MaxMessageIdsCount = 1_000_000
-
-	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
+	// StateMembershipValuesBytes is the exact size of public values payloads associated
 	// with state membership proofs.
-	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
-	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
+	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 32 (TreeRoot) + 8 (Count)
+	StateMembershipValuesBytes = 32 + 32 + 32 + 8
+
+	// MerkleProofMetadataBytes is the exact size of the metadata provided when verifying a message.
+	// Calculated as: 4 (leaf index) + TreeDepth * 32 (merkle branch)
+	MerkleProofMetadataBytes = 4 + (util.TreeDepth * 32)
 
 	// groth16VkeyCurvePointsSize is the size of the 6 curve points that
 	// precede the G1.K length prefix in a serialized BN254 verifying key.
@@ -78,9 +80,11 @@ const (
 )
 
 var (
-	IsmsKeyPrefix               = collections.NewPrefix(0)
-	MessageKeyPrefix            = collections.NewPrefix(1)
+	IsmsKeyPrefix = collections.NewPrefix(0)
+	// Prefix 1 held authorized message IDs before ConsensusVersion 2. The entries are left in place because nothing
+	// reads them and deleting an attacker-sized set in the upgrade block is unbounded work. Do not reuse prefix 1.
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
+	MerkleTreeStateKeyPrefix    = collections.NewPrefix(3)
 
 	// groth16VkeyPointOffsets are the byte offsets of the six leading curve
 	// points (G1.Alpha, G1.Beta, G2.Beta, G2.Gamma, G1.Delta, G2.Delta) in a

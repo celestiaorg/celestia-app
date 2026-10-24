@@ -7,16 +7,16 @@ The `x/zkism` module implements a Hyperlane Interchain Security Module (ISM) tha
 The module currently supports the following proof value types:
 
 - `StateTransitionValues`: State transition (`state -> new_state`), stored as opaque bytes.
-- `StateMembershipValues`: State membership of Hyperlane message IDs (authorizes specific messages for later processing).
+- `StateMembershipValues`: State membership of the source chain Hyperlane merkle tree (root and leaf count) at `merkle_tree_address`.
 
 The module integrates with Hyperlane core via the keeper’s `Verify` method. This is the integration point used by the Hyperlane ISM routing mechanism.
-The `Verify` method consumes the stored message IDs and authorizes the message for processing.
+The `Verify` method checks a merkle proof of the message ID against the stored merkle tree root.
 
 ## Concepts
 
 - ISM: On-chain record tracking a remote chain’s trusted state (opaque bytes) and the ZK verifier configuration used to validate proof statements.
 - SP1 Groth16 Proofs: Proofs are verified against the SP1 Groth16 verifier key, providing an SP1 program verifier key commitment and public values as public witness.
-- Authorization Set: A transient set of message IDs. Membership proofs add message IDs; the Hyperlane router consumes them during message verification.
+- Merkle Tree State: The source chain merkle tree root and leaf count most recently proven for an ISM. Relayers prove inclusion of each message against it when delivering.
 
 Users can define any state and write circuits that encapsulate a transition from State -> New State. The circuit must output the raw bytes of `state_length_u64_as_little_endian_bytes || state || new_state`. The first 32 bytes of `state` are assumed to be the state root used when checking Hyperlane membership proofs; the module does not interpret or persist any additional fields such as heights.
 
@@ -25,7 +25,8 @@ Users can define any state and write circuits that encapsulate a transition from
 The `x/zkism` module defines the following collections used for storage of on-chain state.
 
 - `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address` and the SP1 Groth16 verifying key configurations. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
-- `messages`: Authorized Hyperlane message IDs for one-time consumption by `keeper.Verify`. `(collections.KeySet[collections.Pair[uint64,[]byte]], types.MessageKeyPrefix)`.
+- `submissions`: Whether a membership proof has been submitted for the current state root. `(collections.Map[uint64, bool], types.MessageProofSubmittedPrefix)`.
+- `merkle_tree_states`: The proven source chain merkle tree root and leaf count per ISM, overwritten by each `SubmitMessages`. `(collections.Map[uint64, MerkleTreeState], types.MerkleTreeStateKeyPrefix)`.
 
 ## Messages (Tx RPCs)
 
@@ -33,7 +34,8 @@ Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/
 
 - `CreateInterchainSecurityModule`: Creates an ISM with initial trusted state bytes and verifier configuration.
 - `UpdateInterchainSecurityModule`: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes; no height is stored.
-- `SubmitMessages`: Verifies a state membership proof and authorizes the listed message IDs for one-time processing. The proof must bind to the stored state root (`state[:32]`).
+- `UpdateVerifyingKeys`: Replaces the Groth16 verifying key and both program verifying key commitments of an ISM. Only the ISM owner can submit it. Resets the submission flag so the new membership program can submit for the current state root.
+- `SubmitMessages`: Verifies a state membership proof and stores the proven source chain merkle tree root and leaf count. The proof must bind to the stored state root (`state[:32]`). The public values are a fixed 104 bytes: `state_root (32) || merkle_tree_address (32) || tree_root (32) || count (u64, little-endian)`, with `count` at most `2^32 - 1`.
 
 ## SP1 Groth16 Verifier
 
@@ -93,15 +95,15 @@ Reusability across SP1 programs:
 ## Hyperlane Integration - Message Processing
 
 - Hyperlane core calls `Verify(ism_id, metadata, message)`.
-- The module checks if `message.Id()` is present in the set of authorized message IDs.
-- If present, the ID is consumed (removed) and the method returns `true` to authorize processing.
-- If absent, returns `false` and Hyperlane core must not process the message.
+- The metadata must be exactly 1028 bytes: `leaf_index (u32, big-endian) || branch (32 × 32 bytes)`. Malformed metadata returns an error.
+- The method returns `true` if `leaf_index` is below the stored leaf count and the branch proves `message.Id()` at `leaf_index` against the stored merkle tree root. Otherwise it returns `false` and Hyperlane core must not process the message.
+- Replay protection is enforced by the Hyperlane mailbox, which rejects message IDs it has already received.
 
 Thus, the expected flow is:
 
 1) Off-chain prover generates a state transition proof; submit via `UpdateInterchainSecurityModule`.
-2) Off-chain prover generates a membership proof for specific messages; submit via `SubmitMessages`.
-3) Hyperlane core invokes `Verify` per message; the module authorizes exactly those pre-submitted message IDs.
+2) Off-chain prover generates a membership proof of the source chain merkle tree root; submit via `SubmitMessages`.
+3) Relayers deliver each message with a merkle proof against the latest proven root; Hyperlane core invokes `Verify` per message.
 
 ## Queries (gRPC/REST)
 
@@ -109,13 +111,14 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 
 - `Ism(id) -> InterchainSecurityModule` — `GET /celestia/zkism/v1/isms/{id}`
 - `Isms(pagination) -> [InterchainSecurityModule]` — `GET /celestia/zkism/v1/isms`
-- `Messages(id) -> [MessageIds]` - `GET /celestia/zkism/v1/messages/{id}`
+- `MerkleTreeState(id) -> MerkleTreeState` — `GET /celestia/zkism/v1/isms/{id}/merkle_tree_state`
 
 ## Events
 
 - `EventCreateInterchainSecurityModule` emitted on creation with all ISM fields.
 - `EventUpdateInterchainSecurityModule` emitted when the stored state is replaced via a transition proof.
-- `EventSubmitMessages` emitted when membership proofs authorize message IDs (includes state root and the authorized IDs).
+- `EventUpdateVerifyingKeys` emitted when the owner replaces the verifying keys.
+- `EventSubmitMessages` emitted when a membership proof is accepted (includes the state root, merkle tree root and leaf count).
 
 ## Security Considerations
 
@@ -139,6 +142,7 @@ Potential adversaries include:
 - Correctness of gnark's Groth16 implementation and its integration within the module.
 - Collision resistance of SHA-256, used for both verifying key prefixes and hashing public values into field elements.
 - Off-chain SP1 program correctness: the verifier assumes public values were produced correctly by the corresponding SP1 program, including embedding the correct state root in the first 32 bytes.
+- ISM owner honesty: the owner can replace the verifying keys at any time, and therefore the programs whose proofs the ISM accepts. Anyone relying on an ISM must trust its owner.
 
 ### Invariants
 
@@ -147,8 +151,9 @@ The module enforces the following invariants:
 - Proof prefix must match the expected verifying key hash prefix.
 - Proof length must be exactly 256 bytes + the 4-byte prefix, equalling a total of 260 bytes.
 - State transition proofs must include the currently stored state (minimum 32 bytes) and replace it entirely with `new_state` (minimum 32 bytes).
-- Membership proofs must bind to the trusted root stored in `ism.State[:32]` and authorize exactly the listed message IDs, which can each be consumed once.
-- Once consumed, message IDs cannot be reused, preventing replay of previously authorized messages. Replay protection is also enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox) configured with the ISM.
+- Membership proofs must bind to the trusted root stored in `ism.State[:32]` and to the ISM's `merkle_tree_address`.
+- Submitting a membership proof costs a constant amount of state and event data, independent of the number of messages it covers.
+- Replay protection is enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox) configured with the ISM.
 
 ### Liveness and Availability Risks
 

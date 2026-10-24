@@ -7,7 +7,7 @@ import (
 
 func (suite *KeeperTestSuite) TestInitGenesis() {
 	isms := make([]types.InterchainSecurityModule, 0, 100)
-	genesisMessages := make([]types.GenesisMessages, 0, 50)
+	treeStates := make([]types.GenesisMerkleTreeState, 0, 50)
 	messageProofSubmitted := make([]types.GenesisProofSubmission, 0, 50)
 	for i := range 100 {
 		ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), uint64(i))
@@ -16,10 +16,10 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		isms = append(isms, ism)
 
 		if i%2 == 0 {
-			msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
-			genesisMessages = append(genesisMessages, types.GenesisMessages{
-				Id:       ismId,
-				Messages: []string{msgId.String()},
+			root := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
+			treeStates = append(treeStates, types.GenesisMerkleTreeState{
+				Id:        ismId,
+				TreeState: types.MerkleTreeState{Root: root.Bytes(), Count: uint32(i)},
 			})
 		}
 
@@ -33,8 +33,8 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 
 	genesisState := types.GenesisState{
 		Isms:        isms,
-		Messages:    genesisMessages,
 		Submissions: messageProofSubmitted,
+		TreeStates:  treeStates,
 	}
 
 	err := suite.zkISMKeeper.InitGenesis(suite.ctx, &genesisState)
@@ -46,15 +46,10 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		suite.Require().True(has)
 	}
 
-	for _, message := range genesisState.Messages {
-		for _, msgId := range message.Messages {
-			decodedMsgId, err := util.DecodeHexAddress(msgId)
-			suite.Require().NoError(err)
-
-			has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, message.Id, decodedMsgId.Bytes())
-			suite.Require().NoError(err)
-			suite.Require().True(has)
-		}
+	for _, entry := range genesisState.TreeStates {
+		treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, entry.Id)
+		suite.Require().NoError(err)
+		suite.Require().Equal(entry.TreeState, treeState)
 	}
 
 	for _, entry := range genesisState.Submissions {
@@ -62,6 +57,20 @@ func (suite *KeeperTestSuite) TestInitGenesis() {
 		suite.Require().NoError(err)
 		suite.Require().Equal(entry.Submitted, submitted)
 	}
+}
+
+func (suite *KeeperTestSuite) TestInitGenesisTreeStateUnknownIsm() {
+	genesisState := types.GenesisState{
+		TreeStates: []types.GenesisMerkleTreeState{
+			{
+				Id:        util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0),
+				TreeState: types.MerkleTreeState{Root: make([]byte, 32), Count: 1},
+			},
+		},
+	}
+
+	err := suite.zkISMKeeper.InitGenesis(suite.ctx, &genesisState)
+	suite.Require().ErrorIs(err, types.ErrIsmNotFound)
 }
 
 func (suite *KeeperTestSuite) TestExportGenesis() {
@@ -79,25 +88,26 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 	genesisState, err := suite.zkISMKeeper.ExportGenesis(suite.ctx)
 	suite.Require().NoError(err)
 	suite.Require().Equal(isms, genesisState.Isms)
-	suite.Require().Empty(genesisState.Messages)
+	suite.Require().Empty(genesisState.TreeStates)
 	suite.Require().Empty(genesisState.Submissions)
 
-	expectedMessages := make([]types.GenesisMessages, 0, len(isms))
+	expectedTreeStates := make([]types.GenesisMerkleTreeState, 0, len(isms))
 	for i, ism := range isms {
-		msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
-		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ism.Id, msgId.Bytes())
+		root := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
+		treeState := types.MerkleTreeState{Root: root.Bytes(), Count: uint32(i)}
+		err := suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, treeState)
 		suite.Require().NoError(err)
 
-		expectedMessages = append(expectedMessages, types.GenesisMessages{
-			Id:       ism.Id,
-			Messages: []string{msgId.String()},
+		expectedTreeStates = append(expectedTreeStates, types.GenesisMerkleTreeState{
+			Id:        ism.Id,
+			TreeState: treeState,
 		})
 	}
 
 	genesisState, err = suite.zkISMKeeper.ExportGenesis(suite.ctx)
 	suite.Require().NoError(err)
 	suite.Require().Equal(isms, genesisState.Isms)
-	suite.Require().ElementsMatch(expectedMessages, genesisState.Messages)
+	suite.Require().ElementsMatch(expectedTreeStates, genesisState.TreeStates)
 
 	expectedProofSubmitted := make([]types.GenesisProofSubmission, 0, len(isms)/2)
 	for i, ism := range isms {
@@ -117,26 +127,4 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 	genesisState, err = suite.zkISMKeeper.ExportGenesis(suite.ctx)
 	suite.Require().NoError(err)
 	suite.Require().ElementsMatch(expectedProofSubmitted, genesisState.Submissions)
-}
-
-func (suite *KeeperTestSuite) TestExportGenesisAllMessages() {
-	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
-	ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
-	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
-	suite.Require().NoError(err)
-
-	// more messages than the default query pagination limit
-	expectedMessages := make([]string, 0, 150)
-	for i := range 150 {
-		msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
-		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismId, msgId.Bytes())
-		suite.Require().NoError(err)
-
-		expectedMessages = append(expectedMessages, msgId.String())
-	}
-
-	genesisState, err := suite.zkISMKeeper.ExportGenesis(suite.ctx)
-	suite.Require().NoError(err)
-	suite.Require().Len(genesisState.Messages, 1)
-	suite.Require().ElementsMatch(expectedMessages, genesisState.Messages[0].Messages)
 }
