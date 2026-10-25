@@ -41,6 +41,10 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.Code)
+		// TxStatus reports a tx as committed before the app commits its block,
+		// so wait for the app to commit that height before querying state.
+		_, err = s.cctx.WaitForHeight(res.Height)
+		require.NoError(err)
 
 		queryClient := valaddrtypes.NewQueryClient(s.cctx.GRPCClient)
 		allProvidersResp, err := queryClient.AllBondedFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllBondedFibreProvidersRequest{})
