@@ -23,7 +23,7 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainSecurityModule implements types.MsgServer.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
-	// Deserializing the verifying key performs pairing work, so charge for it first.
+	// Deserializing the verifying key decompresses elliptic curve points, so charge for it first.
 	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verifying key parse")
 	if _, err := types.NewSP1Groth16Verifier(msg.Groth16Vkey); err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
 	}
 
-	// Deserializing the verifying key performs pairing work, so charge for it first.
+	// Deserializing the verifying key decompresses elliptic curve points, so charge for it first.
 	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verifying key parse")
 	if _, err := types.NewSP1Groth16Verifier(msg.Groth16Vkey); err != nil {
 		return nil, err

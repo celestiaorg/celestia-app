@@ -31,8 +31,8 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 }
 
 // validateVerifyingKeys validates the groth16 verifying key and the program verifying key commitments of an ism.
-// Only cheap structural checks run here; deserializing the key performs pairing
-// work, so the message handler does it after fees and gas apply.
+// Only cheap structural checks run here; deserializing the key decompresses
+// elliptic curve points, so the message handler does it after fees and gas apply.
 func validateVerifyingKeys(groth16Vkey, stateTransitionVkey, stateMembershipVkey []byte) error {
 	if err := ValidateGroth16Vkey(groth16Vkey); err != nil {
 		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "%v", err)
