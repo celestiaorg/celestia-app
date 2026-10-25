@@ -57,6 +57,10 @@ jobs:
       - uses: hadolint/hadolint-action@v3.5.0
         if: steps.changes.outputs.docker == 'true'
         with:
+          dockerfile: docker/e2e.Dockerfile
+      - uses: hadolint/hadolint-action@v3.5.0
+        if: steps.changes.outputs.docker == 'true'
+        with:
           dockerfile: docker/txsim/Dockerfile
 
   go-mod-tidy-check:

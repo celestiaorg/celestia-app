@@ -126,6 +126,8 @@ RUN uname -a &&\
     make -o mod build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
+# docker/e2e.Dockerfile copies this stage for the CI e2e image; keep them in sync
+# (checked by scripts/e2e_dockerfile_test.sh).
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006

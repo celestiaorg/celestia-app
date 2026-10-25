@@ -132,6 +132,7 @@ jobs:
             max-attempts: 2
           - test: TestGenesisSyncMainnet
             max-attempts: 2
+          - test: TestRollback
           - test: TestCortoLoad
             extra-image: true
     steps:
