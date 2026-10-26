@@ -48,6 +48,10 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 			present: fibreMaxPresentQuarterOriginals(k, n),
 		},
 		{
+			name:    "all_originals",
+			present: fibreMaxPresentOriginals(k, n),
+		},
+		{
 			name:    "random_k_rows",
 			present: fibreMaxPresentRandom(k, n),
 		},
@@ -122,6 +126,14 @@ func fibreMaxPresentQuarterOriginals(k, n int) []bool {
 		present[i] = true
 	}
 	for i := k; i < k+(k-presentData); i++ {
+		present[i] = true
+	}
+	return present
+}
+
+func fibreMaxPresentOriginals(k, n int) []bool {
+	present := make([]bool, k+n)
+	for i := range k {
 		present[i] = true
 	}
 	return present

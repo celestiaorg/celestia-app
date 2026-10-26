@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/bits"
 	"runtime"
+	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
@@ -27,6 +29,12 @@ type Verifier struct {
 	rlcRoot   merkle.Root // RLC merkle root
 	rlcCoeffs rlc.Vector  // Fiat-Shamir coefficients for the current matrix.
 	rlcShards [][]byte    // Leopard-formatted 64-byte RLC shards
+
+	// The parity RLC shards are the RS extension of the original ones, built
+	// on the first batch with a parity row: original rows check against the
+	// original values directly, so batches of originals never pay for it.
+	extendMu sync.Mutex
+	extended atomic.Bool
 
 	// The rowRoot and rowSize rlcCoeffs was built for. A VerifyShared batch must
 	// match both; one with a different row size or row root is rejected.
@@ -110,7 +118,8 @@ func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error
 	return v.verify(commitment, proofs, rowSize, rowsView, proofInputs)
 }
 
-// setRLC extends the K original RLC values and caches the padded RLC root.
+// setRLC packs the K original RLC values and caches the padded RLC root. The
+// parity values are extended lazily by [Verifier.extendRLC].
 func (v *Verifier) setRLC(rlc rlc.Vector) error {
 	if len(rlc) != v.config.K {
 		return fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
@@ -118,6 +127,25 @@ func (v *Verifier) setRLC(rlc rlc.Vector) error {
 	// Pack into Leopard shards for RS extension.
 	for i := range v.config.K {
 		field.GF128ToLeopard(rlc[i], v.rlcShards[i])
+	}
+	v.extended.Store(false)
+
+	rlcRoot := computeRLCRoot(v.rlcLeaves.set(rlc), v.rlcNodes)
+	v.rlcRoot = rlcRoot
+	v.rlcCoeffs = nil // invalidate coeffs
+	return nil
+}
+
+// extendRLC fills the parity RLC shards with the RS extension of the original
+// ones, once per setRLC. Safe for concurrent use.
+func (v *Verifier) extendRLC() error {
+	if v.extended.Load() {
+		return nil
+	}
+	v.extendMu.Lock()
+	defer v.extendMu.Unlock()
+	if v.extended.Load() {
+		return nil
 	}
 	// parity shards must be zeroed before the in-place encode; leftover bytes
 	// from the previous Verify would otherwise feed into the systematic encode.
@@ -127,10 +155,7 @@ func (v *Verifier) setRLC(rlc rlc.Vector) error {
 	if err := v.enc.Encode(v.rlcShards); err != nil {
 		return fmt.Errorf("extending RLC: %w", err)
 	}
-
-	rlcRoot := computeRLCRoot(v.rlcLeaves.set(rlc), v.rlcNodes)
-	v.rlcRoot = rlcRoot
-	v.rlcCoeffs = nil // invalidate coeffs
+	v.extended.Store(true)
 	return nil
 }
 
@@ -193,8 +218,15 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 		return err
 	}
 
+	hasParity := false
 	for i, p := range proofs {
 		rowsView[i] = p.Row
+		hasParity = hasParity || p.Index >= v.config.K
+	}
+	if hasParity {
+		if err := v.extendRLC(); err != nil {
+			return err
+		}
 	}
 	computedRLCs := rlc.Compute(rowsView, coeffs, v.config.WorkerCount)
 
