@@ -37,8 +37,9 @@ func blobTxSeeds(tb testing.TB) [][]byte {
 	big, err := share.NewBlob(ns2, bytes.Repeat([]byte{0xdd}, 20_000), share.ShareVersionZero, nil)
 	require.NoError(tb, err)
 
-	var seeds [][]byte
-	for _, blobs := range [][]*share.Blob{{v0}, {v0, v0b}, {v1}, {big}} {
+	blobSets := [][]*share.Blob{{v0}, {v0, v0b}, {v1}, {big}}
+	seeds := make([][]byte, 0, len(blobSets))
+	for _, blobs := range blobSets {
 		raw, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, user.SetGasLimit(1_000_000), user.SetFee(1_000))
 		require.NoError(tb, err)
 		seeds = append(seeds, raw)
@@ -96,8 +97,9 @@ func FuzzValidateBlobTx(f *testing.F) {
 	})
 }
 
-// FuzzMsgPayForBlobsValidateBasic checks that stateless message validation
-// never panics on inconsistent namespaces, sizes and commitments. The field
+// FuzzMsgPayForBlobsValidateBasic checks that stateless message validation,
+// and gas estimation of the messages it accepts, never panic on inconsistent
+// namespaces, sizes and commitments. The field
 // counts come from the fuzzer, so the slices can disagree in length.
 func FuzzMsgPayForBlobsValidateBasic(f *testing.F) {
 	f.Add("celestia1y6ykdv9d4txs0ysvz0wf6v4hz8njlv3s3ecfzz", uint8(1), uint8(1), uint8(1), uint8(1), uint32(100), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, byte(0))
@@ -117,7 +119,10 @@ func FuzzMsgPayForBlobsValidateBasic(f *testing.F) {
 		for range versionCount {
 			msg.ShareVersions = append(msg.ShareVersions, uint32(version))
 		}
-		_ = msg.ValidateBasic()
-		_ = types.DefaultEstimateGas(msg)
+		// Gas estimation assumes a message that passed ValidateBasic, as it
+		// does in the ante handler, so only estimate for valid messages.
+		if msg.ValidateBasic() == nil {
+			_ = types.DefaultEstimateGas(msg)
+		}
 	})
 }
