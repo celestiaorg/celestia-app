@@ -22,20 +22,21 @@ app gRPC connection. Current multiplexer and standalone nodes with in-process co
 provide the required `BlockAPI.SubscribeNewHeights`, `TxStatusBatch`, and committed
 application height metadata. Separate-process ABCI deployments are not validated.
 
-Confirmation remains blocking until successful execution is covered by a committed
-height. One shared stream triggers status batches of at most 20 hashes. Registration
-and reconnect perform reconciliation reads; there is no periodic status polling.
-The stream has no setup acknowledgement, so a missed startup event can delay the
-result until the final reconciliation after 30 seconds without new height events.
-That reconciliation resolves completed transactions and fails unresolved waiters.
+Confirmation blocks until the transaction's result is covered by the application's
+committed height, so state queries that follow observe its effects. Each waiter
+checks its transaction once directly, then waits on a status feed shared by all
+waiters of the client. On every new height the feed fetches the status of every
+waiting transaction in batches of at most 20 hashes, running up to 4 batches in
+parallel with a 5 second timeout each. A failed or invalid batch is skipped; its
+waiters get the next height's results. The height stream reconnects with backoff
+(250ms up to 5s) for as long as anyone is waiting, with no reconnect limit. A
+waiter that receives no status for 30 seconds checks its transaction directly, so
+confirmation still makes progress if the subscription is unavailable.
 
-Each client admits at most 1,024 waiters, bounds each status round to five seconds,
-and reconnects at most three times per observation session. Unsupported services,
-invalid responses, exhausted reconnects, and stalled observation return errors;
-an observation error does not mean the transaction failed on-chain. Caller deadlines
-still apply. The last waiter releases the stream, cancelling the `SetupTxClient`
-context stops observation, and `CloseConfirmations` stops subscription confirmation
-explicitly. The caller retains ownership of the gRPC connection.
+There is no waiter limit and no explicit shutdown: the feed starts with the first
+waiter and stops when the last one leaves. Caller deadlines and cancellation apply.
+A direct status check that fails returns an error, which does not mean the
+transaction failed on-chain. The caller retains ownership of the gRPC connection.
 
 Existing `ConfirmTx` and `WithPollTime` behavior is unchanged for other SDK callers.
 `Put` never falls back to that polling path.
