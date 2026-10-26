@@ -235,7 +235,7 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 		zkismtypes.StoreKey,       // added in v7
-		teeismtypes.StoreKey,
+		teeismtypes.StoreKey,      // added in v11
 		valaddrtypes.StoreKey,
 		fibretypes.StoreKey,
 	}
