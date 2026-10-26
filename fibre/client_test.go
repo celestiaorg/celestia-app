@@ -3,17 +3,18 @@ package fibre_test
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -41,6 +42,75 @@ func TestNewClient_KeyNotFound(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, fibre.ErrKeyNotFound, "expected ErrKeyNotFound when key doesn't exist")
 	require.Contains(t, err.Error(), cfg.DefaultKeyName, "error should mention the key name")
+}
+
+func TestNewClient_NoKeyring(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.DefaultKeyName = ""
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Stop(context.Background())) })
+	require.NoError(t, client.Start(t.Context()))
+	require.Equal(t, "celestia", client.ChainID())
+}
+
+func TestNewClient_NoKeyringInvalidConfig(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.RPCTimeout = 0
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.ErrorContains(t, err, "RPCTimeout must be > 0")
+	require.Nil(t, client)
+}
+
+func TestNewClient_NoKeyringStateClientError(t *testing.T) {
+	stateErr := errors.New("state client failed")
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return nil, stateErr
+	}
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.ErrorIs(t, err, stateErr)
+	require.Nil(t, client)
+}
+
+// stopTrackingStateClient records whether Stop was called.
+type stopTrackingStateClient struct {
+	*mockStateClient
+	stopped bool
+}
+
+func (m *stopTrackingStateClient) Stop(ctx context.Context) error {
+	m.stopped = true
+	return m.mockStateClient.Stop(ctx)
+}
+
+func TestClientStop_StopsStateClient(t *testing.T) {
+	stateClient := &stopTrackingStateClient{mockStateClient: &mockStateClient{chainID: "celestia"}}
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) { return stateClient, nil }
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	require.NoError(t, client.Stop(t.Context()))
+	require.True(t, stateClient.stopped, "Stop must release the state client")
+}
+
+func TestNewClient_KeepsDefaultDialerOutOfConfig(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.Nil(t, client.Config.NewClientFn, "the default dialer is bound to this client's state client")
 }
 
 var testNamespace = share.MustNewV0Namespace([]byte("test"))

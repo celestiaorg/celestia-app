@@ -9,8 +9,8 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -118,10 +118,10 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		stakingtypes.NewCommissionRates(sdkmath.LegacyNewDecWithPrec(5, 2), sdkmath.LegacyNewDecWithPrec(5, 2), sdkmath.LegacyNewDec(0)),
 		sdkmath.NewInt(v.Stake/2),
 	)
-	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50
 	if err != nil {
 		return nil, err
 	}
+	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50
 
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)

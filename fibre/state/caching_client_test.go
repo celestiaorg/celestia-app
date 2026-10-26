@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 )
 
@@ -46,6 +46,14 @@ func (m *mockClient) VerifyPromise(context.Context, *state.PaymentPromise) (stat
 
 func (m *mockClient) FullStakeStorageBudget(context.Context) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockClient) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, nil
+}
+
+func (m *mockClient) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, nil
 }
 
 func (m *mockClient) Start(context.Context) error { return nil }

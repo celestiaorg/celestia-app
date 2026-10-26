@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,7 +75,7 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 func makeBenchStore(b *testing.B) *fibre.Store {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = b.TempDir()
-	store, err := fibre.NewStore(cfg)
+	store, err := fibre.NewStore(b.Context(), cfg)
 	if err != nil {
 		b.Fatalf("failed to create store: %v", err)
 	}

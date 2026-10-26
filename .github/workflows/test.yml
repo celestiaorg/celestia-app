@@ -3,21 +3,39 @@ on:
   workflow_call:
 
 jobs:
-  test-short:
-    # Run only on PRs for fast feedback. The go-test matrix provides full
-    # coverage in the merge queue so test-short is redundant there.
+  test-scripts:
+    # Run only on PRs. `make test-short` is not run here: the go-test matrix
+    # already runs every package without -short on PRs, and test-short was the
+    # slowest job in this workflow.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
 
-      - name: Run tests in short mode
-        run: make test-short
+      - name: Run test script regression checks
+        # Verify cross-package coverage without running the full coverage suite.
+        run: |
+          bash scripts/test_race_recipe_test.sh
+          bash scripts/test_cover_test.sh
+          bash scripts/hardfork/recovery_test.sh
+          bash scripts/e2e_dockerfile_test.sh
         timeout-minutes: 10
+
+  test-e2e-compile:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: ./.github/actions/setup-go
+        with:
+          module-directory: test/docker-e2e
+      - name: Compile E2E tests and run helper tests
+        working-directory: test/docker-e2e
+        run: |
+          go test -run '^$' ./...
+          go test ./networks ./internal
 
   go-test:
     runs-on: ubuntu-latest
@@ -28,51 +46,85 @@ jobs:
           # sentinel value to run all other tests.
           - package: "unit"
           # split the heaviest ones
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
-          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
             pattern: "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector"
-          - package: "github.com/celestiaorg/celestia-app/v10/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v10/pkg/user"
-          - package: "github.com/celestiaorg/celestia-app/v10/test/ledger"
-          - package: "github.com/celestiaorg/celestia-app/v10/fibre/..."
-          - package: "github.com/celestiaorg/celestia-app/v10/tools/chainbuilder"
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
+            pattern: "TestPrepareProposalConsistency|TestPrepareProposalCappingNumberOfMessages"
+          # Run tests outside the explicit heavy groups, including newly added tests.
+          - package: "github.com/celestiaorg/celestia-app/v11/app/test"
+            skip: "^(TestIntegration.*|TestBigBlob.*|TestStandardSDK.*|TestSquareSize.*|TestPriority.*|TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector|TestPrepareProposalConsistency|TestPrepareProposalCappingNumberOfMessages)$"
+          # Both are bound by block/poll waits, not CPU, so they share a job.
+          - package: "github.com/celestiaorg/celestia-app/v11/pkg/user github.com/celestiaorg/celestia-app/v11/test/txsim"
+            flags: "-parallel 6"
+          - package: "github.com/celestiaorg/celestia-app/v11/test/ledger"
+          - package: "github.com/celestiaorg/celestia-app/v11/fibre/..."
+          - package: "github.com/celestiaorg/celestia-app/v11/tools/chainbuilder"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
 
       - name: Run tests
         run: |
+          set -o pipefail
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v10/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v11/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+          elif [ -n "${{ matrix.skip }}" ]; then
+            go test -timeout 30m -skip "${{ matrix.skip }}" ${{ matrix.package }}
           elif [ -n "${{ matrix.pattern }}" ]; then
             # run specific test patterns
-            go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}
-          elif [ -n "${{ matrix.tags }}" ]; then
-            # run with build tags
-            go test -tags "${{ matrix.tags }}" -timeout 30m ${{ matrix.package }}
+            go test -timeout 30m -run "^(${{ matrix.pattern }})$" ${{ matrix.package }}
           else
             # run specific package
-            make test PACKAGES="${{ matrix.package }}"
+            go test -timeout 30m ${{ matrix.flags }} ${{ matrix.package }}
           fi
+
+  test-arm64:
+    # Runs the packages with arm64 assembly on a native arm64 runner; every
+    # other job is x86 and only builds the portable code.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - uses: ./.github/actions/setup-go
+        with:
+          cache-key-suffix: test-arm64
+
+      - name: Show CPU features
+        run: grep -m1 Features /proc/cpuinfo
+
+      - name: Run tests with assembly
+        # RSEMA1D_REQUIRE_ASM makes tests fail if an assembly path is silently skipped.
+        env:
+          RSEMA1D_REQUIRE_ASM: "1"
+        run: go test -count=1 ./pkg/rsema1d/... ./fibre/internal/row/...
+        timeout-minutes: 20
+
+      - name: Run tests without assembly
+        run: go test -count=1 -tags noasm ./pkg/rsema1d/...
+        timeout-minutes: 20
+
+      - name: Run tests with the race detector
+        run: go test -count=1 -race ./pkg/rsema1d/...
+        timeout-minutes: 20
 
   test:
     runs-on: ubuntu-latest
-    needs: [go-test]
+    needs: [go-test, test-scripts, test-e2e-compile, test-multiplexer, build-e2e-artifacts, test-docker-e2e, test-arm64]
     if: always()
     steps:
       - name: Check test results
         run: |
-          if [ "${{ needs.go-test.result }}" != "success" ]; then
-            echo "One or more go-test jobs failed"
+          if [ "${{ needs.go-test.result }}" != "success" ] ||
+             [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "One or more test jobs failed or were cancelled"
             exit 1
           fi
           echo "All tests passed"
@@ -85,14 +137,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
 
       - name: Run multiplexer tests
         run: make test-multiplexer
 
-  build-e2e-image:
+  build-e2e-artifacts:
     # Run only in the merge queue and on release branches since E2E tests only
     # run there.
     if: github.event_name != 'pull_request'
@@ -105,24 +155,62 @@ jobs:
         id: tag
         run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
 
-      - name: Build Docker image
-        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+      - uses: ./.github/actions/setup-go
 
-      - name: Save Docker image as artifact
-        run: docker save "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" | gzip > /tmp/e2e-image.tar.gz
+      - name: Compute embedded binaries cache key
+        id: embedded
+        run: echo "key=$(grep -E '^CELESTIA_V[0-9]+_VERSION' Makefile | sha256sum | cut -c1-16)" >> $GITHUB_OUTPUT
 
-      - name: Upload Docker image artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+      - name: Cache embedded binaries
+        id: embedded-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
         with:
-          name: e2e-image
-          path: /tmp/e2e-image.tar.gz
+          path: internal/embedding/celestia-app_linux_*_amd64.tar.gz
+          key: embedded-binaries-linux-amd64-${{ steps.embedded.outputs.key }}
+
+      - name: Extract embedded binaries
+        # Same source and layout as docker/multiplexer.Dockerfile. The release
+        # tarballs that `make download-embedded-binaries` uses are glibc builds.
+        if: steps.embedded-cache.outputs.cache-hit != 'true'
+        run: |
+          pids=()
+          for v in 3 4 5 6 7 8 9 10; do
+            version=$(sed -nE "s/^CELESTIA_V${v}_VERSION := (.+)$/\1/p" Makefile)
+            (
+              id=$(docker create "ghcr.io/celestiaorg/celestia-app-standalone:${version}")
+              docker cp "${id}:/bin/celestia-appd" "/tmp/celestia-appd-v${v}"
+              docker rm "${id}" > /dev/null
+              tar -czf "internal/embedding/celestia-app_linux_v${v}_amd64.tar.gz" "/tmp/celestia-appd-v${v}"
+            ) &
+            pids+=($!)
+          done
+          for pid in "${pids[@]}"; do wait "$pid"; done
+
+      - name: Build celestia-appd and the e2e test binary
+        # One after the other with the same CGO setting, so the test binary
+        # reuses the compiled dependencies instead of compiling them in parallel.
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          GOOS=linux GOARCH=amd64 make -o mod build DOWNLOAD=false
+          cd test/docker-e2e && go test -c -o ../../build/e2e.test .
+
+      - name: Upload e2e binaries
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
+        with:
+          name: e2e-bins
+          path: |
+            build/celestia-appd
+            build/e2e.test
+          compression-level: 0
           retention-days: 1
 
     outputs:
       tag: ${{ steps.tag.outputs.value }}
 
   test-docker-e2e:
-    needs: build-e2e-image
+    name: test-docker-e2e (${{ matrix.testcase }})
+    needs: build-e2e-artifacts
     # Run only in the merge queue and on release branches.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -131,61 +219,98 @@ jobs:
       # independent and we want signal from all of them.
       fail-fast: false
       matrix:
+        # prepull lists the external images each test starts, pulled while the
+        # job sets up. A stale entry only costs time: the test pulls what it needs.
         include:
           - testcase: TestE2ESimple
+            prepull: ghcr.io/celestiaorg/txsim:v9.0.4
           - testcase: TestStateSync
-          - testcase: TestBlockSync
+            prepull: ghcr.io/celestiaorg/txsim:v9.0.4
           - testcase: TestE2EFullStackPFB
+            prepull: ghcr.io/celestiaorg/celestia-node:v0.34.1-corto
           - testcase: TestIBC
             entrypoint: TestIBCTestSuite
+            prepull: ghcr.io/informalsystems/hermes:1.13.1 ghcr.io/chatton/ibc-go-simd:v8.5.0
           - testcase: TestICA
             entrypoint: TestIBCTestSuite
+            prepull: ghcr.io/informalsystems/hermes:1.13.1 ghcr.io/chatton/ibc-go-simd:v8.5.0
           - testcase: TestStateSyncWithAppUpgrade
+            prepull: ghcr.io/celestiaorg/txsim:v9.0.4
           - testcase: TestUpgradeLatest
           - testcase: TestPFMMultiHop
             entrypoint: TestPFMTestSuite
+            prepull: ghcr.io/informalsystems/hermes:1.13.1
           - testcase: TestHyperlaneTokenTransfer
             entrypoint: TestHyperlaneTestSuite
+            prepull: >-
+              ghcr.io/celestiaorg/hyperlane-init@sha256:04d570e31e8e459a8e7aa90d81bfe28df513201b98d027e37bed1bc861a2bbb1
+              gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.7.0
+              ghcr.io/evstack/ev-reth:v0.2.2 ghcr.io/evstack/ev-node-evm:v1.0.0-rc.4
+              ghcr.io/celestiaorg/celestia-node:v0.34.1-corto
           - testcase: TestHyperlaneForwarding
             entrypoint: TestHyperlaneTestSuite
+            prepull: >-
+              ghcr.io/celestiaorg/hyperlane-init@sha256:04d570e31e8e459a8e7aa90d81bfe28df513201b98d027e37bed1bc861a2bbb1
+              gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.7.0
+              ghcr.io/evstack/ev-reth:v0.2.2 ghcr.io/evstack/ev-node-evm:v1.0.0-rc.4
+              ghcr.io/celestiaorg/celestia-node:v0.34.1-corto ghcr.io/celestiaorg/forwarding-relayer:v0.2.0
           - testcase: TestHyperlaneForwardingCustomHook
             entrypoint: TestHyperlaneTestSuite
             # forwarding-relayer jonas/hook-in-derivation @ 5c65d4f, which carries the
             # matching custom_hook_id/custom_hook_metadata address derivation.
             forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:sha-5c65d4f
+            prepull: >-
+              ghcr.io/celestiaorg/hyperlane-init@sha256:04d570e31e8e459a8e7aa90d81bfe28df513201b98d027e37bed1bc861a2bbb1
+              gcr.io/abacus-labs-dev/hyperlane-agent:agents-v1.7.0
+              ghcr.io/evstack/ev-reth:v0.2.2 ghcr.io/evstack/ev-node-evm:v1.0.0-rc.4
+              ghcr.io/celestiaorg/celestia-node:v0.34.1-corto ghcr.io/celestiaorg/forwarding-relayer:sha-5c65d4f
           - testcase: TestHyperlaneZKIsmStateTransition
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership
             entrypoint: TestHyperlaneTestSuite
 
     steps:
+      - name: Start pulling images
+        env:
+          IMAGES: busybox:stable ${{ matrix.prepull }}
+        run: |
+          (for image in $IMAGES; do docker pull -q "$image" || true & done; wait; touch /tmp/prepull.done) > /tmp/prepull.log 2>&1 &
+
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
+      - name: Download e2e binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 #v8.0.2
         with:
-          go-version-file: "go.mod"
+          name: e2e-bins
+          path: build
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c #v8.0.1
-        with:
-          name: e2e-image
-          path: /tmp
+      - name: Build Docker image
+        env:
+          TAG: ${{ needs.build-e2e-artifacts.outputs.tag }}
+        run: |
+          chmod +x build/celestia-appd build/e2e.test
+          mkdir -p /tmp/e2e-image/docker
+          cp build/celestia-appd /tmp/e2e-image/
+          cp docker/entrypoint.sh /tmp/e2e-image/docker/
+          docker build -t "ghcr.io/celestiaorg/celestia-app:${TAG}" -f docker/e2e.Dockerfile /tmp/e2e-image
 
-      - name: Load Docker image
-        run: docker load < /tmp/e2e-image.tar.gz
+      - name: Wait for image pulls
+        timeout-minutes: 5
+        run: |
+          until [ -f /tmp/prepull.done ]; do sleep 1; done
+          cat /tmp/prepull.log
 
       - name: Run E2E test
+        working-directory: test/docker-e2e
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
-          CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
+          CELESTIA_TAG: ${{ needs.build-e2e-artifacts.outputs.tag }}
           # Only set for the custom-hook case; empty elsewhere so the test falls
           # back to the default forwarding-relayer image.
           FORWARDING_RELAYER_IMAGE: ${{ matrix.forwarding_relayer_image }}
+          ENTRYPOINT: ${{ matrix.entrypoint || 'TestCelestiaTestSuite' }}
+          TESTCASE: ${{ matrix.testcase }}
         run: |
-          if [ -n "${{ matrix.entrypoint }}" ]; then
-            make test-docker-e2e test=${{ matrix.testcase }} entrypoint=${{ matrix.entrypoint }}
-          else
-            make test-docker-e2e test=${{ matrix.testcase }}
-          fi
+          echo "--> Running: ${ENTRYPOINT}/${TESTCASE}"
+          ../../build/e2e.test -test.paniconexit0 -test.count=1 -test.v -test.timeout=30m -test.run "^${ENTRYPOINT}/${TESTCASE}$"

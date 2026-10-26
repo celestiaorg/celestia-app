@@ -1,0 +1,85 @@
+name: Set up Go and download modules
+description: Restore Go caches and retry module downloads before running checks.
+inputs:
+  module-directory:
+    description: Directory containing the module to download.
+    default: .
+  cache-key-suffix:
+    description: Separates build caches warmed for a different job set, e.g. test-arm64.
+    default: ""
+  golangci-lint-cache:
+    description: Also restore the golangci-lint analysis cache.
+    default: "false"
+outputs:
+  gomod-key:
+    description: Module cache key.
+    value: ${{ steps.keys.outputs.gomod }}
+  gobuild-key:
+    description: Build cache key for today.
+    value: ${{ steps.keys.outputs.gobuild }}
+  golangci-lint-key:
+    description: golangci-lint cache key for today.
+    value: ${{ steps.keys.outputs.lint }}
+  gomodcache:
+    description: Module cache path.
+    value: ${{ steps.keys.outputs.gomodcache }}
+  gocache:
+    description: Build cache path.
+    value: ${{ steps.keys.outputs.gocache }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+      with:
+        go-version-file: go.mod
+        # Caches are saved only by go-cache-warm.yml. setup-go's own cache is
+        # saved by whichever job finishes first, which may compile nothing.
+        cache: false
+    - name: Compute Go cache keys
+      id: keys
+      shell: bash
+      env:
+        HASH: ${{ hashFiles('go.sum', 'test/docker-e2e/go.sum') }}
+        SUFFIX: ${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}
+      run: |
+        base="${RUNNER_OS}-${RUNNER_ARCH}"
+        build="gobuild-${base}-$(go env GOVERSION)${SUFFIX}"
+        day=$(date -u +%Y%m%d)
+        {
+          echo "gomod=gomod-${base}-${HASH}"
+          echo "gobuild=${build}-${HASH}-${day}"
+          echo "gobuild-restore<<EOF"
+          echo "${build}-${HASH}-"
+          echo "${build}-"
+          echo "EOF"
+          echo "lint=golangci-lint-${base}-${HASH}-${day}"
+          echo "lint-restore<<EOF"
+          echo "golangci-lint-${base}-${HASH}-"
+          echo "golangci-lint-${base}-"
+          echo "EOF"
+          echo "gomodcache=$(go env GOMODCACHE)"
+          echo "gocache=$(go env GOCACHE)"
+        } >> "$GITHUB_OUTPUT"
+    - name: Restore Go module cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+      with:
+        path: ${{ steps.keys.outputs.gomodcache }}
+        key: ${{ steps.keys.outputs.gomod }}
+    - name: Restore Go build cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+      with:
+        path: ${{ steps.keys.outputs.gocache }}
+        key: ${{ steps.keys.outputs.gobuild }}
+        restore-keys: ${{ steps.keys.outputs.gobuild-restore }}
+    - name: Restore golangci-lint cache
+      if: inputs.golangci-lint-cache == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+      with:
+        path: ~/.cache/golangci-lint
+        key: ${{ steps.keys.outputs.lint }}
+        restore-keys: ${{ steps.keys.outputs.lint-restore }}
+    - name: Download Go modules
+      shell: bash
+      env:
+        MODULE_DIRECTORY: ${{ inputs.module-directory }}
+      run: sh docker/download-go-modules.sh "$MODULE_DIRECTORY"

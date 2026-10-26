@@ -3,8 +3,8 @@ package fibre
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/abci"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +50,10 @@ This allows interacting with older app versions for debugging or older queries.`
 			}
 
 			// prepare the command to be executed
-			execCmd := appVersion.Appd.CreateExecCommand(args[1:]...)
+			execCmd, err := appVersion.Appd.CreateExecCommand(args[1:]...)
+			if err != nil {
+				return err
+			}
 			return execCmd.Run()
 		},
 	}

@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -62,7 +62,7 @@ func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
 	// not enforce the height window, so any positive height works.
 	promise := buildSignedPromise(t, 1, creation, *ownerPub, ownerPriv)
 
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(fibrekeeper.EstimateGasForPayForFibre(promise.BlobSize)))
+	payment := fibretypes.PaymentAmount(promise.BlobSize)
 	feeBefore := testApp.BankKeeper.GetBalance(ctx, feeCollectorAddr, appconsts.BondDenom)
 
 	// Anyone can submit the timeout settlement.

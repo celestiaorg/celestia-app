@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -349,19 +350,25 @@ func (cfg Config) WithChainID(chainID string) Config {
 }
 
 func (cfg Config) Save(root string) error {
+	return cfg.SaveFile(filepath.Join(root, "config.json"))
+}
+
+// SaveFile writes the config to the given file path.
+func (cfg Config) SaveFile(configFilePath string) (err error) {
 	// Create the directory if it doesn't exist
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configFilePath), 0o755); err != nil {
 		return err
 	}
-
-	// Create the config file path
-	configFilePath := filepath.Join(root, "config.json")
 
 	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_SYNC, 0o755)
 	if err != nil {
 		return err
 	}
-	defer cfgFile.Close()
+	defer func() {
+		if closeErr := cfgFile.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close config file: %w", closeErr))
+		}
+	}()
 
 	// Write the config to the file
 	encoder := json.NewEncoder(cfgFile)
@@ -369,9 +376,14 @@ func (cfg Config) Save(root string) error {
 	return encoder.Encode(cfg)
 }
 
-// LoadConfig loads the config from the specified path.
+// LoadConfig loads config.json from the specified directory.
 func LoadConfig(rootDir string) (Config, error) {
-	cfgFile, err := os.Open(filepath.Join(rootDir, "config.json"))
+	return LoadConfigFile(filepath.Join(rootDir, "config.json"))
+}
+
+// LoadConfigFile loads the config from the given file path.
+func LoadConfigFile(path string) (Config, error) {
+	cfgFile, err := os.Open(path)
 	if err != nil {
 		return Config{}, err
 	}

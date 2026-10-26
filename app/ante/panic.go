@@ -28,7 +28,7 @@ func FormatTx(tx sdk.Tx) string {
 	var output strings.Builder
 	output.WriteString("\ncaused by transaction:\n")
 	for _, msg := range tx.GetMsgs() {
-		output.WriteString(fmt.Sprintf("%T{%s}\n", msg, msg))
+		fmt.Fprintf(&output, "%T{%s}\n", msg, msg)
 	}
 	return output.String()
 }

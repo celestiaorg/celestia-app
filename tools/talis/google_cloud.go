@@ -286,14 +286,6 @@ func gcClientOptions(cfg Config) ([]option.ClientOption, error) {
 	return opts, nil
 }
 
-func RandomGCZone(region string) string {
-	zones, ok := GCZones[region]
-	if !ok || len(zones) == 0 {
-		return region + "-a"
-	}
-	return zones[rand.Intn(len(zones))]
-}
-
 // ShuffledGCZones returns all zones for a region in random order. Falls back
 // to {region}-a/b/c when the region is unknown.
 func ShuffledGCZones(region string) []string {

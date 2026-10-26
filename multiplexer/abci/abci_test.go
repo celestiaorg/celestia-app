@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	abci "github.com/cometbft/cometbft/abci/types"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -37,7 +37,7 @@ func TestOfferSnapshot(t *testing.T) {
 	chainId := appconsts.TestChainID
 	applicationVersion := uint64(3)
 
-	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion)
+	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion, nil)
 	require.NoError(t, err)
 
 	t.Run("should return an error if the app version in the snapshot is not supported", func(t *testing.T) {

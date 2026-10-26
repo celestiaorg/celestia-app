@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,10 +12,10 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -35,6 +36,7 @@ type MsgServerTestSuite struct {
 	suite.Suite
 
 	ctx           sdk.Context
+	storeKey      *storetypes.KVStoreKey
 	keeper        *keeper.Keeper
 	msgServer     types.MsgServer
 	cdc           codec.Codec
@@ -49,6 +51,7 @@ func TestMsgServerTestSuite(t *testing.T) {
 
 func (suite *MsgServerTestSuite) SetupTest() {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	suite.storeKey = storeKey
 	tkey := storetypes.NewTransientStoreKey("transient_test")
 
 	db := dbm.NewMemDB()
@@ -64,7 +67,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }
@@ -108,6 +111,37 @@ func (suite *MsgServerTestSuite) TestDepositToEscrow() {
 		// Verify balance was increased
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
+		expectedBalance := depositAmount.Add(depositAmount)
+		suite.Equal(expectedBalance, escrowAccount.Balance)
+		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
+	})
+
+	suite.T().Run("uppercase signer deposits to the same escrow account", func(t *testing.T) {
+		upperTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           upperTestSigner,
+			Balance:          depositAmount,
+			AvailableBalance: depositAmount,
+		})
+
+		upperSigner := strings.ToUpper(upperTestSigner)
+		msg := &types.MsgDepositToEscrow{
+			Signer: upperSigner,
+			Amount: depositAmount,
+		}
+
+		resp, err := suite.msgServer.DepositToEscrow(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// No second account keyed by the uppercase string
+		_, found := suite.keeper.GetEscrowAccount(suite.ctx, upperSigner)
+		suite.False(found)
+
+		// The deposit landed in the account settlement reads
+		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, upperTestSigner)
+		suite.True(found)
+		suite.Equal(upperTestSigner, escrowAccount.Signer)
 		expectedBalance := depositAmount.Add(depositAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
@@ -219,6 +253,33 @@ func (suite *MsgServerTestSuite) TestRequestWithdrawal() {
 		suite.Contains(err.Error(), "insufficient available balance")
 	})
 
+	suite.T().Run("uppercase signer withdraws from the same escrow account", func(t *testing.T) {
+		upperTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           upperTestSigner,
+			Balance:          depositAmount,
+			AvailableBalance: depositAmount,
+		})
+
+		msg := &types.MsgRequestWithdrawal{
+			Signer: strings.ToUpper(upperTestSigner),
+			Amount: withdrawAmount,
+		}
+
+		resp, err := suite.msgServer.RequestWithdrawal(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// The withdrawal is stored under the canonical signer
+		withdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, upperTestSigner, suite.ctx.BlockTime())
+		suite.True(found)
+		suite.Equal(upperTestSigner, withdrawal.Signer)
+
+		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, upperTestSigner)
+		suite.True(found)
+		suite.Equal(depositAmount.Sub(withdrawAmount), escrowAccount.AvailableBalance)
+	})
+
 	suite.T().Run("duplicate withdrawal request at same timestamp", func(t *testing.T) {
 		// Setup: Create a new escrow account for this test
 		duplicateTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
@@ -265,8 +326,8 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
 
 	// Calculate required balance
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 	// Setup: Create escrow account with sufficient balance
 	escrowAccount := types.EscrowAccount{
@@ -304,7 +365,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := requiredAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
@@ -480,8 +541,97 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 			ValidatorSignatures: validSignatures,
 		}
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
-		suite.Error(err)
-		suite.Contains(err.Error(), "failed to get historical validator set")
+		require.ErrorContains(t, err, "failed to get historical validator set")
+
+		// A sig cache hit checks only availability and must fail the same way.
+		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
+		suite.ErrorIs(availErr, sdkerrors.ErrInvalidRequest)
+		suite.Equal(err.Error(), availErr.Error())
+	})
+
+	suite.T().Run("validator set available", func(t *testing.T) {
+		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
+	})
+}
+
+// TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet checks that
+// a cached validator set conversion fails a pruned height like a cold keeper does.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesPrunedHeightWithWarmValidatorSet() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	msg := &types.MsgPayForFibre{
+		PaymentPromise:      paymentPromise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&paymentPromise),
+	}
+	pruned := func(context.Context, int64) (stakingtypes.HistoricalInfo, error) {
+		return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+	}
+	defer func() { suite.stakingKeeper.GetHistoricalInfoFn = nil }()
+
+	// Cold: nothing converted yet, so this is the decoding path.
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	coldErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().ErrorContains(coldErr, "failed to get historical validator set")
+
+	// Warm the conversion; a warm, still-stored height must not decode again.
+	suite.stakingKeeper.GetHistoricalInfoFn = nil
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	gets := suite.stakingKeeper.getCalls.Load()
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	suite.Require().Equal(gets, suite.stakingKeeper.getCalls.Load(), "warm height decoded again")
+
+	suite.stakingKeeper.GetHistoricalInfoFn = pruned
+	warmErr := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+	suite.Require().Error(warmErr)
+	suite.Require().Equal(coldErr.Error(), warmErr.Error())
+}
+
+// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum pins where the
+// promise entry is written: behind the validator quorum check, not behind the
+// promise signature alone. The promise signature is the submitter's own and
+// verifies by construction, so an entry written any earlier would let a
+// transaction the node rejects fill the cache and evict accepted ones.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	validSignatures := suite.generateValidatorSignatures(&paymentPromise)
+	key := protoPromiseKey(suite.T(), &paymentPromise)
+
+	cache := newCountingSigCache()
+	// Signature verification reads only the genesis height from module state.
+	k := keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+
+	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		err := k.ValidatePayForFibreSignatures(suite.ctx, msg)
+		require.ErrorContains(t, err, "validator signature validation failed")
+		require.Equal(t, 1, cache.lookups, "the promise is looked up before it is verified")
+		require.Zero(t, cache.adds)
+		require.Empty(t, cache.entries)
+	})
+
+	suite.T().Run("certificate short of quorum buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{},
+		}
+		require.Error(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Zero(t, cache.adds)
+	})
+
+	suite.T().Run("accepted certificate records the promise", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Equal(t, 1, cache.adds)
+		require.Contains(t, cache.entries, key)
 	})
 }
 
@@ -500,8 +650,8 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	paymentPromise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
 	// Calculate required balance
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 	// Setup: Create escrow account with sufficient balance
 	escrowAccount := types.EscrowAccount{
@@ -535,7 +685,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := requiredAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
@@ -717,9 +867,9 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		transfers := suite.recordModuleTransfers()
@@ -745,9 +895,9 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		oldTime := suite.ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
 		promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		transfers := suite.recordModuleTransfers()
@@ -771,8 +921,8 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		// AvailableBalance is zero: the whole payment is a shortfall covered by a
 		// pending withdrawal. The full payment must still leave the module account.
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
@@ -806,8 +956,8 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		suite.bankKeeper.SendCoinsFromModuleToModuleFn = func(_ context.Context, _, _ string, _ sdk.Coins) error {
@@ -937,9 +1087,9 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 	creation := suite.ctx.BlockTime().Add(types.MaxPromiseClockSkew)
 	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
 
-	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia*2)
 	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
 		Signer:           signer,
 		Balance:          balance,
@@ -1003,9 +1153,9 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	creation := suite.ctx.BlockTime()
 	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
 
-	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia*2)
 	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
 		Signer:           signer,
 		Balance:          balance,
@@ -1070,8 +1220,8 @@ func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
 	suite.T().Run("payment succeeds when full withdrawal exists", func(t *testing.T) {
 		signerPubKey, privKey, signer := suite.newSigner()
 		paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
-		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+		paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 		// Create escrow account with deposit
 		escrowAccount := types.EscrowAccount{
@@ -1103,7 +1253,7 @@ func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
 		// Verify balance was deducted
 		updatedAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := depositAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, updatedAccount.Balance)
 		suite.Equal(sdk.NewInt64Coin(appconsts.BondDenom, 0), updatedAccount.AvailableBalance)
@@ -1196,10 +1346,11 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 	suite.NoError(err)
 	val.ConsensusPubkey = anyPubKey
 
-	// Create historical info
+	// Staking records the set that signs block H under historical info H-1.
+	historicalHeight := suite.ctx.BlockHeight() - 1
 	historicalInfo := stakingtypes.HistoricalInfo{
 		Header: cmtproto.Header{
-			Height: suite.ctx.BlockHeight(),
+			Height: historicalHeight,
 			Time:   suite.ctx.BlockTime(),
 		},
 		Valset: []stakingtypes.Validator{val},
@@ -1212,7 +1363,7 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 
 	// Update mock to return this validator set
 	suite.stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		suite.ctx.BlockHeight(): historicalInfo,
+		historicalHeight: historicalInfo,
 	}
 }
 

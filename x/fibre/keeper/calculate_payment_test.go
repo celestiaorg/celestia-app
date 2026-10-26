@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,29 +69,28 @@ func TestCalculatePaymentAmount(t *testing.T) {
 		{
 			name:     "zero blob size",
 			blobSize: 0,
-			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(650_000)),
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2_600)),
 		},
 		{
 			name:     "1 byte blob",
 			blobSize: 1,
-			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(695_000)),
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2_780)),
 		},
 		{
 			name:     "exactly 256 KiB",
 			blobSize: 262_144,
-			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(695_000)),
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2_780)),
 		},
 		{
 			name:     "8 MiB blob",
 			blobSize: 8_388_608,
-			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2_090_000)),
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(8_360)),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gas := EstimateGasForPayForFibre(tt.blobSize)
-			got := sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(gas))
+			got := (msgServer{}).calculatePaymentAmount(sdk.Context{}, tt.blobSize)
 			assert.Equal(t, tt.want, got)
 		})
 	}

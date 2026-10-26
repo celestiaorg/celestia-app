@@ -37,7 +37,7 @@ func upCmd() *cobra.Command {
 		Short: "Uses the config to spin up a distributed network",
 		Long:  "Initialize the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
@@ -49,7 +49,7 @@ func upCmd() *cobra.Command {
 			// overwrite the config values if flags or env vars are set
 			// flag > env > config
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
-			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
+			cfg.SSHPubKeyPath = resolveSSHPubKeyPath(SSHPubKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
@@ -68,7 +68,7 @@ func upCmd() *cobra.Command {
 				return fmt.Errorf("failed to spin up network: %w", err)
 			}
 
-			if err := client.GetConfig().Save(rootDir); err != nil {
+			if err := client.GetConfig().SaveFile(filepath.Join(rootDir, cfgPath)); err != nil {
 				return fmt.Errorf("failed to save config: %w", err)
 			}
 
@@ -116,7 +116,7 @@ func deployCmd() *cobra.Command {
 				log.Printf("✅ Payload compressed to %s\n", tarPath)
 			}
 
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
@@ -141,7 +141,7 @@ func deployCmd() *cobra.Command {
 				}
 				return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload, workers)
 			}
-			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
+			if err := deployPayloadViaS3(cmd.Context(), cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 				if !ignoreFailed {
 					return err
 				}
@@ -197,7 +197,7 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	if directUpload {
 		err = deployObservabilityPayloadDirect(observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute)
 	} else {
-		err = deployObservabilityPayloadViaS3(ctx, rootDir, observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, skipUpload)
+		err = deployObservabilityPayloadViaS3(ctx, observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, skipUpload)
 	}
 	if err != nil {
 		return err
@@ -235,7 +235,7 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 			return fmt.Errorf("encoder deployment: %w", err)
 		}
 	} else {
-		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
+		if err := deployPayloadViaS3(ctx, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 			return fmt.Errorf("encoder deployment: %w", err)
 		}
 	}
@@ -247,7 +247,7 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 // deployReadersIfConfigured creates a lightweight reader-payload tar and deploys
 // it to all configured reader instances. Mirrors the encoder pattern: each reader
 // downloads the tar from S3 (or direct), extracts, and runs reader_init.sh which
-// installs the fibre-reader binary and a fibre keyring.
+// installs the fibre-reader binary.
 func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload, skipUpload bool, workers int) error {
 	if len(cfg.Readers) == 0 {
 		return nil
@@ -274,7 +274,7 @@ func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyP
 			return fmt.Errorf("reader deployment: %w", err)
 		}
 	} else {
-		if err := deployPayloadViaS3(ctx, rootDir, cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
+		if err := deployPayloadViaS3(ctx, cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 			return fmt.Errorf("reader deployment: %w", err)
 		}
 	}
@@ -384,7 +384,6 @@ func deployPayloadDirect(
 // deployPayloadViaS3 uploads the payload to S3 first, then has each node download it
 func deployPayloadViaS3(
 	ctx context.Context,
-	rootDir string,
 	ips []Instance,
 	archivePath string,
 	sshKeyPath string,
@@ -395,11 +394,7 @@ func deployPayloadViaS3(
 	skipUpload bool,
 	workers int,
 ) error {
-	cfg, err := LoadConfig(rootDir)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-	s3Client, err := createS3Client(ctx, cfg)
+	s3Client, err := createS3Client(ctx, Config{S3Config: s3cfg})
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
@@ -535,7 +530,6 @@ func deployObservabilityPayloadDirect(
 // deployObservabilityPayloadViaS3 uploads the observability payload to S3 first, then has the node download it.
 func deployObservabilityPayloadViaS3(
 	ctx context.Context,
-	rootDir string,
 	inst Instance,
 	archivePath string,
 	sshKeyPath string,
@@ -544,11 +538,7 @@ func deployObservabilityPayloadViaS3(
 	s3cfg S3Config,
 	skipUpload bool,
 ) error {
-	cfg, err := LoadConfig(rootDir)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-	s3Client, err := createS3Client(ctx, cfg)
+	s3Client, err := createS3Client(ctx, Config{S3Config: s3cfg})
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
@@ -667,7 +657,7 @@ func downCmd() *cobra.Command {
 		Short: "Uses the config to spin down a distributed network",
 		Long:  "Destroys the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil && !all {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
@@ -688,7 +678,7 @@ func downCmd() *cobra.Command {
 			}
 
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
-			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
+			cfg.SSHPubKeyPath = resolveSSHPubKeyPath(SSHPubKeyPath, cfg.SSHPubKeyPath)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -731,6 +721,11 @@ func resolveValue(flagVal, envKey, configVal string) string {
 	return configVal
 }
 
+// resolveSSHPubKeyPath selects the SSH public key path: flag > env > config.
+func resolveSSHPubKeyPath(flagVal, configVal string) string {
+	return resolveValue(flagVal, EnvVarPubSSHKeyPath, configVal)
+}
+
 func listCmd() *cobra.Command {
 	var rootDir string
 	var cfgPath string
@@ -744,7 +739,7 @@ func listCmd() *cobra.Command {
 		Short: "Lists the instances in the network",
 		Long:  "Lists the instances in the network. Can be used to see if someone is running experiments at the moment",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}

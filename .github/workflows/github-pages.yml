@@ -12,8 +12,6 @@ on:
     paths:
       - specs/**
   merge_group:
-    paths:
-      - specs/**
   workflow_dispatch:
 
 jobs:
@@ -27,9 +25,18 @@ jobs:
 
       # --- Build mdBook specs ---
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 #v2.0.0
-        with:
-          mdbook-version: "0.4.21"
+        env:
+          MDBOOK_VERSION: "0.4.21"
+          MDBOOK_SHA256: ec3c978a255b444987fd6e0805147f4ea75d221f68c6e27dbf3e8a28aba166b7
+        run: |
+          archive="$RUNNER_TEMP/mdbook.tar.gz"
+          curl --fail --location --retry 3 \
+            "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            --output "$archive"
+          echo "$MDBOOK_SHA256  $archive" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/mdbook-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/mdbook-bin" mdbook
+          echo "$RUNNER_TEMP/mdbook-bin" >> "$GITHUB_PATH"
 
       - name: Build book
         run: mdbook build specs

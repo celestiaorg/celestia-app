@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -235,5 +235,5 @@ func isStale(b *signerBudget) bool {
 
 // requiredAmount is the escrow amount a promise for the given blob size reserves.
 func requiredAmount(blobSize uint32) math.Int {
-	return math.NewIntFromUint64(EstimateGasForPayForFibre(blobSize))
+	return types.PaymentAmount(blobSize).Amount
 }

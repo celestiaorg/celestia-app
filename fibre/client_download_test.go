@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -277,7 +277,7 @@ func testClientDownloadIncorrectRowDistribution(t *testing.T) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: clientValSet}}, nil
 	}
 
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
@@ -305,7 +305,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 		return &mockStateClient{SetGetter: getter}, nil
 	}
 
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
@@ -336,7 +336,7 @@ func testClientDownloadWithZeroHeight(t *testing.T) {
 		return &mockStateClient{SetGetter: getter}, nil
 	}
 
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
@@ -414,7 +414,7 @@ func makeTestDownloadClientFromValidators(
 	cfg.StateClientFn = func() (state.Client, error) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
 	}
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	return client
@@ -687,7 +687,7 @@ func testClientDownloadTamperedBlob(t *testing.T) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
 	}
 
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
@@ -733,7 +733,7 @@ func testClientDownloadMaliciousSubmitter(t *testing.T) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
 	}
 
-	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	client, err := fibre.NewClient(nil, cfg)
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })

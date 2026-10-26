@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,18 +29,21 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
+	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
+	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
+	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
+		return app.BaseApp.CheckTx(req)
+	}
+
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
-		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx) {
+		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
 		}
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	if isBlob {
-		if !blobTxIsCanonical(tx, btx) {
-			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
-		}
 		return app.handleBlobCheckTx(req, btx)
 	}
 
@@ -62,6 +65,10 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+	if proofCount := countZKProofMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
@@ -195,20 +202,10 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 	return nil
 }
 
-// payForFibreMsg returns the MsgPayForFibre from a single-message tx.
-func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return nil, false
-	}
-	pff, ok := msgs[0].(*fibretypes.MsgPayForFibre)
-	return pff, ok
-}
-
 // containsFibreStateMsg reports whether the tx carries a fibre message that
-// lowers an escrow balance as soon as it executes, so proposal must replay it
-// before settling a later MsgPayForFibre. MsgPayForFibre (settled on its own
-// path) and MsgRequestWithdrawal (only locks funds, paid out later by the
+// mutates escrow state/balance as soon as it executes, so proposal must replay
+// it before settling a later MsgPayForFibre. MsgPayForFibre (settled on its
+// own path) and MsgRequestWithdrawal (only locks funds, paid out later by the
 // BeginBlocker) are excluded.
 func containsFibreStateMsg(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {

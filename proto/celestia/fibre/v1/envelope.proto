@@ -1,0 +1,27 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
+
+// TxRawBody mirrors cosmos.tx.v1beta1.TxRaw but decodes only body_bytes, so
+// classifying a tx skips its auth info and signatures. Field numbers must match.
+message TxRawBody {
+  // Mirrors TxRaw.body_bytes. It stays bytes: a decoder keeps the last body,
+  // whereas a message field would merge repeated bodies.
+  bytes body_bytes = 1;
+}
+
+// TxBodyTypeURLs mirrors cosmos.tx.v1beta1.TxBody but decodes only the type
+// URL of each message.
+message TxBodyTypeURLs {
+  // Mirrors TxBody.messages.
+  repeated AnyTypeURL messages = 1 [(gogoproto.nullable) = false];
+}
+
+// AnyTypeURL mirrors google.protobuf.Any without its value.
+message AnyTypeURL {
+  // Mirrors Any.type_url.
+  string type_url = 1;
+}

@@ -145,7 +145,7 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 
 For those interested in how to incorporate these methods into the cosmos-sdk and the app, we do that in the following PRs.
 
-- celestiaorg/cosmos-sdk [#63](https://github.com/celestiaorg/cosmos-sdk/pull/63)
+- celestiaorg/cosmos-sdk [#63](https://github.com/celestiaorg/cosmos-sdk-archive/pull/63)
 - celestiaorg/celestia-app [#214](https://github.com/celestiaorg/celestia-app/pull/214)
 
 ### PrepareProposal [#637](https://github.com/celestiaorg/celestia-core/pull/637) and [#224](https://github.com/celestiaorg/celestia-app/pull/224)
@@ -398,7 +398,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 ### Open PRs in order of which need to be reviewed/merged first
 
 [#631](https://github.com/celestiaorg/celestia-core/pull/631)
-[#63](https://github.com/celestiaorg/cosmos-sdk/pull/63)
+[#63](https://github.com/celestiaorg/cosmos-sdk-archive/pull/63)
 [#214](https://github.com/celestiaorg/celestia-app/pull/214)
 
 [#216](https://github.com/celestiaorg/celestia-app/pull/216)

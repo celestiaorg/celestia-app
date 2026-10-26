@@ -8,7 +8,7 @@ import (
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -81,9 +81,10 @@ func (k Keeper) DeleteFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAd
 }
 
 // RemoveStaleFibreProviders garbage-collects FibreProviderInfo entries whose
-// validator has permanently left the active set: either fully removed from
-// staking state, or jailed and unbonded for longer than
-// JailedGracePeriod (1 week).
+// validator has left the active set: either fully removed from staking state,
+// or not bonded for longer than UnbondedGracePeriod (1 week) past its
+// UnbondingTime. A validator that never bonded has a zero UnbondingTime, so its
+// entry is removed on the next sweep.
 //
 // A validator lookup that fails with anything other than ErrNoValidatorFound
 // indicates a staking state-read problem; in that case the sweep aborts and
@@ -108,10 +109,11 @@ func (k Keeper) RemoveStaleFibreProviders(ctx context.Context) error {
 			return true
 		}
 
-		// A validator that has been jailed and has finished unbonding without
-		// recovering for longer than the grace period is treated as gone.
-		if validator.IsJailed() && !validator.IsBonded() &&
-			blockTime.After(validator.UnbondingTime.Add(types.JailedGracePeriod)) {
+		// A validator that is not bonded and has not rebonded within the grace
+		// period after its UnbondingTime is treated as gone, whether or not it
+		// is jailed.
+		if !validator.IsBonded() &&
+			blockTime.After(validator.UnbondingTime.Add(types.UnbondedGracePeriod)) {
 			stale = append(stale, copyConsAddr(consAddr))
 		}
 		return false
