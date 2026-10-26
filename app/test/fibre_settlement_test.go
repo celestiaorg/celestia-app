@@ -2,16 +2,17 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,17 +21,28 @@ import (
 )
 
 // TestFibreSettlementRoutesToFeeCollector is an app-level test exercising the
-// real bank and fibre keepers. It verifies that settling a payment via
-// MsgPaymentPromiseTimeout moves the charged coins out of the fibre module
-// account into the fee collector, and that the module-account invariant
+// real bank and fibre keepers. Both PFF and timeout settlement must charge
+// the native v11 price and move those coins into the fee collector. It also
+// verifies that the module-account invariant
 // (bank balance == sum of escrow balances) holds across the settlement.
 func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
+	for _, timeout := range []bool{false, true} {
+		t.Run(fmt.Sprintf("timeout=%t", timeout), func(t *testing.T) {
+			testFibreSettlementRoutesToFeeCollector(t, timeout)
+		})
+	}
+}
+
+func testFibreSettlementRoutesToFeeCollector(t *testing.T, timeout bool) {
+	originalHome := app.NodeHome
+	app.NodeHome = t.TempDir()
+	t.Cleanup(func() { app.NodeHome = originalHome })
 	funder := testfactory.GenerateAccounts(1)[0]
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
 
 	ctx := testApp.NewContext(true).
 		WithBlockTime(time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)).
-		WithChainID("test-chain")
+		WithChainID("test-chain").WithBlockHeight(100)
 
 	moduleAddr := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 	feeCollectorAddr := testApp.AccountKeeper.GetModuleAddress(authtypes.FeeCollectorName)
@@ -55,28 +67,37 @@ func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
 	// Pre-condition: invariant holds (module balance == escrow balance).
 	require.Equal(t, deposit.Amount, testApp.BankKeeper.GetBalance(ctx, moduleAddr, appconsts.BondDenom).Amount)
 
-	// Build an expired, owner-signed payment promise so the timeout path accepts it.
+	// Build an owner-signed payment promise; only the timeout path needs it expired.
 	params := testApp.FibreKeeper.GetParams(ctx)
-	creation := ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
+	creation := ctx.BlockTime().Add(-time.Second)
+	if timeout {
+		creation = ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
+	}
 	// Height must be positive for stateless validation; the timeout path does
 	// not enforce the height window, so any positive height works.
-	promise := buildSignedPromise(t, 1, creation, *ownerPub, ownerPriv)
+	promise := buildSignedPromise(t, 99, creation, *ownerPub, ownerPriv)
 
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(fibrekeeper.EstimateGasForPayForFibre(promise.BlobSize)))
+	// Pin the actual charge independently of the helper used by settlement:
+	// one chunk costs 695,000 gas at 0.004 utia per gas in native v11.
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, 2_780)
 	feeBefore := testApp.BankKeeper.GetBalance(ctx, feeCollectorAddr, appconsts.BondDenom)
 
-	// Anyone can submit the timeout settlement.
+	// Both settlement paths must debit the same revised price.
 	msgServer := fibrekeeper.NewMsgServerImpl(*testApp.FibreKeeper)
-	_, err := msgServer.PaymentPromiseTimeout(ctx, &fibretypes.MsgPaymentPromiseTimeout{
-		Signer:         ownerAddr,
-		PaymentPromise: promise,
-	})
+	var err error
+	if timeout {
+		_, err = msgServer.PaymentPromiseTimeout(ctx, &fibretypes.MsgPaymentPromiseTimeout{Signer: ownerAddr, PaymentPromise: promise})
+	} else {
+		_, err = msgServer.PayForFibre(ctx, &fibretypes.MsgPayForFibre{Signer: ownerAddr, PaymentPromise: promise})
+	}
 	require.NoError(t, err)
 
 	moduleAfter := testApp.BankKeeper.GetBalance(ctx, moduleAddr, appconsts.BondDenom)
 	feeAfter := testApp.BankKeeper.GetBalance(ctx, feeCollectorAddr, appconsts.BondDenom)
 	escrow, found := testApp.FibreKeeper.GetEscrowAccount(ctx, ownerAddr)
 	require.True(t, found)
+	require.Equal(t, deposit.Sub(payment), escrow.Balance)
+	require.Equal(t, deposit.Sub(payment), escrow.AvailableBalance)
 
 	// The payment left the module account and landed in the fee collector.
 	require.Equal(t, deposit.Amount.Sub(payment.Amount), moduleAfter.Amount, "module account should shrink by the payment")

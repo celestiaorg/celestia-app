@@ -1,23 +1,18 @@
-//go:build !race
-
-// known race in testnode
-// ref: https://github.com/celestiaorg/celestia-app/issues/1369
 package txsim_test
 
 import (
 	"context"
-	"errors"
 	"math"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/txsim"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/txsim"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blob "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -102,10 +97,11 @@ func TestTxSimulator(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-
+			t.Parallel()
 			keyring, rpcAddr, grpcAddr := Setup(t)
+
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
 
 			opts := txsim.DefaultOptions().
 				SuppressLogs().
@@ -122,8 +118,10 @@ func TestTxSimulator(t *testing.T) {
 				opts,
 				tc.sequences...,
 			)
-			// Expect all sequences to run for at least 30 seconds without error
-			require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
+			// Finite sequences may finish before the load window ends.
+			if err != nil {
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+			}
 
 			blocks, err := testnode.ReadBlockchain(context.Background(), rpcAddr)
 			require.NoError(t, err)

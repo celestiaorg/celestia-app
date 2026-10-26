@@ -2,7 +2,7 @@ package types
 
 import (
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -12,6 +12,12 @@ import (
 
 const (
 	BlobVersionZero = uint32(0)
+
+	// MaxChainIDSize is the longest chain ID a payment promise can carry, and
+	// PromiseSignatureSize the size of its secp256k1 signature in compact
+	// format. Both are what the promise sign-bytes layout allows.
+	MaxChainIDSize       = 20
+	PromiseSignatureSize = 64
 )
 
 // ValidateBasic performs stateless validation for MsgDepositToEscrow
@@ -26,6 +32,10 @@ func (msg *MsgDepositToEscrow) ValidateBasic() error {
 
 	if !msg.Amount.IsPositive() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, "amount must be positive")
+	}
+
+	if err := validateEscrowDenom(msg.Amount.Denom); err != nil {
+		return err
 	}
 
 	return nil
@@ -45,6 +55,10 @@ func (msg *MsgRequestWithdrawal) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, "amount must be positive")
 	}
 
+	if err := validateEscrowDenom(msg.Amount.Denom); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -52,6 +66,10 @@ func (msg *MsgRequestWithdrawal) ValidateBasic() error {
 func (msg *PaymentPromise) ValidateBasic() error {
 	if msg.ChainId == "" {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "chain ID cannot be empty")
+	}
+
+	if len(msg.ChainId) > MaxChainIDSize {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "chain ID must be at most %d bytes, got %d", MaxChainIDSize, len(msg.ChainId))
 	}
 
 	if len(msg.Namespace) == 0 {
@@ -95,8 +113,11 @@ func (msg *PaymentPromise) ValidateBasic() error {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "signer public key must be %d bytes, got %d", secp256k1.PubKeySize, len(msg.SignerPublicKey.Key))
 	}
 
-	if len(msg.Signature) == 0 {
-		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "signature cannot be empty")
+	// Nothing of another length could ever verify: secp256k1 accepts the
+	// compact form only. Rejecting it here keeps 8 MiB of transaction from
+	// reaching any hashing or decoding first.
+	if len(msg.Signature) != PromiseSignatureSize {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature must be %d bytes, got %d", PromiseSignatureSize, len(msg.Signature))
 	}
 
 	return nil
@@ -152,6 +173,16 @@ func (msg *MsgUpdateFibreParams) ValidateBasic() error {
 		return errorsmod.Wrap(err, "invalid params")
 	}
 
+	return nil
+}
+
+// validateEscrowDenom rejects any denom other than the bond denom. Escrow
+// balances are charged in the bond denom, and an escrow account takes the denom
+// of its first deposit, so another denom would leave the account unusable.
+func validateEscrowDenom(denom string) error {
+	if denom != appconsts.BondDenom {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidCoins, "denom must be %s, got %s", appconsts.BondDenom, denom)
+	}
 	return nil
 }
 

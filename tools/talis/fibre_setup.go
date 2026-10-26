@@ -54,26 +54,26 @@ func setupFibreCmd() *cobra.Command {
 				// 1. Register fibre host address. Plain `host:port` form —
 				// x/valaddr requires it; the gRPC client dials it via the
 				// passthrough resolver. Don't prefix `dns:///` here.
-				sb.WriteString(fmt.Sprintf(
+				fmt.Fprintf(&sb,
 					"celestia-appd tx valaddr set-host %s:%d "+
 						"--from validator --keyring-backend=test --home .celestia-app "+
 						"--chain-id %s --fees %s --yes\n",
 					val.PublicIP, fibrePort,
 					cfg.ChainID, fees,
-				))
+				)
 				sb.WriteString("sleep 10\n")
 
 				// 2. Deposit escrow for each fibre worker account
 				for i := range fibreAccounts {
 					keyName := fmt.Sprintf("fibre-%d", i)
-					sb.WriteString(fmt.Sprintf(
+					fmt.Fprintf(&sb,
 						"celestia-appd tx fibre deposit-to-escrow %s "+
 							"--from %s --keyring-backend=test --home .celestia-app "+
 							"--chain-id %s --fees %s --yes\n",
 						escrowAmount,
 						keyName,
 						cfg.ChainID, fees,
-					))
+					)
 				}
 
 				script := sb.String()
@@ -120,14 +120,14 @@ func setupFibreCmd() *cobra.Command {
 					var sb strings.Builder
 					for i := range nAccounts {
 						keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
-						sb.WriteString(fmt.Sprintf(
+						fmt.Fprintf(&sb,
 							"celestia-appd tx fibre deposit-to-escrow %s "+
 								"--from %s --keyring-backend=test --home .celestia-app "+
 								"--chain-id %s --fees %s --node %s --yes\n",
 							escrowAmount,
 							keyName,
 							cfg.ChainID, fees, rpcNode,
-						))
+						)
 					}
 
 					script := sb.String()

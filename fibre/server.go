@@ -8,13 +8,13 @@ import (
 	"io"
 	"log/slog"
 	"math/bits"
-	"sync"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/tlsid"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -36,13 +36,11 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
-	occ *occupancy
-	// uploadLocks serializes admission for identical uploads so concurrent
-	// duplicates cannot each reserve occupancy for a single shard. Striped by the
-	// promise hash's first byte: identical uploads share a lock, distinct ones
-	// almost always take different locks, and a rare cross-key collision only
-	// serializes two unrelated uploads (never breaks exclusion).
-	uploadLocks [256]sync.Mutex
+	occ     *occupancy
+	uploads uploadCoordinator
+
+	health     *healthManager
+	healthDone chan struct{}
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -75,6 +73,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		metrics:   metrics,
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 		occ:       occ,
+		health:    newHealthManager(cfg.health, cfg.Log),
 	}
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
@@ -84,6 +83,13 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	return server, nil
 }
+
+// Done is closed once the gRPC server stopped serving, through Stop or because
+// it failed. Err tells the two apart.
+func (s *Server) Done() <-chan struct{} { return s.grpc.Done() }
+
+// Err returns the error the gRPC server exited with, or nil.
+func (s *Server) Err() error { return s.grpc.Err() }
 
 // ListenAddress returns the actual address the server is listening on.
 func (s *Server) ListenAddress() string {
@@ -100,29 +106,23 @@ func (s *Server) Store() *Store {
 	return s.store
 }
 
-// uploadLock returns the mutex serializing admission for the given promise hash.
-// promiseHash is a uniformly distributed cryptographic hash, so its first byte
-// indexes the stripe directly. See the uploadLocks field.
-func (s *Server) uploadLock(promiseHash []byte) *sync.Mutex {
-	return &s.uploadLocks[promiseHash[0]]
-}
-
 // Start connects to the celestia-app node, creates the signer,
-// starts serving gRPC requests, and kicks off background pruning.
+// starts serving gRPC requests, and kicks off background pruning and health checks.
 // NOTE: Order of operations is important. Start the state client first,
 // then create the signer, and finally start the pruning loop followed by the gRPC server.
 func (s *Server) Start(ctx context.Context) (err error) {
 	if err := s.state.Start(ctx); err != nil {
 		return err
 	}
+	chainID := s.state.ChainID()
 
-	s.signer, err = s.Config.SignerFn(s.state.ChainID())
+	s.signer, err = s.Config.newSigner(chainID)
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}
 	s.log.Info("signer ready")
 
-	cert, err := tlsid.BuildServerCert(s.signer, s.state.ChainID())
+	cert, err := tlsid.BuildServerCert(s.signer, chainID)
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}
@@ -140,17 +140,49 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		)),
 		grpclib.Creds(creds),
 	)
+	s.health.registerGRPC(s.grpc.Registrar())
 
-	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
+	pubKey, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+	s.Config.ObjectStorage.ChainID = chainID
+	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
+	objectCfg, objectConfigured := s.Config.ObjectStorage.validated()
+	if !objectConfigured {
+		partial := s.Config.ObjectStorage
+		if partial.Endpoint != "" || partial.Bucket != "" || partial.Prefix != "" {
+			s.log.Warn("object storage configuration is invalid", "error", partial.Validate())
+		}
+	}
+	if err := registerStoreBackendMetric(s.Config.Meter, s.Config.StorageBackend, objectConfigured); err != nil {
+		return fmt.Errorf("creating metrics: %w", err)
+	}
+	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
-
-	size, err := s.store.Size(ctx)
-	if err != nil {
-		return fmt.Errorf("getting store size: %w", err)
+	storeLogArgs := []any{
+		"storage_backend", s.Config.StorageBackend,
+		"object_configured", objectConfigured,
+		"object_markers_present", s.store.shards.objectMarkersPresent,
 	}
-	s.occ.seed(size)
+	if objectConfigured {
+		objectNamespace := objectCfg.canonical()
+		storeLogArgs = append(storeLogArgs, slog.Group("object_namespace",
+			slog.String("endpoint_host", objectCfg.endpointHost()),
+			slog.String("bucket", objectNamespace.Bucket),
+			slog.String("prefix", objectNamespace.Prefix),
+			slog.String("chain_id", objectNamespace.ChainID),
+			slog.String("validator_address", objectNamespace.ValidatorAddress),
+		))
+	}
+	s.log.Info("store ready", storeLogArgs...)
+	s.store.shards.setMetrics(s.metrics)
+
+	if err := s.seedOccupancy(ctx); err != nil {
+		return err
+	}
 
 	// Derive the budget once at startup.
 	if err := s.recomputeBudget(ctx); err != nil {
@@ -172,6 +204,25 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+
+	s.health.start(healthDeps{client: s.state, signer: s.signer, pubKey: pubKey, store: s.store}, chainID)
+	s.healthDone = make(chan struct{})
+	go func() {
+		defer close(s.healthDone)
+		s.health.run(ctx)
+	}()
+	return nil
+}
+
+func (s *Server) seedOccupancy(ctx context.Context) error {
+	size, err := s.store.Size(ctx)
+	if err != nil && !errors.Is(err, ErrStoreIntegrity) {
+		return fmt.Errorf("getting store size: %w", err)
+	}
+	if err != nil {
+		s.log.Warn("store size may be incorrect due to corrupt shard marker", "error", err)
+	}
+	s.occ.seed(size)
 	return nil
 }
 
@@ -180,12 +231,16 @@ func (s *Server) Start(ctx context.Context) (err error) {
 // Cancelling the context forces an immediate stop without waiting for in-flight requests.
 func (s *Server) Stop(ctx context.Context) (err error) {
 	s.log.Info("stopping server")
+	s.health.stop() // publish not ready before draining
 	if s.cancel != nil {
 		s.cancel()
 	}
 	s.grpc.Stop(ctx)
 	if s.pruneDone != nil {
 		<-s.pruneDone
+	}
+	if s.healthDone != nil {
+		<-s.healthDone
 	}
 
 	if closer, ok := s.signer.(io.Closer); ok {

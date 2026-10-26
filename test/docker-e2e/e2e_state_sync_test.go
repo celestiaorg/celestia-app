@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	blocksToProduce            = 30
+	// blocksToProduce covers two snapshot intervals plus the trust height offset.
+	blocksToProduce            = 10
 	stateSyncTrustHeightOffset = 5
 	stateSyncTimeout           = 10 * time.Minute
 )
@@ -69,7 +70,7 @@ func (s *CelestiaTestSuite) TestStateSync() {
 	targetHeight := initialHeight + blocksToProduce
 	t.Logf("Successfully reached initial height %d", initialHeight)
 
-	s.Require().NoError(wait.ForBlocks(ctx, int(targetHeight), celestia), "failed to wait for target height")
+	s.Require().NoError(wait.ForBlocks(ctx, blocksToProduce, celestia), "failed to wait for target height")
 
 	t.Logf("Successfully reached target height %d", targetHeight)
 
@@ -131,7 +132,13 @@ func (s *CelestiaTestSuite) TestStateSync() {
 func validatorStateSyncProducerOverrides(ctx context.Context, node *cosmos.ChainNode) error {
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 		cfg.StateSync.SnapshotInterval = 5
-		cfg.StateSync.SnapshotKeepRecent = 3
+		// Keep every snapshot the validators produce. With KeepRecent=3 only
+		// ~15 blocks (<1 min at this block time) of snapshots exist, so a
+		// snapshot the joining node has just selected can be pruned out from
+		// under it mid-transfer. KeepRecent=0 makes the SDK skip snapshot
+		// pruning entirely (store/snapshots: Prune is only called when
+		// KeepRecent > 0), which is what we want for a short-lived test chain.
+		cfg.StateSync.SnapshotKeepRecent = 0
 	})
 }
 
@@ -158,6 +165,8 @@ func configureStateSyncClient(ctx context.Context, node *cosmos.ChainNode, rpcEn
 	}
 
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		// Tastora enables REST, which requires the Cosmos SDK gRPC server.
+		cfg.GRPC.Enable = true
 		cfg.Telemetry.Enabled = true
 	})
 }

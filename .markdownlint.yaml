@@ -7,3 +7,4 @@
 "MD033": false # Disable rule banning inline HTML
 "MD055":
   "style": "leading_and_trailing" # Instead of "consistent" (default) which can vary per file, use one style across the entire project
+"MD060": false # Preserve existing table formatting when upgrading markdownlint

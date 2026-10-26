@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
 	"github.com/spf13/cobra"
 )
 
@@ -374,6 +375,10 @@ systemctl start chrony
 modprobe tcp_bbr || true
 sysctl -w net.core.default_qdisc=fq
 sysctl -w net.ipv4.tcp_congestion_control=bbr
+# Larger send buffers for uploads to far validators; keep the congestion
+# window across idle gaps between blobs.
+sysctl -w net.ipv4.tcp_wmem="4096 16384 33554432"
+sysctl -w net.ipv4.tcp_slow_start_after_idle=0
 
 # Install binaries
 cp encoder-payload/build/celestia-appd /bin/celestia-appd
@@ -447,7 +452,7 @@ echo "Reader $(hostname) initialized"
 	return os.WriteFile(path, []byte(script), 0o755)
 }
 
-func writeAWSEnv(varsPath string, cfg Config) error {
+func writeAWSEnv(varsPath string, cfg Config) (err error) {
 	f, err := os.OpenFile(varsPath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0o755,
@@ -455,7 +460,11 @@ func writeAWSEnv(varsPath string, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to open vars.sh for append: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close vars.sh: %w", closeErr))
+		}
+	}()
 
 	exports := []string{
 		fmt.Sprintf("export AWS_DEFAULT_REGION=%q\n", cfg.S3Config.Region),

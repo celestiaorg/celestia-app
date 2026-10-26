@@ -2,7 +2,14 @@ package random
 
 import (
 	"math/rand"
+	"sync"
 	"time"
+)
+
+// Seeding a source is costly, so Bytes shares one; the lock makes it safe for parallel tests.
+var (
+	mu  sync.Mutex
+	src = New()
 )
 
 // New creates a new random object with a random seed.
@@ -13,15 +20,15 @@ func New() *rand.Rand {
 
 // Bytes generates random bytes using math/rand.
 func Bytes(n int) []byte {
-	return BytesR(New(), n)
+	mu.Lock()
+	defer mu.Unlock()
+	return BytesR(src, n)
 }
 
 // BytesR generates a slice of n random bytes using the provided *rand.Rand instance.
 func BytesR(r *rand.Rand, n int) []byte {
 	bz := make([]byte, n)
-	for i := range bz {
-		bz[i] = byte(r.Intn(256)) // Random byte (0-255)
-	}
+	_, _ = r.Read(bz) // never returns an error
 	return bz
 }
 

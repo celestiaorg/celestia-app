@@ -4,11 +4,12 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
-	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
-	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
+	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v11/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -28,7 +29,7 @@ func NewAnteHandler(
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
-	pffSigCache fibreante.PffSigCache,
+	sigCache *sigcache.Cache,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -64,8 +65,9 @@ func NewAnteHandler(
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
-		// Note: does not consume gas from the gas meter.
-		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		// Note: does not consume gas from the gas meter. Skips the curve
+		// operation for signatures a previous ante pass already verified.
+		NewCachedSigVerificationDecorator(accountKeeper, signModeHandler, sigCache),
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
@@ -74,7 +76,7 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(blobKeeper),
+		blobante.NewMinGasPFBDecorator(),
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
@@ -82,7 +84,7 @@ func NewAnteHandler(
 		// replayed or stale promises out of the mempool.
 		fibreante.NewFibreStatefulValidationDecorator(fibreKeeper),
 		// Verify uncached MsgPayForFibre validator signatures.
-		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, pffSigCache),
+		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, sigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.

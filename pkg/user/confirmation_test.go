@@ -10,7 +10,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/cometbft/cometbft/rpc/core"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
@@ -135,7 +135,7 @@ func newConfirmationTestClient(t *testing.T) (*TxClient, *confirmationServer) {
 		return listener.DialContext(ctx)
 	}))
 	require.NoError(t, err)
-	client := &TxClient{conns: []*grpc.ClientConn{conn}, txTracker: make(map[string]txInfo)}
+	client := &TxClient{conns: []*grpc.ClientConn{conn}, txTracker: make(map[string]txInfo), evictionPollTimeout: defaultEvictionPollTimeout}
 	t.Cleanup(func() { _ = conn.Close(); server.Stop(); _ = listener.Close() })
 	return client, s
 }

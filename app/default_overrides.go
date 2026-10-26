@@ -8,10 +8,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -276,6 +276,9 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
+	// Bounds how late a vote or block part reaches a peer that just became
+	// ready for it. The upstream 100ms is a large share of a one second block.
+	cfg.Consensus.PeerGossipSleepDuration = 10 * time.Millisecond
 
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true

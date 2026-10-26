@@ -111,7 +111,12 @@ The default list of flags, unless overridden is the following:
 "--transport=grpc",
 ```
 
-Note: Flags passed when starting the application are passed down to each embedded binary. `Multiplexer` then adds the extra flags.
+`celestia-appd` overrides these defaults for every embedded version. It passes `--with-tendermint=false` and `--transport=grpc`, plus `--inter-block-cache` for v3-v8 and `--minimum-gas-prices` for v4-v5. See [`modify_root_command_multiplexer.go`](../cmd/celestia-appd/cmd/modify_root_command_multiplexer.go).
+
+Only explicitly set start flags supported by the selected embedded version are forwarded. Cobra's parsed values are serialized as `--name=value`, preserving values that look like flags or subcommands. `Multiplexer` appends its mandatory overrides last.
+
+When adding a start flag or updating an embedded binary, update `unsupportedFlags` in `cmd/celestia-appd/cmd/modify_root_command_multiplexer.go` and run `make test-multiplexer`. Its compatibility test compares the native flags with every embedded binary, including hidden flags, and detects missing or obsolete exclusions.
+
 For instance, when calling `appd start --force-no-bbr`, the native app runs with only `--force-no-bbr` flag, while the embedded app runs with `--force-no-bbr` and the default flags.
 
 Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `--with-tendermint=false` and `--transport=grpc` in the list of flags.
@@ -148,3 +153,7 @@ The current alternative to the `multiplexer` is [`cosmovisor`](https://docs.cosm
 
 `Cosmovisor` simplifies the upgrade process by automatically switching the whole binary at the upgrade height. However, node operators need to download the new binary and add it to `cosmovisor`. Additionally, `cosmovisor` restarts the whole binary, including the consensus layer, which can lead to P2P disruption and a longer downtime for the node operators.
 `Cosmovisor` is a great tool, but it is not the best solution for all chains. `Multiplexer` is designed to be a more flexible and powerful solution for upgrading Cosmos SDK-based chains.
+
+## Extracted binaries
+
+The multiplexer manages `<home>/bin` (by default, `~/.celestia-app/bin`). On startup, it automatically removes extracted version directories that are no longer embedded in the running release. Keep any binaries needed for custom builds or rollback outside this directory.

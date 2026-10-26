@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
@@ -50,6 +50,8 @@ func SetupTxClient(
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
 
+	// Poll fast so tests don't wait up to a second per confirmation; callers can override.
+	opts = append([]user.Option{user.WithPollTime(50 * time.Millisecond)}, opts...)
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, opts...)
 	require.NoError(t, err)
 

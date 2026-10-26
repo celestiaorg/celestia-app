@@ -3,12 +3,13 @@ package wrapper_test
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
@@ -177,4 +178,25 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			assert.True(t, verified)
 		}
 	}
+}
+
+func TestNewErasuredNamespacedMerkleTreePanicsOnZeroSquareSize(t *testing.T) {
+	assert.Panics(t, func() { wrapper.NewErasuredNamespacedMerkleTree(0, 0) })
+}
+
+// failingRootTree is a wrapper.Tree whose Root always fails.
+type failingRootTree struct {
+	wrapper.Tree
+}
+
+func (failingRootTree) Root() ([]byte, error) {
+	return nil, errors.New("root failed")
+}
+
+func TestErasuredNamespacedMerkleTreeRootError(t *testing.T) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(1, 0)
+	tree.SetTree(failingRootTree{})
+	root, err := tree.Root()
+	assert.ErrorContains(t, err, "root failed")
+	assert.Nil(t, root)
 }

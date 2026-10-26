@@ -1,10 +1,10 @@
 package malicious
 
 import (
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/ante"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/da"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -43,7 +43,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		&a.CircuitKeeper,
 		a.GovParamFilters(),
 		a.FibreKeeper,
-		app.NewPffSigVerificationCache(),
+		app.NewSigCache(app.DefaultMempoolMaxTxs),
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(

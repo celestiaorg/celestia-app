@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/internal/row"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -272,9 +272,12 @@ func (d *Blob) retain() bool {
 // Called by internal owners (e.g., Upload's terminal goroutine) after they
 // finish using the blob.
 func (d *Blob) release() {
-	if d.refCount.Add(-1) == 0 && d.releaseFn != nil {
-		d.releaseFn()
-		d.releaseFn = nil
+	if d.refCount.Add(-1) == 0 {
+		d.data, d.extendedData = nil, nil
+		if d.releaseFn != nil {
+			d.releaseFn()
+			d.releaseFn = nil
+		}
 	}
 }
 

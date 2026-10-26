@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,9 +12,9 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	fibremodule "github.com/celestiaorg/celestia-app/v10/x/fibre"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	fibremodule "github.com/celestiaorg/celestia-app/v11/x/fibre"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -57,7 +58,7 @@ func (suite *ABCITestSuite) SetupTest() {
 	mockStakingKeeper := &MockStakingKeeper{}
 	authority := authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now().UTC()}, false, log.NewNopLogger())
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, mockStakingKeeper, authority, false)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, mockStakingKeeper, authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }
@@ -790,6 +791,21 @@ func (suite *ABCITestSuite) TestGenesisRoundTripPreservesFreshnessFloor() {
 	got, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
 	suite.NoError(err)
 	suite.True(got.IsZero(), "a zero exported floor must remain unset after import")
+}
+
+func (suite *ABCITestSuite) TestInitGenesisRejectsNonCanonicalSigner() {
+	signer := sdk.AccAddress([]byte("genesis_signer______")).String()
+	balance := sdk.NewCoin("utia", math.NewInt(1000))
+	genesis := types.DefaultGenesis()
+	genesis.EscrowAccounts = []types.EscrowAccount{{
+		Signer:           strings.ToUpper(signer),
+		Balance:          balance,
+		AvailableBalance: balance,
+	}}
+
+	suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
+	_, found := suite.keeper.GetEscrowAccount(suite.ctx, strings.ToUpper(signer))
+	suite.False(found, "no escrow account is written under the uppercase key")
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {

@@ -8,10 +8,13 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
+	"text/template"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/creachadair/tomledit"
 	"github.com/creachadair/tomledit/parser"
 	"github.com/creachadair/tomledit/transform"
@@ -20,10 +23,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+// configFile is a config file that sync can extend with the binary's defaults.
+type configFile struct {
+	path      string
+	reference []byte
+}
+
 func syncConfigCmd() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
-		Use: "sync", Short: "Add missing config.toml settings and their documentation", Args: cobra.NoArgs,
+		Use: "sync", Short: "Add missing config.toml, app.toml and Fibre server_config.toml settings and their documentation", Args: cobra.NoArgs,
 		// Skip the root loader, which can create files even for a dry run.
 		PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -38,26 +47,101 @@ func syncConfigCmd() *cobra.Command {
 			if err := v.BindPFlag(flags.FlagHome, cmd.Flags().Lookup(flags.FlagHome)); err != nil {
 				return err
 			}
-			path := filepath.Join(v.GetString(flags.FlagHome), "config", "config.toml")
-			added, backup, err := syncConfigFile(path, dryRun)
+			fibreHome, err := cmd.Flags().GetString(flagFibreHome)
 			if err != nil {
 				return err
 			}
-			if len(added) == 0 {
-				cmd.Println("config.toml is up to date")
-				return nil
+			if !cmd.Flags().Changed(flagFibreHome) && os.Getenv(fibre.EnvHome) != "" {
+				fibreHome = os.Getenv(fibre.EnvHome)
 			}
-			if dryRun {
-				cmd.Printf("Settings to add: %s\n", strings.Join(added, ", "))
-			} else {
-				cmd.Printf("Added settings: %s\nBackup: %s\n", strings.Join(added, ", "), backup)
+			consensus, err := renderConsensusConfig()
+			if err != nil {
+				return err
+			}
+			appReference, err := renderAppConfig()
+			if err != nil {
+				return err
+			}
+			fibreReference, err := renderFibreConfig()
+			if err != nil {
+				return err
+			}
+			home := v.GetString(flags.FlagHome)
+			files := []configFile{
+				{path: filepath.Join(home, "config", "config.toml"), reference: consensus},
+				{path: filepath.Join(home, "config", "app.toml"), reference: appReference},
+				{path: fibre.DefaultConfigPath(fibreHome), reference: fibreReference},
+			}
+			// Hosts that run only the node or only Fibre have just one of the files.
+			var present []configFile
+			for _, file := range files {
+				info, err := os.Lstat(file.path)
+				if os.IsNotExist(err) {
+					cmd.Printf("%s not found at %s, skipping\n", filepath.Base(file.path), file.path)
+					continue
+				}
+				// Dry run every file first, so a broken one leaves the others untouched.
+				added, _, err := syncConfigFile(file.path, file.reference, true)
+				if err != nil {
+					return err
+				}
+				willWrite := len(added) > 0 && !dryRun
+				if willWrite && isReadOnly(info) {
+					return fmt.Errorf("config is read-only: %s", file.path)
+				}
+				present = append(present, file)
+			}
+			if len(present) == 0 {
+				return fmt.Errorf("no config files found")
+			}
+			for _, file := range present {
+				name := filepath.Base(file.path)
+				added, backup, err := syncConfigFile(file.path, file.reference, dryRun)
+				if err != nil {
+					return err
+				}
+				switch {
+				case len(added) == 0:
+					cmd.Printf("%s is up to date\n", name)
+				case dryRun:
+					cmd.Printf("Settings to add to %s: %s\n", name, strings.Join(added, ", "))
+				default:
+					cmd.Printf("Added settings to %s: %s\nBackup: %s\n", name, strings.Join(added, ", "), backup)
+				}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
+	cmd.Flags().String(flagFibreHome, fibre.DefaultHome(), fmt.Sprintf("The Fibre home directory (or set %s)", fibre.EnvHome))
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show missing settings without modifying files")
 	return cmd
+}
+
+const flagFibreHome = "fibre-home"
+
+func renderConsensusConfig() ([]byte, error) {
+	var reference bytes.Buffer
+	err := cmtcfg.RenderConfig(&reference, app.DefaultConsensusConfig())
+	return reference.Bytes(), err
+}
+
+// renderAppConfig renders app.toml with the SDK defaults. They match the values
+// the start command uses for settings missing from the file, so adding a
+// setting does not change the node's effective configuration.
+func renderAppConfig() ([]byte, error) {
+	tmpl, err := template.New("app.toml").Parse(serverconfig.DefaultConfigTemplate)
+	if err != nil {
+		return nil, err
+	}
+	var reference bytes.Buffer
+	err = tmpl.Execute(&reference, serverconfig.DefaultConfig())
+	return reference.Bytes(), err
+}
+
+// renderFibreConfig renders server_config.toml as the Fibre server saves it.
+func renderFibreConfig() ([]byte, error) {
+	return toml.Marshal(fibre.DefaultServerConfig())
 }
 
 // mergeConfig adds missing documented settings while preserving existing values and comments.
@@ -84,29 +168,31 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 		if section == nil {
 			continue
 		}
+		if section.Heading != nil && section.IsArray {
+			return nil, nil, fmt.Errorf("unsupported template section %s", section.TableName())
+		}
 		name := section.TableName()
-		// The core template uses top-level settings and single-level sections.
-		if len(name) > 1 || (section.Heading != nil && section.IsArray) {
-			return nil, nil, fmt.Errorf("unsupported template section %s", name)
+		actual, err := existingTable(before, name)
+		if err != nil {
+			return nil, nil, err
 		}
 		destination := current.Global
-		dotted := false
-		if len(name) == 1 {
-			actualKey, exists, err := configKey(before, name[0])
-			if err != nil {
-				return nil, nil, err
-			}
-			if exists {
-				name = parser.Key{actualKey}
-				if table := transform.FindTable(current, name...); table != nil {
+		var prefix parser.Key
+		if len(actual) == len(name) {
+			// Add to the closest existing table, as dotted keys if its own heading is absent.
+			depth := len(actual)
+			for ; depth > 0; depth-- {
+				if table := transform.FindTable(current, actual[:depth]...); table != nil {
 					destination = table.Section
-				} else {
-					dotted = true
+					break
 				}
-			} else {
-				destination = &tomledit.Section{Heading: section.Heading}
-				current.Sections = append(current.Sections, destination)
 			}
+			prefix = actual[depth:]
+		} else {
+			heading := *section.Heading
+			heading.Name = append(append(parser.Key(nil), actual...), name[len(actual):]...)
+			destination = &tomledit.Section{Heading: &heading}
+			current.Sections = append(current.Sections, destination)
 		}
 		for _, item := range section.Items {
 			kv, ok := item.(*parser.KeyValue)
@@ -119,9 +205,7 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 			}
 			added = append(added, strings.Join(full, "."))
 			copyKV := *kv
-			if dotted {
-				copyKV.Name = full
-			}
+			copyKV.Name = append(append(parser.Key(nil), prefix...), kv.Name...)
 			transform.InsertMapping(destination, &copyKV, false)
 		}
 	}
@@ -157,6 +241,25 @@ func configValuesPreserved(before, after map[string]any) bool {
 	return true
 }
 
+// existingTable returns the longest prefix of name that the config defines, in the config's spelling.
+// It reads the original values, so a table added during the merge relies on the template listing parents first.
+func existingTable(values map[string]any, name parser.Key) (parser.Key, error) {
+	var actual parser.Key
+	for _, key := range name {
+		actualKey, exists, err := configKey(values, key)
+		if err != nil || !exists {
+			return actual, err
+		}
+		actual = append(actual, actualKey)
+		table, ok := values[actualKey].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("config key %s is not a table", strings.Join(actual, "."))
+		}
+		values = table
+	}
+	return actual, nil
+}
+
 // Match the SDK's case-insensitive keys without introducing ambiguous duplicates.
 func configKey(values map[string]any, key string) (string, bool, error) {
 	var actual string
@@ -172,7 +275,7 @@ func configKey(values map[string]any, key string) (string, bool, error) {
 	return actual, found, nil
 }
 
-func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
+func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, string, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, "", err
@@ -185,11 +288,7 @@ func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	var reference bytes.Buffer
-	if err := cmtcfg.RenderConfig(&reference, app.DefaultConsensusConfig()); err != nil {
-		return nil, "", err
-	}
-	updated, added, err := mergeConfig(original, reference.Bytes())
+	updated, added, err := mergeConfig(original, reference)
 	if err != nil || len(added) == 0 || dryRun {
 		return added, "", err
 	}
@@ -197,9 +296,13 @@ func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
 	return added, backup, err
 }
 
+func isReadOnly(info os.FileInfo) bool {
+	return info.Mode().Perm()&0o222 == 0
+}
+
 func replaceConfigFile(path string, original, updated []byte, info os.FileInfo) (string, error) {
 	stat := info.Sys().(*syscall.Stat_t)
-	if info.Mode().Perm()&0o222 == 0 {
+	if isReadOnly(info) {
 		return "", fmt.Errorf("config is read-only: %s", path)
 	}
 	temp, err := writeConfigTemp(path, ".tmp-*", updated, info)

@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,7 @@ func TestVerifySharedRejectsRowSizeMismatch(t *testing.T) {
 	leaves := make([][]byte, cfg.K+cfg.N)
 	leaves[0] = smallRow
 	leaves[1] = largeRow
-	tree := merkle.NewTree(leaves, cfg.WorkerCount)
+	tree := merkle.NewTree(nil, leaves, cfg.WorkerCount)
 	rowRoot := tree.Root()
 
 	// rlcOrig holds the expected RLC value for each of the K original rows. The
@@ -59,8 +59,7 @@ func TestVerifySharedRejectsRowSizeMismatch(t *testing.T) {
 // commitmentFor builds SHA256(rowRoot || rlcRoot), deriving rlcRoot from rlcOrig
 // the same way the verifier does internally.
 func commitmentFor(cfg *Config, rowRoot merkle.Root, rlcOrig rlc.Vector) Commitment {
-	var leafScratch [field.GF128Size]byte
-	rlcRoot := computeRLCRoot(rlcOrig, make([]byte, cfg.K*merkle.NodeSize), leafScratch[:])
+	rlcRoot := computeRLCRoot(newRLCLeaves(cfg.K).set(rlcOrig), nil)
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	h.Write(rlcRoot[:])

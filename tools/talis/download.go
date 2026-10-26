@@ -27,7 +27,7 @@ func downloadCmd() *cobra.Command {
 		Use:   "download -n <validator-*> -t <table>",
 		Short: "Download a file from the Talis network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}

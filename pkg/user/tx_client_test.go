@@ -10,16 +10,16 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user/utils"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user/utils"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -263,7 +263,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
-		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
+		// An expired deadline avoids racing confirmation against the next block.
+		confirmCtx, confirmCancel := context.WithDeadline(ctx, time.Now().Add(-time.Second))
+		defer confirmCancel()
+		_, err = suite.txClient.ConfirmTx(confirmCtx, resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 	})
@@ -442,7 +445,9 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
 	}
+}
 
+func TestEvictionConfirmation(t *testing.T) {
 	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
 		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
 
@@ -489,7 +494,7 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
-		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(5*time.Second))
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(100*time.Millisecond), user.WithEvictionPollTimeout(2*time.Second))
 		defer conns[0].Close()
 
 		ctx := context.Background()
@@ -925,4 +930,16 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 	require.True(t, exists, "Transaction should be in tracker")
 	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
 	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
+}
+
+func (suite *TxClientTestSuite) TestQueryNetworkMinGasPrice() {
+	ctx := suite.ctx.GoContext()
+
+	networkMinGasPrice, err := user.QueryNetworkMinGasPrice(ctx, suite.ctx.GRPCClient)
+	suite.Require().NoError(err)
+	suite.Require().Equal(appconsts.DefaultNetworkMinGasPrice, networkMinGasPrice)
+
+	minGasPrice, err := user.QueryMinimumGasPrice(ctx, suite.ctx.GRPCClient)
+	suite.Require().NoError(err)
+	suite.Require().GreaterOrEqual(minGasPrice, networkMinGasPrice)
 }

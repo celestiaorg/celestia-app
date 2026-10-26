@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -44,7 +44,7 @@ func TestBankParamFilter(t *testing.T) {
 			name: "valid case: no SendEnabled modifications",
 			params: &banktypes.MsgUpdateParams{
 				Params: banktypes.Params{
-					SendEnabled:        nil,
+					SendEnabled:        nil, //nolint:staticcheck
 					DefaultSendEnabled: true,
 				},
 			},
@@ -54,7 +54,7 @@ func TestBankParamFilter(t *testing.T) {
 			name: "invalid case: SendEnabled modifications",
 			params: &banktypes.MsgUpdateParams{
 				Params: banktypes.Params{
-					SendEnabled:        []*banktypes.SendEnabled{{Denom: "atom", Enabled: true}},
+					SendEnabled:        []*banktypes.SendEnabled{{Denom: "atom", Enabled: true}}, //nolint:staticcheck
 					DefaultSendEnabled: true,
 				},
 			},
@@ -69,7 +69,7 @@ func TestBankParamFilter(t *testing.T) {
 			name: "success case: empty Params (allowed by default)",
 			params: &banktypes.MsgUpdateParams{
 				Params: banktypes.Params{
-					SendEnabled:        []*banktypes.SendEnabled{},
+					SendEnabled:        []*banktypes.SendEnabled{}, //nolint:staticcheck
 					DefaultSendEnabled: true,
 				},
 			},

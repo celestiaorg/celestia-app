@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/cometbft/cometbft/rpc/core"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"

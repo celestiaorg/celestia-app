@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func TestUpdateConfig(t *testing.T) {
 			name:          "unsupported version",
 			version:       "99",
 			expectError:   true,
-			errorContains: "unsupported target version",
+			errorContains: `no config migration for app version 99; use "celestia-appd config sync" instead`,
 		},
 	}
 
@@ -58,6 +59,19 @@ func TestUpdateConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateConfigCmdPointsToConfigSync(t *testing.T) {
+	var out bytes.Buffer
+	cmd := updateConfigCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--home", t.TempDir()})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `use "celestia-appd config sync" instead`)
+	assert.Contains(t, out.String(), `Use "celestia-appd config sync" instead.`)
 }
 
 func TestLoadAndWriteConfigs(t *testing.T) {
