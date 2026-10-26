@@ -5,308 +5,231 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
 	"github.com/cometbft/cometbft/rpc/core"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 const (
-	maxConfirmationWaiters     = 1024
-	confirmationBatchSize      = 20
-	confirmationRPCTimeout     = 5 * time.Second
-	confirmationSilenceTimeout = 30 * time.Second
+	confirmationBatchSize       = 20
+	confirmationParallelBatches = 4
+	confirmationBatchTimeout    = 5 * time.Second
+	// confirmationFallbackInterval is how long a waiter goes without a status
+	// from the feed before checking its own transaction directly.
+	confirmationFallbackInterval = 30 * time.Second
+	confirmationMinBackoff       = 250 * time.Millisecond
+	confirmationMaxBackoff       = 5 * time.Second
 )
 
-type pendingConfirmation struct {
-	done      chan struct{}
-	response  *TxResponse
-	err       error
-	waiters   int
-	dirty     bool
-	evictedAt *time.Time
-}
-
-// txConfirmations owns one stream and coordinator. Registration and results are
-// guarded by client.confirmationMu; only the coordinator handles transaction recovery.
-type txConfirmations struct {
-	client      *TxClient
-	ctx         context.Context
-	cancel      context.CancelFunc
-	done        chan struct{}
-	pending     map[string]*pendingConfirmation
-	waiters     int
-	wake        chan struct{}
-	heights     chan struct{}
-	reconnected chan struct{}
-	failed      chan error
-	height      atomic.Int64
-}
-
-// ConfirmTxSubscription waits for committed execution using shared height events.
-// It requires app gRPC height subscriptions and committed query-height metadata.
+// ConfirmTxSubscription waits for committed execution like ConfirmTx, but checks
+// the transaction on every new block instead of on a fixed poll interval.
+// Callers share one height subscription, which fetches their statuses in batches.
+// If the subscription is unavailable, each caller falls back to checking its own
+// status every 30 seconds.
 func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string) (*TxResponse, error) {
-	if len(txHash) != 64 {
-		return nil, errors.New("transaction hash must contain 32 hex-encoded bytes")
-	}
-	decoded, err := hex.DecodeString(txHash)
-	if err != nil || len(decoded) != 32 {
+	if _, err := hex.DecodeString(txHash); err != nil || len(txHash) != 64 {
 		return nil, errors.New("transaction hash must contain 32 hex-encoded bytes")
 	}
 	txHash = strings.ToUpper(txHash)
+	statuses, release := client.subscribeStatus(txHash)
+	defer release()
+
+	// Fires immediately so the first check doesn't wait for the next block.
+	fallback := time.NewTimer(0)
+	defer fallback.Stop()
+	var evictedAt time.Time
 	for {
-		client.confirmationMu.Lock()
-		lifetime := client.confirmationContext
-		if lifetime == nil {
-			lifetime = context.Background()
-		}
-		if client.confirmationsClosed || lifetime.Err() != nil || ctx.Err() != nil {
-			client.confirmationMu.Unlock()
-			return nil, fmt.Errorf("transaction confirmation closed: %w", errors.Join(context.Canceled, lifetime.Err(), ctx.Err()))
-		}
-		s := client.confirmations
-		if s != nil && s.ctx.Err() != nil {
-			client.confirmationMu.Unlock()
-			select {
-			case <-s.done:
-				continue
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		}
-		if s == nil {
-			observerCtx, cancel := context.WithCancel(lifetime)
-			s = &txConfirmations{
-				client: client, ctx: observerCtx, cancel: cancel, done: make(chan struct{}),
-				pending: make(map[string]*pendingConfirmation), wake: make(chan struct{}, 1),
-				heights: make(chan struct{}, 1), reconnected: make(chan struct{}, 1), failed: make(chan error, 1),
-			}
-			client.confirmations = s
-			go s.run()
-		}
-		if s.waiters == maxConfirmationWaiters {
-			client.confirmationMu.Unlock()
-			return nil, errors.New("transaction confirmation waiter limit reached")
-		}
-		p := s.pending[txHash]
-		if p == nil {
-			p = &pendingConfirmation{done: make(chan struct{}), dirty: true}
-			s.pending[txHash] = p
-			signalConfirmation(s.wake)
-		}
-		p.waiters++
-		s.waiters++
-		client.confirmationMu.Unlock()
-		defer func() {
-			client.confirmationMu.Lock()
-			defer client.confirmationMu.Unlock()
-			p.waiters--
-			s.waiters--
-			if p.waiters == 0 && s.pending[txHash] == p {
-				delete(s.pending, txHash)
-			}
-			if len(s.pending) == 0 {
-				s.cancel()
-			}
-		}()
+		var status *tx.TxStatusResponse
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-p.done:
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
+		case status = <-statuses:
+		case <-fallback.C:
+			var err error
+			if status, err = client.committedTxStatus(ctx, txHash); err != nil {
+				return nil, err
 			}
-			if p.response != nil {
-				response := *p.response
-				response.Signers = append([]string(nil), response.Signers...)
-				return &response, p.err
-			}
-			return p.response, p.err
+		}
+		fallback.Reset(confirmationFallbackInterval)
+		if status == nil {
+			continue
+		}
+		if resp, err := client.checkTxStatus(ctx, txHash, status, &evictedAt); resp != nil || err != nil {
+			return resp, err
 		}
 	}
 }
 
-// CloseConfirmations stops subscription confirmations without closing the caller's
-// gRPC connection or the legacy transaction queue. Future subscription calls fail.
-func (client *TxClient) CloseConfirmations() {
+// committedTxStatus queries a single transaction status, returning nil while a
+// committed result is not yet visible at the application's committed height.
+func (client *TxClient) committedTxStatus(ctx context.Context, txHash string) (*tx.TxStatusResponse, error) {
+	var header metadata.MD
+	resp, err := tx.NewTxClient(client.conns[0]).TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash}, grpc.Header(&header))
+	if err != nil {
+		return nil, fmt.Errorf("transaction status: %w", err)
+	}
+	visible, err := isCommittedVisible(resp, header)
+	if err != nil || !visible {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// isCommittedVisible reports whether a status can be acted on. A committed
+// transaction is only reported once the application has committed its height,
+// so state queries that follow confirmation observe its effects.
+func isCommittedVisible(status *tx.TxStatusResponse, header metadata.MD) (bool, error) {
+	values := header.Get(grpctypes.GRPCBlockHeightHeader)
+	if len(values) != 1 {
+		return false, errors.New("subscription confirmation requires committed application height metadata")
+	}
+	committed, err := strconv.ParseInt(values[0], 10, 64)
+	if err != nil || committed <= 0 {
+		return false, errors.New("invalid committed application height metadata")
+	}
+	if status.Status != core.TxStatusCommitted {
+		return true, nil
+	}
+	if status.Height <= 0 {
+		return false, errors.New("invalid transaction inclusion height")
+	}
+	return status.Height <= committed, nil
+}
+
+// statusFeed shares one height subscription between ConfirmTxSubscription
+// callers and, on every new height, fetches their statuses in batches. It stops
+// when the last caller leaves.
+type statusFeed struct {
+	client *TxClient
+	cancel context.CancelFunc
+	// waiters is guarded by client.confirmationMu.
+	waiters map[string][]chan *tx.TxStatusResponse
+}
+
+// subscribeStatus registers a waiter for txHash and starts the feed if needed.
+// The returned channel always holds the latest status the feed has seen.
+func (client *TxClient) subscribeStatus(txHash string) (<-chan *tx.TxStatusResponse, func()) {
+	ch := make(chan *tx.TxStatusResponse, 1)
 	client.confirmationMu.Lock()
-	client.confirmationsClosed = true
-	s := client.confirmations
-	if s != nil {
-		s.cancel()
+	defer client.confirmationMu.Unlock()
+	f := client.statusFeed
+	if f == nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		f = &statusFeed{client: client, cancel: cancel, waiters: make(map[string][]chan *tx.TxStatusResponse)}
+		client.statusFeed = f
+		go f.run(ctx)
 	}
-	client.confirmationMu.Unlock()
-	if s != nil {
-		<-s.done
+	f.waiters[txHash] = append(f.waiters[txHash], ch)
+
+	release := func() {
+		client.confirmationMu.Lock()
+		defer client.confirmationMu.Unlock()
+		f.waiters[txHash] = slices.DeleteFunc(f.waiters[txHash], func(c chan *tx.TxStatusResponse) bool { return c == ch })
+		if len(f.waiters[txHash]) == 0 {
+			delete(f.waiters, txHash)
+		}
+		if len(f.waiters) == 0 {
+			f.cancel()
+			client.statusFeed = nil
+		}
 	}
+	return ch, release
 }
 
-func signalConfirmation(ch chan struct{}) {
-	select {
-	case ch <- struct{}{}:
-	default:
-	}
-}
-
-func (s *txConfirmations) readHeights() {
-	api := coregrpc.NewBlockAPIClient(s.client.conns[0])
-	for attempt := 0; attempt <= 3; attempt++ {
-		if attempt > 0 {
-			timer := time.NewTimer(time.Duration(1<<(attempt-1)) * 250 * time.Millisecond)
-			select {
-			case <-s.ctx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-			}
-		}
-		streamCtx, cancel := context.WithCancel(s.ctx)
-		stream, err := api.SubscribeNewHeights(streamCtx, &coregrpc.SubscribeNewHeightsRequest{})
-		if err == nil && attempt > 0 {
-			signalConfirmation(s.reconnected)
-		}
-		for err == nil {
-			var event *coregrpc.SubscribeNewHeightsResponse
-			event, err = stream.Recv()
-			if err == nil {
-				if event.Height <= 0 {
-					err = status.Error(codes.DataLoss, "invalid committed height notification")
-					break
-				}
-				if event.Height > s.height.Load() {
-					s.height.Store(event.Height)
-					signalConfirmation(s.heights)
-				}
-			}
-		}
-		cancel()
-		if s.ctx.Err() != nil {
-			return
-		}
-		if attempt == 3 || (status.Code(err) != codes.Unavailable && status.Code(err) != codes.Unknown && !errors.Is(err, context.DeadlineExceeded)) {
-			s.failed <- fmt.Errorf("height subscription unavailable: %w", err)
-			return
-		}
-	}
-}
-
-func (s *txConfirmations) run() {
-	readerDone := make(chan struct{})
-	go func() { defer close(readerDone); s.readHeights() }()
-	defer func() {
-		s.cancel()
-		<-readerDone
-		s.client.confirmationMu.Lock()
-		s.client.confirmations = nil
-		s.client.confirmationMu.Unlock()
-		close(s.done)
-	}()
-	timer := time.NewTimer(confirmationSilenceTimeout)
-	defer timer.Stop()
+func (f *statusFeed) run(ctx context.Context) {
+	heights := make(chan struct{}, 1)
+	go f.watchHeights(ctx, heights)
 	for {
-		all, final := false, false
-		var err error
 		select {
-		case <-s.ctx.Done():
-			err = s.ctx.Err()
-		case err = <-s.failed:
-		case <-s.wake:
-		case <-s.heights:
-			all = true
-			timer.Reset(confirmationSilenceTimeout)
-		case <-s.reconnected:
-			all = true
-		case <-timer.C:
-			all, final = true, true
-		}
-		if err == nil {
-			err = s.refresh(all)
-		}
-		if final && err == nil {
-			err = errors.New("transaction observation stopped: no committed height notifications for 30s")
-		}
-		if err != nil {
-			s.client.confirmationMu.Lock()
-			for hash, p := range s.pending {
-				p.err = err
-				close(p.done)
-				delete(s.pending, hash)
-			}
-			s.cancel()
-			s.client.confirmationMu.Unlock()
+		case <-ctx.Done():
 			return
+		case <-heights:
+			f.refresh(ctx)
 		}
 	}
 }
 
-func (s *txConfirmations) refresh(all bool) error {
-	s.client.confirmationMu.Lock()
-	hashes := make([]string, 0, len(s.pending))
-	entries := make(map[string]*pendingConfirmation, len(s.pending))
-	for hash, p := range s.pending {
-		if all || p.dirty {
-			hashes = append(hashes, hash)
-			entries[hash] = p
-			p.dirty = false
-		}
-	}
-	s.client.confirmationMu.Unlock()
-	ctx, cancel := context.WithTimeout(s.ctx, confirmationRPCTimeout)
-	defer cancel()
-	for start := 0; start < len(hashes); start += confirmationBatchSize {
-		batch := hashes[start:min(start+confirmationBatchSize, len(hashes))]
-		var header metadata.MD
-		response, err := tx.NewTxClient(s.client.conns[0]).TxStatusBatch(ctx, &tx.TxStatusBatchRequest{TxIds: batch}, grpc.Header(&header))
-		if err != nil {
-			return fmt.Errorf("subscription transaction status: %w", err)
-		}
-		values := header.Get(grpctypes.GRPCBlockHeightHeader)
-		if len(values) != 1 {
-			return errors.New("subscription confirmation requires committed application height metadata")
-		}
-		committed, err := strconv.ParseInt(values[0], 10, 64)
-		if err != nil || committed <= 0 {
-			return errors.New("invalid committed application height metadata")
-		}
-		if len(response.Statuses) != len(batch) {
-			return errors.New("invalid transaction status batch length")
-		}
-		for i, result := range response.Statuses {
-			if result == nil || !strings.EqualFold(result.TxHash, batch[i]) || result.Status == nil {
-				return errors.New("transaction status response does not match requested hash")
-			}
-			if result.Status.Status == core.TxStatusCommitted && result.Status.Height <= 0 {
-				return errors.New("invalid transaction inclusion height")
-			}
-		}
-		for i, result := range response.Statuses {
-			hash, p := batch[i], entries[batch[i]]
-			s.client.confirmationMu.Lock()
-			active := s.pending[hash] == p
-			s.client.confirmationMu.Unlock()
-			if !active || (result.Status.Status == core.TxStatusCommitted && result.Status.Height > max(committed, s.height.Load())) {
-				continue
-			}
-			resp, err := s.client.checkTxStatus(ctx, hash, result.Status, &p.evictedAt)
-			if resp != nil || err != nil {
-				s.client.confirmationMu.Lock()
-				p.response, p.err = resp, err
-				close(p.done)
-				if s.pending[hash] == p {
-					delete(s.pending, hash)
+// watchHeights signals heights on every new block, reconnecting with backoff
+// for as long as the feed runs. Heights that arrive during a refresh coalesce.
+func (f *statusFeed) watchHeights(ctx context.Context, heights chan<- struct{}) {
+	api := coregrpc.NewBlockAPIClient(f.client.conns[0])
+	backoff := confirmationMinBackoff
+	for {
+		stream, err := api.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
+		for err == nil {
+			if _, err = stream.Recv(); err == nil {
+				backoff = confirmationMinBackoff
+				select {
+				case heights <- struct{}{}:
+				default:
 				}
-				s.client.confirmationMu.Unlock()
 			}
 		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(2*backoff, confirmationMaxBackoff)
 	}
-	return nil
+}
+
+// refresh fetches the status of every waiting transaction. A failed batch is
+// skipped: its waiters get the next height's results or fall back to checking
+// directly.
+func (f *statusFeed) refresh(ctx context.Context) {
+	f.client.confirmationMu.Lock()
+	hashes := slices.Collect(maps.Keys(f.waiters))
+	f.client.confirmationMu.Unlock()
+
+	var g errgroup.Group
+	g.SetLimit(confirmationParallelBatches)
+	for batch := range slices.Chunk(hashes, confirmationBatchSize) {
+		g.Go(func() error {
+			f.fetchBatch(ctx, batch)
+			return nil
+		})
+	}
+	_ = g.Wait()
+}
+
+func (f *statusFeed) fetchBatch(ctx context.Context, batch []string) {
+	ctx, cancel := context.WithTimeout(ctx, confirmationBatchTimeout)
+	defer cancel()
+	var header metadata.MD
+	resp, err := tx.NewTxClient(f.client.conns[0]).TxStatusBatch(ctx, &tx.TxStatusBatchRequest{TxIds: batch}, grpc.Header(&header))
+	if err != nil || len(resp.Statuses) != len(batch) {
+		return
+	}
+	for i, result := range resp.Statuses {
+		if result == nil || result.Status == nil || !strings.EqualFold(result.TxHash, batch[i]) {
+			continue
+		}
+		if visible, err := isCommittedVisible(result.Status, header); err == nil && visible {
+			f.deliver(batch[i], result.Status)
+		}
+	}
+}
+
+// deliver replaces any undelivered status with the latest one, so it never blocks.
+func (f *statusFeed) deliver(txHash string, status *tx.TxStatusResponse) {
+	f.client.confirmationMu.Lock()
+	defer f.client.confirmationMu.Unlock()
+	for _, ch := range f.waiters[txHash] {
+		select {
+		case <-ch:
+		default:
+		}
+		ch <- status
+	}
 }

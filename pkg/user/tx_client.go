@@ -235,10 +235,9 @@ type TxClient struct {
 	// txQueue manages parallel transaction submission when enabled
 	txQueue *txQueue
 
-	confirmationMu      sync.Mutex
-	confirmations       *txConfirmations
-	confirmationContext context.Context
-	confirmationsClosed bool
+	// confirmationMu guards statusFeed, shared by ConfirmTxSubscription callers.
+	confirmationMu sync.Mutex
+	statusFeed     *statusFeed
 }
 
 // NewTxClient returns a new TxClient
@@ -340,7 +339,6 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	txClient.confirmationContext = ctx
 	if err := txClient.txQueue.start(ctx); err != nil {
 		return nil, fmt.Errorf("failed to start tx queue: %w", err)
 	}
@@ -774,7 +772,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
-	var evictionPollTimeStart *time.Time
+	var evictedAt time.Time
 
 	for {
 		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
@@ -783,7 +781,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, err
 		}
 
-		if result, err := client.checkTxStatus(ctx, txHash, resp, &evictionPollTimeStart); result != nil || err != nil {
+		if result, err := client.checkTxStatus(ctx, txHash, resp, &evictedAt); result != nil || err != nil {
 			return result, err
 		}
 
@@ -797,11 +795,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-// checkTxStatus handles execution and recovery for both confirmation transports.
-func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *tx.TxStatusResponse, evictionPollTimeStart **time.Time) (*TxResponse, error) {
+// checkTxStatus acts on one status of txHash and returns a result once the
+// transaction is final. evictedAt records when eviction recovery started and is
+// carried across calls. It is shared by ConfirmTx and ConfirmTxSubscription.
+func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *tx.TxStatusResponse, evictedAt *time.Time) (*TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
-	if *evictionPollTimeStart != nil {
-		if time.Since(**evictionPollTimeStart) > evictionPollTimeOut {
+	if !evictedAt.IsZero() {
+		if time.Since(*evictedAt) > evictionPollTimeOut {
 			return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 		}
 	}
@@ -829,7 +829,7 @@ func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *
 			return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 		}
 
-		if *evictionPollTimeStart != nil {
+		if !evictedAt.IsZero() {
 			// Eviction timer is running, no need to resubmit again
 			span.AddEvent("txclient/ConfirmTx: eviction timer already running")
 			break
@@ -849,8 +849,7 @@ func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *
 			}
 			// Start eviction timeout timer on any broadcast error during resubmission
 			span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
-			now := time.Now()
-			*evictionPollTimeStart = &now
+			*evictedAt = time.Now()
 		}
 		span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 	case core.TxStatusRejected:
