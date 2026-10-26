@@ -37,9 +37,14 @@ func NewTree(buf []byte, leaves [][]byte, workerCount int) *Tree {
 	}
 	t := &Tree{nodes: buf}
 
-	parallelize(n, workerCount, func(i int) {
-		hashLeaf(leaves[i], t.node(n-1+i))
-	})
+	if n == 1 {
+		hashLeaf(leaves[0], t.node(0))
+	} else {
+		parallelize(n/2, workerCount, func(j int) {
+			i := 2 * j
+			hashLeafPair(leaves[i], leaves[i+1], t.node(n-1+i), t.node(n+i))
+		})
+	}
 	t.hashNodes(n, workerCount)
 	return t
 }
