@@ -5,7 +5,7 @@ import (
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

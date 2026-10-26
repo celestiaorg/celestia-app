@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
 )
 
 func identityFor(b byte) *types.EnclaveIdentity {

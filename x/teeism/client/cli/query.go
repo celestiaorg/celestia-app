@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/version"

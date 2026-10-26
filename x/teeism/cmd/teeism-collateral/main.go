@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/google/go-tdx-guest/abi"
 	pb "github.com/google/go-tdx-guest/proto/tdx"
 	"github.com/google/go-tdx-guest/verify"

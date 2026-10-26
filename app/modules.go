@@ -23,6 +23,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v11/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/celestiaorg/celestia-app/v11/x/valaddr"
 	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism"

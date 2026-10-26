@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/client/cli"
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/keeper"
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/client/cli"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/keeper"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

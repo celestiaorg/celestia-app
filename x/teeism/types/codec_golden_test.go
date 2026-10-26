@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -147,7 +147,7 @@ func TestAttestedUpdateRejectsMalformed(t *testing.T) {
 		bad := append([]byte{}, raw...)
 		// The count sits immediately before the ids.
 		off := 2*types.IsmStateBytes + 32 + 8
-		for i := 0; i < 8; i++ {
+		for i := range 8 {
 			bad[off+i] = 0xFF
 		}
 		_, err := types.DecodeAttestedUpdate(bad)

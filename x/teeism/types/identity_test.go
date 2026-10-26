@@ -5,9 +5,8 @@ import (
 	"crypto/sha512"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
 )
 
 // dstack 0.6 records the app in RTMR3 as canonical (v2) events and no longer

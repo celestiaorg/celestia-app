@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 )
 
 type identityJSON struct {
