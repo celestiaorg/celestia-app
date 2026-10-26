@@ -70,9 +70,9 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
    a high PR waits for one other person, and an agent PR waits for one.
 3. Protect enforcement before reducing blanket review counts. Because the tier
    comes only from the title, a `[low]` PR could otherwise change this policy
-   without review. In a branch ruleset, require an approval from
-   `@celestiaorg/protocol` for `.github/**`, `.agents/**`, `.claude/**`,
-   `.cursor/**`, agent/reviewer instruction files, and `docs/ai/**`.
+   without review. `CODEOWNERS` assigns `@celestiaorg/protocol` to `.github/`,
+   `.agents/`, `.claude/`, `.cursor/`, `docs/ai/`, and agent instruction files,
+   so keep "Require review from Code Owners" enabled on `main`.
 4. Require the **`review-policy` commit status**, selecting GitHub Actions as its
    expected source, and require `review-policy-tests`. Keep the existing build,
    lint, test, and security requirements.
@@ -83,9 +83,9 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
    workflow can supply an approval.
 7. Set the global approval count to zero only after the above requirements work.
    Do not globally require approval of the latest push, because that also blocks
-   the low-risk path. If global code-owner approval is required, replace it with
-   the conditional rules; otherwise the `*` entry in `CODEOWNERS` still requires
-   a review for low-risk PRs. Keep routine bypass disabled for people and agents.
+   the low-risk path. `CODEOWNERS` has no `*` entry, so code-owner approval
+   applies only to the paths in step 3. Keep routine bypass disabled for people
+   and agents.
 
 This implementation governs `main` only. Do not relax release-branch protections
 until event filters, evaluation, and queue coverage are extended to them.
