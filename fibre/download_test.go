@@ -288,15 +288,21 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 		}
 		return out
 	}
-	// validator 0 holds all originals, including the poisoned one; validator 1 holds parity
-	shards := [][]*rsema1d.RowProof{proofsFor(0, testK), proofsFor(testK, testK+testN)}
+	// validator 0 holds honest originals and fixes the row size; validator 1 holds
+	// the rest, including the poisoned one, which is only checked by Blob;
+	// validator 2 holds parity
+	shards := [][]*rsema1d.RowProof{
+		proofsFor(testK/2, testK),
+		proofsFor(0, testK/2),
+		proofsFor(testK, testK+testN),
+	}
 
 	selected := make([]validator.SelectedValidator, len(shards))
 	for i := range shards {
 		priv := cmted25519.GenPrivKey()
 		selected[i] = validator.SelectedValidator{
 			Validator:    &core.Validator{Address: priv.PubKey().Address(), PubKey: priv.PubKey(), VotingPower: 1},
-			ExpectedRows: testK,
+			ExpectedRows: len(shards[i]),
 		}
 	}
 	blobCfg := BlobConfig{
@@ -327,7 +333,7 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.Equal(t, 1, refetches)
-	require.Equal(t, 2, dispatched)
+	require.Equal(t, 3, dispatched)
 
 	want := bytes.Join(honest[:testK], nil)[blobHeaderLen:]
 	require.Equal(t, want, blob.Data())

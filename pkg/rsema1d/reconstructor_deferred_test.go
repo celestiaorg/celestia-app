@@ -109,11 +109,12 @@ func TestReconstructorDeferredAcceptsValid(t *testing.T) {
 }
 
 // TestReconstructorRejectsBadEncoding commits honest rows together with a wrong
-// RLC vector: every proof verifies, but the original rows do not match it.
+// RLC vector: every proof verifies, but the original rows do not match it. The
+// wrong value is outside the first shard, whose rows are fully checked on Add.
 func TestReconstructorRejectsBadEncoding(t *testing.T) {
 	coder, ed := deferredEncode(t)
 	bad := append(rlc.Vector(nil), ed.RLC()...)
-	bad[3] = field.GF128{}
+	bad[7] = field.GF128{}
 	rowRoot := ed.rowsTree.Root()
 	rlcRoot := computeRLCRoot(newRLCLeaves(deferredK).set(bad), nil)
 	commitment := sha256.Sum256(append(rowRoot[:], rlcRoot[:]...))
@@ -151,11 +152,11 @@ func TestReconstructorRejectsTamperedRowsOnAdd(t *testing.T) {
 	}
 }
 
-// poisonedEncode builds a blob whose row tree commits a garbage original row at
-// bad, while the committed RLC vector and parity come from the honest rows. A
-// validator holding row bad signs it; every other row verifies. It returns the
-// committed rows, the honest rows and the commitment.
-func poisonedEncode(t *testing.T, bad int) (*Coder, [][]byte, [][]byte, rlc.Vector, *merkle.Tree, Commitment) {
+// poisonedEncode builds a blob whose row tree commits a garbage original row of
+// badSize bytes at bad, while the committed RLC vector and parity come from the
+// honest rows. A validator holding row bad signs it; every other row verifies.
+// It returns the committed rows, the honest rows and the commitment.
+func poisonedEncode(t *testing.T, bad, badSize int) (*Coder, [][]byte, [][]byte, rlc.Vector, *merkle.Tree, Commitment) {
 	t.Helper()
 	coder, ed := deferredEncode(t)
 	honest := make([][]byte, deferredK+deferredN)
@@ -163,7 +164,7 @@ func poisonedEncode(t *testing.T, bad int) (*Coder, [][]byte, [][]byte, rlc.Vect
 		honest[i] = bytes.Clone(ed.Row(i))
 	}
 	committed := append([][]byte(nil), honest...)
-	committed[bad] = bytes.Repeat([]byte{0xAB}, deferredRowSize)
+	committed[bad] = bytes.Repeat([]byte{0xAB}, badSize)
 
 	tree := merkle.NewTree(nil, committed, 1)
 	rowRoot := tree.Root()
@@ -173,23 +174,27 @@ func poisonedEncode(t *testing.T, bad int) (*Coder, [][]byte, [][]byte, rlc.Vect
 	return coder, committed, honest, vec, tree, sha256.Sum256(append(rowRoot[:], rlcRoot[:]...))
 }
 
+// treeProofs returns proofs for indices from tree, with copies of rows.
+func treeProofs(t *testing.T, tree *merkle.Tree, rows [][]byte, indices []int) []*RowProof {
+	t.Helper()
+	out := make([]*RowProof, len(indices))
+	for i, idx := range indices {
+		proof, err := tree.Proof(idx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[i] = &RowProof{Index: idx, Row: bytes.Clone(rows[idx]), RowProof: proof}
+	}
+	return out
+}
+
 // TestReconstructorRecoversFromPoisonedOriginal: the poisoned row passes Add,
 // Reconstruct reports it, and after Reject plus one parity row the honest data
 // is recovered.
 func TestReconstructorRecoversFromPoisonedOriginal(t *testing.T) {
 	const bad = 5
-	coder, committed, honest, vec, tree, commitment := poisonedEncode(t, bad)
-	proofsFor := func(indices []int) []*RowProof {
-		out := make([]*RowProof, len(indices))
-		for i, idx := range indices {
-			proof, err := tree.Proof(idx)
-			if err != nil {
-				t.Fatal(err)
-			}
-			out[i] = &RowProof{Index: idx, Row: bytes.Clone(committed[idx]), RowProof: proof}
-		}
-		return out
-	}
+	coder, committed, honest, vec, tree, commitment := poisonedEncode(t, bad, deferredRowSize)
+	proofsFor := func(indices []int) []*RowProof { return treeProofs(t, tree, committed, indices) }
 
 	r, err := coder.NewReconstructor(commitment)
 	if err != nil {
@@ -226,6 +231,35 @@ func TestReconstructorRecoversFromPoisonedOriginal(t *testing.T) {
 	for i := range deferredK {
 		if !bytes.Equal(rows[i], honest[i]) {
 			t.Fatalf("row %d differs from the honest row", i)
+		}
+	}
+}
+
+// TestReconstructorRejectsPoisonedFirstBatch: a garbage original row committed
+// with another row size arrives first. Its batch fixes the row size, so it must
+// be rejected on Add; otherwise every honest row would fail the size check.
+func TestReconstructorRejectsPoisonedFirstBatch(t *testing.T) {
+	const bad = 5
+	for _, badSize := range []int{deferredRowSize / 2, deferredRowSize} {
+		coder, committed, honest, vec, tree, commitment := poisonedEncode(t, bad, badSize)
+		r, err := coder.NewReconstructor(commitment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := r.Add(treeProofs(t, tree, committed, []int{bad}), vec); err == nil {
+			t.Fatalf("size %d: poisoned first batch accepted", badSize)
+		}
+
+		// honest originals but bad, plus one parity row, recover the data
+		indices := append(indexRange(0, bad), indexRange(bad+1, deferredK+1)...)
+		rows := addInShards(t, r, treeProofs(t, tree, committed, indices), vec)
+		if err := r.Reconstruct(rows); err != nil {
+			t.Fatalf("size %d: %v", badSize, err)
+		}
+		for i := range deferredK {
+			if !bytes.Equal(rows[i], honest[i]) {
+				t.Fatalf("size %d: row %d differs from the honest row", badSize, i)
+			}
 		}
 	}
 }

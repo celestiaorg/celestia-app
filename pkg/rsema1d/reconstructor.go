@@ -64,6 +64,11 @@ type Reconstructor struct {
 	verifierRLC atomic.Bool
 	verifier    *Verifier
 
+	// checked marks the original rows of the batch that installed the RLC:
+	// that batch is fully RLC-checked, so Reconstruct skips them. Written once
+	// under verifierMu, read by Reconstruct after Adds are drained.
+	checked []bool
+
 	seenMu   sync.Mutex
 	seen     []bool
 	rejected []bool // committed original rows that failed their RLC check
@@ -81,6 +86,7 @@ func (c *Coder) NewReconstructor(commitment Commitment) (*Reconstructor, error) 
 		coder:      c,
 		commitment: commitment,
 		verifier:   verifier,
+		checked:    make([]bool, c.config.K),
 		seen:       make([]bool, c.config.K+c.config.N),
 		rejected:   make([]bool, c.config.K),
 	}, nil
@@ -92,7 +98,8 @@ func (c *Coder) NewReconstructor(commitment Commitment) (*Reconstructor, error) 
 //
 // Add checks every row's Merkle proof and the parity rows' RLCs, but defers the
 // original rows' RLC checks to [Reconstructor.Reconstruct], which runs them once
-// in a single batch.
+// in a single batch. The first accepted batch is the exception: it fixes the
+// row size every later batch must match, so all its rows are RLC-checked.
 //
 // Dedup compacts in place: the returned slice shares the input's backing
 // array — Add overwrites proofs[0:n] with the novel ones, where n is the
@@ -185,30 +192,37 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 // verify checks proofs against r.commitment. Fast path: one atomic load and a
 // concurrent-safe verifyDeferred against the cached RLC. Slow path: serialize on
 // verifierMu, install this caller's RLC root via setRLCRoot, and only mark it
-// cached once verifyDeferred validates a batch against the commitment.
+// cached once verifyDeferred fully validates a batch against the commitment.
+// The full check keeps a garbage original row of another size from fixing the
+// row size, which would make every honest row fail.
 func (r *Reconstructor) verify(rlc rlc.Vector, proofs []*RowProof) error {
 	if r.verifierRLC.Load() {
-		return r.verifier.verifyDeferred(r.commitment, proofs)
+		return r.verifier.verifyDeferred(r.commitment, proofs, false)
 	}
 
 	r.verifierMu.Lock()
 	defer r.verifierMu.Unlock()
 	if r.verifierRLC.Load() {
 		// another caller installed a validated RLC while we waited for the lock
-		return r.verifier.verifyDeferred(r.commitment, proofs)
+		return r.verifier.verifyDeferred(r.commitment, proofs, false)
 	}
 	if err := r.verifier.setRLCRoot(rlc); err != nil {
 		return err
 	}
-	if err := r.verifier.verifyDeferred(r.commitment, proofs); err != nil {
+	if err := r.verifier.verifyDeferred(r.commitment, proofs, true); err != nil {
 		return err
+	}
+	for _, p := range proofs {
+		if p.Index < r.coder.config.K {
+			r.checked[p.Index] = true
+		}
 	}
 	r.verifierRLC.Store(true)
 	return nil
 }
 
 // verifyOriginals runs the deferred RLC check over the original rows present in
-// rows, skipping rejected ones.
+// rows, skipping rejected and already checked ones.
 func (r *Reconstructor) verifyOriginals(rows [][]byte) error {
 	k := r.coder.config.K
 	if len(rows) < k {
@@ -217,7 +231,7 @@ func (r *Reconstructor) verifyOriginals(rows [][]byte) error {
 	var present [][]byte
 	var indices []int
 	for i, row := range rows[:k] {
-		if len(row) > 0 && !r.rejected[i] {
+		if len(row) > 0 && !r.rejected[i] && !r.checked[i] {
 			present = append(present, row)
 			indices = append(indices, i)
 		}

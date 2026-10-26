@@ -201,10 +201,12 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 }
 
 // verifyDeferred checks proofs like [Verifier.VerifyShared], but leaves the RLC
-// checks of original rows to [Verifier.verifyOriginalRLCs]. Parity rows are
-// checked at once against the RLC extension, computed on the first parity row.
-// The first call must run alone, after setRLCRoot; later calls may run concurrently.
-func (v *Verifier) verifyDeferred(commitment Commitment, proofs []*RowProof) error {
+// checks of original rows to [Verifier.verifyOriginalRLCs] unless
+// checkOriginals is set. Parity rows are checked at once against the RLC
+// extension, computed on the first parity row. The first call must run alone,
+// after setRLCRoot, and set checkOriginals: it fixes the cached row size, so
+// its rows must be fully checked. Later calls may run concurrently.
+func (v *Verifier) verifyDeferred(commitment Commitment, proofs []*RowProof, checkOriginals bool) error {
 	rowSize, err := v.validateProofs(proofs)
 	if err != nil {
 		return err
@@ -214,10 +216,19 @@ func (v *Verifier) verifyDeferred(commitment Commitment, proofs []*RowProof) err
 		return err
 	}
 	var parity []*RowProof
+	var origRows [][]byte
+	var origIndices []int
 	for _, p := range proofs {
-		if p.Index >= v.config.K {
+		switch {
+		case p.Index >= v.config.K:
 			parity = append(parity, p)
+		case checkOriginals:
+			origRows = append(origRows, p.Row)
+			origIndices = append(origIndices, p.Index)
 		}
+	}
+	if bad := v.mismatchedOriginals(origRows, origIndices, coeffs); len(bad) > 0 {
+		return fmt.Errorf("row %d: computed RLC does not match expected value", bad[0])
 	}
 	if len(parity) == 0 {
 		return nil
@@ -241,17 +252,26 @@ func (v *Verifier) verifyOriginalRLCs(rows [][]byte, indices []int) error {
 			return fmt.Errorf("row %d has %d bytes, expected %d", indices[i], len(row), v.coeffsRowSize)
 		}
 	}
-	computed := rlc.Compute(rows, v.rlcCoeffs, v.config.WorkerCount)
+	if bad := v.mismatchedOriginals(rows, indices, v.rlcCoeffs); len(bad) > 0 {
+		return &InvalidRowsError{Indices: bad}
+	}
+	return nil
+}
+
+// mismatchedOriginals returns the indices of the original rows whose RLC under
+// coeffs differs from their committed RLC value. rows[i] is the row at indices[i].
+func (v *Verifier) mismatchedOriginals(rows [][]byte, indices []int, coeffs rlc.Vector) []int {
+	if len(rows) == 0 {
+		return nil
+	}
+	computed := rlc.Compute(rows, coeffs, v.config.WorkerCount)
 	var bad []int
 	for i, idx := range indices {
 		if !field.Equal128(computed[i], v.rlcOrig[idx]) {
 			bad = append(bad, idx)
 		}
 	}
-	if len(bad) > 0 {
-		return &InvalidRowsError{Indices: bad}
-	}
-	return nil
+	return bad
 }
 
 // verifyRoot checks the proofs against one row root and the commitment, and
