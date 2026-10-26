@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -23,7 +23,7 @@ func TestTxsimCommandFlags(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cmd := command()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmd.SetArgs([]string{
@@ -41,7 +41,7 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cmd := command()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	t.Setenv(TxsimMnemonic, testfactory.TestAccMnemo)
@@ -57,7 +57,7 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 func TestTxsimDefaultKeypath(t *testing.T) {
 	_, _, grpcAddr := setup(t)
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	kr, err := keyring.New(app.Name, keyring.BackendTest, app.NodeHome, nil, cdc)

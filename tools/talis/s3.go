@@ -40,7 +40,7 @@ func downloadS3DataCmd() *cobra.Command {
 credentials in it, then recursively downloads everything under
 "<bucket>/<chain-id>/" into the output directory you specify.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}

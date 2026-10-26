@@ -91,6 +91,10 @@ talis fibre-txsim --instances 4 \
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
 
+`talis fibre-txsim` accepts `--otel-metrics-path` and `--otel-traces-path`.
+Defaults are `/v1/metrics` and `/v1/traces`. Each value replaces the endpoint URL path, including any proxy prefix.
+Talis forwards only explicitly supplied path flags. Custom paths require remote binaries that support these flags.
+
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
 Each instance runs inside a tmux session called `fibre-txsim` on the remote validator. To stop all instances:
@@ -138,6 +142,7 @@ talis fibre-reader \
 |--------------------------|---------|------------------------------------------------------------------------------------------------------------------------------|
 | `--directory`            | `.`     | Experiment root directory                                                                                                    |
 | `--instances`            | `0` (all) | Max number of readers to launch                                                                                            |
+| `--reads-per-blob`       | `1`     | Total download attempts per blob across the reader cluster (must be positive)                                                |
 | `--download-concurrency` | `8`     | Max concurrent in-flight downloads per reader (semaphore-bounded; goroutine spawned per blob)                                |
 | `--download-timeout`     | `2m`    | Per-blob download timeout                                                                                                    |
 | `--duration`             | `0`     | How long to run (`0` = until killed)                                                                                         |
@@ -145,7 +150,11 @@ talis fibre-reader \
 
 ### Sharding
 
-Each reader is launched with `--reader-index N --reader-count K` (talis fills these in automatically based on the number of configured readers). For each blob's commitment, the reader computes `binary.BigEndian.Uint64(commitment[:8]) % count == index` to decide ownership. Commitments are SHA-derived so the distribution is uniform — every blob is downloaded exactly once across the cluster, no coordinator needed.
+Each reader is launched with `--reader-index I --reader-count K` (talis fills these in automatically). `--reads-per-blob N` assigns N total download attempts per blob across the cluster. All readers must use the same K and N, with unique indices from 0 to K-1.
+
+Reads start at `binary.BigEndian.Uint64(commitment[:8]) % K` and wrap around the reader indices. The default N=1 preserves the original assignment. For example, with K=3 and a starting reader of 2, N=2 assigns one read each to readers 2 and 0; N=5 assigns two each to readers 2 and 0, and one to reader 1. Each reader gets either `N/K` or `N/K + 1` reads of a blob. With one reader, that reader performs all N reads.
+
+Use `talis fibre-reader --reads-per-blob 3` to triple the assigned read workload. Repeats on the same reader run sequentially and each calls `fibre.Client.Download` again. Different blobs still share the existing concurrency limit. This configures attempts, not guaranteed successful reads: failed attempts are counted without retries, and cancellation can leave assigned reads unfinished. Readers still only observe blocks posted after subscribing.
 
 ### Validator pinning
 
@@ -177,7 +186,8 @@ Per-reader OTel metrics (auto-pushed to the observability node when configured),
 |------------------------------------------------------|--------------|----------------------------------------------------------------------------------------------|
 | `fibre_reader.blobs_seen`                            | Counter      | Total `MsgPayForFibre` observed in blocks                                                    |
 | `fibre_reader.blobs_owned`                           | Counter      | Blobs assigned to this reader by sharding                                                    |
-| `fibre_reader.blobs_skipped_not_owned`               | Counter      | Blobs that hashed to a different reader's shard                                              |
+| `fibre_reader.blobs_skipped_not_owned`               | Counter      | Blobs with no read assigned to this reader                                                   |
+| `fibre_reader.downloads_assigned`                    | Counter      | Assigned download attempts, including repeated reads                                        |
 | `fibre_reader.downloads_success` / `_failed`         | Counter      | Outcomes                                                                                     |
 | `fibre_reader.commitment_mismatches`                 | Counter      | Downloads that returned `ErrBlobCommitmentMismatch`                                          |
 | `fibre_reader.downloaded_bytes_total` *(`By`)*       | Counter      | `rate(...) by (service_instance_id) / 1024 / 1024` → per-reader MiB/s in Grafana             |
@@ -189,6 +199,8 @@ Per-reader OTel metrics (auto-pushed to the observability node when configured),
 
 OTel tracing spans `fibre_reader.block.process` and `fibre_reader.blob.download` (with the latter wrapping `fibre.Client.Download` and its child `download_from` per-validator spans). Use these to debug per-step timing.
 
+Seen/owned/skipped counters count each observed blob once per reader. Download counters and bytes count every attempt or successful read, including repeats; aggregate throughput therefore includes repeated data. Logs include `read=X/Y` for the attempt number and total assigned reads on that reader.
+
 ## 5. Monitor throughput
 
 Run `fibre-throughput` from your local machine to poll blocks and print per-block stats:
@@ -196,6 +208,10 @@ Run `fibre-throughput` from your local machine to poll blocks and print per-bloc
 ```sh
 talis fibre-throughput
 ```
+
+With observability enabled, live runs add **Successful PFF Inclusion** (blob bytes/sec) to the Throughput panel.
+This requires `discard_abci_responses = false` under `[storage]` on every selected validator, with block results available.
+Run one monitor per experiment without `--start-height`.
 
 This connects to the first validator's RPC endpoint and prints a line per block:
 

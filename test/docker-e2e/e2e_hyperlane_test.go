@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"bytes"
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/internal"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -17,8 +18,8 @@ import (
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
-	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v11/x/forwarding/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -27,7 +28,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
-	"github.com/cosmos/cosmos-sdk/crypto"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -285,6 +287,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 
 	backend, err := hyperlane.NewForwardRelayer(ctx, backendCfg, s.T().Name(), hyperlane.BackendMode)
 	s.Require().NoError(err)
+	forceRemoveOnCleanup(s.T(), backend)
 
 	err = backend.Start(ctx)
 	s.Require().NoError(err)
@@ -292,20 +295,12 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	amount := sdkmath.NewInt(1000000)
 	sendAmount := sdk.NewCoins(sdk.NewCoin(chain.Config.Denom, amount))
 
-	relayerWallet, err := chain.CreateWallet(ctx, "forward-rly")
-	s.Require().NoError(err)
-
-	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerWallet.Address, sendAmount)
-
-	chainNode := chain.GetNode()
-	keyring, err := chainNode.GetKeyring()
-	s.Require().NoError(err)
-
-	armor, err := keyring.ExportPrivKeyArmor("forward-rly", "")
-	s.Require().NoError(err)
-
-	privKey, _, err := crypto.UnarmorDecryptPrivKey(armor, "")
-	s.Require().NoError(err)
+	// The relayer only needs a private key, not a key in the node's keyring.
+	// Creating one through the node starts a helper container that publishes
+	// the image's ports and can collide with the running chain.
+	privKey := secp256k1.GenPrivKey()
+	relayerAddress := sdk.AccAddress(privKey.PubKey().Address())
+	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerAddress, sendAmount)
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
 	s.Require().NoError(err)
@@ -325,11 +320,25 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 
 	relayer, err := hyperlane.NewForwardRelayer(ctx, relayerCfg, s.T().Name(), hyperlane.RelayerMode)
 	s.Require().NoError(err)
+	forceRemoveOnCleanup(s.T(), relayer)
 
 	err = relayer.Start(ctx)
 	s.Require().NoError(err)
 
 	return backend
+}
+
+// forceRemoveOnCleanup kills the forwarding-relayer container at test end
+// instead of leaving it to the suite cleanup's 10s graceful stop.
+func forceRemoveOnCleanup(t *testing.T, rly *hyperlane.ForwardRelayer) {
+	t.Cleanup(func() {
+		if t.Failed() || os.Getenv("KEEP_CONTAINERS") != "" || os.Getenv("SHOW_CONTAINER_LOGS") == "always" {
+			return
+		}
+		if err := rly.RemoveContainer(context.Background(), tastoratypes.WithPreserveVolumes()); err != nil {
+			t.Logf("Error removing %s: %v", rly.Name(), err)
+		}
+	})
 }
 
 func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient string) {
@@ -600,19 +609,21 @@ func (s *HyperlaneTestSuite) GetDomainForChain(ctx context.Context, chainName st
 func (s *HyperlaneTestSuite) AssertBankBalance(ctx context.Context, chain *cosmos.Chain, address string, denom string, expected sdkmath.Int) {
 	s.T().Helper()
 
-	s.Require().Eventually(func() bool {
+	err := internal.WaitFor(ctx, time.Minute, time.Second, func(ctx context.Context) (bool, error) {
 		balance := s.QueryBankBalance(ctx, chain, address, denom)
-		return balance.Equal(expected)
-	}, time.Minute, 5*time.Second, "unexpected bank balance, expected: ", expected)
+		return balance.Equal(expected), nil
+	})
+	s.Require().NoError(err, "unexpected bank balance, expected: %s", expected)
 }
 
 func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *EvolveEVMChain, erc20Address ethcommon.Address, account ethcommon.Address, expected *big.Int) {
 	s.T().Helper()
 
-	s.Require().Eventually(func() bool {
+	err := internal.WaitFor(ctx, time.Minute, time.Second, func(ctx context.Context) (bool, error) {
 		balance := s.QueryERC20Balance(ctx, chain, erc20Address, account)
-		return balance.Cmp(expected) == 0
-	}, time.Minute, 5*time.Second, "unexpected erc20 balance, expected: ", expected)
+		return balance.Cmp(expected) == 0, nil
+	})
+	s.Require().NoError(err, "unexpected erc20 balance, expected: %s", expected)
 }
 
 func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {

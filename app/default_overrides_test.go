@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -96,10 +96,21 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, want, *got.Mempool)
 	})
 
+	t.Run("consensus overrides", func(t *testing.T) {
+		assert.Equal(t, appconsts.TimeoutPropose, got.Consensus.TimeoutPropose)
+		assert.Equal(t, appconsts.TimeoutCommit, got.Consensus.TimeoutCommit)
+		assert.Equal(t, 10*time.Millisecond, got.Consensus.PeerGossipSleepDuration)
+	})
+
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
 		assert.Equal(t, int64(200*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(200*mebibyte), got.P2P.RecvRate)
+	})
+
+	t.Run("privval gRPC localhost is allowed without TLS", func(t *testing.T) {
+		assert.Equal(t, "127.0.0.1:26669", got.PrivValidatorGRPCListenAddr)
+		assert.NoError(t, got.ValidatePrivValidatorGRPCExposure())
 	})
 
 	t.Run("block sync overrides", func(t *testing.T) {

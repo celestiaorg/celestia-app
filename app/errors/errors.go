@@ -31,4 +31,7 @@ var (
 	// ErrNonCanonicalBlobTx is returned when a blob tx is not canonically
 	// encoded (e.g. unknown or repeated protobuf fields used as padding).
 	ErrNonCanonicalBlobTx = errors.Register(AppErrorsCodespace, 11147, "blob tx is not canonically encoded")
+
+	// ErrTxExceedsMaxZKProofMessages is returned when a tx's proof work exceeds a single block's budget.
+	ErrTxExceedsMaxZKProofMessages = errors.Register(AppErrorsCodespace, 11148, "transaction exceeds maximum allowed ZK proof message count")
 )

@@ -6,20 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -33,10 +32,11 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -46,9 +46,9 @@ const (
 	SendGasLimit         = 100000
 	FeegrantGasLimit     = 800000
 	DefaultWorkerBalance = 1
-	// evictionPollTimeOut is the timeout for checking if an evicted transaction
+	// defaultEvictionPollTimeout is the timeout for checking if an evicted transaction
 	// gets committed after experiencing a broadcast error during resubmission
-	evictionPollTimeOut = 3 * time.Minute
+	defaultEvictionPollTimeout = 3 * time.Minute
 )
 
 var (
@@ -207,9 +207,7 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.txQueue != nil {
-			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
-		}
+		c.parallelQueueSize = size
 	}
 }
 
@@ -225,6 +223,8 @@ type TxClient struct {
 	conns []*grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
+	// how long to keep polling an evicted tx after a failed resubmission
+	evictionPollTimeout time.Duration
 	// sets the default account with which to submit transactions
 	defaultAccount string
 	defaultAddress sdktypes.AccAddress
@@ -234,11 +234,12 @@ type TxClient struct {
 	gasEstimationClient gasestimation.GasEstimatorClient
 	// txQueue manages parallel transaction submission when enabled
 	txQueue *txQueue
+	// parallelQueueSize is the buffer size used when starting the tx queue.
+	parallelQueueSize int
 
-	confirmationMu      sync.Mutex
-	confirmations       *txConfirmations
-	confirmationContext context.Context
-	confirmationsClosed bool
+	// confirmationMu guards statusFeed, shared by ConfirmTxSubscription callers.
+	confirmationMu sync.Mutex
+	statusFeed     *statusFeed
 }
 
 // NewTxClient returns a new TxClient
@@ -268,11 +269,13 @@ func NewTxClient(
 		registry:            registry,
 		conns:               []*grpc.ClientConn{conn},
 		pollTime:            DefaultPollTime,
+		evictionPollTimeout: defaultEvictionPollTimeout,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
 		txTracker:           make(map[string]txInfo),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
+		parallelQueueSize:   defaultParallelQueueSize,
 	}
 
 	for _, opt := range options {
@@ -340,7 +343,6 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	txClient.confirmationContext = ctx
 	if err := txClient.txQueue.start(ctx); err != nil {
 		return nil, fmt.Errorf("failed to start tx queue: %w", err)
 	}
@@ -774,7 +776,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
-	var evictionPollTimeStart *time.Time
+	var evictedAt time.Time
 
 	for {
 		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
@@ -783,7 +785,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, err
 		}
 
-		if result, err := client.checkTxStatus(ctx, txHash, resp, &evictionPollTimeStart); result != nil || err != nil {
+		if result, err := client.checkTxStatus(ctx, txHash, resp, &evictedAt); result != nil || err != nil {
 			return result, err
 		}
 
@@ -797,11 +799,13 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	}
 }
 
-// checkTxStatus handles execution and recovery for both confirmation transports.
-func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *tx.TxStatusResponse, evictionPollTimeStart **time.Time) (*TxResponse, error) {
+// checkTxStatus acts on one status of txHash and returns a result once the
+// transaction is final. evictedAt records when eviction recovery started and is
+// carried across calls. It is shared by ConfirmTx and ConfirmTxSubscription.
+func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *tx.TxStatusResponse, evictedAt *time.Time) (*TxResponse, error) {
 	span := trace.SpanFromContext(ctx)
-	if *evictionPollTimeStart != nil {
-		if time.Since(**evictionPollTimeStart) > evictionPollTimeOut {
+	if !evictedAt.IsZero() {
+		if time.Since(*evictedAt) > client.evictionPollTimeout {
 			return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
 		}
 	}
@@ -829,7 +833,7 @@ func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *
 			return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
 		}
 
-		if *evictionPollTimeStart != nil {
+		if !evictedAt.IsZero() {
 			// Eviction timer is running, no need to resubmit again
 			span.AddEvent("txclient/ConfirmTx: eviction timer already running")
 			break
@@ -849,8 +853,7 @@ func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *
 			}
 			// Start eviction timeout timer on any broadcast error during resubmission
 			span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
-			now := time.Now()
-			*evictionPollTimeStart = &now
+			*evictedAt = time.Now()
 		}
 		span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
 	case core.TxStatusRejected:
@@ -1188,10 +1191,8 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 
 	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {
-		// check if the network version supports a global min gas
-		// price using a regex check. If not (i.e. v1) use the
-		// local price only
-		if strings.Contains(err.Error(), "unknown subspace: minfee") {
+		// v1 nodes don't serve x/minfee so use the local price only.
+		if status.Code(err) == codes.Unimplemented {
 			return localMinPrice, nil
 		}
 		return 0, err
@@ -1202,20 +1203,10 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 }
 
 func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
-	paramsClient := paramtypes.NewQueryClient(grpcConn)
 	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfeetypes.ModuleName, Key: string(minfeetypes.KeyNetworkMinGasPrice)})
+	resp, err := minfeetypes.NewQueryClient(grpcConn).NetworkMinGasPrice(ctx, &minfeetypes.QueryNetworkMinGasPrice{})
 	if err != nil {
-		return 0, fmt.Errorf("querying params module: %w", err)
+		return 0, fmt.Errorf("querying network min gas price: %w", err)
 	}
-
-	var networkMinPrice float64
-	// Value is empty if network min gas price is not supported i.e. v1 state machine.
-	if paramResponse.Param.Value != "" {
-		networkMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
-		if err != nil {
-			return 0, fmt.Errorf("parsing network min gas price: %w", err)
-		}
-	}
-	return networkMinPrice, nil
+	return resp.NetworkMinGasPrice.Float64()
 }

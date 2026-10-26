@@ -1,18 +1,23 @@
 package app_test
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -152,4 +157,218 @@ func TestPrepareProposalConsistency(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestPrepareProposalConsistencyCorpus checks that a validator with the same
+// committed state accepts every proposal built from a small fixed corpus.
+func TestPrepareProposalConsistencyCorpus(t *testing.T) {
+	accounts := []string{"a0", "a1", "a2", "a3"}
+	blockTime := testutil.GenesisTime.Add(time.Minute)
+
+	type testCase struct {
+		name       string
+		txs        [][]byte
+		maxTxBytes int64
+		want       [][]byte
+	}
+	run := func(t *testing.T, proposer, validator *app.App, tc testCase) {
+		height := proposer.LastBlockHeight() + 1
+		maxTxBytes := tc.maxTxBytes
+		if maxTxBytes == 0 {
+			maxTxBytes = appconsts.BlockMaxBytes
+		}
+		prepare, err := proposer.PrepareProposal(&abci.RequestPrepareProposal{
+			Txs:        tc.txs,
+			Height:     height,
+			Time:       blockTime,
+			MaxTxBytes: maxTxBytes,
+		})
+		require.NoError(t, err)
+		require.Equal(t, tc.want, prepare.Txs)
+
+		process, err := validator.ProcessProposal(&abci.RequestProcessProposal{
+			Height:       height,
+			Time:         blockTime,
+			Txs:          prepare.Txs,
+			SquareSize:   prepare.SquareSize,
+			DataRootHash: prepare.DataRootHash,
+		})
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process.Status)
+	}
+
+	t.Run("default square", func(t *testing.T) {
+		proposer, validator, txs := newProposalAppPair(t, appconsts.DefaultGovMaxSquareSize, accounts)
+
+		valid := [][]byte{txs.send("a0", 0), txs.send("a1", 0), txs.pfb("a2", 0, 100)}
+		framed := coretypes.ComputeProtoSizeForTxs(coretypes.ToTxs(valid))
+
+		badSignature := txs.send("a3", 0)
+		badSignature[len(badSignature)-1]++
+		malformed := [][]byte{
+			nil,
+			{},
+			[]byte("not a tx"),
+			valid[0][:len(valid[0])/2],
+			valid[2][:len(valid[2])/2],
+			badSignature,
+			appendUnknownProtoField(valid[2], 16),
+		}
+
+		maxSDKMsgs := make([]sdk.Msg, appconsts.MaxSDKMessages)
+		for i := range maxSDKMsgs {
+			maxSDKMsgs[i] = txs.sendMsg("a0")
+		}
+		maxSDKTx := txs.signed("a0", 0, maxSDKMsgs...)
+
+		pfbs := make([][]byte, appconsts.MaxPFBMessages+1)
+		for i := range pfbs {
+			pfbs[i] = txs.pfb("a0", uint64(i), 1)
+		}
+
+		for _, tc := range []testCase{
+			{name: "empty block", want: [][]byte{}},
+			{
+				name: "mixed sends and blob txs",
+				txs:  [][]byte{txs.pfb("a0", 0, 100), txs.send("a1", 0), txs.pfb("a2", 0, 1000, 5000), txs.send("a3", 0)},
+				want: [][]byte{txs.send("a1", 0), txs.send("a3", 0), txs.pfb("a0", 0, 100), txs.pfb("a2", 0, 1000, 5000)},
+			},
+			{
+				name: "sequences out of order",
+				txs:  [][]byte{txs.send("a0", 1), txs.send("a0", 0)},
+				want: [][]byte{txs.send("a0", 0)},
+			},
+			{
+				name: "send after blob tx from same signer",
+				txs:  [][]byte{txs.pfb("a0", 0, 100), txs.send("a0", 1)},
+				want: [][]byte{txs.pfb("a0", 0, 100)},
+			},
+			{
+				name: "blob tx after send from same signer",
+				txs:  [][]byte{txs.send("a0", 0), txs.pfb("a0", 1, 100)},
+				want: [][]byte{txs.send("a0", 0), txs.pfb("a0", 1, 100)},
+			},
+			{
+				name: "duplicate tx",
+				txs:  [][]byte{valid[0], valid[0]},
+				want: [][]byte{valid[0]},
+			},
+			{
+				name: "malformed candidates",
+				txs:  append(malformed, valid[0], valid[2]),
+				want: [][]byte{valid[0], valid[2]},
+			},
+			{name: "max tx bytes fits exactly", txs: valid, maxTxBytes: framed, want: valid},
+			{name: "max tx bytes one short", txs: valid, maxTxBytes: framed - 1, want: valid[:2]},
+			{
+				name: "tx above max tx size",
+				txs:  [][]byte{txs.send("a0", 0, user.SetMemo(strings.Repeat("a", appconsts.MaxTxSize))), valid[1]},
+				want: [][]byte{valid[1]},
+			},
+			{name: "max SDK messages", txs: [][]byte{maxSDKTx, valid[1]}, want: [][]byte{maxSDKTx}},
+			{name: "max PFB messages", txs: pfbs, want: pfbs[:appconsts.MaxPFBMessages]},
+		} {
+			t.Run(tc.name, func(t *testing.T) { run(t, proposer, validator, tc) })
+		}
+	})
+
+	t.Run("small square", func(t *testing.T) {
+		const squareSize = 16
+		proposer, validator, txs := newProposalAppPair(t, squareSize, accounts)
+		tooLarge := squareSize * squareSize * share.ContinuationSparseShareContentSize
+		hundredShares := 100 * share.ContinuationSparseShareContentSize
+
+		for _, tc := range []testCase{
+			{
+				name: "blob larger than square",
+				txs:  [][]byte{txs.pfb("a0", 0, tooLarge), txs.send("a1", 0)},
+				want: [][]byte{txs.send("a1", 0)},
+			},
+			{
+				name: "square fills up",
+				txs:  [][]byte{txs.pfb("a0", 0, hundredShares), txs.pfb("a1", 0, hundredShares), txs.pfb("a2", 0, hundredShares)},
+				want: [][]byte{txs.pfb("a0", 0, hundredShares), txs.pfb("a1", 0, hundredShares)},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) { run(t, proposer, validator, tc) })
+		}
+	})
+}
+
+// corpusTxs signs deterministic txs for the corpus accounts.
+type corpusTxs struct {
+	t      *testing.T
+	signer *user.Signer
+}
+
+func (c corpusTxs) sendMsg(from string) sdk.Msg {
+	addr := c.signer.Account(from).Address()
+	return banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+}
+
+func (c corpusTxs) blobs(sizes ...int) []*share.Blob {
+	blobs := make([]*share.Blob, len(sizes))
+	for i, size := range sizes {
+		namespace := share.MustNewV0Namespace(bytes.Repeat([]byte{byte(i + 1)}, share.NamespaceVersionZeroIDSize))
+		blob, err := share.NewBlob(namespace, bytes.Repeat([]byte{byte(i + 1)}, size), appconsts.DefaultShareVersion, nil)
+		require.NoError(c.t, err)
+		blobs[i] = blob
+	}
+	return blobs
+}
+
+func (c corpusTxs) signed(from string, seq uint64, msgs ...sdk.Msg) []byte {
+	require.NoError(c.t, c.signer.SetSequence(from, seq))
+	tx, _, err := c.signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(100_000_000, 0.1))
+	require.NoError(c.t, err)
+	return tx
+}
+
+func (c corpusTxs) send(from string, seq uint64, opts ...user.TxOption) []byte {
+	require.NoError(c.t, c.signer.SetSequence(from, seq))
+	opts = append([]user.TxOption{user.SetGasLimitAndGasPrice(1_000_000, 0.1)}, opts...)
+	tx, _, err := c.signer.CreateTx([]sdk.Msg{c.sendMsg(from)}, opts...)
+	require.NoError(c.t, err)
+	return tx
+}
+
+func (c corpusTxs) pfb(from string, seq uint64, sizes ...int) []byte {
+	require.NoError(c.t, c.signer.SetSequence(from, seq))
+	tx, _, err := c.signer.CreatePayForBlobs(from, c.blobs(sizes...), user.SetGasLimitAndGasPrice(10_000_000, 0.1))
+	require.NoError(c.t, err)
+	return tx
+}
+
+// newProposalAppPair returns a proposer and a validator app with identical
+// committed state, plus a tx builder for the funded accounts.
+func newProposalAppPair(t *testing.T, govMaxSquareSize uint64, accounts []string) (*app.App, *app.App, corpusTxs) {
+	proposer, validator := testutil.NewTestApp(), testutil.NewTestApp()
+	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(proposer, accounts...)
+	var blobGenesis blobtypes.GenesisState
+	proposer.AppCodec().MustUnmarshalJSON(genesis[blobtypes.ModuleName], &blobGenesis)
+	blobGenesis.Params.GovMaxSquareSize = govMaxSquareSize
+	genesis[blobtypes.ModuleName] = proposer.AppCodec().MustMarshalJSON(&blobGenesis)
+
+	for _, a := range []*app.App{proposer, validator} {
+		testutil.InitialiseTestAppWithGenesis(a, app.DefaultConsensusParams(), genesis)
+		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
+			Time:               testutil.GenesisTime,
+			Height:             a.LastBlockHeight() + 1,
+			Hash:               a.LastCommitID().Hash,
+			NextValidatorsHash: valSet.Hash(),
+		})
+		require.NoError(t, err)
+		_, err = a.Commit()
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, a.Close()) })
+	}
+	require.Equal(t, proposer.LastCommitID(), validator.LastCommitID())
+
+	signerAccounts := make([]*user.Account, len(accounts))
+	for i, info := range queryAccountInfo(proposer, accounts, kr) {
+		signerAccounts[i] = user.NewAccount(accounts[i], info.AccountNum, info.Sequence)
+	}
+	signer, err := user.NewSigner(kr, proposer.GetTxConfig(), testutil.ChainID, signerAccounts...)
+	require.NoError(t, err)
+	return proposer, validator, corpusTxs{t: t, signer: signer}
 }

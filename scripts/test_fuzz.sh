@@ -15,8 +15,14 @@ set -e
 # =============================================================================
 
 echo "Running fuzz tests..."
+go test -run='^$' -fuzz=FuzzCheckTxPrepareProposal -fuzztime 5m ./app/test
 go test -fuzz=FuzzPFBGasEstimation -fuzztime 5m ./x/blob/types
 go test -fuzz=FuzzCountICAPacketMsgs -fuzztime 5m ./app
 go test -fuzz=FuzzScatterMarshalParity -fuzztime 5m ./fibre/internal/grpc
 go test -fuzz=FuzzShardCodecRoundTrip -fuzztime 5m ./fibre
 go test -fuzz=FuzzShardCodecReadNoPanic -fuzztime 5m ./fibre
+go test -fuzz=FuzzShardReader -fuzztime 5m ./fibre
+go test -run='^$' -fuzz=FuzzProcessProposalMutatedTxs -fuzztime 5m ./app/test
+go test -run='^$' -fuzz=FuzzPFFDecodeCandidateParity -fuzztime 5m ./app
+go test -run='^$' -fuzz=FuzzValidateBlobTx -fuzztime 5m ./x/blob/types
+go test -run='^$' -fuzz=FuzzMsgPayForBlobsValidateBasic -fuzztime 2m ./x/blob/types

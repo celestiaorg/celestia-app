@@ -119,8 +119,6 @@ if [ -f $GENESIS_FILE ]; then
   if [ "$response" = "y" ]; then
     deleteCelestiaAppHome
     createGenesis
-  else
-    startCelestiaApp
   fi
 else
   createGenesis

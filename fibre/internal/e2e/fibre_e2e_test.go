@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -10,16 +11,16 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	grpcfibre "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	grpcfibre "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/privval"
 	core "github.com/cometbft/cometbft/types"
@@ -28,6 +29,9 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // noEscrowKeyName is a genesis-funded account that never deposits
@@ -73,11 +77,12 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	serverCfg := fibre.DefaultServerConfig()
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
+	serverCfg.Health.CheckInterval = "1s"
 	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
 		return filePV, nil
 	}
 
-	serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+	serverCfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
 	}
 	s.fibreServer, err = fibre.NewServer(serverCfg)
@@ -91,6 +96,8 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = grpcAddr
+	// The single validator receives every row, so 100 MiB shard uploads exceed the default under the race detector.
+	clientCfg.RPCTimeout = 2 * time.Minute
 	// connect all validators to the single fibre server address
 	fibreAddr := s.fibreServer.ListenAddress()
 	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
@@ -126,6 +133,7 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.Len(t, validatorsResp.Validators, 1)
 
 	valOperatorAddr := validatorsResp.Validators[0].OperatorAddress
+	require.False(t, s.ready(), "not ready before the provider host is registered")
 
 	// submit MsgSetFibreProviderInfo to register the fibre server's gRPC address.
 	txClient, err := testnode.NewTxClientFromContext(s.cctx)
@@ -165,6 +173,22 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	// refresh the host registry so the client can find the validator.
 	err = s.hostRegistry.Start(ctx)
 	require.NoError(t, err)
+
+	// the server becomes ready without a restart once the registration is on chain.
+	require.Eventually(t, s.ready, 30*time.Second, 500*time.Millisecond)
+}
+
+// ready asks the server's gRPC health service whether it is ready.
+func (s *FibreE2ETestSuite) ready() bool {
+	conn, err := grpc.NewClient(s.fibreServer.ListenAddress(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // self-signed identity cert, as grpc_health_probe -tls-no-verify
+		MinVersion:         tls.VersionTLS13,
+	})))
+	s.Require().NoError(err)
+	defer conn.Close()
+	resp, err := healthpb.NewHealthClient(conn).Check(context.Background(), &healthpb.HealthCheckRequest{})
+	s.Require().NoError(err)
+	return resp.GetStatus() == healthpb.HealthCheckResponse_SERVING
 }
 
 func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
@@ -284,6 +308,7 @@ func (s *FibreE2ETestSuite) Test04Download() {
 	}{
 		{"SmallBlob", share.MustNewV0Namespace([]byte{0xBE, 0xEF}), 4 * 1024},
 		{"LargeBlob", share.MustNewV0Namespace([]byte{0xCA, 0xFE}), 256 * 1024},
+		{"100MiB", share.MustNewV0Namespace([]byte{0xCA, 0xFF}), 100 << 20},
 	}
 
 	for _, tc := range cases {
@@ -307,6 +332,12 @@ func (s *FibreE2ETestSuite) Test04Download() {
 			defer downloaded.Free()
 			require.Equal(t, data, downloaded.Data(), "downloaded blob must byte-match the submitted data")
 
+			// ConfirmTx returns once CometBFT stores the tx, which can happen before
+			// the app commits the block, so wait for the app to commit the
+			// PayForFibre height before reading the debited balance.
+			_, err = s.cctx.WaitForHeight(int64(result.Height))
+			require.NoError(t, err)
+
 			// Charged on the padded upload size the promise commits to, not len(data).
 			uploadSize := uint32(fibre.DefaultBlobConfigV0().UploadSize(len(data)))
 			wantDebit := fibretypes.PaymentAmount(uploadSize)
@@ -315,6 +346,21 @@ func (s *FibreE2ETestSuite) Test04Download() {
 				"escrow Balance should drop by the payment amount")
 			require.Equal(t, wantDebit, before.AvailableBalance.Sub(after.AvailableBalance),
 				"escrow AvailableBalance should drop by the payment amount")
+			if tc.size == 100<<20 {
+				require.Equal(t, int64(74_780), wantDebit.Amount.Int64())
+				txResult, err := s.cctx.WaitForTx(result.TxHash, 5)
+				require.NoError(t, err)
+				ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				tx, err := ecfg.TxConfig.TxDecoder()(txResult.Tx)
+				require.NoError(t, err)
+				feeTx, ok := tx.(sdk.FeeTx)
+				require.True(t, ok)
+				// Include both funding transactions from Test02, at 5,000 utia each.
+				total := wantDebit.Amount.Add(feeTx.GetFee().AmountOf(appconsts.BondDenom)).AddRaw(10_000)
+				// 100 one-MiB vanilla transactions at the default gas price.
+				require.Less(t, total.Int64(), int64(3_595_500))
+				t.Logf("100 MiB: settlement=%s, PFF fee=%s, total with funding=%s utia", wantDebit, feeTx.GetFee(), total)
+			}
 		})
 	}
 }
@@ -387,6 +433,11 @@ func (s *FibreE2ETestSuite) Test07DuplicatePayment() {
 		PaymentPromise:      *promiseProto,
 		ValidatorSignatures: signed.ValidatorSignatures,
 	}
+
+	// The promise height comes from CometBFT, which can lead app state. Wait
+	// for the next block so the app has committed the promise height.
+	_, err = s.cctx.WaitForHeight(int64(signed.Height) + 1)
+	require.NoError(t, err)
 
 	resp, err := s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	require.NoError(t, err)

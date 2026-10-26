@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -32,7 +33,7 @@ func startTxsimCmd() *cobra.Command {
 		Short: "Starts the txsim command on remote validators",
 		Long:  "Connects to remote validators and starts the txsim command in a detached tmux session.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
@@ -72,7 +73,7 @@ func startTxsimCmd() *cobra.Command {
 
 	// Define flags for the command
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config") // Keep cfgPath flag for consistency with other commands, although not strictly used after LoadConfig.
+	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to the user's SSH key (overrides environment variable and default)")
 	cmd.Flags().IntVarP(&seqCount, "sequences", "s", 1, "the number of sequences (concurrent PFB streams) ran by each txsim instance")
 	cmd.Flags().IntVarP(&instances, "instances", "i", 1, "the number of instances of txsim, each ran on its own validator")
@@ -103,7 +104,7 @@ func killTmuxSessionCmd() *cobra.Command {
 		Aliases: []string{"k"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load config
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}

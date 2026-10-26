@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 )
 
 // initServerConfig creates the home directory and writes a default config file
@@ -56,16 +56,21 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		"store", cfg.Path,
 	)
 
-	<-startCtx.Done()
+	select {
+	case <-startCtx.Done():
+	case <-server.Done(): // the gRPC server exited on its own: shut down and exit non-zero
+		err = fmt.Errorf("server exited unexpectedly: %w", server.Err())
+	}
 	startCancel()
 
 	stopCtx, stopCancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stopCancel()
 
-	if err := server.Stop(stopCtx); err != nil {
-		return fmt.Errorf("stopping server: %w", err)
+	if stopErr := server.Stop(stopCtx); stopErr != nil {
+		err = errors.Join(err, fmt.Errorf("stopping server: %w", stopErr))
 	}
-
-	server.Config.Log.Info("server stopped")
-	return nil
+	if err == nil {
+		server.Config.Log.Info("server stopped")
+	}
+	return err
 }

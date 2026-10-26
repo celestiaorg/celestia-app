@@ -7,17 +7,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -386,29 +388,32 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	// A single signer holds every account. Creating one signer per account
+	// lists the whole keyring each time, which is quadratic in the number of
+	// accounts and needs over 11 GiB for 8000 accounts.
 	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
 	accs := make([]sdk.AccountI, 0, numberOfAccounts)
-	signers := make([]*user.Signer, 0, numberOfAccounts)
+	signerAccounts := make([]*user.Account, 0, numberOfAccounts)
 	for index, account := range accounts {
 		addr := testfactory.GetAddress(kr, account)
 		addrs = append(addrs, addr)
 		acc := testutil.DirectQueryAccount(testApp, addrs[index])
 		accs = append(accs, acc)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-		require.NoError(t, err)
-		signers = append(signers, signer)
+		signerAccounts = append(signerAccounts, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	}
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, signerAccounts...)
+	require.NoError(t, err)
 
 	numberOfPFBs := appconsts.MaxPFBMessages + 500
 	pfbTxs := make([][]byte, 0, numberOfPFBs)
 	randomBytes := make([]byte, 2000)
-	_, err := rand.Read(randomBytes)
+	_, err = rand.Read(randomBytes)
 	require.NoError(t, err)
 	accountIndex := 0
 	for range numberOfPFBs {
 		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 		require.NoError(t, err)
-		tx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		tx, _, err := signer.CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		pfbTxs = append(pfbTxs, tx)
 		accountIndex++
@@ -427,7 +432,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)
 		}
-		txBytes, _, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		txBytes, _, err := signer.CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 		require.NoError(t, err)
@@ -443,9 +448,23 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
+		accountIndex++
+	}
+
+	numberOfZKProofs := appconsts.MaxZKProofMessages + 1
+	zkProofTxs := make([][]byte, 0, numberOfZKProofs)
+	for i := range numberOfZKProofs {
+		msg := &zkismtypes.MsgUpdateInterchainSecurityModule{
+			Id:     util.CreateMockHexAddress("ism", int64(i+1)),
+			Proof:  make([]byte, zkismtypes.ProofBytesLen),
+			Signer: addrs[accountIndex].String(),
+		}
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10000))
+		require.NoError(t, err)
+		zkProofTxs = append(zkProofTxs, rawTx)
 		accountIndex++
 	}
 
@@ -460,14 +479,20 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			expectedTransactions: pfbTxs[:appconsts.MaxPFBMessages],
 		},
 		{
-			name:                 "capping only PFB transactions with multiple messages",
+			// A blob tx must contain exactly one PFB, so these are all dropped.
+			name:                 "drops blob transactions with multiple PFB messages",
 			inputTransactions:    multiPFBsPerTxs[:appconsts.MaxPFBMessages],
-			expectedTransactions: multiPFBsPerTxs[:appconsts.MaxPFBMessages/numberOfMsgsPerTx],
+			expectedTransactions: [][]byte{},
 		},
 		{
 			name:                 "capping only msg send transactions",
 			inputTransactions:    msgSendTxs[:appconsts.MaxSDKMessages+50],
 			expectedTransactions: msgSendTxs[:appconsts.MaxSDKMessages],
+		},
+		{
+			name:                 "capping ZK proof transactions",
+			inputTransactions:    zkProofTxs,
+			expectedTransactions: zkProofTxs[:appconsts.MaxZKProofMessages],
 		},
 		{
 			name: "capping msg send after pfb transactions",
@@ -665,4 +690,102 @@ func TestPrepareProposalPayForFibreDoubleSpend(t *testing.T) {
 			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status, "prepared block must pass process")
 		})
 	}
+}
+
+// TestPrepareProposalDropsTxsProcessProposalRejects checks that PrepareProposal
+// drops a non-blob tx with a PFB and a blob tx whose blobs don't match its PFB.
+func TestPrepareProposalDropsTxsProcessProposalRejects(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	ns := share.RandomBlobNamespace()
+
+	// A normal (non-BlobTx) signed tx containing a MsgPayForBlobs.
+	pfbSigner := newSigner(0)
+	pfb, _ := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(pfbSigner.Accounts()[0].Address().String(), ns, 100)
+	pfbNormalTx, _, err := pfbSigner.CreateTx([]sdk.Msg{pfb}, blobfactory.DefaultTxOpts()...)
+	require.NoError(t, err)
+
+	// A blob tx whose PFB declares a 100 byte blob but wraps a 101 byte blob.
+	validBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(1), []share.Namespace{ns}, []int{100})[0]
+	btx, _, err := blobtx.UnmarshalBlobTx(validBlobTx)
+	require.NoError(t, err)
+	wrongBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{1}, 101), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	mismatchedBlobTx, err := blobtx.MarshalBlobTx(btx.Tx, wrongBlob)
+	require.NoError(t, err)
+
+	keptBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(2), []share.Namespace{ns}, []int{100})[0]
+
+	height := testApp.LastBlockHeight() + 1
+	now := time.Now()
+	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{pfbNormalTx, mismatchedBlobTx, keptBlobTx},
+		Height: height,
+		Time:   now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, [][]byte{keptBlobTx}, prepareResp.Txs)
+
+	processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         now,
+		Txs:          prepareResp.Txs,
+		DataRootHash: prepareResp.DataRootHash,
+		SquareSize:   prepareResp.SquareSize,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status)
+}
+
+// TestProcessProposalReusesOwnProposal runs ProcessProposal on the block this node
+// just prepared and checks the reuse changes neither the verdict nor the root check.
+func TestProcessProposalReusesOwnProposal(t *testing.T) {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+	height := testApp.LastBlockHeight() + 1
+	txs := createBlobTxs(t, testApp, encConf, kr, accounts)
+
+	prepare := func() *abci.ResponsePrepareProposal {
+		resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{Txs: txs, Height: height, Time: time.Now()})
+		require.NoError(t, err)
+		return resp
+	}
+	process := func(prepared *abci.ResponsePrepareProposal, dataRoot []byte) abci.ResponseProcessProposal_ProposalStatus {
+		resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Header: &cmtproto.Header{
+				Version:  version.Consensus{Block: 1, App: 3},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: dataRoot,
+			},
+			Height:       height,
+			Txs:          prepared.Txs,
+			SquareSize:   prepared.SquareSize,
+			DataRootHash: dataRoot,
+		})
+		require.NoError(t, err)
+		return resp.Status
+	}
+
+	// First ProcessProposal after PrepareProposal reuses the artifacts; the
+	// second recomputes them (the entry is taken once). Both accept.
+	prepared := prepare()
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+
+	// A wrong data root is rejected on the reuse path too.
+	prepared = prepare()
+	wrongRoot := bytes.Clone(prepared.DataRootHash)
+	wrongRoot[0] ^= 0xff
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, wrongRoot))
+
+	// A changed tx list misses the entry and is validated from scratch.
+	prepared = prepare()
+	prepared.Txs = prepared.Txs[:len(prepared.Txs)-1]
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, prepared.DataRootHash))
 }

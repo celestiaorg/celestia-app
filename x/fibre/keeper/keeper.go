@@ -1,17 +1,19 @@
 package keeper
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 // Keeper handles all the state changes for the fibre module.
@@ -28,6 +30,17 @@ type Keeper struct {
 	// double-spend window. It is nil in consensus-only setups and unit tests and
 	// is never consulted from the ABCI path. See local_promise_cache.go.
 	promiseCache *LocalPromiseCache
+	// sigCache memoizes promise signature verification. A nil cache disables
+	// memoization; the verification itself is unchanged either way.
+	sigCache SigCache
+	// valSetCache memoizes the validator set conversion per height.
+	valSetCache *lru.Cache[int64, *convertedValidatorSet]
+}
+
+// SigCache remembers signatures that already verified successfully.
+type SigCache interface {
+	Has(key sigcache.Key) bool
+	Add(key sigcache.Key)
 }
 
 // NewKeeper creates a new fibre Keeper instance. When enableCache is true the
@@ -36,13 +49,15 @@ type Keeper struct {
 // keeps the double-spend protection from silently depending on call order. The
 // cache is a non-consensus, query-path-only dependency and is never consulted from
 // the ABCI path.
-func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool) *Keeper {
+func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool, sigCache SigCache) *Keeper {
 	k := &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
 		bankKeeper:    bankKeeper,
 		stakingKeeper: stakingKeeper,
 		authority:     authority,
+		sigCache:      sigCache,
+		valSetCache:   newValidatorSetCache(),
 	}
 	if enableCache {
 		k.promiseCache = NewLocalPromiseCache(k)
@@ -101,6 +116,22 @@ func (k Keeper) GetPromiseFreshnessFloor(ctx sdk.Context) (time.Time, error) {
 func (k Keeper) SetPromiseFreshnessFloor(ctx sdk.Context, floor time.Time) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.PromiseFreshnessFloorKey, sdk.FormatTimeBytes(floor))
+}
+
+// getGenesisHeight returns the height of the first block, or 0 if InitGenesis predates
+// recording it. The read is not charged so every verification path costs the same gas.
+func (k Keeper) getGenesisHeight(ctx sdk.Context) int64 {
+	store := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()).KVStore(k.storeKey)
+	bz := store.Get(types.GenesisHeightKey)
+	if len(bz) != 8 {
+		return 0
+	}
+	return int64(binary.BigEndian.Uint64(bz))
+}
+
+// setGenesisHeight records the height of the first block.
+func (k Keeper) setGenesisHeight(ctx sdk.Context, height int64) {
+	ctx.KVStore(k.storeKey).Set(types.GenesisHeightKey, binary.BigEndian.AppendUint64(nil, uint64(height)))
 }
 
 // GetEscrowAccount retrieves an escrow account by signer address.
@@ -327,7 +358,53 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 		return fmt.Errorf("invalid payment promise format: %v", err)
 	}
 
+	return k.ValidatePromiseStateless(&pp)
+}
+
+// ValidatePromiseStateless runs pp.Validate, skipping it when an identical
+// promise was already recorded. Validate is a pure function of the promise, so
+// a hit can only skip a check that would have succeeded.
+//
+// A pass is not recorded here. The promise signature is the submitter's own,
+// so it verifies by construction; what makes an entry legitimate is the
+// message around it passing every check it still faces. Callers record with
+// recordVerifiedPromise once that is settled, so a rejected message buys no
+// entry and cannot evict the entries of accepted ones.
+func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
+	if key, keyed := promiseSigCacheKey(pp); keyed && k.sigCache != nil && k.sigCache.Has(key) {
+		return nil
+	}
 	return pp.Validate()
+}
+
+// recordVerifiedPromise records pp as verified. Call it only after pp passed
+// ValidatePromiseStateless and the message carrying it passed every other
+// check, so that nothing a node will reject can take up cache space.
+func (k Keeper) recordVerifiedPromise(pp *fibre.PaymentPromise) {
+	if k.sigCache == nil {
+		return
+	}
+	if key, keyed := promiseSigCacheKey(pp); keyed {
+		k.sigCache.Add(key)
+	}
+}
+
+// promiseSigCacheKey covers every input to pp.Validate: the signer key, the sign
+// bytes (which encode all the validated fields) and the signature. It reports
+// false when the promise is too malformed to key, leaving Validate to report it.
+func promiseSigCacheKey(pp *fibre.PaymentPromise) (sigcache.Key, bool) {
+	if pp.SignerKey == nil {
+		return sigcache.Key{}, false
+	}
+	signBytes, err := pp.SignBytes()
+	if err != nil {
+		return sigcache.Key{}, false
+	}
+	return promiseSigCacheKeyFromSignBytes(pp, signBytes), true
+}
+
+func promiseSigCacheKeyFromSignBytes(pp *fibre.PaymentPromise, signBytes []byte) sigcache.Key {
+	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
 }
 
 // GetProcessedPaymentsByTimeIterator returns an iterator for all processed payments up to the given time
@@ -443,10 +520,7 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	}
 
 	// Check sufficient balance (includes funds locked in pending withdrawals)
-	// TODO: This assumes 1 gas = 1 utia but the minimum gas price could be
-	// different.
-	gas := EstimateGasForPayForFibre(promise.BlobSize)
-	requiredAmount := sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(gas))
+	requiredAmount := types.PaymentAmount(promise.BlobSize)
 
 	hasSufficientBalance := escrowAccount.Balance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {

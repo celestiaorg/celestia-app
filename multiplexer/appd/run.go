@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -22,7 +23,10 @@ type Appd struct {
 	// version is the version of the celestia-appd binary.
 	// Example: "v9.0.4"
 	version string
-	// path is the path to the celestia-appd binary.
+	// compressedBinary is the gzipped tarball containing the binary.
+	compressedBinary []byte
+	// path is the path to the celestia-appd binary. It is set once the binary
+	// is extracted.
 	path   string
 	stdin  io.Reader
 	stderr io.Writer
@@ -40,6 +44,8 @@ type Appd struct {
 	// exited delivers the result of cmd.Wait() (nil on a clean exit) once the
 	// process exits, and is then closed. See Exited.
 	exited chan error
+	// extractMu guards path during lazy extraction.
+	extractMu sync.Mutex
 }
 
 // New returns a new Appd instance.
@@ -48,23 +54,38 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
 
-	if err := ensureBinaryDecompressed(version, compressedBinary); err != nil {
-		return nil, fmt.Errorf("failed to decompress binary: %w", err)
-	}
-
-	pathToBinary, err := getPathToBinary(version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path to binary: %w", err)
-	}
-
 	appd := &Appd{
-		version: version,
-		path:    pathToBinary,
-		stdin:   os.Stdin,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		version:          version,
+		compressedBinary: compressedBinary,
+		stdin:            os.Stdin,
+		stdout:           os.Stdout,
+		stderr:           os.Stderr,
 	}
 	return appd, nil
+}
+
+// Version returns the version of the celestia-appd binary.
+func (a *Appd) Version() string {
+	return a.version
+}
+
+// ensureExtracted extracts the binary on first use and sets its path.
+func (a *Appd) ensureExtracted() error {
+	a.extractMu.Lock()
+	defer a.extractMu.Unlock()
+	if a.path != "" {
+		return nil
+	}
+	dir := getDirectoryForVersion(a.version)
+	if err := ensureBinaryDecompressed(a.version, a.compressedBinary); err != nil {
+		return fmt.Errorf("failed to decompress binary to %s: %w", dir, err)
+	}
+	pathToBinary, err := getPathToBinary(a.version)
+	if err != nil {
+		return fmt.Errorf("failed to get path to binary in %s: %w", dir, err)
+	}
+	a.path = pathToBinary
+	return nil
 }
 
 // telemetryDisableEnv returns environment variables that disable the
@@ -89,6 +110,9 @@ func (a *Appd) getEnv() []string {
 
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
+	if err := a.ensureExtracted(); err != nil {
+		return err
+	}
 	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
 	cmd.Env = a.getEnv()
 
@@ -210,12 +234,15 @@ func (a *Appd) Stop() error {
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
-func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
+func (a *Appd) CreateExecCommand(args ...string) (*exec.Cmd, error) {
+	if err := a.ensureExtracted(); err != nil {
+		return nil, err
+	}
 	cmd := exec.Command(a.path, args...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
-	return cmd
+	return cmd, nil
 }
 
 // getPathToBinary returns the path to the celestia-appd binary for the given version.
@@ -259,9 +286,19 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 	defer gzipReader.Close()
 
 	targetDirectory := getDirectoryForVersion(version)
-	if err := os.MkdirAll(targetDirectory, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetDirectory), 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
+
+	// Extract into a staging directory and only publish it once every file has
+	// been written and closed. Otherwise a failed extraction would leave the
+	// version directory in place and isBinaryDecompressed would report the
+	// unusable output as a completed extraction on the next start.
+	stagingDirectory, err := os.MkdirTemp(filepath.Dir(targetDirectory), "."+filepath.Base(targetDirectory)+".tmp-")
+	if err != nil {
+		return fmt.Errorf("failed to create staging directory: %w", err)
+	}
+	defer os.RemoveAll(stagingDirectory)
 
 	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
@@ -276,7 +313,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath, err := sanitizeTarPath(targetDirectory, header.Name)
+			dirPath, err := sanitizeTarPath(stagingDirectory, header.Name)
 			if err != nil {
 				return fmt.Errorf("path traversal in tar entry: %w", err)
 			}
@@ -287,7 +324,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath, err := sanitizeTarPath(targetDirectory, header.Name)
+		filePath, err := sanitizeTarPath(stagingDirectory, header.Name)
 		if err != nil {
 			return fmt.Errorf("path traversal in tar entry: %w", err)
 		}
@@ -303,11 +340,27 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			return fmt.Errorf("failed to create file %s: %w", filePath, err)
 		}
 
-		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		_, copyErr := io.Copy(f, tarReader)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("failed to copy file contents to %s: %w", filePath, copyErr)
 		}
-		f.Close()
+		closeErr := f.Close()
+		if closeErr != nil {
+			closeErr = fmt.Errorf("failed to close file %s: %w", filePath, closeErr)
+		}
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return err
+		}
+	}
+
+	if err := os.Rename(stagingDirectory, targetDirectory); err != nil {
+		// Another instance sharing this node home may have published the same
+		// version first. Its directory is a complete extraction, so accept it
+		// rather than failing the caller.
+		if isBinaryDecompressed(version) {
+			return nil
+		}
+		return fmt.Errorf("failed to publish extracted binary for %s: %w", version, err)
 	}
 
 	return nil

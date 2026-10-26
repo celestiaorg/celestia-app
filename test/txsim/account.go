@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"cosmossdk.io/x/feegrant"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	txclientv2 "github.com/celestiaorg/celestia-app/v10/pkg/user/v2"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	txclientv2 "github.com/celestiaorg/celestia-app/v11/pkg/user/v2"
 	"github.com/celestiaorg/go-square/v4/share"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -245,7 +245,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	opts := make([]user.TxOption, 0)
-	var gasLimit, fee uint64
+	var gasLimit uint64
 	var gasPrice float64
 
 	// Step 1: Determine gas limit
@@ -280,10 +280,8 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	// Step 3: Calculate fee
-	if fee == 0 {
-		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
-		opts = append(opts, user.SetFee(fee))
-	}
+	fee := uint64(math.Ceil(float64(gasLimit) * gasPrice))
+	opts = append(opts, user.SetFee(fee))
 
 	if am.useFeegrant {
 		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))

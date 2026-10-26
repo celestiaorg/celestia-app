@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -193,10 +193,10 @@ const (
 
 	// maxChainIDSize is the maximum allowed chain ID length.
 	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
-	maxChainIDSize = 20
+	maxChainIDSize = types.MaxChainIDSize
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)
-	signatureSize = 64
+	signatureSize = types.PromiseSignatureSize
 )
 
 // strippedSignBytes returns the payload-only bytes for this [PaymentPromise],

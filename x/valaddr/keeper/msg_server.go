@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -31,6 +31,9 @@ func (ms msgServer) SetFibreProviderInfo(goCtx context.Context, msg *types.MsgSe
 	validator, err := ms.stakingKeeper.GetValidator(ctx, valAddr)
 	if err != nil {
 		return nil, errors.Wrapf(types.ErrInvalidValidator, "validator not found: %v", err)
+	}
+	if !validator.IsBonded() {
+		return nil, errors.Wrap(types.ErrInvalidValidator, "validator must be bonded")
 	}
 
 	consPubKey, err := validator.ConsPubKey()
