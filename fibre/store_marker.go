@@ -3,13 +3,31 @@ package fibre
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
+
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 )
 
 const (
 	shardMarkerVersion = 1
 	shardMarkerSize    = 10
 )
+
+// maxPlausibleShardSize is the serialized size of the largest shard a
+// validator can accept under [DefaultProtocolParams].
+var maxPlausibleShardSize = maxShardBinarySize(DefaultProtocolParams)
+
+// maxShardBinarySize returns the largest [shardBinarySize] of a shard that
+// passes upload verification under p: one RLC per original row, and at most
+// [ProtocolParams.MaxRowsPerValidator] rows of [ProtocolParams.MaxRowSize]
+// bytes, each with a [ProtocolParams.MerkleProofDepth]-segment proof.
+func maxShardBinarySize(p ProtocolParams) int64 {
+	// version + rlcs-len prefix + rlcs + rows-count prefix
+	size := int64(4 + 4 + p.Rows*field.GF128Size + 4)
+	// index + data-len prefix + data + proof-count prefix + (seg-len prefix + seg) per segment
+	rowSize := int64(4 + 4 + p.MaxRowSize(0) + 4 + p.MerkleProofDepth()*(4+merkle.NodeSize))
+	return size + int64(p.MaxRowsPerValidator())*rowSize
+}
 
 type shardBackendTag byte
 
@@ -47,7 +65,7 @@ func decodeShardMarkerBackend(data []byte) (shardBackendTag, int64, error) {
 		return 0, 0, fmt.Errorf("%w: unsupported shard backend tag 0x%02x", ErrStoreIntegrity, data[1])
 	}
 	size := binary.BigEndian.Uint64(data[2:])
-	if size == 0 || size > math.MaxInt64 {
+	if size == 0 || size > uint64(maxPlausibleShardSize) {
 		return 0, 0, fmt.Errorf("%w: invalid shard size %d", ErrStoreIntegrity, size)
 	}
 	return backend, int64(size), nil

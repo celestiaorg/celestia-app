@@ -4,9 +4,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +41,10 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.Code)
+		// TxStatus reports a tx as committed before the app commits its block,
+		// so wait for the app to commit that height before querying state.
+		_, err = s.cctx.WaitForHeight(res.Height)
+		require.NoError(err)
 
 		queryClient := valaddrtypes.NewQueryClient(s.cctx.GRPCClient)
 		allProvidersResp, err := queryClient.AllBondedFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllBondedFibreProvidersRequest{})

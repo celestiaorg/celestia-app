@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/x/zkism/internal/groth16"
+	"github.com/celestiaorg/celestia-app/v11/x/zkism/internal/groth16"
 	curve "github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/stretchr/testify/require"

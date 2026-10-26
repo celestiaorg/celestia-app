@@ -7,17 +7,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
-	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -452,6 +454,20 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
+	numberOfZKProofs := appconsts.MaxZKProofMessages + 1
+	zkProofTxs := make([][]byte, 0, numberOfZKProofs)
+	for i := range numberOfZKProofs {
+		msg := &zkismtypes.MsgUpdateInterchainSecurityModule{
+			Id:     util.CreateMockHexAddress("ism", int64(i+1)),
+			Proof:  make([]byte, zkismtypes.ProofBytesLen),
+			Signer: addrs[accountIndex].String(),
+		}
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10000))
+		require.NoError(t, err)
+		zkProofTxs = append(zkProofTxs, rawTx)
+		accountIndex++
+	}
+
 	testCases := []struct {
 		name                 string
 		inputTransactions    [][]byte
@@ -472,6 +488,11 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			name:                 "capping only msg send transactions",
 			inputTransactions:    msgSendTxs[:appconsts.MaxSDKMessages+50],
 			expectedTransactions: msgSendTxs[:appconsts.MaxSDKMessages],
+		},
+		{
+			name:                 "capping ZK proof transactions",
+			inputTransactions:    zkProofTxs,
+			expectedTransactions: zkProofTxs[:appconsts.MaxZKProofMessages],
 		},
 		{
 			name: "capping msg send after pfb transactions",

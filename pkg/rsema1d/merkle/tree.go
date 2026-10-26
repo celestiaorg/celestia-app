@@ -20,20 +20,20 @@ type Tree struct {
 	nodes []byte
 }
 
-// NewTree builds a tree from materialized leaves, allocating node storage.
-// len(leaves) must be a positive power of 2.
-func NewTree(leaves [][]byte, workerCount int) *Tree {
-	return NewTreeInto(make([]byte, TreeBufferSize(len(leaves))), leaves, workerCount)
-}
-
-// NewTreeInto builds a tree from materialized leaves into caller-provided storage
-// instead of allocating. buf is the flat node buffer; its length must be exactly
-// [TreeBufferSize](n) bytes for a power-of-2 leaf count n, which the length encodes
-// and len(leaves) must match. The returned Tree aliases buf, which must outlive it.
-func NewTreeInto(buf []byte, leaves [][]byte, workerCount int) *Tree {
-	n := leavesFromBuf(buf)
-	if n != len(leaves) {
-		panic(fmt.Sprintf("Merkle node buffer sized for %d leaves, got %d", n, len(leaves)))
+// NewTree builds a tree over leaves, fanning out across up to workerCount
+// goroutines. len(leaves) must be a positive power of 2.
+//
+// buf is the tree's flat node storage: exactly [TreeBufferSize](len(leaves))
+// bytes, or nil to allocate it. The returned Tree aliases buf, which must
+// outlive it and the proofs it hands out.
+func NewTree(buf []byte, leaves [][]byte, workerCount int) *Tree {
+	n := len(leaves)
+	requirePow2(n)
+	if buf == nil {
+		buf = make([]byte, TreeBufferSize(n))
+	}
+	if len(buf) != TreeBufferSize(n) {
+		panic(fmt.Sprintf("Merkle node buffer for %d leaves must be %d bytes, got %d", n, TreeBufferSize(n), len(buf)))
 	}
 	t := &Tree{nodes: buf}
 
@@ -44,26 +44,8 @@ func NewTreeInto(buf []byte, leaves [][]byte, workerCount int) *Tree {
 	return t
 }
 
-// NewTreeFuncInto is [NewTreeInto] for leaves produced on demand: it takes a
-// callback instead of a materialized slice, so buf alone determines the leaf count.
-//
-// leaf(i, dst) returns leaf i's bytes. dst is the slice leaf last returned — nil on
-// the first call, and per worker in parallel builds — offered for reuse: a leaf
-// that serializes into scratch grows dst when cap is too small and returns it; one
-// that already holds its bytes ignores dst and returns them directly.
-func NewTreeFuncInto(buf []byte, workerCount int, leaf func(i int, dst []byte) []byte) *Tree {
-	n := leavesFromBuf(buf)
-	t := &Tree{nodes: buf}
-
-	hashLeaves(n, workerCount, leaf, func(i int, b []byte) {
-		hashLeaf(b, t.node(n-1+i))
-	})
-	t.hashNodes(n, workerCount)
-	return t
-}
-
 // TreeBufferSize returns the byte length of the node buffer a tree of the given
-// leaf count needs, as accepted by [NewTreeInto] and [NewTreeFuncInto].
+// leaf count needs, as accepted by [NewTree].
 func TreeBufferSize(leaves int) int {
 	return treeNodeCount(leaves) * NodeSize
 }
@@ -110,55 +92,6 @@ func (t *Tree) hashNodes(n, workerCount int) {
 		levelStart = levelSize - 1
 		parallelize(levelSize, workerCount, hashLevel)
 	}
-}
-
-// RootFromFunc computes a Merkle root without retaining proof nodes. buf is
-// the flat working level of one node per leaf: len(buf)/[NodeSize] is the leaf
-// count and must be a power of 2. leaf(i, dst) returns the bytes for leaf i,
-// recycling dst as in [NewTreeFuncInto]; this is always sequential, so one dst
-// threads through every leaf.
-func RootFromFunc(buf []byte, leaf func(i int, dst []byte) []byte) Root {
-	leaves := nodeCount(buf)
-	requirePow2(leaves)
-
-	node := func(i int) []byte { return buf[i*NodeSize : (i+1)*NodeSize] }
-	var dst []byte
-	for i := range leaves {
-		s := leaf(i, dst)
-		hashLeaf(s, node(i))
-		dst = s
-	}
-	for levelSize := leaves; levelSize > 1; levelSize /= 2 {
-		for i := range levelSize / 2 {
-			hashPair(node(2*i), node(2*i+1), node(i))
-		}
-	}
-
-	var r Root
-	copy(r[:], node(0))
-	return r
-}
-
-// leavesFromBuf derives and validates the leaf count of a full tree from its
-// flat node buffer: len(buf) must be exactly [TreeBufferSize](leaves) —
-// NodeSize*(2*leaves-1) bytes — for a power-of-2 leaf count.
-func leavesFromBuf(buf []byte) int {
-	nodes := nodeCount(buf)
-	leaves := (nodes + 1) / 2
-	if treeNodeCount(leaves) != nodes {
-		panic(fmt.Sprintf("Merkle node buffer holds %d nodes, not a full binary tree", nodes))
-	}
-	requirePow2(leaves)
-	return leaves
-}
-
-// nodeCount returns the number of [NodeSize]-byte nodes in buf, validating
-// that its length is a non-zero multiple of NodeSize.
-func nodeCount(buf []byte) int {
-	if len(buf) == 0 || len(buf)%NodeSize != 0 {
-		panic(fmt.Sprintf("Merkle node buffer must be a non-zero multiple of %d bytes, got %d", NodeSize, len(buf)))
-	}
-	return len(buf) / NodeSize
 }
 
 func requirePow2(leaves int) {

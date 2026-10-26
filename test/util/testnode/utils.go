@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/test/util/random"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -38,8 +38,12 @@ var portWrapOffset atomic.Int64
 // Mimic cicaidas by using a prime number to avoid patterns and conflicts with other allocation schemes
 const portIncrement = 11
 
+// portBase offsets each process's port range by PID so test binaries running
+// in parallel (go test runs several packages at once) don't hand out the same ports.
+var portBase = 20000 + int64(os.Getpid()%40)*1000
+
 func init() {
-	portCounter.Store(20000)
+	portCounter.Store(portBase)
 }
 
 func TestAddress() sdk.AccAddress {

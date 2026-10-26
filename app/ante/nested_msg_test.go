@@ -3,11 +3,12 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/ante"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -31,6 +32,9 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithNestedProposal := newMsgSubmitProposal(t, newMsgSubmitProposal(t, &banktypes.MsgSend{}))
 	proposalWithPayForBlobs := newMsgSubmitProposal(t, &blobtypes.MsgPayForBlobs{})
 	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
+	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
+	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
+	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -97,6 +101,20 @@ func TestNestedMsgDecorator(t *testing.T) {
 			name:    "Reject proposal with MsgPayForFibre",
 			msg:     proposalWithPayForFibre,
 			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with ZK proof",
+			msg:     proposalWithZKProof,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with verifying-key pairing work",
+			msg:     proposalWithISMCreation,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted verifying-key pairing work",
+			msg:  &msgExecWithISMCreation,
 		},
 		{
 			name:    "Reject proposal with MsgExec",

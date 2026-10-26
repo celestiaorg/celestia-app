@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
@@ -60,12 +59,24 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithDockerClient(cfg.DockerClient).
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
-		WithAdditionalStartArgs("--force-no-bbr").
+		WithAdditionalStartArgs(startArgs(cfg)...).
 		WithEncodingConfig(&encodingConfig).
 		WithPostInit(getPostInitModifications("0.025utia")...).
 		WithFaucetWallet(faucetWallet).
 		WithNodes(vals...).
 		WithGenesis(genesisBz)
+}
+
+// startArgs returns the celestia-appd start flags for cfg.
+func startArgs(cfg *Config) []string {
+	if cfg.DefaultBlockTime {
+		return []string{"--force-no-bbr"}
+	}
+	return []string{
+		"--force-no-bbr",
+		"--timeout-commit=" + TimeoutCommit.String(),
+		"--delayed-precommit-timeout=" + DelayedPrecommitTimeout.String(),
+	}
 }
 
 // getPostInitModifications returns a slice of functions to modify configuration files of a ChainNode post-initialization.
@@ -79,8 +90,6 @@ func getPostInitModifications(gasPrices string) []func(context.Context, *tastora
 			cfg.P2P.AllowDuplicateIP = true
 			cfg.P2P.AddrBookStrict = false
 			cfg.Storage.DiscardABCIResponses = false
-			cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
-			cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 			cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 			cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9099"
 			cfg.RPC.CORSAllowedOrigins = []string{"*"}

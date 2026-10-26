@@ -1,8 +1,9 @@
 package ante
 
 import (
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -14,8 +15,11 @@ var _ sdk.AnteDecorator = NestedMsgDecorator{}
 // NestedMsgDecorator rejects messages wrapped in a MsgExec or MsgSubmitProposal
 // that must not skip the ante handler: MsgPayForBlobs, MsgPayForFibre, and the
 // fibre escrow messages (which would otherwise bypass PFF signature verification
-// or the proposal-time settlement replay). It also rejects a nested MsgExec or
-// MsgSubmitProposal so those can't be smuggled one level deeper.
+// or the proposal-time settlement replay). ZK proof messages are rejected in
+// governance proposals, including ISM creation's verifying-key pairing work,
+// because their deferred execution would bypass the per-block proof-work budget.
+// It also rejects a nested MsgExec or MsgSubmitProposal so
+// those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}
 
 func NewNestedMsgDecorator() *NestedMsgDecorator {
@@ -64,6 +68,10 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 			return sdkerrors.ErrNotSupported.Wrapf("MsgExec inside %s is not supported", container)
 		case *govv1.MsgSubmitProposal:
 			return sdkerrors.ErrNotSupported.Wrapf("MsgSubmitProposal inside %s is not supported", container)
+		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+			if container == "MsgSubmitProposal" {
+				return sdkerrors.ErrNotSupported.Wrapf("ZK proof verification inside %s is not supported", container)
+			}
 		}
 	}
 	return nil

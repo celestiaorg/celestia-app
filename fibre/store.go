@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs"
 	gogoproto "github.com/cosmos/gogoproto/proto"
@@ -122,7 +122,11 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
 
-	marker := s.shards.marker(shardBinarySize(shard))
+	size := shardBinarySize(shard)
+	if size > maxPlausibleShardSize {
+		return fmt.Errorf("shard size %d exceeds maximum %d", size, maxPlausibleShardSize)
+	}
+	marker := s.shards.marker(size)
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
 

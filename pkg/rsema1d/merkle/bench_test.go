@@ -2,14 +2,106 @@ package merkle_test
 
 import (
 	"bytes"
+	"fmt"
+	"math/bits"
 	"runtime"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 	cmtmerkle "github.com/cometbft/cometbft/crypto/merkle"
 )
 
-// benchCase is one (leaf count, leaf size) point on the comparison grid.
+func BenchmarkNewTree(b *testing.B) {
+	for _, size := range []int{64, 256, 1024, 4096} {
+		leaves := makeTestLeaves(size)
+		b.Run(fmt.Sprintf("leaves_%d/alloc", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_ = merkle.NewTree(nil, leaves, 1)
+			}
+		})
+		// the coder/verifier pattern: a reused node buffer
+		buf := make([]byte, merkle.TreeBufferSize(size))
+		b.Run(fmt.Sprintf("leaves_%d/reuse", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_ = merkle.NewTree(buf, leaves, 1)
+			}
+		})
+	}
+}
+
+// BenchmarkNewTreeProofs builds a tree into a reused buffer and generates every
+// proof, as the encoder does before uploading rows.
+func BenchmarkNewTreeProofs(b *testing.B) {
+	for _, numLeaves := range []int{64, 256, 1024, 4096} {
+		b.Run(fmt.Sprintf("leaves_%d", numLeaves), func(b *testing.B) {
+			leaves := makeTestLeaves(numLeaves)
+			buf := make([]byte, merkle.TreeBufferSize(numLeaves))
+			positions := make([]int, numLeaves)
+			for i := range positions {
+				positions[i] = i
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				tree := merkle.NewTree(buf, leaves, 1)
+				_ = tree.Proofs(positions, func(int, [][]byte) {})
+			}
+		})
+	}
+}
+
+func BenchmarkProof(b *testing.B) {
+	for _, numLeaves := range []int{16, 256, 4096} {
+		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
+			tree := merkle.NewTree(nil, makeTestLeaves(numLeaves), 1)
+			index := numLeaves / 2
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _ = tree.Proof(index)
+			}
+		})
+	}
+}
+
+func BenchmarkRootFromProof(b *testing.B) {
+	for _, numLeaves := range []int{16, 256, 4096} {
+		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
+			leaves := makeTestLeaves(numLeaves)
+			index := numLeaves / 2
+			proof, _ := merkle.NewTree(nil, leaves, 1).Proof(index)
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _ = merkle.RootFromProof(leaves[index], index, proof)
+			}
+		})
+	}
+}
+
+// BenchmarkRootFromProofs verifies a same-tree batch in parallel; scratch is one
+// root per worker chunk, not per input, so B/op stays flat with the batch size.
+func BenchmarkRootFromProofs(b *testing.B) {
+	for _, inputs := range []int{256, 1024, 4096} {
+		b.Run(fmt.Sprintf("inputs_%d", inputs), func(b *testing.B) {
+			leaves := makeTestLeaves(inputs)
+			tree := merkle.NewTree(nil, leaves, 1)
+			proofs := make([]merkle.ProofInput, inputs)
+			positions := make([]int, inputs)
+			for i := range positions {
+				positions[i] = i
+			}
+			_ = tree.Proofs(positions, func(i int, proof [][]byte) {
+				proofs[i] = merkle.ProofInput{Leaf: leaves[i], Index: i, Path: proof}
+			})
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _ = merkle.RootFromProofs(proofs, 8)
+			}
+		})
+	}
+}
+
+// benchCase is one (leaf count, leaf size) point on the CometBFT comparison grid.
 type benchCase struct {
 	name      string
 	numLeaves int
@@ -52,7 +144,7 @@ func makeLeaves(n, size int) [][]byte {
 // core-parallel agree, so every timed loop below is measuring equivalent work.
 func requireSameRoots(b *testing.B, leaves [][]byte) {
 	b.Helper()
-	fibre := merkle.NewTree(leaves, runtime.NumCPU()).Root()
+	fibre := merkle.NewTree(nil, leaves, runtime.NumCPU()).Root()
 	coreSeq := cmtmerkle.HashFromByteSlices(leaves)
 	corePar := cmtmerkle.ParallelHashFromByteSlices(leaves)
 	if !bytes.Equal(fibre[:], coreSeq) || !bytes.Equal(fibre[:], corePar) {
@@ -61,10 +153,10 @@ func requireSameRoots(b *testing.B, leaves [][]byte) {
 	}
 }
 
-// BenchmarkCompareRoot times root construction for both implementations across
-// the row-tree and RLC-tree workloads. Sub-benchmark names are
-// <workload>/<impl>, e.g. rows_4096x2KiB/fibre_par, so `benchstat` can line the
-// four implementations up per workload.
+// BenchmarkCompareRoot times root construction against CometBFT across the
+// row-tree and RLC-tree workloads. Sub-benchmark names are <workload>/<impl>,
+// e.g. rows_4096x2KiB/fibre_par, so `benchstat` can line the four
+// implementations up per workload.
 func BenchmarkCompareRoot(b *testing.B) {
 	workers := runtime.NumCPU()
 	for _, tc := range append(append([]benchCase{}, rowTreeCases...), rlcTreeCases...) {
@@ -74,13 +166,13 @@ func BenchmarkCompareRoot(b *testing.B) {
 		b.Run(tc.name+"/fibre_seq", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_ = merkle.NewTree(leaves, 1)
+				_ = merkle.NewTree(nil, leaves, 1)
 			}
 		})
 		b.Run(tc.name+"/fibre_par", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_ = merkle.NewTree(leaves, workers)
+				_ = merkle.NewTree(nil, leaves, workers)
 			}
 		})
 		b.Run(tc.name+"/core_seq", func(b *testing.B) {
@@ -122,14 +214,14 @@ func BenchmarkCompareProofs(b *testing.B) {
 		b.Run(tc.name+"/fibre_seq", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				tree := merkle.NewTree(leaves, 1)
+				tree := merkle.NewTree(nil, leaves, 1)
 				_ = tree.Proofs(positions, func(int, [][]byte) {})
 			}
 		})
 		b.Run(tc.name+"/fibre_par", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				tree := merkle.NewTree(leaves, workers)
+				tree := merkle.NewTree(nil, leaves, workers)
 				_ = tree.Proofs(positions, func(int, [][]byte) {})
 			}
 		})

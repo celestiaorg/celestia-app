@@ -4,13 +4,15 @@ import (
 	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // InitGenesis initializes the module's state from a provided genesis state.
 func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	k.SetParams(ctx, genesisState.Params)
+	// InitChain runs at height 0 for a chain starting at 1, and at InitialHeight otherwise.
+	k.setGenesisHeight(ctx, max(ctx.BlockHeight(), 1))
 
 	// InitChainer does not run ValidateGenesis, so check signers before writing them.
 	for _, escrowAccount := range genesisState.EscrowAccounts {

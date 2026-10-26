@@ -3,8 +3,8 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
