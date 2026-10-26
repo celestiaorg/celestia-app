@@ -19,6 +19,9 @@ import (
 // identitySpec is an enclave identity as JSON, every value hex.
 type identitySpec struct {
 	MrTd        string `json:"mr_td"`
+	Rtmr0       string `json:"rtmr0"`
+	Rtmr1       string `json:"rtmr1"`
+	Rtmr2       string `json:"rtmr2"`
 	OsImageHash string `json:"os_image_hash"`
 	ComposeHash string `json:"compose_hash"`
 	KeyProvider string `json:"key_provider"`
@@ -32,6 +35,9 @@ func (spec identitySpec) decode() (*types.EnclaveIdentity, error) {
 		dst  *[]byte
 	}{
 		{"mr_td", spec.MrTd, &identity.MrTd},
+		{"rtmr0", spec.Rtmr0, &identity.Rtmr0},
+		{"rtmr1", spec.Rtmr1, &identity.Rtmr1},
+		{"rtmr2", spec.Rtmr2, &identity.Rtmr2},
 		{"os_image_hash", spec.OsImageHash, &identity.OsImageHash},
 		{"compose_hash", spec.ComposeHash, &identity.ComposeHash},
 		{"key_provider", spec.KeyProvider, &identity.KeyProvider},
@@ -47,7 +53,7 @@ func (spec identitySpec) decode() (*types.EnclaveIdentity, error) {
 
 // ismSpec is the JSON an ISM is created from.
 //
-// A file rather than positional arguments: an enclave identity is five
+// A file rather than positional arguments: an enclave identity is seven
 // measurements, and the tooling that reads them off a running CVM can write this
 // file directly.
 type ismSpec struct {
@@ -89,6 +95,9 @@ Every value is hex, with or without a 0x prefix.
     "merkle_tree_address": "0x...",
     "identity": {
       "mr_td": "0x...",
+      "rtmr0": "0x...",
+      "rtmr1": "0x...",
+      "rtmr2": "0x...",
       "os_image_hash": "0x...",
       "compose_hash": "0x...",
       "key_provider": "0x..."
@@ -149,6 +158,9 @@ value hex, with or without a 0x prefix:
 
   {
     "mr_td": "0x...",
+    "rtmr0": "0x...",
+    "rtmr1": "0x...",
+    "rtmr2": "0x...",
     "os_image_hash": "0x...",
     "compose_hash": "0x...",
     "key_provider": "0x..."

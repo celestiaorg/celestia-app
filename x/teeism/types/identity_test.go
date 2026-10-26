@@ -39,6 +39,9 @@ func TestDstack06EventLogVerifies(t *testing.T) {
 
 	id := &types.EnclaveIdentity{
 		MrTd:        measured.MrTd[:],
+		Rtmr0:       measured.Rtmrs[0][:],
+		Rtmr1:       measured.Rtmrs[1][:],
+		Rtmr2:       measured.Rtmrs[2][:],
 		OsImageHash: osImage,
 		ComposeHash: compose,
 		KeyProvider: keyProvider,

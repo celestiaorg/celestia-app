@@ -25,10 +25,13 @@
   },
   "identity": {
     "mr_td": "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "rtmr0": "222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "rtmr1": "333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+    "rtmr2": "444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444",
     "os_image_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "compose_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "key_provider": "6b6d732d6b65792d70726f7669646572",
-    "digest": "ec307719184c2db56651ae09e6b0ff6e1dbc986bbabdb595a88d1699c479b002"
+    "digest": "84a3fee1fd7996f0fc74ca01f8a5f2e867c5164d67bfed585b62d03c1fabcc1e"
   },
   "event_log": {
     "json": "[{\"imr\":0,\"event_type\":134217729,\"digest\":\"2a79929334e6a45298ab8193708943d1c67821a6372fdae9e6ddd2b0d55801f8aea5181cf6e3d917138679efe0d20e68\",\"event\":\"boot\",\"event_payload\":\"78\"},{\"imr\":3,\"event_type\":134217729,\"digest\":\"72460ebe2bb8c0de3a7900cbccbf48ff67f3c90e4ee66087b657f8fbf988c38d7979bc6668dbe7e630da998e833a3eae\",\"event\":\"os-image-hash\",\"event_payload\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},{\"imr\":3,\"event_type\":134217729,\"digest\":\"496cdd8ac0bf50e90def1453a45184ffd889f94d7f8a0e717fddec15a4708100b12cd3e84c1fc9c54883b9b327d30bc1\",\"event\":\"compose-hash\",\"event_payload\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},{\"imr\":3,\"event_type\":134217729,\"digest\":\"fef3c32c647b67a56e848f51434e37710aae3c6d8fbb2fe5df5a147f2b5eff76cb17e75a84a1b15a0ed6c1937e048c57\",\"event\":\"mr-kms\",\"event_payload\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},{\"imr\":3,\"event_type\":134217729,\"digest\":\"a381e7de2e48ebf9d8ea306cb750253867007bb2b17dd845ef69317dde07fac9f1786083ef33004424e4a81d1eaf3c9f\",\"event\":\"key-provider\",\"event_payload\":\"6b6d732d6b65792d70726f7669646572\"},{\"imr\":3,\"event_type\":134217729,\"digest\":\"af6e92ce0751b77d407e58baeede41fedacb94c25d5218449d9b559f50c3519d4af32ebc5dfe4175e9f4b3ad1094a6fa\",\"event\":\"instance-id\",\"event_payload\":\"696e7374616e63652d61\"}]",

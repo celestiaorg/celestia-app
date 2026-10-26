@@ -18,6 +18,9 @@ import (
 
 type identityJSON struct {
 	MrTd        string `json:"mr_td"`
+	Rtmr0       string `json:"rtmr0"`
+	Rtmr1       string `json:"rtmr1"`
+	Rtmr2       string `json:"rtmr2"`
 	OsImageHash string `json:"os_image_hash"`
 	ComposeHash string `json:"compose_hash"`
 	KeyProvider string `json:"key_provider"`
@@ -57,6 +60,9 @@ func run(path string) error {
 		dst  *[]byte
 	}{
 		{"mr_td", in.MrTd, &id.MrTd},
+		{"rtmr0", in.Rtmr0, &id.Rtmr0},
+		{"rtmr1", in.Rtmr1, &id.Rtmr1},
+		{"rtmr2", in.Rtmr2, &id.Rtmr2},
 		{"os_image_hash", in.OsImageHash, &id.OsImageHash},
 		{"compose_hash", in.ComposeHash, &id.ComposeHash},
 		{"key_provider", in.KeyProvider, &id.KeyProvider},

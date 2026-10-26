@@ -8,12 +8,18 @@ import (
 )
 
 // identityDomainTag separates this digest from every other sha256 in the system.
-// v2 is the dstack 0.6 identity: v1 also pinned dstack 0.5's mr-kms event, which
-// 0.6 no longer records.
-const identityDomainTag = "tee-isms/enclave-identity/v2"
+// v3 adds RTMR0-2. v2 was the dstack 0.6 identity without them; v1 also pinned
+// dstack 0.5's mr-kms event, which 0.6 no longer records.
+const identityDomainTag = "tee-isms/enclave-identity/v3"
 
 // MrTdLen is the length of the TD build-time measurement.
 const MrTdLen = 48
+
+// pinnedRtmrs are the runtime registers the boot chain extends, in register
+// order. RTMR3 is not among them: the pinned events govern it.
+func (id *EnclaveIdentity) pinnedRtmrs() [ApplicationIMR][]byte {
+	return [ApplicationIMR][]byte{id.Rtmr0, id.Rtmr1, id.Rtmr2}
+}
 
 // pinnedEvents pairs each pinned event-log key with the value this identity
 // requires. The order is fixed because it is hashed. The KMS is pinned through
@@ -39,6 +45,9 @@ func (id *EnclaveIdentity) Digest() [32]byte {
 	h := sha256.New()
 	h.Write([]byte(identityDomainTag))
 	h.Write(id.MrTd)
+	for _, rtmr := range id.pinnedRtmrs() {
+		h.Write(rtmr)
+	}
 	for _, ev := range id.pinnedEvents() {
 		_ = binary.Write(h, binary.BigEndian, uint64(len(ev.Name)))
 		h.Write([]byte(ev.Name))
@@ -57,6 +66,11 @@ func (id *EnclaveIdentity) Validate() error {
 	}
 	if len(id.MrTd) != MrTdLen {
 		return ErrInvalidEnclaveIdentity.Wrapf("mr_td must be %d bytes, got %d", MrTdLen, len(id.MrTd))
+	}
+	for i, rtmr := range id.pinnedRtmrs() {
+		if len(rtmr) != DigestLen {
+			return ErrInvalidEnclaveIdentity.Wrapf("rtmr%d must be %d bytes, got %d", i, DigestLen, len(rtmr))
+		}
 	}
 	for _, ev := range id.pinnedEvents() {
 		if len(ev.Value) == 0 {
@@ -84,6 +98,15 @@ func VerifyEnclaveIdentity(
 	if !bytes.Equal(id.MrTd, measured.MrTd[:]) {
 		return ErrIdentityMismatch.Wrapf("mr_td does not match the pinned platform measurement: pinned %x, quoted %x",
 			id.MrTd, measured.MrTd[:])
+	}
+	// MRTD covers only the firmware. The kernel, its command line and the VM
+	// configuration land in RTMR0-2, so an unpinned boot chain could replay the
+	// pinned events into RTMR3 itself.
+	for i, rtmr := range id.pinnedRtmrs() {
+		if !bytes.Equal(rtmr, measured.Rtmrs[i][:]) {
+			return ErrIdentityMismatch.Wrapf("rtmr%d does not match the pinned boot chain: pinned %x, quoted %x",
+				i, rtmr, measured.Rtmrs[i][:])
+		}
 	}
 	for _, ev := range id.pinnedEvents() {
 		got, ok := GetEventValue(eventlog, ev.Name)

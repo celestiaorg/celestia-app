@@ -1,7 +1,11 @@
 package types
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/google/go-tdx-guest/pcs"
@@ -91,6 +95,54 @@ func (c *Collateral) Validate() error {
 		if len(f.val) == 0 {
 			return ErrInvalidCollateral.Wrapf("%s must not be empty", f.name)
 		}
+	}
+	if err := checkSignedKey(c.TcbInfo, "tcbInfo"); err != nil {
+		return ErrInvalidCollateral.Wrapf("tcb_info: %s", err)
+	}
+	if err := checkSignedKey(c.QeIdentity, "enclaveIdentity"); err != nil {
+		return ErrInvalidCollateral.Wrapf("qe_identity: %s", err)
+	}
+	return nil
+}
+
+// checkSignedKey requires body to be one JSON object in which signed is the
+// only top-level key that matches it case-insensitively.
+//
+// go-tdx-guest checks Intel's signature over the value under the exact key but
+// reads its verdict through a case-insensitive struct decode, so a second key
+// such as "TCBINFO" would be read without ever being signed. Other keys are
+// left alone, so a field Intel adds later does not stop verification.
+func checkSignedKey(body []byte, signed string) error {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return errors.New("must be a JSON object")
+	}
+	found := false
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, _ := tok.(string)
+		if strings.EqualFold(key, signed) {
+			if key != signed || found {
+				return fmt.Errorf("%q must appear exactly once, spelled exactly", signed)
+			}
+			found = true
+		}
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			return err
+		}
+	}
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("trailing data after the JSON object")
+	}
+	if !found {
+		return fmt.Errorf("%q is missing", signed)
 	}
 	return nil
 }

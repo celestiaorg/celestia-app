@@ -19,8 +19,8 @@ import "gogoproto/gogo.proto";
 message EnclaveIdentity {
   option (gogoproto.goproto_getters) = false;
 
-  // the TD build-time measurement, covering the dstack OS image and the VM's
-  // vCPU/memory shape. 48 bytes.
+  // the TD build-time measurement, covering only the TD firmware (TDVF). 48
+  // bytes.
   bytes mr_td = 1;
   // the dstack OS image, as dstack records it in its event log.
   bytes os_image_hash = 2;
@@ -32,6 +32,13 @@ message EnclaveIdentity {
   reserved "mr_kms";
   // which key-provider mode the CVM booted with.
   bytes key_provider = 5;
+  // the runtime measurement registers the host and boot chain extend: RTMR0
+  // the VM configuration and ACPI tables, RTMR1 the kernel, RTMR2 the kernel
+  // command line and initrd. Without them pinned, any kernel could replay the
+  // pinned events into RTMR3. 48 bytes each.
+  bytes rtmr0 = 6;
+  bytes rtmr1 = 7;
+  bytes rtmr2 = 8;
 }
 
 // InterchainSecurityModule defines a TEE-backed Hyperlane interchain security module.

@@ -170,30 +170,37 @@ func ReplayEventLogs(eventlog []EventLog) [RtmrCount]Digest {
 // Without that refusal an attacker keeps every genuine digest, so the RTMR replay
 // still matches, and merely relabels the surrounding text to impersonate a pinned
 // key. A duplicated key never resolves, for the same reason.
+//
+// The value must come from IMR 3, the only register the replay binds it into;
+// an entry anywhere else changes no pinned register. Every other IMR 3 entry
+// with a digest must also commit to its own text, so a measured entry cannot be
+// relabelled out of the way of a forged one.
+//
+// The v1 preimage does not mark where a name ends, so an entry named name with
+// a ':' in its payload hashes the same as one named name+":"+(the payload up to
+// that ':'). No IMR 3 entry may be named that way, or the measured entry could
+// be renamed out of the way without changing the replay.
 func GetEventValue(eventlog []EventLog, name string) ([]byte, bool) {
 	var found *EventLog
 	for i := range eventlog {
-		if eventlog[i].Event != name {
+		e := &eventlog[i]
+		if e.IMR == ApplicationIMR && !e.Digest.IsZero() && !EventDigestMatches(e) {
+			return nil, false
+		}
+		if e.IMR == ApplicationIMR && strings.HasPrefix(e.Event, name+":") {
+			return nil, false
+		}
+		if e.Event != name {
 			continue
 		}
 		if found != nil {
 			return nil, false
 		}
-		found = &eventlog[i]
+		found = e
 	}
-	if found == nil {
-		return nil, false
-	}
-
-	var selfConsistent bool
-	if found.Digest.IsZero() {
-		// No digest was recorded, so the replay used our recomputation, which
-		// already binds (event, payload) into the RTMR.
-		selfConsistent = found.IMR == ApplicationIMR
-	} else {
-		selfConsistent = EventDigestMatches(found)
-	}
-	if !selfConsistent {
+	// An IMR 3 entry either has no digest, so the replay recomputed one that
+	// binds its text, or passed the self-commitment check above.
+	if found == nil || found.IMR != ApplicationIMR {
 		return nil, false
 	}
 	return found.EventPayload, true

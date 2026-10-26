@@ -52,6 +52,9 @@ func identity(b byte) *types.EnclaveIdentity {
 	fill := func(n int) []byte { return bytes.Repeat([]byte{b}, n) }
 	return &types.EnclaveIdentity{
 		MrTd:        fill(types.MrTdLen),
+		Rtmr0:       fill(types.DigestLen),
+		Rtmr1:       fill(types.DigestLen),
+		Rtmr2:       fill(types.DigestLen),
 		OsImageHash: fill(32),
 		ComposeHash: fill(32),
 		KeyProvider: fill(16),

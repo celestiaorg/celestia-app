@@ -38,6 +38,9 @@ type rustVectors struct {
 	} `json:"attested_update_empty"`
 	Identity struct {
 		MrTd        string `json:"mr_td"`
+		Rtmr0       string `json:"rtmr0"`
+		Rtmr1       string `json:"rtmr1"`
+		Rtmr2       string `json:"rtmr2"`
 		OsImageHash string `json:"os_image_hash"`
 		ComposeHash string `json:"compose_hash"`
 		KeyProvider string `json:"key_provider"`
@@ -160,6 +163,9 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 
 	id := &types.EnclaveIdentity{
 		MrTd:        unhex(t, v.Identity.MrTd),
+		Rtmr0:       unhex(t, v.Identity.Rtmr0),
+		Rtmr1:       unhex(t, v.Identity.Rtmr1),
+		Rtmr2:       unhex(t, v.Identity.Rtmr2),
 		OsImageHash: unhex(t, v.Identity.OsImageHash),
 		ComposeHash: unhex(t, v.Identity.ComposeHash),
 		KeyProvider: unhex(t, v.Identity.KeyProvider),
@@ -174,6 +180,9 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 	// decorative.
 	for name, mutate := range map[string]func(*types.EnclaveIdentity){
 		"mr_td":         func(i *types.EnclaveIdentity) { i.MrTd[0] ^= 1 },
+		"rtmr0":         func(i *types.EnclaveIdentity) { i.Rtmr0[0] ^= 1 },
+		"rtmr1":         func(i *types.EnclaveIdentity) { i.Rtmr1[0] ^= 1 },
+		"rtmr2":         func(i *types.EnclaveIdentity) { i.Rtmr2[0] ^= 1 },
 		"os_image_hash": func(i *types.EnclaveIdentity) { i.OsImageHash[0] ^= 1 },
 		"compose_hash":  func(i *types.EnclaveIdentity) { i.ComposeHash[0] ^= 1 },
 		"key_provider":  func(i *types.EnclaveIdentity) { i.KeyProvider[0] ^= 1 },
@@ -181,6 +190,9 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 		t.Run("digest depends on "+name, func(t *testing.T) {
 			other := &types.EnclaveIdentity{
 				MrTd:        append([]byte{}, id.MrTd...),
+				Rtmr0:       append([]byte{}, id.Rtmr0...),
+				Rtmr1:       append([]byte{}, id.Rtmr1...),
+				Rtmr2:       append([]byte{}, id.Rtmr2...),
 				OsImageHash: append([]byte{}, id.OsImageHash...),
 				ComposeHash: append([]byte{}, id.ComposeHash...),
 				KeyProvider: append([]byte{}, id.KeyProvider...),

@@ -88,6 +88,12 @@ func TestVerifyRealQuoteOffline(t *testing.T) {
 }
 
 func TestRealQuoteYieldsAPinnableIdentity(t *testing.T) {
+	realIdentity(t)
+}
+
+// realIdentity verifies the real fixture and pins the identity it measures.
+func realIdentity(t *testing.T) (*types.EnclaveIdentity, *types.Measurements, []types.EventLog) {
+	t.Helper()
 	quote, eventLog, collateral, at := loadRealQuote(t)
 
 	measured, _, err := types.VerifyQuote(quote, collateral, at)
@@ -96,7 +102,12 @@ func TestRealQuoteYieldsAPinnableIdentity(t *testing.T) {
 	log, err := types.ParseEventLog(eventLog)
 	require.NoError(t, err)
 
-	id := &types.EnclaveIdentity{MrTd: measured.MrTd[:]}
+	id := &types.EnclaveIdentity{
+		MrTd:  measured.MrTd[:],
+		Rtmr0: measured.Rtmrs[0][:],
+		Rtmr1: measured.Rtmrs[1][:],
+		Rtmr2: measured.Rtmrs[2][:],
+	}
 	for _, f := range []struct {
 		name string
 		dst  *[]byte
@@ -113,6 +124,7 @@ func TestRealQuoteYieldsAPinnableIdentity(t *testing.T) {
 
 	// An identity built from a quote must be the identity that quote satisfies.
 	require.NoError(t, types.VerifyEnclaveIdentity(id, measured, log, types.ReplayEventLogs(log)))
+	return id, measured, log
 }
 
 func TestRealQuoteRejectsTampering(t *testing.T) {

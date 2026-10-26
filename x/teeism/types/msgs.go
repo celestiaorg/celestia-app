@@ -105,9 +105,6 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 			return errorsmod.Wrapf(ErrMessageTooLarge, "%s is %d bytes, limit is %d", f.name, f.size, f.limit)
 		}
 	}
-	if err := msg.Collateral.Validate(); err != nil {
-		return err
-	}
 	for _, f := range []struct {
 		name string
 		val  []byte
@@ -124,5 +121,6 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 			return errorsmod.Wrapf(ErrMessageTooLarge, "collateral %s is %d bytes, limit is %d", f.name, len(f.val), MaxCollateralFieldBytes)
 		}
 	}
-	return nil
+	// After the size caps, so the JSON walk only ever sees bounded input.
+	return msg.Collateral.Validate()
 }
