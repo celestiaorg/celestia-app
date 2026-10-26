@@ -126,14 +126,16 @@ func renderConsensusConfig() ([]byte, error) {
 	return reference.Bytes(), err
 }
 
-// renderAppConfig renders app.toml as the node writes it on first start.
+// renderAppConfig renders app.toml with the SDK defaults. They match the values
+// the start command uses for settings missing from the file, so adding a
+// setting does not change the node's effective configuration.
 func renderAppConfig() ([]byte, error) {
 	tmpl, err := template.New("app.toml").Parse(serverconfig.DefaultConfigTemplate)
 	if err != nil {
 		return nil, err
 	}
 	var reference bytes.Buffer
-	err = tmpl.Execute(&reference, app.DefaultAppConfig())
+	err = tmpl.Execute(&reference, serverconfig.DefaultConfig())
 	return reference.Bytes(), err
 }
 

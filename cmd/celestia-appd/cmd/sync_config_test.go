@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/pelletier/go-toml/v2"
@@ -561,9 +563,10 @@ func TestSyncAppConfigFile(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(0o640), info.Mode().Perm())
+	require.Equal(t, nodeAppConfig(t, original), nodeAppConfig(t, data))
 	cfg, err := loadServerConfig(path)
 	require.NoError(t, err)
-	defaults := app.DefaultAppConfig()
+	defaults := serverconfig.DefaultConfig()
 	require.Equal(t, "0.002utia", cfg.MinGasPrices)
 	require.Zero(t, cfg.MinRetainBlocks)
 	require.True(t, cfg.GRPC.Enable)
@@ -587,4 +590,49 @@ func TestSyncAppConfigFile(t *testing.T) {
 	saved, err = os.ReadFile(backup)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)
+}
+
+var updateAppGolden = flag.Bool("update-app-toml", false, "regenerate testdata/app_v3_synced.toml")
+
+// testdata/app_v3.toml is the app.toml celestia-app v3.10.6 writes on first
+// start. testdata/app_v3_synced.toml locks what sync makes of it; regenerate it with
+//
+//	go test ./cmd/celestia-appd/cmd -run TestSyncAppConfigGolden -update-app-toml
+func TestSyncAppConfigGolden(t *testing.T) {
+	const goldenPath = "testdata/app_v3_synced.toml"
+	original, err := os.ReadFile("testdata/app_v3.toml")
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "app.toml")
+	require.NoError(t, os.WriteFile(path, original, 0o600))
+	reference, err := renderAppConfig()
+	require.NoError(t, err)
+	_, _, err = syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	synced, err := os.ReadFile(path)
+	require.NoError(t, err)
+	if *updateAppGolden {
+		require.NoError(t, os.WriteFile(goldenPath, synced, 0o644))
+	}
+	golden, err := os.ReadFile(goldenPath)
+	require.NoError(t, err, "missing %s; generate it with -update-app-toml", goldenPath)
+	require.Equal(t, string(golden), string(synced))
+
+	t.Log("the node loads the same configuration before and after sync")
+	require.Equal(t, nodeAppConfig(t, original), nodeAppConfig(t, synced))
+}
+
+// nodeAppConfig loads app.toml the way the start command does, so settings
+// missing from the file take the start flag and SDK defaults.
+func nodeAppConfig(t *testing.T, data []byte) serverconfig.Config {
+	home := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config", "app.toml"), data, 0o600))
+	start, _, err := NewRootCmd().Find([]string{"start"})
+	require.NoError(t, err)
+	require.NoError(t, start.Flags().Set(flags.FlagHome, home))
+	sctx, err := server.InterceptConfigsAndCreateContext(start, serverconfig.DefaultConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+	require.NoError(t, err)
+	cfg, err := serverconfig.GetConfig(sctx.Viper)
+	require.NoError(t, err)
+	return cfg
 }

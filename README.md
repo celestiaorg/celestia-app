@@ -183,7 +183,7 @@ For deployment-managed configurations, add the reported settings to the source c
 The command returns an error on failure.
 
 Synchronization does not remove deprecated settings or replace existing values with newer defaults.
-For `app.toml`, it writes celestia-app's defaults, which can differ from the SDK defaults a node uses for a setting missing from the file; review the `--dry-run` output.
+For `app.toml`, it writes the SDK defaults, which match the values the node uses for settings missing from the file, so the node's effective configuration does not change.
 Once a default is written, it remains an explicit value on later upgrades.
 Existing binary overrides for consensus, mempool, and P2P settings still apply.
 
