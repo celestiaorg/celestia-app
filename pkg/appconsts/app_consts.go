@@ -9,6 +9,9 @@ import (
 const (
 	// Version is the current application version.
 	Version uint64 = 11
+	// FibreRewardsActivationVersion requires active validators to register a
+	// Fibre host to receive new fee-collector reward allocations.
+	FibreRewardsActivationVersion uint64 = 11
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
