@@ -159,6 +159,7 @@ celestia-appd start
 | File                                | Home directory                                                |
 |-------------------------------------|---------------------------------------------------------------|
 | `config/config.toml` (core)         | `--home`                                                      |
+| `config/app.toml` (app)             | `--home`                                                      |
 | `config/server_config.toml` (Fibre) | `--fibre-home` (or `FIBRE_HOME`), default `~/.celestia-fibre` |
 
 A file is skipped if it does not exist, so the command works on hosts that run only the node or only Fibre.
@@ -181,7 +182,8 @@ Read-only files, linked files, and TOML layouts that cannot be safely extended a
 For deployment-managed configurations, add the reported settings to the source configuration.
 The command returns an error on failure.
 
-Synchronization does not update `app.toml`, remove deprecated settings, or replace existing values with newer defaults.
+Synchronization does not remove deprecated settings or replace existing values with newer defaults.
+For `app.toml`, it writes the SDK defaults, which match the values the node uses for settings missing from the file, so the node's effective configuration does not change.
 Once a default is written, it remains an explicit value on later upgrades.
 Existing binary overrides for consensus, mempool, and P2P settings still apply.
 
@@ -299,7 +301,7 @@ PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indica
 - `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
 - `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
 
-Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
+Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level. The [required review policy](docs/ai/review-policy.md) documents how the tier sets the number of independent approvals.
 
 Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level in the title.
 

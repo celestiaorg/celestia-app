@@ -3,7 +3,6 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,10 +22,9 @@ import (
 )
 
 const (
-	rollbackHaltOffset = 10 // blocks from arming a halt height to the halt
+	rollbackHaltOffset = 30 // blocks from arming a halt height to the halt; covers the last validator's restart
 	rollbackDepth      = 3  // executed heights rolled back in phase 2
 	rollbackTimeout    = 5 * time.Minute
-	recoveryScriptPath = "../../scripts/hardfork/recovery.sh"
 )
 
 // TestRollback halts the validators with halt-height, rolls them back with
@@ -71,8 +69,10 @@ func (s *CelestiaTestSuite) TestRollback() {
 	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
 	s.Require().NoError(err, "failed to get the full node peer address")
 
-	script, err := os.ReadFile(recoveryScriptPath)
-	s.Require().NoError(err, "failed to read the recovery script")
+	// Operators may only have the image, so take the script from the binary.
+	script, _, err := validators[0].Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
+	s.Require().NoError(err, "failed to print the recovery script from the image")
+	s.Require().Contains(string(script), "Usage: recovery.sh", "unexpected recovery-script output")
 	for _, v := range validators {
 		s.Require().NoError(v.WriteFile(ctx, "recovery.sh", script), "failed to write the recovery script to %s", v.Name())
 		// A snapshot every 2 heights leaves one above the phase 2 target for the script to delete.
@@ -164,7 +164,11 @@ func (s *CelestiaTestSuite) TestRollback() {
 }
 
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
+// It stops every validator first so the chain cannot advance while the others are restarted.
 func (s *CelestiaTestSuite) armHaltHeight(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, peer string) int64 {
+	for _, v := range validators {
+		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
+	}
 	height, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 	haltHeight := height + rollbackHaltOffset

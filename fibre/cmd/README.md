@@ -354,7 +354,7 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 - `set-host` is only accepted once the chain runs app version 10; before the v10 upgrade activates, the `x/valaddr` module does not exist and the transaction is rejected.
 - Prepare everything else — install the binary, configure the signer links, verify the KMS supports `SignRawBytes` — before the upgrade, then start the server and register once v10 is live.
-- Starting with celestia-app v11, `set-host` is only accepted while your validator is bonded (in the active set). You cannot register before bonding, including in the same block or transaction as `MsgCreateValidator`, and a jailed validator cannot update its host until it is unjailed and bonded again. Register as soon as your validator enters the active set.
+- Starting with celestia-app v11, `set-host` is only accepted while your validator is bonded (in the active set). You cannot register before bonding, including in the same block or transaction as `MsgCreateValidator`, and once a jailed validator leaves the active set it cannot update its host until it is unjailed and bonded again. Register as soon as your validator enters the active set.
 - Start the server **before** registering: a registered-but-unreachable host makes clients dial and time out against you.
 - Registration is persistent. Re-run `set-host` only when the address changes. The entry is garbage-collected automatically if your validator permanently leaves the set (removed from staking, or not bonded for over 7 days after it finished unbonding, whether or not it was jailed) — after coming back, register again.
 
