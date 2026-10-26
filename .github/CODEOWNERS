@@ -17,3 +17,6 @@
 AGENTS.md @celestiaorg/protocol
 CLAUDE.md @celestiaorg/protocol
 GEMINI.md @celestiaorg/protocol
+
+# The Contributing section defines the [low], [medium], and [high] tiers.
+/README.md @celestiaorg/protocol

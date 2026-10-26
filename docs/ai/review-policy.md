@@ -71,8 +71,9 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
 3. Protect enforcement before reducing blanket review counts. Because the tier
    comes only from the title, a `[low]` PR could otherwise change this policy
    without review. `CODEOWNERS` assigns `@celestiaorg/protocol` to `.github/`,
-   `.agents/`, `.claude/`, `.cursor/`, `docs/ai/`, and agent instruction files,
-   so keep "Require review from Code Owners" enabled on `main`.
+   `.agents/`, `.claude/`, `.cursor/`, `docs/ai/`, agent instruction files, and
+   the root `README.md` (which defines the tiers), so keep "Require review from
+   Code Owners" enabled on `main`.
 4. Require the **`review-policy` commit status**, selecting GitHub Actions as its
    expected source, and require `review-policy-tests`. Keep the existing build,
    lint, test, and security requirements.
