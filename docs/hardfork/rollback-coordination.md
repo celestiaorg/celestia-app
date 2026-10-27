@@ -1,6 +1,6 @@
 # Coordinate a network rollback
 
-This runbook is for the core team. Validators and node operators follow [rollback.md](rollback.md).
+This runbook is for the protocol team. Validators and node operators follow [rollback.md](rollback.md).
 
 ## When to use a rollback
 
