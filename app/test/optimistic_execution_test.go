@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -140,6 +141,7 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 		Time:               blockTime,
 		ProposerAddress:    p.proposer,
 		NextValidatorsHash: p.valHash,
+		Header:             blockHeader(height, blockTime),
 	})
 	require.NoError(p.t, err)
 	return resp.Status
@@ -147,18 +149,24 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 
 // finalize runs FinalizeBlock with the block's txs on both apps, requires the
 // two responses to be identical and every tx to succeed, then commits both.
-func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte) *abci.ResponseFinalizeBlock {
+// With served, a's request carries a later time that only a speculative result ignores.
+func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte, served bool) *abci.ResponseFinalizeBlock {
 	p.t.Helper()
 	txs := coreFinalizeTxs(blockTxs)
 	resps := make([]*abci.ResponseFinalizeBlock, 0, 2)
 	for _, testApp := range []*app.App{p.a, p.b} {
+		reqTime := blockTime
+		if served && testApp == p.a {
+			reqTime = blockTime.Add(time.Hour)
+		}
 		resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
 			Txs:                txs,
 			Hash:               hash,
 			Height:             height,
-			Time:               blockTime,
+			Time:               reqTime,
 			ProposerAddress:    p.proposer,
 			NextValidatorsHash: p.valHash,
+			Header:             blockHeader(height, reqTime),
 		})
 		require.NoError(p.t, err)
 		resps = append(resps, resp)
@@ -177,6 +185,10 @@ func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, 
 	}
 	require.Equal(p.t, p.b.LastCommitID().Hash, p.a.LastCommitID().Hash, "height %d: commit hash", height)
 	return resps[0]
+}
+
+func blockHeader(height int64, blockTime time.Time) *cmtproto.Header {
+	return &cmtproto.Header{ChainID: testutil.ChainID, Height: height, Time: blockTime}
 }
 
 // coreFinalizeTxs is the loop celestia-core runs on the block txs before
@@ -198,7 +210,7 @@ func (p *oePair) differentialHeight() {
 	p.t.Helper()
 	prop, height, blockTime, hash := p.propose(p.mixedTxs())
 	require.Equal(p.t, abci.ResponseProcessProposal_ACCEPT, p.processProposal(prop, height, blockTime, hash))
-	p.finalize(prop.Txs, height, blockTime, hash)
+	p.finalize(prop.Txs, height, blockTime, hash, true)
 }
 
 // TestOptimisticExecutionMatchesReplay checks that a FinalizeBlock served by
@@ -223,7 +235,7 @@ func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, p.processProposal(propX, height, blockTime, hashX))
 		propY, _, _, hashY := p.propose(p.mixedTxs())
 		require.NotEqual(t, hashX, hashY)
-		p.finalize(propY.Txs, height, blockTime, hashY)
+		p.finalize(propY.Txs, height, blockTime, hashY, false)
 		p.differentialHeight()
 	})
 
@@ -231,7 +243,7 @@ func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
 		prop, height, blockTime, hash := p.propose(p.mixedTxs())
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, p.processProposal(prop, height, blockTime, hash))
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, p.processProposal(prop, height, blockTime, hash))
-		p.finalize(prop.Txs, height, blockTime, hash)
+		p.finalize(prop.Txs, height, blockTime, hash, true)
 	})
 
 	t.Run("rejected proposal", func(t *testing.T) {
@@ -239,7 +251,7 @@ func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
 		bad := *prop
 		bad.DataRootHash = blockHash(height, nil)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, p.processProposal(&bad, height, blockTime, hash))
-		p.finalize(prop.Txs, height, blockTime, hash)
+		p.finalize(prop.Txs, height, blockTime, hash, false)
 	})
 
 	t.Run("rejected proposal after an accepted one", func(t *testing.T) {
@@ -248,7 +260,7 @@ func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
 		bad := *prop
 		bad.DataRootHash = blockHash(height, nil)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, p.processProposal(&bad, height, blockTime, blockHash(height, []byte("other"))))
-		p.finalize(prop.Txs, height, blockTime, hash)
+		p.finalize(prop.Txs, height, blockTime, hash, false)
 		p.differentialHeight()
 	})
 }
