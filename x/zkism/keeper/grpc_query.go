@@ -1,11 +1,10 @@
 package keeper
 
 import (
+	"context"
 	"errors"
 
-	"context"
 	"cosmossdk.io/collections"
-
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
