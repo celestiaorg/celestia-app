@@ -297,6 +297,12 @@ func TestPayForFibreFinalizeBlockCacheParity(t *testing.T) {
 			},
 		},
 		{
+			name: "cache warmed by an aborted speculative run",
+			prepare: func(t *testing.T, testApp *app.App, txs [][]byte) {
+				requireProcessProposalAccepts(t, testApp, txs, blockTime.Add(time.Second))
+			},
+		},
+		{
 			name:    "cold cache replay",
 			prepare: func(*testing.T, *app.App, [][]byte) {},
 		},
@@ -387,8 +393,7 @@ func requireProcessProposalStatus(t *testing.T, testApp *app.App, tx []byte, wan
 
 func requireProcessProposalAccepts(t *testing.T, testApp *app.App, txs [][]byte, blockTime time.Time) {
 	t.Helper()
-	req := processProposalRequest(t, testApp, txs)
-	req.Time = blockTime
+	req := processProposalRequestAt(t, testApp, txs, blockTime)
 	resp, err := testApp.ProcessProposal(req)
 	require.NoError(t, err)
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)

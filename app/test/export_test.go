@@ -148,11 +148,10 @@ func execBlock(t *testing.T, testApp *app.App, fn func(sdk.Context)) {
 	t.Helper()
 
 	height := testApp.LastBlockHeight() + 1
-	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := testApp.FinalizeBlock(util.WithBlockHash(&abci.RequestFinalizeBlock{
 		Height: height,
 		Time:   util.GenesisTime.Add(time.Duration(height) * time.Second),
-		Hash:   testApp.LastCommitID().Hash,
-	})
+	}))
 	require.NoError(t, err)
 
 	fn(testApp.NewUncachedContext(false, cmtproto.Header{Height: height}))

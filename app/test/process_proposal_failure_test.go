@@ -26,8 +26,7 @@ import (
 
 func TestProcessProposalBranchFailures(t *testing.T) {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "account")
-	req := processProposalRequest(t, testApp, nil)
-	req.Time = testutil.GenesisTime.Add(time.Hour)
+	req := processProposalRequestAt(t, testApp, nil, testutil.GenesisTime.Add(time.Hour))
 	header := cmtproto.Header{ChainID: testutil.ChainID, Height: req.Height, Time: req.Time}
 	newContext := func() sdk.Context {
 		return testApp.NewProposalContext(header).WithExecMode(sdk.ExecModeProcessProposal)
@@ -90,8 +89,7 @@ func TestProcessProposalKeepsFailedEscrowDeposit(t *testing.T) {
 	}
 	tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
 	require.NoError(t, err)
-	req := processProposalRequest(t, testApp, [][]byte{tx})
-	req.Time = header.Time
+	req := processProposalRequestAt(t, testApp, [][]byte{tx}, header.Time)
 
 	// Prove that message execution fails for the intended reason. Ordinary
 	// message failure must not invalidate an otherwise valid proposal.
@@ -114,8 +112,7 @@ func TestProcessProposalRejectsDataRootComputationFailure(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txs := testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1, accounts[0], accounts[1:], testutil.ChainID)
-	req := processProposalRequest(t, testApp, coretypes.Txs(txs).ToSliceOfBytes())
-	req.Time = testutil.GenesisTime.Add(time.Hour)
+	req := processProposalRequestAt(t, testApp, coretypes.Txs(txs).ToSliceOfBytes(), testutil.GenesisTime.Add(time.Hour))
 	header := cmtproto.Header{ChainID: testutil.ChainID, Height: req.Height, Time: req.Time}
 	sender := testfactory.GetAddress(kr, accounts[0])
 	ctx := testApp.NewProposalContext(header)
