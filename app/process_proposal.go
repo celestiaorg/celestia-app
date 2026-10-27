@@ -91,7 +91,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 		if cached == nil {
-			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTxNoCopy(rawTx)
 			if isBlobTx {
 				if err != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
