@@ -1,7 +1,10 @@
 package keeper
 
 import (
+	"errors"
+
 	"context"
+	"cosmossdk.io/collections"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
@@ -75,8 +78,11 @@ func (q queryServer) MerkleTreeState(ctx context.Context, req *types.QueryMerkle
 	}
 
 	treeState, err := q.k.treeStates.Get(ctx, ismId.GetInternalId())
-	if err != nil {
+	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Errorf(codes.NotFound, "merkle tree state not found: %s", req.Id)
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &types.QueryMerkleTreeStateResponse{
