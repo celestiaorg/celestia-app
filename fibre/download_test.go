@@ -342,3 +342,29 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 	want := bytes.Join(honest[:testK], nil)[blobHeaderLen:]
 	require.Equal(t, want, blob.Data())
 }
+
+// TestAddShard_ReleasesRejectedShard checks that a rejected shard's buffer is
+// released right away rather than staying retained for the whole download,
+// while an accepted shard with parity rows stays retained until Blob.
+func TestAddShard_ReleasesRejectedShard(t *testing.T) {
+	d, proofs, vec := newTestDownload(t, 1, 1)
+
+	bad := *proofs[testK]
+	bad.Index = testK + testN // out of range, but still counted as parity
+	released := 0
+	from, ok := d.pick()
+	require.True(t, ok)
+	retained, err := addShard(d, from, []*rsema1d.RowProof{&bad}, vec, func() { released++ })
+	require.Error(t, err)
+	require.False(t, retained)
+	require.Equal(t, 1, released)
+	d.SkipShard(from)
+
+	released = 0
+	from, ok = d.pick()
+	require.True(t, ok)
+	retained, err = addShard(d, from, []*rsema1d.RowProof{proofs[testK]}, vec, func() { released++ })
+	require.NoError(t, err)
+	require.True(t, retained)
+	require.Zero(t, released)
+}

@@ -209,11 +209,8 @@ func (c *Client) downloadFrom(
 			"got", len(proofs), "expected", from.ExpectedRows)
 	}
 
-	if hasParityRows(proofs, state.cfg.OriginalRows) {
-		state.retain(codec.Release)
-		retained = true
-	}
-	if err := state.AddShard(from, proofs, rlc); err != nil {
+	retained, err = addShard(state, from, proofs, rlc, codec.Release)
+	if err != nil {
 		log.WarnContext(ctx, "invalid shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid shard")
@@ -303,6 +300,24 @@ func parseShard(shard *types.BlobShard, originalRows int) ([]*rsema1d.RowProof, 
 	}
 
 	return proofs, rlcs, nil
+}
+
+// addShard hands a shard to state and reports whether its buffer stays
+// retained until reconstruction, which parity rows need because they are
+// adopted by pointer. Retention is registered before [download.AddShard]
+// because a successful add frees the reservation, after which Blob may run. A
+// rejected shard stores nothing, so its buffer is released right away instead
+// of staying pinned for the rest of the download.
+func addShard(state *download, from validator.SelectedValidator, proofs []*rsema1d.RowProof, vec rlc.Vector, release func()) (bool, error) {
+	retained := hasParityRows(proofs, state.cfg.OriginalRows)
+	if retained {
+		state.retain(release)
+	}
+	if err := state.AddShard(from, proofs, vec); err != nil {
+		release()
+		return false, err
+	}
+	return retained, nil
 }
 
 func hasParityRows(proofs []*rsema1d.RowProof, originalRows int) bool {
