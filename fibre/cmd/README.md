@@ -224,7 +224,15 @@ Startup fails if the saved record is corrupt, or if retained object shards have 
 
 `max_request_memory` (default 16 GiB) bounds the bytes of request messages buffered in memory: every request is admitted against this budget before it is read, and rejected (retryably) when it is full. It is not an RSS bound — decode and verification allocate on top — so leave host headroom. See ADR-031.
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once; they no longer bound memory. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+
+**Deprecated:** sizing memory with these caps. Before memory admission, gRPC buffered a full upload message (~132 MiB) per in-flight stream, so the caps bounded worst-case receive memory:
+
+```text
+worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```
+
+That bound no longer applies: buffered request memory is capped by `max_request_memory` alone, whatever the connection and stream caps are. Set `max_request_memory` to size memory, and use these caps only to limit concurrency.
 
 ## Signing
 
