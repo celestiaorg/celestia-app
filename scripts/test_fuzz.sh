@@ -26,3 +26,9 @@ go test -run='^$' -fuzz=FuzzProcessProposalMutatedTxs -fuzztime 5m ./app/test
 go test -run='^$' -fuzz=FuzzPFFDecodeCandidateParity -fuzztime 5m ./app
 go test -run='^$' -fuzz=FuzzValidateBlobTx -fuzztime 5m ./x/blob/types
 go test -run='^$' -fuzz=FuzzMsgPayForBlobsValidateBasic -fuzztime 2m ./x/blob/types
+go test -run='^$' -fuzz=FuzzCheckTxMutatedTxs -fuzztime 5m ./app/test
+# These targets are cheap per exec, so Go's default minimization budget would
+# spend most of the run minimizing; cap it so the workers keep fuzzing.
+go test -run='^$' -fuzz=FuzzParsePayForFibreTx -fuzztime 5m -fuzzminimizetime=100x ./x/fibre/types
+go test -run='^$' -fuzz=FuzzShareProofValidate -fuzztime 5m -fuzzminimizetime=100x ./pkg/proof
+go test -run='^$' -fuzz=FuzzDataAvailabilityHeaderFromProto -fuzztime 2m -fuzzminimizetime=100x ./pkg/da
