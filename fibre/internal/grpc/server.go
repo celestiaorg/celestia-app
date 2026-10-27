@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/tap"
+	"google.golang.org/protobuf/proto"
 )
 
-// Connection and stream caps bound receive memory: gRPC buffers a full
-// UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
-// are intentionally conservative for a 32 GiB-RAM validator; operators can
-// override both caps via config to trade RAM for throughput.
+// Connection and stream caps bound how many requests run at once; receive
+// memory is bounded by request admission (see admission.go and ADR-031).
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
 // memory for them, and rejects oversized DownloadShard requests before copying
@@ -30,6 +30,11 @@ const (
 	DefaultMaxConnections = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
 	DefaultMaxConcurrentStreams = 13
+
+	// Fixed receive windows (>=65535) disable BDP tuning; the stream window only
+	// bounds a paused stream, since RecvMsg grants a whole-message window.
+	initialWindowSize     = 64 << 10
+	initialConnWindowSize = 16 << 20
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
@@ -58,16 +63,21 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	adm                  *admission
 	done                 chan struct{} // closed when Serve returns
 	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
 }
 
-// Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
-// is created lazily by [Server.Register] so callers can defer building
-// credentials until after the listener address is known (e.g., for TLS certs
-// that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Server, error) {
+// Listen creates a [Server] bound to listenAddr that admits requests per admCfg.
+// The underlying [grpc.Server] is created lazily by [Server.Register] so callers
+// can defer building credentials until after the listener address is known
+// (e.g., for TLS certs that depend on a chain ID resolved at startup).
+func Listen(listenAddr string, maxConnections, maxConcurrentStreams int, admCfg AdmissionConfig) (*Server, error) {
+	adm, err := newAdmission(admCfg)
+	if err != nil {
+		return nil, err
+	}
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
@@ -75,21 +85,19 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	return &Server{listener: listener, adm: adm, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
 // fibre service. It must be called exactly once before [Server.Serve].
-//
-// A panic-recovery interceptor is always installed as defense in depth: a
-// panic in any handler (e.g. a malformed request that slips past validation)
-// is converted into an Internal gRPC error instead of crashing the process.
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
-		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
+		grpc.InitialWindowSize(initialWindowSize),
+		grpc.InitialConnWindowSize(initialConnWindowSize),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.MaxHeaderListSize(maxHeaderListSize),
+		grpc.InTapHandle(deadlineTap),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: keepAliveMinTime,
 		}),
@@ -102,34 +110,93 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
-	types.RegisterFibreServer(s.server, service)
+	s.RegisterService(&types.Fibre_serviceDesc, service)
 }
 
-// Registrar exposes the [grpc.ServiceRegistrar] for extra services such as gRPC health.
-// Use it between Register and Serve.
-func (s *Server) Registrar() grpc.ServiceRegistrar { return s.server }
+// RegisterService implements [grpc.ServiceRegistrar] for extra services such as
+// gRPC health, admitting their requests too. Use it between Register and Serve.
+func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl any) {
+	s.server.RegisterService(admitServiceDesc(sd, s.adm), impl)
+}
+
+// deadlineTap bounds server-side handling of one request. grpc uses the returned
+// context as the stream context, so a stalled RecvMsg returns when it expires.
+func deadlineTap(ctx context.Context, _ *tap.Info) (context.Context, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestDeadline)
+	context.AfterFunc(ctx, cancel)
+	return ctx, nil
+}
+
+// admitServiceDesc serves every unary method of sd through admitHandler. Streaming
+// methods are left unregistered (Fibre has none; health Watch is unsupported), so
+// grpc rejects them as Unimplemented before reading a body.
+func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission) *grpc.ServiceDesc {
+	out := *sd
+	out.Methods, out.Streams = nil, nil
+	for _, m := range sd.Methods {
+		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm)})
+	}
+	return &out
+}
+
+// admitHandler serves a unary method as a stream handler so the request is
+// admitted before it is read; the generated handler's dec reads it. Unary
+// interceptors do not run here, so panics are recovered inline.
+func admitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
+	return func(srv any, ss grpc.ServerStream) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in gRPC handler", "method", m.MethodName, "panic", r, "stack", string(debug.Stack()))
+				err = status.Errorf(codes.Internal, "internal error")
+			}
+		}()
+
+		ctx := ss.Context()
+		res, err := adm.admit(ctx, m.MethodName, peerKey(ctx))
+		if err != nil {
+			return err
+		}
+		defer res.release()
+
+		dec := func(v any) error {
+			if err := ss.RecvMsg(v); err != nil {
+				return err
+			}
+			res.received(msgSize(v))
+			return nil
+		}
+		resp, err := m.Handler(srv, ctx, dec, nil)
+		if err != nil {
+			return err
+		}
+		return ss.SendMsg(resp)
+	}
+}
+
+// peerKey buckets the request's source IP (IPv6 by /64) for the per-IP cap.
+func peerKey(ctx context.Context) string {
+	if p, ok := peer.FromContext(ctx); ok {
+		return connKey(p.Addr)
+	}
+	return ""
+}
+
+// msgSize is the decoded wire size of a request message.
+func msgSize(v any) int64 {
+	if s, ok := v.(interface{ Size() int }); ok { // gogoproto
+		return int64(s.Size())
+	}
+	if m, ok := v.(proto.Message); ok { // protobuf v2 (e.g. health)
+		return int64(proto.Size(m))
+	}
+	return 0
+}
 
 // Done is closed once Serve returned. Err then says why; nil after Stop.
 func (s *Server) Done() <-chan struct{} { return s.done }
 
 // Err returns the error Serve returned with. Only valid once Done is closed.
 func (s *Server) Err() error { return s.err }
-
-// recoverUnaryInterceptor recovers from panics in unary handlers and returns an
-// Internal error so a single malformed request cannot crash the server process.
-func recoverUnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Error("recovered from panic in gRPC handler",
-				"method", info.FullMethod,
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
-			err = status.Errorf(codes.Internal, "internal error")
-		}
-	}()
-	return handler(ctx, req)
-}
 
 // ListenAddress returns the actual address the server is listening on.
 func (s *Server) ListenAddress() string {
