@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -8,12 +9,15 @@ import (
 	"cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
@@ -59,6 +63,56 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	gotModuleVersions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
 	require.NoError(t, err)
 	require.Equal(t, moduleVersions, gotModuleVersions)
+}
+
+// TestV11UpgradeMigratesFibreEscrow checks that the v11 upgrade runs the fibre
+// 1->2 store migration when the chain comes from fibre consensus version 1, as
+// a v10 chain does: an escrow record keyed by an uppercase signer is merged
+// into the canonical record and a non-utia escrow record is refunded.
+func TestV11UpgradeMigratesFibreEscrow(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+
+	moduleVersions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), moduleVersions[fibretypes.ModuleName])
+	moduleVersions[fibretypes.ModuleName] = 1
+	require.NoError(t, testApp.UpgradeKeeper.SetModuleVersionMap(ctx, moduleVersions))
+
+	upperSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
+	upper := strings.ToUpper(upperSigner.String())
+	utia := sdk.NewInt64Coin(appconsts.BondDenom, 1000)
+	testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{Signer: upper, Balance: utia, AvailableBalance: utia})
+
+	stuckSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
+	stuck := sdk.NewInt64Coin("uatom", 500)
+	testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{Signer: stuckSigner.String(), Balance: stuck, AvailableBalance: stuck})
+
+	// Fund the module account with what the two escrow records say it holds.
+	custody := sdk.NewCoins(utia, stuck)
+	require.NoError(t, testApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, custody))
+	require.NoError(t, testApp.BankKeeper.SendCoinsFromModuleToModule(ctx, minttypes.ModuleName, fibretypes.ModuleName, custody))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v11",
+		Height: ctx.BlockHeight(),
+	}))
+
+	gotModuleVersions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), gotModuleVersions[fibretypes.ModuleName])
+
+	_, found := testApp.FibreKeeper.GetEscrowAccount(ctx, upper)
+	require.False(t, found)
+	merged, found := testApp.FibreKeeper.GetEscrowAccount(ctx, upperSigner.String())
+	require.True(t, found)
+	require.Equal(t, fibretypes.EscrowAccount{Signer: upperSigner.String(), Balance: utia, AvailableBalance: utia}, merged)
+
+	_, found = testApp.FibreKeeper.GetEscrowAccount(ctx, stuckSigner.String())
+	require.False(t, found)
+	require.Equal(t, stuck, testApp.BankKeeper.GetBalance(ctx, stuckSigner, stuck.Denom))
+	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	require.Equal(t, sdk.NewCoins(utia), testApp.BankKeeper.GetAllBalances(ctx, fibreAddress))
 }
 
 // createValidatorWithCommission creates a validator with specific commission
