@@ -122,8 +122,12 @@ source payload/vars.sh
 check_fibre_storage() {
   local dir="/root/.celestia-fibre" bytes="${FIBRE_BYTES_PER_UPLOAD:-857000}" rate="${FIBRE_UPLOADS_PER_SEC:-}" window free budget
   fibre_log() { echo "Fibre storage: $*" | tee -a /root/logs; }
-  if [ -n "$rate" ] && ! [[ $rate =~ ^[0-9]+$ ]]; then
+  if [ -n "$rate" ] && ! [[ $rate =~ ^(0|[1-9][0-9]*)$ ]]; then
     fibre_log "FIBRE_UPLOADS_PER_SEC must be an integer, got '$rate'"
+    exit 1
+  fi
+  if ! [[ $bytes =~ ^[1-9][0-9]*$ ]]; then
+    fibre_log "FIBRE_BYTES_PER_UPLOAD must be a positive integer, got '$bytes'"
     exit 1
   fi
   if ! window=$(jq -er '.app_state.fibre.params | [.shard_retention, .payment_promise_timeout] | map(rtrimstr("s") | tonumber) | max | ceil + 60' payload/genesis.json); then
