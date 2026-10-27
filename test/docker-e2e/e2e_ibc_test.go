@@ -34,6 +34,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/internal"
 )
 
 func TestIBCTestSuite(t *testing.T) {
@@ -55,8 +56,9 @@ type IBCTestSuite struct {
 	celestiaTxClient *user.TxClient
 }
 
-// setupIBCInfrastructure sets up IBC test infrastructure with specified app version
-func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64) {
+// setupIBCInfrastructure sets up IBC test infrastructure with specified app
+// version. ICA needs only the connection, so the transfer channel is optional.
+func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64, withTransferChannel bool) {
 	ctx := context.Background()
 	t := s.T()
 
@@ -128,7 +130,11 @@ func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64) {
 	s.celestiaTxClient, err = s.setupTxClient(ctx, s.chainA)
 	s.Require().NoError(err, "failed to setup tx client for celestia chain")
 
-	// establish connection and transfer channel
+	if !withTransferChannel {
+		s.connection, err = s.hermes.CreateConnections(ctx, s.chainA, s.chainB)
+		s.Require().NoError(err, "failed to create IBC connection")
+		return
+	}
 	s.connection, s.transferChannel = s.establishIBCConnection(ctx)
 }
 
@@ -148,8 +154,9 @@ func (s *IBCTestSuite) TearDownTest() {
 		}
 	}
 	if s.hermes != nil {
-		if err := s.hermes.Remove(ctx); err != nil {
-			t.Logf("Error stopping hermes: %v", err)
+		// Force-remove: hermes ignores SIGTERM, so a graceful stop waits out 30s.
+		if err := s.hermes.RemoveContainer(ctx); err != nil {
+			t.Logf("Error removing hermes: %v", err)
 		}
 	}
 }
@@ -178,7 +185,7 @@ func (s *IBCTestSuite) TestIBC() {
 	var channel ibc.Channel
 
 	t.Run("setup_ibc_infrastructure", func(t *testing.T) {
-		s.setupIBCInfrastructure(baseAppVersion)
+		s.setupIBCInfrastructure(baseAppVersion, true)
 	})
 
 	t.Run("start_relayer", func(t *testing.T) {
@@ -234,7 +241,7 @@ func (s *IBCTestSuite) TestICA() {
 	t := s.T()
 
 	t.Run("setup_ibc_infrastructure", func(t *testing.T) {
-		s.setupIBCInfrastructure(appconsts.Version)
+		s.setupIBCInfrastructure(appconsts.Version, false)
 	})
 
 	t.Run("start_relayer", func(t *testing.T) {
@@ -340,14 +347,13 @@ func (s *IBCTestSuite) transferAndVerify(
 	s.Require().Equal(uint32(0), txResponse.Code, "IBC transfer tx failed with code %d: %s",
 		txResponse.Code, txResponse.RawLog)
 
-	err = wait.ForBlocks(ctx, 5, sourceChain, destChain)
-	s.Require().NoError(err, "failed to wait for blocks")
-
-	finalBalance := s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
 	expectedBalance := initialBalance.Add(transferAmount)
-
-	s.Require().True(finalBalance.Equal(expectedBalance),
-		"destination balance mismatch: expected %s, got %s", expectedBalance.String(), finalBalance.String())
+	finalBalance := initialBalance
+	err = internal.WaitFor(ctx, 30*time.Second, time.Second, func(ctx context.Context) (bool, error) {
+		finalBalance = s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
+		return finalBalance.Equal(expectedBalance), nil
+	})
+	s.Require().NoError(err, "destination balance mismatch: expected %s, got %s", expectedBalance.String(), finalBalance.String())
 }
 
 // testTokenTransfers tests token transfers from Celestia to simapp
@@ -484,10 +490,6 @@ func (s *IBCTestSuite) registerInterchainAccount(ctx context.Context) {
 	s.Require().Equal(uint32(0), txResponse.Code, "ICA registration tx failed with code %d: %s", txResponse.Code, txResponse.RawLog)
 
 	s.T().Logf("ICA registration successful! TxHash: %s", txResponse.TxHash)
-
-	// wait longer for IBC packets to be processed
-	err = wait.ForBlocks(ctx, 10, s.chainB)
-	s.Require().NoError(err, "failed to wait for blocks after ICA registration")
 }
 
 // verifyICARegistration verifies the ICA account was created and channels are established
@@ -502,19 +504,23 @@ func (s *IBCTestSuite) verifyICARegistration(ctx context.Context) string {
 
 	queryClient := icacontrollertypes.NewQueryClient(controllerNode.GrpcConn)
 
-	// wait a bit more and retry the query
-	err := wait.ForBlocks(ctx, 5, s.chainB, s.chainA)
-	s.Require().NoError(err, "failed to wait for additional blocks")
-
-	resp, err := queryClient.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
-		Owner:        controllerWallet.GetFormattedAddress(),
-		ConnectionId: s.connection.ConnectionID,
+	// The query fails until the relayer completes the ICA channel handshake.
+	var address string
+	err := internal.WaitFor(ctx, 90*time.Second, time.Second, func(ctx context.Context) (bool, error) {
+		resp, err := queryClient.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
+			Owner:        controllerWallet.GetFormattedAddress(),
+			ConnectionId: s.connection.ConnectionID,
+		})
+		if err != nil {
+			return false, nil
+		}
+		address = resp.Address
+		return address != "", nil
 	})
-	s.Require().NoError(err, "failed to query ICA account")
-	s.Require().NotEmpty(resp.Address, "ICA account address should not be empty")
+	s.Require().NoError(err, "ICA account was not registered")
 
-	s.T().Logf("ICA account address: %s", resp.Address)
-	return resp.Address
+	s.T().Logf("ICA account address: %s", address)
+	return address
 }
 
 // fundICAAccount sends tokens to the ICA account so it can perform transactions
@@ -592,13 +598,11 @@ func (s *IBCTestSuite) performICABankSend(ctx context.Context, icaAddress string
 
 	s.T().Logf("ICA bank send successful! TxHash: %s", txResponse.TxHash)
 
-	// wait for IBC packet processing
-	err = wait.ForBlocks(ctx, 10, s.chainB, s.chainA)
-	s.Require().NoError(err, "failed to wait for blocks")
-
-	// verify the send was executed (account for gas fees)
-	finalBalance := s.getBalance(ctx, s.chainA, recipientWallet.GetFormattedAddress(), "utia")
-	s.Require().True(finalBalance.GT(initialBalance),
-		"ICA bank send failed: balance should have increased from %s to %s", initialBalance.String(), finalBalance.String())
+	finalBalance := initialBalance
+	err = internal.WaitFor(ctx, 60*time.Second, time.Second, func(ctx context.Context) (bool, error) {
+		finalBalance = s.getBalance(ctx, s.chainA, recipientWallet.GetFormattedAddress(), "utia")
+		return finalBalance.GT(initialBalance), nil
+	})
+	s.Require().NoError(err, "ICA bank send failed: balance should have increased from %s to %s", initialBalance.String(), finalBalance.String())
 	s.T().Logf("Bank send via ICA successful: balance increased from %s to %s utia", initialBalance.String(), finalBalance.String())
 }

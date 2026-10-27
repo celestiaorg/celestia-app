@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -198,9 +199,16 @@ func runNode(t *testing.T, cfg *testnode.Config, creator servertypes.AppCreator,
 	return appHash
 }
 
+// rootCmdMu serializes building and running the root command, which writes
+// process-wide state (the global viper instance, cobra.OnInitialize and
+// package-level flag variables) and so races across parallel tests.
+var rootCmdMu sync.Mutex
+
 // runRollback runs the rollback command of celestia-appd on the node home.
 func runRollback(t *testing.T, cfg *testnode.Config, args ...string) error {
 	t.Helper()
+	rootCmdMu.Lock()
+	defer rootCmdMu.Unlock()
 	home := cfg.TmConfig.RootDir
 	root := NewRootCmd()
 	root.SetArgs(append([]string{"rollback", "--home", home}, args...))

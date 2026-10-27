@@ -24,6 +24,12 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainSecurityModule implements types.MsgServer.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
+	// Deserializing the verifying key performs pairing work, so charge for it first.
+	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verifying key parse")
+	if _, err := types.NewSP1Groth16Verifier(msg.Groth16Vkey); err != nil {
+		return nil, err
+	}
+
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.ModuleTypeZkISM)
 	if err != nil {
 		return nil, err

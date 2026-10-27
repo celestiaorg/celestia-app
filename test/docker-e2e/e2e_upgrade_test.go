@@ -275,7 +275,13 @@ func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes
 	kr := cfg.Genesis.Keyring()
 	records, err := kr.List()
 	s.Require().NoError(err, "failed to list keyring records")
-	s.Require().Len(records, len(chain.GetNodes()), "number of accounts should match number of nodes")
+	validators := 0
+	for _, node := range chain.GetNodes() {
+		if node.GetType() == tastoratypes.NodeTypeValidator {
+			validators++
+		}
+	}
+	s.Require().Len(records, validators, "number of accounts should match number of validators")
 
 	upgradeHeight = s.SignalUpgrade(ctx, chain, validatorNode, cfg, records, appVersion)
 
@@ -294,9 +300,8 @@ func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be at app version %v", appVersion)
 
-	// Produce additional blocks at the target app version (TxSim is still running)
-	t.Logf("Producing 20 more blocks at app version %v", appVersion)
-	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for post-upgrade blocks")
+	t.Logf("Producing 3 more blocks at app version %v", appVersion)
+	s.Require().NoError(wait.ForBlocks(ctx, 3, chain), "failed to wait for post-upgrade blocks")
 
 	return upgradeHeight
 }
@@ -322,7 +327,8 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		fee      = uint64(200_000)
 	)
 
-	// Signal for the upgrade
+	// Broadcast every signal before confirming so they land in the same block.
+	txHashes := make([]string, len(records))
 	for i, rec := range records {
 		s.T().Logf("Signaling for upgrade to version %d from validator %d", targetAppVersion, i)
 
@@ -331,13 +337,15 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		valAddr := sdk.ValAddress(addr).String()
 		msg := signaltypes.NewMsgSignalVersion(valAddr, targetAppVersion)
 
-		resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+		resp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(fee))
 		s.Require().NoError(err, "failed to broadcast signal tx")
+		txHashes[i] = resp.TxHash
+	}
+	for _, txHash := range txHashes {
+		resp, err := txClient.ConfirmTx(ctx, txHash)
+		s.Require().NoError(err, "failed to confirm signal tx")
 		s.Require().Equal(uint32(0), resp.Code, "signal tx failed with code %d", resp.Code)
 	}
-
-	// wait a block so the signals are included
-	s.Require().NoError(wait.ForBlocks(ctx, 1, chain))
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
@@ -373,22 +381,35 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 
 	// GetUpgrade didn't return a pending upgrade. Check if the upgrade has
 	// already been applied by querying ABCIInfo via the RPC client.
-	s.T().Log("GetUpgrade returned nil; checking if the upgrade was already applied")
+	s.T().Logf("GetUpgrade returned no pending upgrade (err: %v); checking if the upgrade was already applied", getUpgradeErr)
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	// ABCIInfo fails while the multiplexer swaps binaries at the upgrade height.
-	pollCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	// ABCIInfo fails or blocks while the multiplexer swaps binaries at the
+	// upgrade height. Bound each call so one blocked request cannot use up the
+	// whole poll budget, and allow enough time for a slow binary switch.
+	const (
+		abciInfoTimeout     = 5 * time.Second
+		appSwitchPollBudget = 2 * time.Minute
+	)
 	var currentAppVersion uint64
-	err = wait.ForCondition(pollCtx, 30*time.Second, time.Second, func() (bool, error) {
-		abciInfo, err := rpcClient.ABCIInfo(pollCtx)
+	err = wait.ForCondition(ctx, appSwitchPollBudget, time.Second, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, abciInfoTimeout)
+		defer cancel()
+		abciInfo, err := rpcClient.ABCIInfo(callCtx)
 		if err != nil {
+			s.T().Logf("ABCIInfo failed while waiting for app version %d: %v", targetAppVersion, err)
 			return false, nil
 		}
 		currentAppVersion = abciInfo.Response.GetAppVersion()
+		if currentAppVersion != targetAppVersion {
+			s.T().Logf("ABCIInfo reports app version %d, waiting for %d", currentAppVersion, targetAppVersion)
+		}
 		return currentAppVersion == targetAppVersion, nil
 	})
+	if err != nil {
+		s.logNodeDiagnostics(ctx, chain.GetNodes())
+	}
 	s.Require().NoError(err, "upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
 
 	// The upgrade was already applied. Compute the expected upgrade height

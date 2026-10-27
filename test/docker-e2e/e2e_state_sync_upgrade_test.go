@@ -16,9 +16,9 @@ import (
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 )
 
-// TestStateSyncWithAppUpgrade verifies that a full node can state-sync across app version
-// boundaries. The test creates a snapshot from before an app upgrade and consumes it with
-// a node running the new app version, ensuring state sync works across version changes.
+// TestStateSyncWithAppUpgrade verifies that a node running the new binary can
+// state sync from a snapshot taken at the old app version and then follow the
+// chain through the app upgrade.
 func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	t := s.T()
 	if testing.Short() {
@@ -54,9 +54,6 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	t.Log("Waiting for state sync snapshots to be generated...")
-	s.Require().NoError(wait.ForBlocks(ctx, 10, chain), "the chain should be running to generate snapshots")
-
 	// Verify we're starting with the right app version
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
@@ -64,36 +61,20 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 
 	s.CreateTxSim(ctx, chain)
 
-	t.Log("Producing 20 blocks with transaction activity")
-	s.Require().NoError(wait.ForBlocks(ctx, 20, chain), "failed to wait for 20 blocks")
+	t.Log("Producing 5 blocks with transaction activity")
+	s.Require().NoError(wait.ForBlocks(ctx, 5, chain), "failed to wait for 5 blocks")
 
 	t.Log("Testing functionality before upgrade")
 	testBankSend(s.T(), chain, cfg)
 	testPFBSubmission(s.T(), chain, cfg)
 
 	t.Log("Phase 2: Waiting for snapshot creation before upgrade")
-	// Wait for a snapshot to be created at the base app version
-	// This ensures we have a snapshot from the old version to test cross-version state sync
-	snapshotHeight := s.waitForSnapshotCreation(ctx, chain, rpcClient)
-	t.Logf("Snapshot created at height %d (app version %d)", snapshotHeight, baseAppVersion)
+	trustHeight := s.waitForSnapshotCreation(ctx, chain, rpcClient)
+	t.Logf("Snapshot created by height %d (app version %d)", trustHeight, baseAppVersion)
 
-	t.Log("Phase 3: Performing upgrade")
-	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, targetAppVersion)
-
-	finalHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
-	s.Require().NoError(err, "failed to get final height")
-	t.Logf("Blocks 1 to %d have app version %d", upgradeHeight-1, baseAppVersion)
-	t.Logf("Blocks %d to %d have app version %d", upgradeHeight, finalHeight, targetAppVersion)
-
-	t.Log("Phase 4: Launching new full node with state sync enabled")
-
-	// Key difference from basic state sync test: Use snapshot from BEFORE the upgrade
-	// This tests state sync across app version boundaries (snapshot producer: old version, consumer: new version)
-	// vs basic state sync test where both producer and consumer are on the same version
-	trustHeight := snapshotHeight
-	s.Require().Greater(trustHeight, int64(0), "trust height should be positive")
-	s.Require().Less(trustHeight, upgradeHeight, "trust height %d should be before upgrade height %d to test cross-version state sync", trustHeight, upgradeHeight)
-
+	// Sync the node before signaling the upgrade so every snapshot it can pick
+	// was taken at the base app version. CometBFT restores the highest one.
+	t.Log("Phase 3: Launching new full node with state sync enabled")
 	trustBlock, err := rpcClient.Block(ctx, &trustHeight)
 	s.Require().NoError(err, "failed to get block at trust height %d", trustHeight)
 
@@ -103,7 +84,6 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 
 	t.Logf("State sync parameters: trust_height=%d, trust_hash=%s", trustHeight, trustHash)
 
-	// Add state sync node
 	err = chain.AddNode(ctx,
 		cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
@@ -128,35 +108,40 @@ func (s *CelestiaTestSuite) TestStateSyncWithAppUpgrade() {
 	s.Require().NoError(err, "state sync node failed to complete sync within timeout")
 
 	// Verify that state sync was used (not block sync) via metrics
-	dockerNode := stateSyncNode.(*cosmos.ChainNode)
-	verifyStateSync(t, dockerNode)
+	verifyStateSync(t, stateSyncNode.(*cosmos.ChainNode))
 
-	// Validate: /status shows catching_up=false
+	// The block store of a state-synced node starts right after the snapshot.
 	status, err := stateSyncClient.Status(ctx)
 	s.Require().NoError(err, "failed to get status from state sync node")
-	s.Require().False(status.SyncInfo.CatchingUp, "state sync node should not be catching up")
-	t.Logf("State sync node status: catching_up=%t, height=%d", status.SyncInfo.CatchingUp, status.SyncInfo.LatestBlockHeight)
+	restoredHeight := status.SyncInfo.EarliestBlockHeight - 1
+	restoredBlock, err := rpcClient.Block(ctx, &restoredHeight)
+	s.Require().NoError(err, "failed to get block at restored snapshot height %d", restoredHeight)
+	s.Require().Equal(baseAppVersion, restoredBlock.Block.Version.App, "restored snapshot at height %d should be from app version %d", restoredHeight, baseAppVersion)
+	t.Logf("State sync node restored the snapshot at height %d (app version %d)", restoredHeight, baseAppVersion)
 
-	// Get fresh chain height for accurate comparison (chain continued producing blocks during state sync)
+	t.Log("Phase 4: Performing upgrade")
+	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, targetAppVersion)
+	s.Require().Less(restoredHeight, upgradeHeight, "restored snapshot height should be before the upgrade height")
+
+	t.Log("Waiting for the state-synced node to follow the chain through the upgrade...")
+	err = s.WaitForSync(ctx, stateSyncClient, stateSyncTimeout, func(info rpctypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight > upgradeHeight
+	})
+	s.Require().NoError(err, "state sync node failed to pass the upgrade height")
+
 	currentChainHeight, err := s.GetLatestBlockHeight(ctx, rpcClient)
 	s.Require().NoError(err, "failed to get current chain height")
-
-	// Verify that the node actually performed state sync by checking it reached current height
+	status, err = stateSyncClient.Status(ctx)
+	s.Require().NoError(err, "failed to get status from state sync node")
 	nodeHeight := status.SyncInfo.LatestBlockHeight
 	s.Require().GreaterOrEqual(nodeHeight, currentChainHeight-5, "state sync node should be within 5 blocks of the current chain tip")
-	s.Require().LessOrEqual(nodeHeight, currentChainHeight,
-		"state sync node should not be ahead of chain tip")
-	t.Logf("State sync successful: node reached height %d (current chain tip: %d)", nodeHeight, currentChainHeight)
+	t.Logf("State sync node at height %d (current chain tip: %d)", nodeHeight, currentChainHeight)
 
-	// Verify ABCIInfo.app_version == targetAppVersion
 	syncedAbciInfo, err := stateSyncClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info from state sync node")
 	s.Require().Equal(targetAppVersion, syncedAbciInfo.Response.GetAppVersion(), "state sync node should have app version %d", targetAppVersion)
-	t.Logf("State sync node app version: %d", syncedAbciInfo.Response.GetAppVersion())
-	binaryVersion := syncedAbciInfo.Response.GetVersion()
-
-	// Verify cross-version state sync success
-	t.Logf("Success: Cross-version state sync completed - consumed snapshot from app version %d with node running binary version %s", baseAppVersion, binaryVersion)
+	t.Logf("Success: restored an app version %d snapshot and upgraded to app version %d with binary version %s",
+		baseAppVersion, targetAppVersion, syncedAbciInfo.Response.GetVersion())
 
 	// Final liveness check
 	t.Log("Performing final liveness check")
