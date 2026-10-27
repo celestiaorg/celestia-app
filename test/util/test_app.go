@@ -106,9 +106,8 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 // WithBlockHash sets req.Hash to a stand-in for the CometBFT block hash that
 // commits to every executed field, so optimistic execution is reused only for the processed block.
 func WithBlockHash(req *abci.RequestFinalizeBlock) *abci.RequestFinalizeBlock {
-	unhashed := *req
-	unhashed.Hash = nil
-	bz, err := unhashed.Marshal()
+	req.Hash = nil
+	bz, err := req.Marshal()
 	if err != nil {
 		panic(err)
 	}

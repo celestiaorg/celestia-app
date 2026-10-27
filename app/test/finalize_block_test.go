@@ -393,8 +393,7 @@ func requireProcessProposalStatus(t *testing.T, testApp *app.App, tx []byte, wan
 
 func requireProcessProposalAccepts(t *testing.T, testApp *app.App, txs [][]byte, blockTime time.Time) {
 	t.Helper()
-	req := processProposalRequestAt(t, testApp, txs, blockTime)
-	resp, err := testApp.ProcessProposal(req)
+	resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, txs, blockTime))
 	require.NoError(t, err)
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 }

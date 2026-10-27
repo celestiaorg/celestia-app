@@ -833,8 +833,7 @@ func TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning(t *t
 func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
 	t.Helper()
 	blockTime := testutil.GenesisTime.Add(time.Duration(testApp.LastBlockHeight()+1) * time.Second)
-	req := processProposalRequestAt(t, testApp, txs, blockTime)
-	resp, err := testApp.ProcessProposal(req)
+	resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, txs, blockTime))
 	require.NoError(t, err)
 	return resp.Status
 }
