@@ -2,7 +2,6 @@ package types_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"math"
 	"testing"
 
@@ -73,19 +72,26 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 }
 
 func TestStateMembershipPublicValuesUnmarshalRejectsInvalidLength(t *testing.T) {
-	for _, n := range []int{0, 1, 32, 72, types.StateMembershipValuesBytes - 1, types.StateMembershipValuesBytes + 1} {
+	// 72 and 104 are the lengths of legacy message id payloads (72 + 32 * n) with zero and one message id. The
+	// single id payload used to collide with the previous u64 count layout; the decoder must never accept them.
+	for _, n := range []int{0, 1, 32, 72, 104, types.StateMembershipValuesBytes - 1, types.StateMembershipValuesBytes + 1} {
 		var v types.StateMembershipValues
 		err := v.Unmarshal(make([]byte, n))
 		require.Error(t, err, "expected error on %d-byte input", n)
 	}
 }
 
-func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
-	payload := make([]byte, types.StateMembershipValuesBytes)
-	binary.LittleEndian.PutUint64(payload[96:104], uint64(math.MaxUint32)+1)
+func TestStateMembershipPublicValuesUnmarshalRejectsUnsupportedVersion(t *testing.T) {
+	valid, err := (&types.StateMembershipValues{Count: 1}).Marshal()
+	require.NoError(t, err)
 
-	var decoded types.StateMembershipValues
-	err := decoded.Unmarshal(payload)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "exceeds maximum")
+	for _, version := range []byte{0, types.StateMembershipValuesVersion + 1, 0xFF} {
+		payload := bytes.Clone(valid)
+		payload[0] = version
+
+		var decoded types.StateMembershipValues
+		err := decoded.Unmarshal(payload)
+		require.Error(t, err, "expected error on version %d", version)
+		require.Contains(t, err.Error(), "unsupported state membership values version")
+	}
 }

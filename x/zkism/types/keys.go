@@ -31,10 +31,16 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
+	// StateMembershipValuesVersion is the layout version of state membership public values. The membership
+	// program commits it as the first byte so that public values produced by any other program version are
+	// rejected before the proof is verified.
+	StateMembershipValuesVersion = 1
+
 	// StateMembershipValuesBytes is the exact size of public values payloads associated
 	// with state membership proofs.
-	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 32 (TreeRoot) + 8 (Count)
-	StateMembershipValuesBytes = 32 + 32 + 32 + 8
+	// Calculated as: 1 (Version) + 32 (StateRoot) + 32 (MerkleTreeAddress) + 32 (TreeRoot) + 4 (Count)
+	// This can never equal the length of a legacy message id payload, which is 72 + 32 * n bytes.
+	StateMembershipValuesBytes = 1 + 32 + 32 + 32 + 4
 
 	// MerkleProofMetadataBytes is the exact size of the metadata provided when verifying a message.
 	// Calculated as: 4 (leaf index) + TreeDepth * 32 (merkle branch)

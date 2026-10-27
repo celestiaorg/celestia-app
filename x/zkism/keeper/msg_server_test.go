@@ -193,7 +193,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 
 // stateMembershipTrustedState is the trusted state that the state membership fixtures are bound to:
 // the EVM state root followed by the EVM height (u64, little-endian) at which the merkle tree was proven.
-const stateMembershipTrustedState = "29f5291fbbbf562ad5436a70a5c31ac0f178a26df4881f0783338a87f78006fbc500000000000000"
+const stateMembershipTrustedState = "6cb90452a1f1eb1702fe794c323e4caecf41ec98e835d63334928a41576de97ef000000000000000"
 
 func (suite *KeeperTestSuite) TestSubmitMessages() {
 	trustedState, err := hex.DecodeString(stateMembershipTrustedState)
