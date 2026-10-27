@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM docker.io/celestiaorg/celestia-node:v0.34.2-mocha@sha256:7a76928a2fa9a9ddb064b64e0aa139b77e309c4c7c44e7a04052f5e6cac2dc53 AS node
 
-FROM golang:1.26.6-bookworm AS build
+FROM golang:1.26.10-bookworm AS build
 WORKDIR /src
 ENV GOWORK=off CGO_ENABLED=0
 COPY go.mod go.sum ./
@@ -10,7 +10,7 @@ COPY . .
 ARG VERSION=dev
 ARG COMMIT=unknown
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    make build-standalone build-fibre-server VERSION="$VERSION" COMMIT="$COMMIT" && \
+    make -o mod build-standalone build-fibre-server VERSION="$VERSION" COMMIT="$COMMIT" && \
     go build -o build/submit ./local_devnet/submit
 
 FROM debian:bookworm-slim AS runtime
@@ -22,7 +22,7 @@ LABEL org.opencontainers.image.source="https://github.com/celestiaorg/celestia-a
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates curl jq netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
-COPY docker/devnet/*.sh /opt/devnet/
+COPY docker/devnet/bridge.sh docker/devnet/credentials.sh docker/devnet/health.sh docker/devnet/provision.sh docker/devnet/validator.sh /opt/devnet/
 ENV P2P_NETWORK=devnet
 
 FROM runtime AS credentials

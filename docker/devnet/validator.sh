@@ -37,7 +37,10 @@ if [[ ! -f "$home/initialized" ]]; then
     -e 's/^discard_abci_responses = true/discard_abci_responses = false/' "$home/config/config.toml"
   touch "$home/initialized"
 fi
-jq -e --arg network "$network" '.chain_id == $network' "$home/config/genesis.json" >/dev/null
+jq -e --arg network "$network" '.chain_id == $network' "$home/config/genesis.json" >/dev/null || {
+  echo 'Validator state belongs to another chain; reset the devnet volumes.' >&2
+  exit 1
+}
 pids=()
 # shellcheck disable=SC2317,SC2329
 cleanup() {
