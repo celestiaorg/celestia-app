@@ -381,22 +381,35 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 
 	// GetUpgrade didn't return a pending upgrade. Check if the upgrade has
 	// already been applied by querying ABCIInfo via the RPC client.
-	s.T().Log("GetUpgrade returned nil; checking if the upgrade was already applied")
+	s.T().Logf("GetUpgrade returned no pending upgrade (err: %v); checking if the upgrade was already applied", getUpgradeErr)
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
-	// ABCIInfo fails while the multiplexer swaps binaries at the upgrade height.
-	pollCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	// ABCIInfo fails or blocks while the multiplexer swaps binaries at the
+	// upgrade height. Bound each call so one blocked request cannot use up the
+	// whole poll budget, and allow enough time for a slow binary switch.
+	const (
+		abciInfoTimeout     = 5 * time.Second
+		appSwitchPollBudget = 2 * time.Minute
+	)
 	var currentAppVersion uint64
-	err = wait.ForCondition(pollCtx, 30*time.Second, time.Second, func() (bool, error) {
-		abciInfo, err := rpcClient.ABCIInfo(pollCtx)
+	err = wait.ForCondition(ctx, appSwitchPollBudget, time.Second, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, abciInfoTimeout)
+		defer cancel()
+		abciInfo, err := rpcClient.ABCIInfo(callCtx)
 		if err != nil {
+			s.T().Logf("ABCIInfo failed while waiting for app version %d: %v", targetAppVersion, err)
 			return false, nil
 		}
 		currentAppVersion = abciInfo.Response.GetAppVersion()
+		if currentAppVersion != targetAppVersion {
+			s.T().Logf("ABCIInfo reports app version %d, waiting for %d", currentAppVersion, targetAppVersion)
+		}
 		return currentAppVersion == targetAppVersion, nil
 	})
+	if err != nil {
+		s.logNodeDiagnostics(ctx, chain.GetNodes())
+	}
 	s.Require().NoError(err, "upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
 
 	// The upgrade was already applied. Compute the expected upgrade height
