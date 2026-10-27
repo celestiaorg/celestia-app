@@ -98,7 +98,7 @@ Reusability across SP1 programs:
 - Hyperlane core calls `Verify(ism_id, metadata, message)`.
 - The metadata must be exactly 1028 bytes: `leaf_index (u32, big-endian) || branch (32 × 32 bytes)`. Malformed metadata returns an error.
 - The method returns `true` if `leaf_index` is below the stored leaf count and the branch proves `message.Id()` at `leaf_index` against the stored merkle tree root. Otherwise it returns `false` and Hyperlane core must not process the message.
-- Replay protection is enforced by the Hyperlane mailbox, which rejects message IDs it has already received.
+- Replay protection is enforced by the Hyperlane mailbox, which rejects message IDs it has already received. The ISM itself keeps no record of delivered messages; see the replay note under Security Considerations.
 
 Thus, the expected flow is:
 
@@ -160,7 +160,7 @@ The module enforces the following invariants:
 - State transition proofs must include the currently stored state (minimum 32 bytes) and replace it entirely with `new_state` (minimum 32 bytes).
 - Membership proofs must bind to the trusted root stored in `ism.State[:32]` and to the ISM's `merkle_tree_address`.
 - Submitting a membership proof costs a constant amount of state and event data, independent of the number of messages it covers.
-- Replay protection is enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox) configured with the ISM.
+- Replay protection is enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox), not by the ISM. Hyperlane core records delivered messages per `(mailbox_id, message_id)`, and mailboxes can be created permissionlessly. A valid merkle proof therefore passes `Verify` once per mailbox, so a message can be delivered again through a second mailbox with the same local domain that is configured with the same ISM. Recipients must pin the mailbox they accept deliveries from (warp tokens do: `Handle` rejects a delivery whose mailbox differs from the token's origin mailbox) or keep their own delivered-message set.
 
 ### Liveness and Availability Risks
 
