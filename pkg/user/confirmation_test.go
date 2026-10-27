@@ -35,6 +35,7 @@ type confirmationServer struct {
 	batchDelay time.Duration
 	batchHash  string // when set, batches answer with this hash
 	single     int
+	singleErr  error // when set, TxStatus fails with it
 	batches    int
 
 	streams chan confirmationStream
@@ -62,7 +63,11 @@ func (s *confirmationServer) lookup(ctx context.Context, hash string) (*tx.TxSta
 func (s *confirmationServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
 	s.mu.Lock()
 	s.single++
+	err := s.singleErr
 	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	return s.lookup(ctx, req.TxId)
 }
 
@@ -339,5 +344,51 @@ func TestConfirmationSharedHash(t *testing.T) {
 		stream.heights <- 2
 		require.NoError(t, (<-second).err)
 		requireFeedStopped(t, client)
+	})
+}
+
+// A failed direct check keeps the waiter on the feed and is retried at the next
+// fallback; only an unimplemented TxStatus is fatal.
+func TestConfirmationDirectCheckErrors(t *testing.T) {
+	for name, viaFeed := range map[string]bool{"feed": true, "fallback": false} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				client, server := newConfirmationTestClient(t)
+				hash := fmt.Sprintf("%064X", 1)
+				server.singleErr = status.Error(codes.Unavailable, "node restarting")
+				result := confirmAsync(t.Context(), client, hash)
+				stream := <-server.streams
+				requireWaiting(t, result)
+
+				time.Sleep(confirmationFallbackInterval)
+				requireWaiting(t, result)
+				single, _ := server.calls()
+				require.Equal(t, 2, single, "initial and fallback checks")
+
+				server.commit(2, hash)
+				if viaFeed {
+					stream.heights <- 2
+				} else {
+					server.mu.Lock()
+					server.singleErr = nil
+					server.mu.Unlock()
+					time.Sleep(confirmationFallbackInterval)
+				}
+				got := <-result
+				require.NoError(t, got.err)
+				require.Equal(t, int64(2), got.response.Height)
+				requireFeedStopped(t, client)
+			})
+		})
+	}
+
+	t.Run("unimplemented", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			client, server := newConfirmationTestClient(t)
+			server.singleErr = status.Error(codes.Unimplemented, "no TxStatus")
+			got := <-confirmAsync(t.Context(), client, fmt.Sprintf("%064X", 1))
+			require.Equal(t, codes.Unimplemented, status.Code(got.err))
+			requireFeedStopped(t, client)
+		})
 	})
 }

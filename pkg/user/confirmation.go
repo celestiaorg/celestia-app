@@ -15,9 +15,12 @@ import (
 	"github.com/cometbft/cometbft/rpc/core"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -35,7 +38,8 @@ const (
 // the transaction on every new block instead of on a fixed poll interval.
 // Callers share one height subscription, which fetches their statuses in batches.
 // If the subscription is unavailable, each caller falls back to checking its own
-// status every 30 seconds.
+// status every 30 seconds. A failed direct check is retried at the next fallback
+// unless the node doesn't implement TxStatus or ctx is done.
 func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string) (*TxResponse, error) {
 	if _, err := hex.DecodeString(txHash); err != nil || len(txHash) != 64 {
 		return nil, errors.New("transaction hash must contain 32 hex-encoded bytes")
@@ -71,12 +75,19 @@ func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string
 }
 
 // committedTxStatus queries a single transaction status, returning nil while a
-// committed result is not yet visible at the application's committed height.
+// committed result is not yet visible at the application's committed height or
+// the query failed transiently.
 func (client *TxClient) committedTxStatus(ctx context.Context, txHash string) (*tx.TxStatusResponse, error) {
 	var header metadata.MD
 	resp, err := tx.NewTxClient(client.conns[0]).TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash}, grpc.Header(&header))
-	if err != nil {
+	switch {
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	case status.Code(err) == codes.Unimplemented:
 		return nil, fmt.Errorf("transaction status: %w", err)
+	case err != nil:
+		trace.SpanFromContext(ctx).RecordError(fmt.Errorf("txclient/ConfirmTxSubscription: transaction status: %w", err))
+		return nil, nil
 	}
 	visible, err := isCommittedVisible(resp, header)
 	if err != nil || !visible {
