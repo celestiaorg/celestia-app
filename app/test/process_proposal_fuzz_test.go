@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
@@ -139,7 +140,7 @@ func (fx *proposalFixture) processProposal(t *testing.T, txs [][]byte, dataRoot 
 		SquareSize:   squareSize,
 	})
 	require.NoError(t, err)
-	if logged := fx.logs.String(); strings.Contains(logged, "caught panic") && !fx.knownAntePanic(txs) {
+	if logged := fx.logs.String(); strings.Contains(logged, "caught panic") && !knownAntePanic(fx.app.GetTxConfig().TxDecoder(), txs) {
 		t.Fatalf("ProcessProposal recovered a panic:\n%s", logged)
 	}
 	return resp.Status
@@ -147,10 +148,10 @@ func (fx *proposalFixture) processProposal(t *testing.T, txs [][]byte, dataRoot 
 
 // knownAntePanic reports whether txs holds a tx that the SDK decoder accepts
 // without messages or without a fee. The ante handler dereferences the nil fee
-// and panics; ProcessProposal recovers that and rejects the block, which is
-// the accepted outcome today, so the fuzzer does not count it as a crash.
-func (fx *proposalFixture) knownAntePanic(txs [][]byte) bool {
-	decoder := fx.app.GetTxConfig().TxDecoder()
+// and panics; CheckTx and ProcessProposal recover that and reject the tx or
+// block, which is the accepted outcome today, so the fuzzers do not count it
+// as a crash.
+func knownAntePanic(decoder sdk.TxDecoder, txs [][]byte) bool {
 	for _, raw := range txs {
 		if len(raw) > appconsts.MaxTxSize {
 			continue
