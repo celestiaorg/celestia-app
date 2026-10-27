@@ -73,12 +73,13 @@ func TestEvaluate(t *testing.T) {
 			ok: true, approved: []string{"alice"},
 		},
 		{
-			name: "bots, readers, and stale approvals do not count", title: high,
-			reviews: []Review{
-				{ID: 1, User: agent, State: "APPROVED", CommitID: sha},
-				approve("reader", 2),
-				{ID: 3, User: person("alice"), State: "APPROVED", CommitID: "old"},
-			},
+			name: "bots and readers do not count", title: high,
+			reviews: []Review{{ID: 1, User: agent, State: "APPROVED", CommitID: sha}, approve("reader", 2)},
+		},
+		{
+			name: "approval of an earlier commit persists", title: high,
+			reviews: []Review{{ID: 1, User: person("alice"), State: "APPROVED", CommitID: "old"}},
+			ok:      true, approved: []string{"alice"},
 		},
 		{
 			name: "dismissal erases approval", title: high,
