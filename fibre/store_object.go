@@ -69,11 +69,7 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 		Body:          reader,
 		ContentLength: aws.Int64(reader.size),
 		IfNoneMatch:   aws.String("*"),
-	}, func(options *s3.Options) {
-		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-		// Avoid hashing the full shard for SigV4 signing.
-		options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
-	})
+	}, objectPutOptions)
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
 		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
@@ -83,6 +79,12 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 		return fmt.Errorf("putting shard object: %w", putErr)
 	}
 	return nil
+}
+
+func objectPutOptions(options *s3.Options) {
+	options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+	// Avoid hashing the full shard for SigV4 signing.
+	options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 }
 
 func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
