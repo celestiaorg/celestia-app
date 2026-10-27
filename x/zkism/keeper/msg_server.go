@@ -198,7 +198,12 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, err
 	}
 
-	// Allow a membership proof from the new program for the current state root.
+	// Nothing proven under the replaced keys stays in force: drop the merkle tree state so no message verifies until
+	// the new membership program has proven a tree root, and allow that proof for the current state root.
+	if err := m.treeStates.Remove(ctx, ism.Id.GetInternalId()); err != nil {
+		return nil, err
+	}
+
 	if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
 		return nil, err
 	}

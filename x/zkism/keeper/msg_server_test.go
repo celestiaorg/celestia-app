@@ -491,7 +491,9 @@ func (suite *KeeperTestSuite) TestUpdateVerifyingKeys() {
 			suite.Require().Equal(ism.State, after.ism.State)
 			suite.Require().Equal(ism.Owner, after.ism.Owner)
 			suite.Require().False(after.submitted, "submission flag must be reset")
-			suite.Require().Equal(treeState, after.treeState)
+
+			_, err = suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ism.Id)
+			suite.Require().ErrorIs(err, collections.ErrNotFound, "tree state proven under the replaced keys must be dropped")
 		})
 	}
 }
