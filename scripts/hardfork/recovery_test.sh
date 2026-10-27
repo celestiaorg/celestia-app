@@ -121,6 +121,10 @@ fail() {
     exit 1
 }
 
+inode() {
+    stat -c %i "$1" 2>/dev/null || stat -f %i "$1"
+}
+
 called() {
     grep -qxF "$1" "$STUB_LOG"
 }
@@ -276,7 +280,7 @@ grep -q "kv tx index keeps results from before the rollback" "$TMP/out.log" || f
 new_node
 printf 'halt-height = 25\n  halt-time = 1700000000 # stop\nmin-retain-blocks = 0\n' >"$NODE_HOME/config/app.toml"
 echo 'indexer = "kv"' >>"$NODE_HOME/config/config.toml"
-INODE=$(ls -i "$NODE_HOME/config/app.toml" | awk '{ print $1 }')
+INODE=$(inode "$NODE_HOME/config/app.toml")
 recovery restart --home "$NODE_HOME" --expect-version 10.0.0 --check-height 19 --expect-app-hash abcd12 ||
     fail "restart failed"
 grep -E '^sudo |rollback|snapshots' "$STUB_LOG" >"$TMP/order.log" || true
@@ -288,7 +292,7 @@ diff "$TMP/want.log" "$TMP/order.log" || fail "restart call order"
 printf 'halt-height = 0\n  halt-time = 0\nmin-retain-blocks = 0\n' >"$TMP/want.toml"
 diff "$TMP/want.toml" "$NODE_HOME/config/app.toml" || fail "restart did not clear the halt"
 [ -f "$NODE_HOME/config/app.toml.bak" ] || fail "restart did not keep app.toml.bak"
-[ "$(ls -i "$NODE_HOME/config/app.toml" | awk '{ print $1 }')" = "$INODE" ] || fail "restart replaced app.toml instead of rewriting it"
+[ "$(inode "$NODE_HOME/config/app.toml")" = "$INODE" ] || fail "restart replaced app.toml instead of rewriting it"
 grep -qxF "app hash at height 19 matches" "$TMP/out.log" || fail "restart app hash not verified"
 if grep -Eq 'the node stops again there|kv tx index' "$TMP/out.log"; then
     fail "restart printed a rollback warning"
