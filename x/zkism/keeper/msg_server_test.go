@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -492,5 +493,129 @@ func (suite *KeeperTestSuite) TestUpdateVerifyingKeys() {
 			suite.Require().False(after.submitted, "submission flag must be reset")
 			suite.Require().Equal(treeState, after.treeState)
 		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestTransferOwnership() {
+	var msg *types.MsgTransferOwnership
+
+	// newOwner is a valid bech32 address that differs from the current owner.
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x42}, 20)).String()
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+		expOwner  string
+	}{
+		{
+			name:      "success: transfer",
+			setupTest: func() {},
+			expOwner:  newOwner,
+		},
+		{
+			name: "success: renounce",
+			setupTest: func() {
+				msg.NewOwner = ""
+				msg.RenounceOwnership = true
+			},
+			expOwner: "",
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg.Id = util.CreateMockHexAddress("ism", 2)
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "sender is not the owner",
+			setupTest: func() {
+				msg.Owner = newOwner
+			},
+			expError: sdkerrors.ErrUnauthorized,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset state
+			ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
+			ism.Owner = testfactory.TestAccAddr
+			suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+
+			msg = &types.MsgTransferOwnership{
+				Id:       ism.Id,
+				Owner:    testfactory.TestAccAddr,
+				NewOwner: newOwner,
+			}
+
+			tc.setupTest()
+			before := suite.snapshotIsm(ism.Id)
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.TransferOwnership(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().ErrorIs(err, tc.expError)
+				suite.Require().Nil(res)
+				suite.Require().Equal(before, suite.snapshotIsm(ism.Id))
+				return
+			}
+
+			suite.Require().NoError(err)
+			suite.Require().NotNil(res)
+
+			after := suite.snapshotIsm(ism.Id)
+			expected := before.ism
+			expected.Owner = tc.expOwner
+			suite.Require().Equal(expected, after.ism, "only the owner may change")
+		})
+	}
+}
+
+// TestOwnershipLifecycle checks that a transferred ISM obeys its new owner and that a renounced ISM can never be
+// administered again.
+func (suite *KeeperTestSuite) TestOwnershipLifecycle() {
+	ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
+	ism.Owner = testfactory.TestAccAddr
+	suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x42}, 20)).String()
+	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+
+	_, err := msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: testfactory.TestAccAddr, NewOwner: newOwner})
+	suite.Require().NoError(err)
+
+	updateKeys := func(owner string) error {
+		_, err := msgServer.UpdateVerifyingKeys(suite.ctx, &types.MsgUpdateVerifyingKeys{
+			Id:                  ism.Id,
+			Owner:               owner,
+			Groth16Vkey:         ism.Groth16Vkey,
+			StateTransitionVkey: randBytes(32),
+			StateMembershipVkey: randBytes(32),
+		})
+		return err
+	}
+
+	// The previous owner lost control, the new owner has it.
+	suite.Require().ErrorIs(updateKeys(testfactory.TestAccAddr), sdkerrors.ErrUnauthorized)
+	suite.Require().NoError(updateKeys(newOwner))
+
+	_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: testfactory.TestAccAddr, NewOwner: testfactory.TestAccAddr})
+	suite.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
+
+	// Renounce: nobody, including an empty owner field, can administer the ISM afterwards.
+	_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: newOwner, RenounceOwnership: true})
+	suite.Require().NoError(err)
+
+	stored, err := suite.zkISMKeeper.GetIsm(suite.ctx, ism.Id)
+	suite.Require().NoError(err)
+	suite.Require().Empty(stored.Owner)
+
+	for _, owner := range []string{newOwner, testfactory.TestAccAddr, ""} {
+		suite.Require().ErrorIs(updateKeys(owner), sdkerrors.ErrUnauthorized, "owner %q", owner)
+		_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: owner, NewOwner: newOwner})
+		suite.Require().ErrorIs(err, sdkerrors.ErrUnauthorized, "owner %q", owner)
 	}
 }

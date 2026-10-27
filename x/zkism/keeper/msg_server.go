@@ -181,7 +181,7 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
-	if msg.Owner != ism.Owner {
+	if ism.Owner == "" || msg.Owner != ism.Owner {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
 	}
 
@@ -208,4 +208,35 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 	}
 
 	return &types.MsgUpdateVerifyingKeysResponse{}, nil
+}
+
+// TransferOwnership implements types.MsgServer. Only the current owner can transfer ownership to another address or
+// renounce it. Renouncing is irreversible: with no owner, no account can call UpdateVerifyingKeys or TransferOwnership.
+func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransferOwnership) (*types.MsgTransferOwnershipResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	if ism.Owner == "" || msg.Owner != ism.Owner {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
+	}
+
+	// ValidateBasic guarantees exactly one of new_owner and renounce_ownership is set and that new_owner is a valid
+	// bech32 address.
+	if msg.RenounceOwnership {
+		ism.Owner = ""
+	} else {
+		ism.Owner = msg.NewOwner
+	}
+
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitTransferOwnershipEvent(sdk.UnwrapSDKContext(ctx), ism.Id, msg); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgTransferOwnershipResponse{}, nil
 }

@@ -14,6 +14,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgUpdateInterchainSecurityModule{},
 		&MsgSubmitMessages{},
 		&MsgUpdateVerifyingKeys{},
+		&MsgTransferOwnership{},
 	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)

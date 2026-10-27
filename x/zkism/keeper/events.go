@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -43,5 +44,15 @@ func EmitUpdateVerifyingKeysEvent(ctx sdk.Context, ism types.InterchainSecurityM
 		Groth16Vkey:         types.EncodeHex(ism.Groth16Vkey),
 		StateTransitionVkey: types.EncodeHex(ism.StateTransitionVkey),
 		StateMembershipVkey: types.EncodeHex(ism.StateMembershipVkey),
+	})
+}
+
+// EmitTransferOwnershipEvent emits a typed event to signal that ownership of an ism was transferred or renounced.
+func EmitTransferOwnershipEvent(ctx sdk.Context, ismId util.HexAddress, msg *types.MsgTransferOwnership) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventTransferOwnership{
+		Id:                ismId,
+		Owner:             msg.Owner,
+		NewOwner:          msg.NewOwner,
+		RenounceOwnership: msg.RenounceOwnership,
 	})
 }

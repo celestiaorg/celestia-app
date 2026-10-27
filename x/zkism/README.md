@@ -35,6 +35,7 @@ Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/
 - `CreateInterchainSecurityModule`: Creates an ISM with initial trusted state bytes and verifier configuration.
 - `UpdateInterchainSecurityModule`: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes; no height is stored.
 - `UpdateVerifyingKeys`: Replaces the Groth16 verifying key and both program verifying key commitments of an ISM. Only the ISM owner can submit it. Resets the submission flag so the new membership program can submit for the current state root.
+- `TransferOwnership`: Transfers ownership of an ISM to another address or, with `renounce_ownership`, removes the owner permanently. Only the ISM owner can submit it. Renouncing is irreversible: an ISM without an owner can never have its verifying keys updated again, so maintainers who want an immutable ISM renounce, and those who want to follow breaking changes of the proving system keep (or hand over) ownership.
 - `SubmitMessages`: Verifies a state membership proof and stores the proven source chain merkle tree root and leaf count. The proof must bind to the stored state root (`state[:32]`). The public values are a fixed 101 bytes: `version (u8) || state_root (32) || merkle_tree_address (32) || tree_root (32) || count (u32, little-endian)`. The version is currently `1`; payloads with any other version or length are rejected before proof verification, so public values committed by an older membership program (which proved a list of message ids and are `72 + 32 * n` bytes long) can never be accepted even while an ISM still stores the older program's verifying key.
 
 ## SP1 Groth16 Verifier
@@ -118,6 +119,7 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 - `EventCreateInterchainSecurityModule` emitted on creation with all ISM fields.
 - `EventUpdateInterchainSecurityModule` emitted when the stored state is replaced via a transition proof.
 - `EventUpdateVerifyingKeys` emitted when the owner replaces the verifying keys.
+- `EventTransferOwnership` emitted when the owner transfers or renounces ownership.
 - `EventSubmitMessages` emitted when a membership proof is accepted (includes the state root, merkle tree root and leaf count).
 
 ## Security Considerations

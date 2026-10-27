@@ -24,6 +24,9 @@ service Msg {
 
   // UpdateVerifyingKeys defines the rpc method for the ISM owner to replace the verifying keys of a zk ISM.
   rpc UpdateVerifyingKeys(MsgUpdateVerifyingKeys) returns (MsgUpdateVerifyingKeysResponse);
+
+  // TransferOwnership defines the rpc method for the ISM owner to transfer or renounce ownership of a zk ISM.
+  rpc TransferOwnership(MsgTransferOwnership) returns (MsgTransferOwnershipResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -125,3 +128,24 @@ message MsgUpdateVerifyingKeys {
 
 // MsgUpdateVerifyingKeysResponse is the response type for UpdateVerifyingKeys.
 message MsgUpdateVerifyingKeysResponse {}
+
+// MsgTransferOwnership is the request type for TransferOwnership. Exactly one of new_owner and renounce_ownership
+// must be set. Renouncing ownership is irreversible: no account can update the verifying keys afterwards.
+message MsgTransferOwnership {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // owner is the current ism owner and message sender.
+  string owner = 2;
+  // new_owner is the address that becomes the ism owner. Must be empty when renouncing ownership.
+  string new_owner = 3;
+  // renounce_ownership permanently removes the owner of the ism. Must be false when setting a new owner.
+  bool renounce_ownership = 4;
+}
+
+// MsgTransferOwnershipResponse is the response type for TransferOwnership.
+message MsgTransferOwnershipResponse {}

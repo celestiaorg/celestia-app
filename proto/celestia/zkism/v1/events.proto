@@ -79,3 +79,20 @@ message EventUpdateVerifyingKeys {
   // hash-based commitment to the verifier key used for state membership (hex-encoded)
   string state_membership_vkey = 4;
 }
+
+// EventTransferOwnership defines the event type emitted when the owner transfers or renounces ownership of an ism.
+message EventTransferOwnership {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the previous owner of the ism
+  string owner = 2;
+  // the new owner of the ism, empty when ownership was renounced
+  string new_owner = 3;
+  // whether ownership was renounced
+  bool renounce_ownership = 4;
+}

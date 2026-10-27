@@ -11,6 +11,7 @@ var (
 	_ sdk.HasValidateBasic = (*MsgUpdateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitMessages)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateVerifyingKeys)(nil)
+	_ sdk.HasValidateBasic = (*MsgTransferOwnership)(nil)
 )
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
@@ -90,4 +91,28 @@ func (msg *MsgUpdateVerifyingKeys) ValidateBasic() error {
 	}
 
 	return validateVerifyingKeys(msg.Groth16Vkey, msg.StateTransitionVkey, msg.StateMembershipVkey)
+}
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgTransferOwnership) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+
+	if msg.RenounceOwnership {
+		if msg.NewOwner != "" {
+			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "cannot set a new owner and renounce ownership at the same time")
+		}
+		return nil
+	}
+
+	if msg.NewOwner == "" {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "either a new owner or renounce ownership is required")
+	}
+
+	if _, err := sdk.AccAddressFromBech32(msg.NewOwner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid new owner: %s", err)
+	}
+
+	return nil
 }

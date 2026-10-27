@@ -6,6 +6,7 @@ import (
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -330,6 +331,81 @@ func TestMsgUpdateVerifyingKeysValidateBasic(t *testing.T) {
 				Groth16Vkey:         groth16Vk,
 				StateTransitionVkey: bytes.Repeat([]byte{0x01}, 32),
 				StateMembershipVkey: bytes.Repeat([]byte{0x02}, 32),
+			}
+
+			tc.malleate()
+
+			err := msg.ValidateBasic()
+			if tc.expErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgTransferOwnershipValidateBasic(t *testing.T) {
+	var msg *types.MsgTransferOwnership
+
+	tests := []struct {
+		name     string
+		malleate func()
+		expErr   error
+	}{
+		{
+			name:     "success: transfer",
+			malleate: func() {},
+			expErr:   nil,
+		},
+		{
+			name: "success: renounce",
+			malleate: func() {
+				msg.NewOwner = ""
+				msg.RenounceOwnership = true
+			},
+			expErr: nil,
+		},
+		{
+			name: "zero ism identifier",
+			malleate: func() {
+				msg.Id = util.NewZeroAddress()
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "neither new owner nor renounce",
+			malleate: func() {
+				msg.NewOwner = ""
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "new owner and renounce at the same time",
+			malleate: func() {
+				msg.RenounceOwnership = true
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "invalid new owner address",
+			malleate: func() {
+				msg.NewOwner = "not-an-address"
+			},
+			expErr: sdkerrors.ErrInvalidAddress,
+		},
+	}
+
+	// Encode the new owner with whatever bech32 prefix the sdk config currently holds.
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x02}, 20)).String()
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg = &types.MsgTransferOwnership{
+				Id:       util.CreateMockHexAddress("module", 1),
+				Owner:    "owner",
+				NewOwner: newOwner,
 			}
 
 			tc.malleate()
