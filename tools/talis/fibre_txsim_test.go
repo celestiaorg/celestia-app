@@ -24,8 +24,13 @@ func TestFibreTxsimPreencode(t *testing.T) {
 				cfg.Validators = []Instance{{Name: "validator-0", PublicIP: "192.0.2.1"}}
 				cfg.Encoders = []Instance{{Name: "encoder-0", PublicIP: "192.0.2.2"}}
 				require.NoError(t, cfg.SaveFile(filepath.Join(dir, "config.json")))
+				// Toggle --target-rate with preencode so both the set and unset forms are covered.
+				targetRate := "0"
+				if preencode {
+					targetRate = "2.5"
+				}
 				cmd := fibreTxsimCmd()
-				cmd.SetArgs([]string{"--directory", dir, fmt.Sprintf("--on-encoders=%t", onEncoders), fmt.Sprintf("--preencode=%t", preencode), "--otel-metrics-path", "/custom/metrics"})
+				cmd.SetArgs([]string{"--directory", dir, fmt.Sprintf("--on-encoders=%t", onEncoders), fmt.Sprintf("--preencode=%t", preencode), "--target-rate", targetRate, "--otel-metrics-path", "/custom/metrics"})
 				require.NoError(t, cmd.Execute())
 				args, err := os.ReadFile(capture)
 				require.NoError(t, err)
@@ -35,8 +40,10 @@ func TestFibreTxsimPreencode(t *testing.T) {
 				require.NoError(t, err)
 				if preencode {
 					require.Contains(t, strings.Fields(string(script)), "--preencode")
+					require.Contains(t, string(script), "--target-rate 2.5")
 				} else {
 					require.NotContains(t, string(script), "--preencode")
+					require.NotContains(t, string(script), "--target-rate")
 				}
 				require.Contains(t, string(script), "--upload-only=false")
 				require.Contains(t, string(script), "--otel-metrics-path '/custom/metrics'")

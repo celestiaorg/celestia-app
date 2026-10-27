@@ -22,6 +22,7 @@ func fibreTxsimCmd() *cobra.Command {
 		concurrency       int
 		blobSize          int
 		interval          time.Duration
+		targetRate        float64
 		duration          time.Duration
 		keyPrefix         string
 		download          bool
@@ -47,7 +48,7 @@ func fibreTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			if onEncoders {
-				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, preencode, pyroscopeEndpoint, otlpPathArgs(cmd))
+				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, targetRate, duration, download, uploadOnly, preencode, pyroscopeEndpoint, otlpPathArgs(cmd))
 			}
 
 			// Legacy mode: run fibre-txsim on validators themselves
@@ -71,6 +72,7 @@ func fibreTxsimCmd() *cobra.Command {
 			if preencode {
 				remoteCmd += " --preencode"
 			}
+			remoteCmd += targetRateArg(targetRate)
 
 			remoteCmd += otlpPathArgs(cmd)
 			// Auto-wire observability endpoints when observability nodes are configured
@@ -101,6 +103,7 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions per instance")
 	cmd.Flags().IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	cmd.Flags().DurationVar(&interval, "interval", 0, "delay between blob submissions (0 = no delay)")
+	cmd.Flags().Float64Var(&targetRate, "target-rate", 0, "max uploads per second per instance, shared by its workers (0 = unlimited)")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	cmd.Flags().BoolVar(&download, "download", false, "enable download verification after each successful upload (downloads blob back and compares with original data)")
@@ -117,7 +120,7 @@ func fibreTxsimCmd() *cobra.Command {
 // startFibreTxsimOnEncoders launches fibre-txsim on each encoder instance.
 // Each encoder is mapped to a validator (round-robin) and uses a unique key
 // prefix (enc0, enc1, ...) so that their escrow accounts are independent.
-func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly, preencode bool, pyroscopeEndpoint, otlpPaths string) error {
+func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval time.Duration, targetRate float64, duration time.Duration, download, uploadOnly, preencode bool, pyroscopeEndpoint, otlpPaths string) error {
 	if len(cfg.Encoders) == 0 {
 		return fmt.Errorf("no encoder instances found in config — add encoders via 'talis add -t encoder'")
 	}
@@ -156,6 +159,7 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 		if preencode {
 			remoteCmd += " --preencode"
 		}
+		remoteCmd += targetRateArg(targetRate)
 
 		remoteCmd += otlpPaths
 		// Auto-wire observability endpoints
@@ -193,6 +197,14 @@ func printFibreTxsimSummary(instances []Instance) {
 	fmt.Println()
 	fmt.Printf("  To kill all:  talis kill-session -s %s\n", FibreTxSimSessionName)
 	fmt.Printf("  To view logs: ssh root@<ip> 'cat /root/talis-%s.log'\n", FibreTxSimSessionName)
+}
+
+// targetRateArg omits the flag when unset so older remote binaries keep working.
+func targetRateArg(targetRate float64) string {
+	if targetRate <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(" --target-rate %g", targetRate)
 }
 
 func otlpPathArgs(cmd *cobra.Command) string {

@@ -39,6 +39,7 @@ fibre-txsim \
 | `--blob-size`     | `1000000`        | Size of each blob in bytes                                                  |
 | `--concurrency`   | `1`              | Number of concurrent workers (each gets its own account)                    |
 | `--interval`      | `0`              | Delay between blob submissions per worker (`0` = no delay)                  |
+| `--target-rate`   | `0`              | Max uploads per second across all workers (`0` = unlimited)                 |
 | `--duration`      | `0`              | How long to run (`0` = until killed with Ctrl+C)                            |
 | `--upload-only`   | `false`          | Upload shards without broadcasting or confirming a transaction             |
 | `--preencode`     | `false`          | Reuse one encoded blob with fresh payment promises |

@@ -212,6 +212,8 @@ Keep in mind that we can still edit anything in the payload before deploying the
 
 Note: When increasing the genesis square size, ensure you also increase the `SquareSizeUpperBound` constant to allow blocks to be created at the new size.
 
+For Fibre load, size validator disks first: see [PFF load storage](fibre.md#pff-load-storage). `--fibre-shard-retention` and `--fibre-promise-timeout` (both at least `10m`) bound how long shards stay on disk.
+
 ### deploy
 
 This step is when the network is actually started. The payload is uploaded to each instance in the network directly from the user's machine. After delivering the payload, the start script is executed in a tmux session called "app" on each machine.

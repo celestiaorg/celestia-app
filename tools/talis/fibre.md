@@ -88,6 +88,7 @@ talis fibre-txsim --instances 4 \
 | `--concurrency`  | `1`                 | Concurrent blob submissions per instance (each gets its own account)     |
 | `--blob-size`    | `1000000`           | Size of each blob in bytes                                               |
 | `--interval`     | `0`                 | Delay between submissions per worker (`0` = no delay)                    |
+| `--target-rate`  | `0`                 | Max uploads/s per instance, shared by its workers (`0` = unlimited)      |
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
 
@@ -108,6 +109,18 @@ To view logs on a specific validator:
 ```sh
 ssh root@<ip> 'cat /root/talis-fibre-txsim.log'
 ```
+
+### PFF load storage
+
+Every upload leaves one shard file on every validator, and the pruner deletes it once `max(shard retention, payment promise timeout)` has passed (defaults 4 h and 1 h), checking once a minute. Per validator:
+
+```text
+disk = cluster-wide uploads/s × bytes per upload × (max(retention, promise timeout) + 60 s)
+```
+
+With 256 KiB blobs on 10 validators a shard file is ~857 KB; it scales roughly with 1 / number of validators, so measure `du` on one node for other setups. Unthrottled `--concurrency 20` on 10 validators sent ~500 uploads/s and filled 366 GB per node in 14 minutes; at the 4 h default that rate needs ~6 TB per node. The recipe that worked: `talis genesis --fibre-shard-retention 10m --fibre-promise-timeout 10m` (the floors; `talis genesis` rejects lower values), then `--concurrency 20` (the 200-PFF block cap / 10 validators) with `--interval 1s`, or `--target-rate`. At 125 uploads/s cluster-wide that is 125 × 857 KB × 660 s ≈ 71 GB per node.
+
+`validator_init.sh` writes the free space and the upload rate it can hold to `/root/logs` (fetch with `talis download -t logs`). Export `FIBRE_UPLOADS_PER_SEC` (cluster-wide, integer) in `scripts/vars.sh` before `talis genesis` to make it refuse to start a node whose disk is too small; the refusal is logged there too. `FIBRE_BYTES_PER_UPLOAD` overrides the 857 KB estimate and `FIBRE_STORAGE_OVERRIDE=1` skips the check.
 
 ## 4. Start fibre-reader (optional)
 

@@ -39,6 +39,7 @@ func generateCmd() *cobra.Command {
 		stakingWeightsCSV             string
 		fibreBudgetGiB                int
 		fibreShardRetention           time.Duration
+		fibrePromiseTimeout           time.Duration
 		fibreAccounts                 int
 		encoderFibreAccounts          int
 	)
@@ -56,6 +57,15 @@ func generateCmd() *cobra.Command {
 				cfg = cfg.WithChainID(chainID)
 			}
 
+			var fibreMods []genesis.Modifier
+			if fibreBudgetGiB > 0 || fibreShardRetention > 0 || fibrePromiseTimeout > 0 {
+				mod, err := fibreParamsModifier(uint64(fibreBudgetGiB)<<30, fibreShardRetention, fibrePromiseTimeout)
+				if err != nil {
+					return err
+				}
+				fibreMods = append(fibreMods, mod)
+			}
+
 			payloadDir := filepath.Join(rootDir, "payload")
 
 			if err := os.RemoveAll(payloadDir); err != nil {
@@ -71,11 +81,6 @@ func generateCmd() *cobra.Command {
 			stakingWeights, err := parseStakingWeights(stakingWeightsCSV, len(cfg.Validators))
 			if err != nil {
 				return err
-			}
-
-			var fibreMods []genesis.Modifier
-			if fibreBudgetGiB > 0 || fibreShardRetention > 0 {
-				fibreMods = append(fibreMods, fibreParamsModifier(uint64(fibreBudgetGiB)<<30, fibreShardRetention))
 			}
 
 			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, stakingWeights, fibreAccounts, encoderFibreAccounts, fibreMods...)
@@ -196,6 +201,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&stakingWeightsCSV, "staking-weights", "", "comma-separated per-validator staking weights, e.g. 50,25,13,12; overrides the uniform/mainnet distribution (count must match the number of validators)")
 	cmd.Flags().IntVar(&fibreBudgetGiB, "fibre-full-stake-budget-gib", 0, "override the fibre FullStakeStorageBudget genesis param, in GiB (0 = module default)")
 	cmd.Flags().DurationVar(&fibreShardRetention, "fibre-shard-retention", 0, "override the fibre ShardRetention genesis param, e.g. 10m (0 = module default)")
+	cmd.Flags().DurationVar(&fibrePromiseTimeout, "fibre-promise-timeout", 0, "override the fibre PaymentPromiseTimeout genesis param, e.g. 10m (0 = module default)")
 	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 1, "number of pre-funded fibre accounts to create per validator")
 	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 1, "number of pre-funded fibre accounts to create per encoder instance")
 

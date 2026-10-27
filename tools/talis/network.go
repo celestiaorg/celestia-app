@@ -69,8 +69,8 @@ func NewNetwork(chainID string, squareSize int, mods ...genesis.Modifier) (*Netw
 }
 
 // fibreParamsModifier returns a genesis modifier that overrides fibre params.
-// A zero value for either field leaves that param at its module default.
-func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention time.Duration) genesis.Modifier {
+// A zero value for any field leaves that param at its module default.
+func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention, promiseTimeout time.Duration) (genesis.Modifier, error) {
 	c := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	params := fibretypes.DefaultParams()
 	if fullStakeStorageBudget > 0 {
@@ -79,7 +79,13 @@ func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention time.Dura
 	if shardRetention > 0 {
 		params.ShardRetention = shardRetention
 	}
-	return genesis.SetFibreParams(c.Codec, params)
+	if promiseTimeout > 0 {
+		params.PaymentPromiseTimeout = promiseTimeout
+	}
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid fibre genesis params: %w", err)
+	}
+	return genesis.SetFibreParams(c.Codec, params), nil
 }
 
 // AddValidator adds a validator to the network. The validator is identified by

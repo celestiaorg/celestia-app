@@ -114,7 +114,35 @@ mount_instance_nvme
 
 tar -xzf /root/$ARCHIVE_NAME -C /root/
 
-source ./vars.sh
+source payload/vars.sh
+
+# === Fibre storage budget (see fibre.md, "PFF load storage"); output goes to /root/logs ===
+# Every upload keeps ~FIBRE_BYTES_PER_UPLOAD on each validator for max(shard retention, promise
+# timeout) plus the 60 s prune tick. Refuses to start when FIBRE_UPLOADS_PER_SEC won't fit.
+check_fibre_storage() {
+  local dir="/root/.celestia-fibre" bytes="${FIBRE_BYTES_PER_UPLOAD:-857000}" rate="${FIBRE_UPLOADS_PER_SEC:-}" window free budget
+  fibre_log() { echo "Fibre storage: $*" | tee -a /root/logs; }
+  if [ -n "$rate" ] && ! [[ $rate =~ ^[0-9]+$ ]]; then
+    fibre_log "FIBRE_UPLOADS_PER_SEC must be an integer, got '$rate'"
+    exit 1
+  fi
+  if ! window=$(jq -er '.app_state.fibre.params | [.shard_retention, .payment_promise_timeout] | map(rtrimstr("s") | tonumber) | max | ceil + 60' payload/genesis.json); then
+    fibre_log "cannot read the fibre params from payload/genesis.json"
+    [ -z "$rate" ] || [ "${FIBRE_STORAGE_OVERRIDE:-0}" = "1" ] || exit 1
+    return 0
+  fi
+  [ -d "$dir" ] || dir="/root"
+  free=$(df --output=avail -B1 "$dir" | tail -1)
+  fibre_log "$((free / 1000000000)) GB free on $dir, window ${window}s, fits $((free / (bytes * window))) uploads/s cluster-wide"
+  [ -n "$rate" ] || return 0
+  budget=$((rate * bytes * window))
+  fibre_log "budget at $rate uploads/s is $((budget / 1000000000)) GB"
+  if [ "$free" -lt "$budget" ] && [ "${FIBRE_STORAGE_OVERRIDE:-0}" != "1" ]; then
+    fibre_log "refusing to start, free space is below the budget (FIBRE_STORAGE_OVERRIDE=1 skips this check)"
+    exit 1
+  fi
+}
+check_fibre_storage
 
 sudo snap install go --channel=1.26/stable --classic
 

@@ -32,12 +32,14 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
 	downloadDelay   = 10 * time.Second
+	statsInterval   = 10 * time.Second
 	otlpMetricsPath = "/v1/metrics"
 	otlpTracesPath  = "/v1/traces"
 )
@@ -49,6 +51,7 @@ type config struct {
 	blobSize          int
 	concurrency       int
 	interval          time.Duration
+	targetRate        float64
 	duration          time.Duration
 	otelMetricsPath   string
 	otelTracesPath    string
@@ -69,6 +72,7 @@ func main() {
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
+	flag.Float64Var(&cfg.targetRate, "target-rate", 0, "max uploads per second across all workers (0 = unlimited)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.StringVar(&cfg.otelMetricsPath, "otel-metrics-path", otlpMetricsPath, "OTLP HTTP metrics path (replaces the endpoint URL path)")
@@ -139,6 +143,9 @@ type stats struct {
 func run(cfg config) error {
 	if cfg.concurrency <= 0 {
 		return fmt.Errorf("--concurrency must be >= 1, got %d", cfg.concurrency)
+	}
+	if cfg.targetRate < 0 {
+		return fmt.Errorf("--target-rate must be >= 0, got %g", cfg.targetRate)
 	}
 
 	if cfg.preencode {
@@ -287,6 +294,8 @@ func run(cfg config) error {
 	startTime := time.Now()
 
 	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", cfg.concurrency)
+	limiter := newUploadLimiter(cfg.targetRate)
+	go logStats(ctx, st, cfg.targetRate)
 
 	// Download channel: upload workers send requests, download workers process them.
 	const downloadWorkers = 4
@@ -330,6 +339,9 @@ func run(cfg config) error {
 	for _, w := range workers {
 		uploadWg.Go(func() {
 			for ctx.Err() == nil {
+				if limiter.Wait(ctx) != nil {
+					return
+				}
 				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, dlCh, confirmCh)
 				if cfg.interval > 0 {
 					select {
@@ -412,6 +424,33 @@ func run(cfg config) error {
 	}
 
 	return nil
+}
+
+// newUploadLimiter returns a token bucket shared by all workers; 0 means unlimited.
+// Burst 1 spaces uploads evenly instead of releasing them in bursts.
+func newUploadLimiter(targetRate float64) *rate.Limiter {
+	if targetRate <= 0 {
+		return rate.NewLimiter(rate.Inf, 1)
+	}
+	return rate.NewLimiter(rate.Limit(targetRate), 1)
+}
+
+// logStats prints the upload rate of each statsInterval window until ctx ends.
+func logStats(ctx context.Context, st *stats, targetRate float64) {
+	ticker := time.NewTicker(statsInterval)
+	defer ticker.Stop()
+	var last int64
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			sent := st.totalSent.Load()
+			fmt.Printf("stats: uploads/s=%.2f target=%g sent=%d successes=%d failures=%d\n",
+				float64(sent-last)/statsInterval.Seconds(), targetRate, sent, st.successes.Load(), st.failures.Load())
+			last = sent
+		}
+	}
 }
 
 func setupOTelMetrics(ctx context.Context, endpoint, metricsPath string) (func(context.Context), error) {
