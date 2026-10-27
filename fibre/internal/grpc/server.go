@@ -35,6 +35,10 @@ const (
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
 	connectionTimeout = 15 * time.Second
 
+	// maxHeaderListSize caps request headers, which grpc buffers before any
+	// handler runs (default 16 MiB). Legit Fibre headers are well under 1 KiB.
+	maxHeaderListSize = 16 << 10
+
 	// KeepAlive drops idle or abusive connections.
 	keepAliveMinTime     = 10 * time.Second // reject clients that ping more often
 	keepAliveMaxConnIdle = 30 * time.Second // close idle connections
@@ -85,6 +89,7 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
+		grpc.MaxHeaderListSize(maxHeaderListSize),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: keepAliveMinTime,
 		}),
