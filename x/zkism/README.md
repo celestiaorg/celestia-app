@@ -138,13 +138,18 @@ Potential adversaries include:
 - Malicious actors attempting to forge proofs or replay stale proofs.
 - Entities submitting malformed or oversized inputs to trigger denial-of-service conditions.
 - Adversaries attempting to exploit prover liveness delays to censor or stall message authorization.
+- A malicious or compromised ISM owner. The owner can replace the verifying keys and therefore choose which proofs, and so which messages, the ISM accepts. The module does not defend against the owner; it lets the owner give up that power.
 
 ### Security Assumptions
 
 - Correctness of gnark's Groth16 implementation and its integration within the module.
 - Collision resistance of SHA-256, used for both verifying key prefixes and hashing public values into field elements.
 - Off-chain SP1 program correctness: the verifier assumes public values were produced correctly by the corresponding SP1 program, including embedding the correct state root in the first 32 bytes.
-- ISM owner honesty: the owner can replace the verifying keys at any time, and therefore the programs whose proofs the ISM accepts. Anyone relying on an ISM must trust its owner.
+- ISM owner honesty: the owner can replace the verifying keys at any time, and therefore the programs whose proofs the ISM accepts. Anyone relying on an ISM must trust its current owner as much as the proving system itself.
+  - Ownership is transferable (`TransferOwnership`), so that trust follows whoever holds it. The owner is set to the creator at creation.
+  - Ownership can be renounced. An ISM with an empty `owner` is immutable: its verifying keys can never change again and ownership cannot be reclaimed. Integrators who want an ISM they do not have to trust should adopt a renounced ISM, or verify the owner field before adopting one.
+  - Rotating the keys discards the merkle tree state proven under the previous keys, so nothing proven by a replaced program stays honored.
+  - ISMs created before owner key rotation existed (before v11) keep their creator as owner and became mutable at the upgrade. Routes that adopted such an ISM for its immutability should check whether its owner has renounced.
 
 ### Invariants
 
