@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"strings"
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -16,9 +15,6 @@ const (
 
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
-
-	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
-	MaxPaginationLimit = 100
 
 	// MinStateBytes is the minimum size of the trusted ism state (32 bytes).
 	MinStateBytes = 32
@@ -87,8 +83,9 @@ const (
 
 var (
 	IsmsKeyPrefix = collections.NewPrefix(0)
-	// Prefix 1 held authorized message IDs before ConsensusVersion 2. The entries are left in place because nothing
-	// reads them and deleting an attacker-sized set in the upgrade block is unbounded work. Do not reuse prefix 1.
+	// Prefix 1 held authorized message IDs before messages were verified against the proven merkle tree root (v11).
+	// The entries are left in place because nothing reads them and deleting an attacker-sized set in the upgrade
+	// block is unbounded work. Do not reuse prefix 1.
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
 	MerkleTreeStateKeyPrefix    = collections.NewPrefix(3)
 
@@ -141,16 +138,4 @@ func ValidateGroth16Vkey(vkey []byte) error {
 // EncodeHex is a convenience function to encode byte slices as 0x prefixed hexadecimal strings.
 func EncodeHex(bz []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
-}
-
-// DecodeHex is a convenience function to decode 0x prefixed hexadecimal strings as byte slices.
-func DecodeHex(s string) ([]byte, error) {
-	s = strings.TrimPrefix(s, "0x")
-
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }
