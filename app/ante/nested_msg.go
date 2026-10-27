@@ -68,7 +68,7 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 			return sdkerrors.ErrNotSupported.Wrapf("MsgExec inside %s is not supported", container)
 		case *govv1.MsgSubmitProposal:
 			return sdkerrors.ErrNotSupported.Wrapf("MsgSubmitProposal inside %s is not supported", container)
-		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 			if container == "MsgSubmitProposal" {
 				return sdkerrors.ErrNotSupported.Wrapf("ZK proof verification inside %s is not supported", container)
 			}
