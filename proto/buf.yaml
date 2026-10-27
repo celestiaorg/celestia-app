@@ -25,8 +25,8 @@ lint:
 breaking:
   use:
     - FILE
-  # TODO: remove after the v11 zkism PR lands. The zkism message id API was deleted on purpose (messages are now
-  # verified against a proven merkle tree root); only those deletions are exempt, every other rule still applies.
+  # The zkism message id API was deleted on purpose in v11 (messages are now verified against a proven merkle tree
+  # root). Only those deletions are exempt; every other breaking rule still applies to the package.
   ignore_only:
     FIELD_NO_DELETE:
       - celestia/zkism/v1/events.proto
