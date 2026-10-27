@@ -152,8 +152,7 @@ func TestStateFixRunsUnderOptimisticExecution(t *testing.T) {
 		ChainID: util.ChainID,
 		Height:  2,
 		Name:    "under-oe",
-		Apply: func(ctx sdk.Context, a *app.App) error {
-			a.MintKeeper.SetMinter(ctx, minttypes.DefaultMinter())
+		Apply: func(ctx sdk.Context, _ *app.App) error {
 			ranAt = append(ranAt, ctx.BlockHeight())
 			return nil
 		},
@@ -172,6 +171,7 @@ func TestStateFixRunsUnderOptimisticExecution(t *testing.T) {
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, pp.Status)
 
 	req.Txs = prop.Txs
+	req.Header = nil // only a served speculative run, built from ProcessProposal, has the header
 	_, err = testApp.FinalizeBlock(req)
 	require.NoError(t, err)
 	require.Equal(t, []int64{2}, ranAt)

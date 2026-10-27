@@ -76,10 +76,10 @@ func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusPar
 	return testApp, kr
 }
 
-// SetupTestAppWithGenesisValSetAndBaseAppOptions is SetupTestAppWithGenesisValSetAndMaxSquareSize
-// with extra baseapp options, e.g. DisableOptimisticExecution for ProcessProposal benchmarks.
-func SetupTestAppWithGenesisValSetAndBaseAppOptions(cparams *tmproto.ConsensusParams, maxSquareSize int, baseAppOptions []func(*baseapp.BaseApp), genAccounts ...string) (*app.App, keyring.Keyring) {
-	testApp, valSet, kr := newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(baseAppOptions...), cparams, maxSquareSize, genAccounts...)
+// SetupTestAppWithoutOptimisticExecution is SetupTestAppWithGenesisValSetAndMaxSquareSize
+// with optimistic execution disabled, for ProcessProposal benchmarks.
+func SetupTestAppWithoutOptimisticExecution(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp, valSet, kr := newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(baseapp.DisableOptimisticExecution()), cparams, maxSquareSize, genAccounts...)
 	initialiseTestApp(testApp, valSet)
 	return testApp, kr
 }

@@ -93,8 +93,7 @@ func (p *oePair) mixedTxs() [][]byte {
 	for range 2 {
 		idx, signer := p.nextSigner()
 		from := signer.Account(p.accounts[idx]).Address()
-		to := signer.Account(p.accounts[idx]).Address()
-		msg := banktypes.NewMsgSend(from, to, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
+		msg := banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
 		tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		require.NoError(p.t, err)
 		txs = append(txs, tx)
@@ -150,7 +149,7 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 // finalize runs FinalizeBlock with the block's txs on both apps, requires the
 // two responses to be identical and every tx to succeed, then commits both.
 // With served, a's request carries a later time that only a speculative result ignores.
-func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte, served bool) *abci.ResponseFinalizeBlock {
+func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte, served bool) {
 	p.t.Helper()
 	txs := coreFinalizeTxs(blockTxs)
 	resps := make([]*abci.ResponseFinalizeBlock, 0, 2)
@@ -172,8 +171,6 @@ func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, 
 		resps = append(resps, resp)
 	}
 	require.Equal(p.t, resps[1].AppHash, resps[0].AppHash, "height %d: app hash", height)
-	require.Equal(p.t, resps[1].TxResults, resps[0].TxResults, "height %d: tx results", height)
-	require.Equal(p.t, resps[1].ConsensusParamUpdates, resps[0].ConsensusParamUpdates, "height %d: consensus params", height)
 	require.Equal(p.t, resps[1], resps[0], "height %d: finalize block response", height)
 	require.Len(p.t, resps[0].TxResults, len(txs))
 	for i, result := range resps[0].TxResults {
@@ -184,7 +181,6 @@ func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, 
 		require.NoError(p.t, err)
 	}
 	require.Equal(p.t, p.b.LastCommitID().Hash, p.a.LastCommitID().Hash, "height %d: commit hash", height)
-	return resps[0]
 }
 
 func blockHeader(height int64, blockTime time.Time) *cmtproto.Header {
