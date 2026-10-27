@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"strings"
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -522,6 +523,13 @@ func (suite *KeeperTestSuite) TestTransferOwnership() {
 				msg.RenounceOwnership = true
 			},
 			expOwner: "",
+		},
+		{
+			name: "success: transfer stores the canonical spelling of an uppercase address",
+			setupTest: func() {
+				msg.NewOwner = strings.ToUpper(newOwner)
+			},
+			expOwner: newOwner,
 		},
 		{
 			name: "ism not found",

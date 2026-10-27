@@ -228,11 +228,16 @@ func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransfer
 	}
 
 	// ValidateBasic guarantees exactly one of new_owner and renounce_ownership is set and that new_owner is a valid
-	// bech32 address.
+	// bech32 address. Store the canonical spelling: bech32 is case-insensitive, but the owner checks compare strings,
+	// and wallets sign with the lowercase form.
 	if msg.RenounceOwnership {
 		ism.Owner = ""
 	} else {
-		ism.Owner = msg.NewOwner
+		newOwner, err := sdk.AccAddressFromBech32(msg.NewOwner)
+		if err != nil {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid new owner: %s", err)
+		}
+		ism.Owner = newOwner.String()
 	}
 
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
