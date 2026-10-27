@@ -34,8 +34,8 @@ type Verifier struct {
 	coeffsRowSize int
 
 	// scratch buffers for RLC root compute
-	rlcRootScratch []byte
-	rlcLeafScratch [field.GF128Size]byte
+	rlcLeaves *rlcLeaves
+	rlcNodes  []byte
 
 	// Verify scratch buffers. Capacity grows to the largest batch seen.
 	// VerifyShared uses per-call locals instead.
@@ -66,10 +66,11 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 	}
 
 	return &Verifier{
-		config:         cfg,
-		enc:            enc,
-		rlcShards:      rlcShards,
-		rlcRootScratch: make([]byte, cfg.K*merkle.NodeSize),
+		config:    cfg,
+		enc:       enc,
+		rlcShards: rlcShards,
+		rlcLeaves: newRLCLeaves(cfg.K),
+		rlcNodes:  make([]byte, merkle.TreeBufferSize(cfg.K)),
 	}, nil
 }
 
@@ -127,7 +128,7 @@ func (v *Verifier) setRLC(rlc rlc.Vector) error {
 		return fmt.Errorf("extending RLC: %w", err)
 	}
 
-	rlcRoot := computeRLCRoot(rlc, v.rlcRootScratch, v.rlcLeafScratch[:])
+	rlcRoot := computeRLCRoot(v.rlcLeaves.set(rlc), v.rlcNodes)
 	v.rlcRoot = rlcRoot
 	v.rlcCoeffs = nil // invalidate coeffs
 	return nil
@@ -222,14 +223,13 @@ func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) (rlc.Vector, e
 	return v.rlcCoeffs, nil
 }
 
-func computeRLCRoot(rlc rlc.Vector, scratch []byte, leafScratch []byte) [32]byte {
+// computeRLCRoot builds the RLC tree over leaves into nodes (nil allocates)
+// and returns its root.
+func computeRLCRoot(leaves [][]byte, nodes []byte) merkle.Root {
 	// Keep the RLC root build sequential for the v0 fibre shape (K=4096):
 	// worker fan-out is slower than the small tree/hash work it parallelizes,
 	// and upload throughput already comes from the verifier pool.
-	return merkle.RootFromFunc(scratch, func(i int, _ []byte) []byte {
-		field.EncodeGF128(leafScratch, rlc[i])
-		return leafScratch
-	})
+	return merkle.NewTree(nodes, leaves, 1).Root()
 }
 
 func resizeRows(buf [][]byte, n int) [][]byte {

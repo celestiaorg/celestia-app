@@ -179,18 +179,34 @@ func (c *Coder) commit(extendedRows [][]byte, buf []byte) *ExtendedData {
 // already materialized.
 func buildRowTree(extended [][]byte, config *Config, buf []byte) *merkle.Tree {
 	nodes := buf[:merkle.TreeBufferSize(config.K+config.N)]
-	return merkle.NewTreeInto(nodes, extended, config.WorkerCount)
+	return merkle.NewTree(nodes, extended, config.WorkerCount)
 }
 
-// buildRLCTree creates the Merkle tree over the K original RLC values, each
-// serialized into the tree-recycled scratch buffer.
+// buildRLCTree creates the Merkle tree over the K original RLC values.
 func buildRLCTree(rlc rlc.Vector, config *Config, buf []byte) *merkle.Tree {
 	nodes := buf[:merkle.TreeBufferSize(config.K)]
-	return merkle.NewTreeFuncInto(nodes, config.WorkerCount, func(i int, dst []byte) []byte {
-		if cap(dst) == 0 {
-			dst = make([]byte, field.GF128Size)
-		}
-		field.EncodeGF128(dst, rlc[i])
-		return dst
-	})
+	return merkle.NewTree(nodes, newRLCLeaves(config.K).set(rlc), config.WorkerCount)
+}
+
+// rlcLeaves holds RLC values serialized as Merkle leaves: one flat buffer and
+// a view per value into it, reusable across calls.
+type rlcLeaves struct {
+	buf   []byte
+	views [][]byte
+}
+
+func newRLCLeaves(k int) *rlcLeaves {
+	buf := make([]byte, k*field.GF128Size)
+	views := make([][]byte, k)
+	for i := range views {
+		views[i] = buf[i*field.GF128Size : (i+1)*field.GF128Size]
+	}
+	return &rlcLeaves{buf: buf, views: views}
+}
+
+// set serializes v, which must hold exactly as many values as l was built for,
+// and returns the leaves.
+func (l *rlcLeaves) set(v rlc.Vector) [][]byte {
+	rlc.Encode(l.buf, v)
+	return l.views
 }

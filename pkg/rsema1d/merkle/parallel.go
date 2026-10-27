@@ -36,31 +36,6 @@ func parallelize(count, workers int, fn func(i int)) {
 	})
 }
 
-// hashLeaves runs leaf+hash over [0,leaves), recycling each leaf's returned slice
-// as the next dst (see [NewTreeFuncInto]). Each worker threads its own dst from
-// nil, so workers never share scratch. It splits only when worthwhile (see
-// [splitWorkers]).
-func hashLeaves(leaves int, workers int, leaf func(i int, dst []byte) []byte, hash func(i int, b []byte)) {
-	workers = splitWorkers(leaves, workers, hashGrain)
-	if workers <= 1 {
-		var dst []byte
-		for i := range leaves {
-			s := leaf(i, dst)
-			hash(i, s)
-			dst = s
-		}
-		return
-	}
-	parallelChunks(leaves, workers, func(_, start, end int) {
-		var dst []byte
-		for i := start; i < end; i++ {
-			s := leaf(i, dst)
-			hash(i, s)
-			dst = s
-		}
-	})
-}
-
 // parallelChunks splits [0,count) into workers contiguous chunks and runs
 // fn(w, start, end) for each non-empty chunk in its own goroutine, where w is the
 // chunk ordinal. Callers pass an already-capped worker count (see [splitWorkers]).
