@@ -35,8 +35,10 @@ confirmation still makes progress if the subscription is unavailable.
 
 There is no waiter limit and no explicit shutdown: the feed starts with the first
 waiter and stops when the last one leaves. Caller deadlines and cancellation apply.
-A direct status check that fails returns an error, which does not mean the
-transaction failed on-chain. The caller retains ownership of the gRPC connection.
+A direct status check whose RPC fails is retried at the next 30 second check
+while the feed keeps delivering. An unimplemented `TxStatus` or missing committed
+height metadata returns an error, which does not mean the transaction failed
+on-chain. The caller retains ownership of the gRPC connection.
 
 Existing `ConfirmTx` and `WithPollTime` behavior is unchanged for other SDK callers.
 `Put` never falls back to that polling path.
