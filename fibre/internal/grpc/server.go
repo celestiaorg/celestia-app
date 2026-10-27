@@ -134,18 +134,18 @@ func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission) *grpc.ServiceDesc {
 	out := *sd
 	out.Methods, out.Streams = nil, nil
 	for _, m := range sd.Methods {
-		holdMax := sd.ServiceName == types.Fibre_serviceDesc.ServiceName && m.MethodName == "DownloadShard"
-		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm, holdMax)})
+		reserveMaxSpace := sd.ServiceName == types.Fibre_serviceDesc.ServiceName && m.MethodName == "DownloadShard"
+		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm, reserveMaxSpace)})
 	}
 	return &out
 }
 
 // admitHandler serves a unary method as a stream handler so the request is
-// admitted before it is read; the generated handler's dec reads it. With holdMax
-// the max reservation is kept until the handler returns, covering a response the
-// handler builds (DownloadShard). Unary interceptors do not run here, so panics
-// are recovered inline.
-func admitHandler(m grpc.MethodDesc, adm *admission, holdMax bool) grpc.StreamHandler {
+// admitted before it is read; the generated handler's dec reads it. With
+// reserveMaxSpace the max reservation is kept until the handler returns, covering
+// a response the handler builds (DownloadShard). Unary interceptors do not run
+// here, so panics are recovered inline.
+func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool) grpc.StreamHandler {
 	return func(srv any, ss grpc.ServerStream) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -166,7 +166,7 @@ func admitHandler(m grpc.MethodDesc, adm *admission, holdMax bool) grpc.StreamHa
 				return err
 			}
 			size := msgSize(v)
-			if holdMax {
+			if reserveMaxSpace {
 				size = adm.reservation
 			}
 			res.received(size)
