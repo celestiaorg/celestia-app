@@ -169,7 +169,14 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	validatorPubKey := GenesisValidatorPrivateKey().PubKey()
 	validator := tmtypes.NewValidator(validatorPubKey, 1)
 	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
+	genesisState, kr := GenesisStateWithValidatorSet(testApp, valSet, genAccounts...)
+	return genesisState, valSet, kr
+}
 
+// GenesisStateWithValidatorSet initializes GenesisState with valSet, each
+// validator bonding its voting power, and genesis accounts that also act as
+// delegators.
+func GenesisStateWithValidatorSet(testApp *app.App, valSet *tmtypes.ValidatorSet, genAccounts ...string) (app.GenesisState, keyring.Keyring) {
 	// generate sender account
 	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
@@ -193,7 +200,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	genesisState := testApp.DefaultGenesis()
 	genesisState = genesisStateWithValSet(testApp, genesisState, valSet, accs, balances...)
 
-	return genesisState, valSet, kr
+	return genesisState, kr
 }
 
 func genesisStateWithValSet(
@@ -210,9 +217,11 @@ func genesisStateWithValSet(
 	validators := make([]stakingtypes.Validator, 0, len(valSet.Validators))
 	delegations := make([]stakingtypes.Delegation, 0, len(valSet.Validators))
 
-	bondAmt := sdk.DefaultPowerReduction
-
+	// Each validator bonds its CometBFT voting power in consensus engine units.
+	totalBonded := math.ZeroInt()
 	for _, val := range valSet.Validators {
+		bondAmt := sdk.TokensFromConsensusPower(val.VotingPower, sdk.DefaultPowerReduction)
+		totalBonded = totalBonded.Add(bondAmt)
 		pk, err := cryptocodec.FromCmtPubKeyInterface(val.PubKey)
 		if err != nil {
 			panic(err)
@@ -272,15 +281,13 @@ func genesisStateWithValSet(
 		totalSupply = totalSupply.Add(b.Coins...)
 	}
 
-	for range delegations {
-		// add delegated tokens to total supply
-		totalSupply = totalSupply.Add(sdk.NewCoin(params.BondDenom, bondAmt))
-	}
+	// add delegated tokens to total supply
+	totalSupply = totalSupply.Add(sdk.NewCoin(params.BondDenom, totalBonded))
 
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(params.BondDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(params.BondDenom, totalBonded)},
 	})
 
 	// update total supply
