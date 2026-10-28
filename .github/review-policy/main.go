@@ -31,8 +31,11 @@ type User struct {
 }
 
 type Ref struct {
-	Ref string `json:"ref"`
-	SHA string `json:"sha"`
+	Ref  string `json:"ref"`
+	SHA  string `json:"sha"`
+	Repo *struct {
+		FullName string `json:"full_name"`
+	} `json:"repo"`
 }
 
 type PullRequest struct {
@@ -190,18 +193,36 @@ func outcome(ok bool) string {
 	return "failure"
 }
 
+// openPulls returns the open PRs the policy governs: PRs into the default
+// branch and PRs stacked on them. A stacked PR's base is the head branch of
+// another governed PR in this repository; it reaches the default branch when
+// the stack merges, so its status must exist before then.
 func (r *runner) openPulls() ([]PullRequest, error) {
-	return list[PullRequest](r.api, "/pulls?state=open&base="+url.QueryEscape(r.defaultBranch))
+	pulls, err := list[PullRequest](r.api, "/pulls?state=open")
+	if err != nil {
+		return nil, err
+	}
+	bases := map[string]bool{r.defaultBranch: true}
+	for grew := true; grew; {
+		grew = false
+		for _, pr := range pulls {
+			local := pr.Head.Repo != nil && pr.Head.Repo.FullName == r.repository
+			if local && bases[pr.Base.Ref] && !bases[pr.Head.Ref] {
+				bases[pr.Head.Ref], grew = true, true
+			}
+		}
+	}
+	return slices.DeleteFunc(pulls, func(pr PullRequest) bool { return !bases[pr.Base.Ref] }), nil
 }
 
-// check evaluates one PR. It returns nil for PRs the policy does not govern.
-// Evaluation errors fail closed instead of being returned.
+// check evaluates one PR the caller knows the policy governs. It returns nil
+// for closed PRs. Evaluation errors fail closed instead of being returned.
 func (r *runner) check(number int, publish bool) (*checked, error) {
 	var pr PullRequest
 	if err := r.api.Get(fmt.Sprintf("/pulls/%d", number), &pr); err != nil {
 		return nil, err
 	}
-	if pr.State != "open" || pr.Base.Ref != r.defaultBranch {
+	if pr.State != "open" {
 		return nil, nil
 	}
 	if publish {
@@ -317,20 +338,17 @@ func (r *runner) checkHeads(pulls []PullRequest) error {
 }
 
 func (r *runner) refresh(number int) error {
-	var pr PullRequest
-	if err := r.api.Get(fmt.Sprintf("/pulls/%d", number), &pr); err != nil {
-		return err
-	}
-	if pr.State != "open" || pr.Base.Ref != r.defaultBranch {
-		return nil
-	}
 	pulls, err := r.openPulls()
 	if err != nil {
 		return err
 	}
+	i := slices.IndexFunc(pulls, func(p PullRequest) bool { return p.Number == number })
+	if i < 0 {
+		return nil
+	}
 	var same []PullRequest
 	for _, p := range pulls {
-		if p.Head.SHA == pr.Head.SHA {
+		if p.Head.SHA == pulls[i].Head.SHA {
 			same = append(same, p)
 		}
 	}

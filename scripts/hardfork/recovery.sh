@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validator recovery: roll back a node or verify its app hash.
+# Validator recovery: roll back or restart a node, or verify its app hash.
 # Run "recovery.sh --help" for usage.
 
 set -euo pipefail
@@ -11,6 +11,8 @@ Usage: recovery.sh <mode> [flags]
 Modes:
   rollback   stop the node, roll back to --height, delete the snapshots
              above it, start the node
+  restart    stop the node, set halt-height and halt-time to 0, start the
+             node; install the fixed release first
   verify     wait for --check-height and compare its app hash
 
 Common flags:
@@ -29,6 +31,10 @@ Common flags:
 rollback:
   --height X             height to roll back to (required)
   --force                allow a deep rollback
+  --check-height H       after the start, check the app hash at height H
+  --expect-app-hash HEX  expected app hash at --check-height
+
+restart:
   --check-height H       after the start, check the app hash at height H
   --expect-app-hash HEX  expected app hash at --check-height
 
@@ -100,6 +106,7 @@ parse_args() {
 check_args() {
     case "$MODE" in
     rollback) [[ "$HEIGHT" =~ ^[1-9][0-9]*$ ]] || die "rollback needs --height, a positive number" ;;
+    restart) ;;
     verify) [ -n "$CHECK_HEIGHT" ] || die "verify needs --check-height and --expect-app-hash" ;;
     *) die "unknown mode: $MODE" ;;
     esac
@@ -298,10 +305,10 @@ precheck() {
     if [ -n "$REMOTE_SIGNER" ]; then
         echo "warning: signer state not checked; check the remote signer by hand"
     fi
-    if [ -n "$HALT" ]; then
+    if [ -n "$HALT" ] && [ "$MODE" = rollback ]; then
         echo "warning: app.toml sets $HALT; the node stops again there"
     fi
-    if [ "$INDEXER" = kv ]; then
+    if [ "$INDEXER" = kv ] && [ "$MODE" = rollback ]; then
         echo "warning: the kv tx index keeps results from before the rollback; tx and block search above height $HEIGHT can be wrong"
     fi
     free=$(in_node df -Pk "$NODE_HOME/data" | awk 'NR == 2 { print $4 }')
@@ -367,6 +374,31 @@ mode_rollback() {
     if [ -z "$REMOTE_SIGNER" ]; then
         change in_node rm -f "$SIGNER_SUM"
     fi
+    verify_after_start
+}
+
+# clear_halt sets halt-height and halt-time to 0 in app.toml, so the node does
+# not stop again at the old halt. The previous file is kept as app.toml.bak.
+# The file is rewritten in place, so a bind-mounted app.toml keeps working.
+clear_halt() {
+    if [ -z "$HALT" ]; then
+        return 0
+    fi
+    # shellcheck disable=SC2016
+    change in_node sh -c 'cp "$1" "$1.bak" && sed -E "$2" "$1.bak" > "$1"' sh "$NODE_HOME/config/app.toml" \
+        's/^([[:space:]]*halt-(height|time)[[:space:]]*=).*/\1 0/'
+}
+
+mode_restart() {
+    precheck
+    svc_stop
+    clear_halt
+    svc_start
+    verify_after_start
+}
+
+# verify_after_start checks the app hash at CHECK_HEIGHT once the node runs.
+verify_after_start() {
     if [ -z "$EXPECT_APP_HASH" ] || [ "$DRY_RUN" = 1 ]; then
         return 0
     fi
