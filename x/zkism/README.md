@@ -18,14 +18,14 @@ The `Verify` method checks a merkle proof of the message ID against the stored m
 - SP1 Groth16 Proofs: Proofs are verified against the SP1 Groth16 verifier key, providing an SP1 program verifier key commitment and public values as public witness.
 - Merkle Tree State: The source chain merkle tree root and leaf count most recently proven for an ISM. Relayers prove inclusion of each message against it when delivering.
 
-Users can define any state and write circuits that encapsulate a transition from State -> New State. The circuit must output the raw bytes of `state_length_u64_as_little_endian_bytes || state || new_state`. The first 32 bytes of `state` are assumed to be the state root used when checking Hyperlane membership proofs; the module does not interpret or persist any additional fields such as heights.
+Users can define any state and write circuits that encapsulate a transition from State -> New State. The circuit must output the raw bytes of `state_length_u64_as_little_endian_bytes || state || new_state`. The first 32 bytes of `state` are assumed to be the state root used when checking Hyperlane membership proofs; the module does not interpret any further fields of `state` (such as source chain heights). It does record the Celestia block height of the last accepted proof per ISM, see Root History.
 
 ## Module State
 
 The `x/zkism` module defines the following collections used for storage of on-chain state.
 
-- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address`, the SP1 Groth16 verifying key configurations and `root_history_size`. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
-- `merkle_tree_states`: The latest proven source chain merkle tree root and leaf count per ISM. `(collections.Map[uint64, MerkleTreeState], types.MerkleTreeStateKeyPrefix)`.
+- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address`, the SP1 Groth16 verifying key configurations, `root_history_size` and `state_height` (block of the last accepted transition proof). `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
+- `merkle_tree_states`: The latest proven source chain merkle tree root, leaf count and proof block height per ISM. `(collections.Map[uint64, MerkleTreeState], types.MerkleTreeStateKeyPrefix)`.
 - `state_root_history`: Replaced state roots per ISM that membership proofs may still target. `(collections.Map[Pair[uint64, uint64], RootHistoryEntry], types.StateRootHistoryPrefix)`.
 - `tree_state_history`: Replaced merkle tree states per ISM that relayed messages may still be proven against. `(collections.Map[Pair[uint64, uint64], RootHistoryEntry], types.TreeStateHistoryPrefix)`.
 
@@ -33,7 +33,7 @@ The `x/zkism` module defines the following collections used for storage of on-ch
 
 A membership proof is generated against the state root the ISM holds when proving starts, and a relayed message carries a merkle proof against the tree root proven when relaying starts. If the ISM moves on in the meantime, both would be rejected. Each ISM therefore keeps the last `root_history_size` replaced state roots and replaced merkle tree states (default 64, at most 256; 0 means the default) as two bounded FIFOs keyed by `(ism id, sequence)`:
 
-- At most one state transition proof and one membership proof are accepted per ISM per block (`ErrAlreadyUpdatedInBlock`). A proven root is deterministic and final, so a second proof in the same block adds nothing and would only replace a root other relayers are about to prove against. Every replaced value is therefore a value committed at the end of a block, and the window spans at least `root_history_size` blocks.
+- At most one state transition proof and one membership proof are accepted per ISM per block (`ErrAlreadyUpdatedInBlock`). A proven root is deterministic and final, so a second proof in the same block adds nothing and would only replace a root other relayers are about to prove against. Every replaced value is therefore a value committed at the end of a block, and the window spans at least `root_history_size` blocks. Note for relayers: a gas simulation runs against the state of the last committed block, so simulating a proof for an ISM that accepted one in that block returns `ErrAlreadyUpdatedInBlock` until the next block is committed, although the transaction itself succeeds in the next block. Relayers should use a fixed gas limit or retry the simulation after one block.
 - When more than `root_history_size` entries exist, the oldest are removed.
 - The source chain merkle tree is append-only, so an older proven root never authorizes a message that a newer one does not.
 - `UpdateVerifyingKeys` clears both histories. `UpdateRootHistorySize` trims them to the new size.

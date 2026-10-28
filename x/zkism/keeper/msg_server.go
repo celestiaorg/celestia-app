@@ -139,20 +139,11 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	ismID := ism.Id.GetInternalId()
-	if !bytes.Equal(publicValues.StateRoot[:], ism.State[:32]) {
-		known, err := historyContains(ctx, m.stateRootHistory, ismID, func(entry types.RootHistoryEntry) bool {
-			return bytes.Equal(entry.Root, publicValues.StateRoot[:])
-		})
-		if err != nil {
-			return nil, err
-		}
-		if !known {
-			return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x or a state root in the root history, got %x", ism.State[:32], publicValues.StateRoot)
-		}
-	}
 
-	// Every accepted proof must add leaves to the proven tree. This rejects duplicate proofs and proofs against older
-	// state roots that the latest tree state already covers, so the latest tree state never regresses.
+	// A proven tree state is deterministic and final, so a second membership proof in the same block adds nothing
+	// and would only replace a root other relayers are about to deliver against. Every accepted proof must also add
+	// leaves to the proven tree: this rejects duplicate proofs and proofs against older state roots that the latest
+	// tree state already covers, so the latest tree state never regresses.
 	latest, err := m.treeStates.Get(ctx, ismID)
 	hasLatest := err == nil
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
@@ -164,6 +155,18 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 	if hasLatest && publicValues.Count <= latest.Count {
 		return nil, errorsmod.Wrapf(types.ErrStaleMerkleTreeState, "count %d does not exceed latest proven count %d", publicValues.Count, latest.Count)
+	}
+
+	if !bytes.Equal(publicValues.StateRoot[:], ism.State[:32]) {
+		known, err := historyContains(ctx, m.stateRootHistory, ismID, func(entry types.RootHistoryEntry) bool {
+			return bytes.Equal(entry.Root, publicValues.StateRoot[:])
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !known {
+			return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x or a state root in the root history, got %x", ism.State[:32], publicValues.StateRoot)
+		}
 	}
 
 	if !bytes.Equal(publicValues.MerkleTreeAddress[:], ism.MerkleTreeAddress) {

@@ -16,7 +16,7 @@ type rootHistory = collections.Map[collections.Pair[uint64, uint64], types.RootH
 // pushHistory records a replaced root for an ISM. The message server accepts at most one proof per ISM per block, so
 // every replaced value was committed at the end of a block and the history spans at least size blocks.
 func pushHistory(ctx context.Context, history rootHistory, ismID uint64, size uint32, entry types.RootHistoryEntry) error {
-	newestSeq, _, found, err := newestHistoryEntry(ctx, history, ismID)
+	newestSeq, found, err := newestSequence(ctx, history, ismID)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func trimHistory(ctx context.Context, history rootHistory, ismID, newestSeq uint
 
 // resizeHistory trims the history of an ISM to a new root history size.
 func resizeHistory(ctx context.Context, history rootHistory, ismID uint64, size uint32) error {
-	newestSeq, _, found, err := newestHistoryEntry(ctx, history, ismID)
+	newestSeq, found, err := newestSequence(ctx, history, ismID)
 	if err != nil || !found {
 		return err
 	}
@@ -59,24 +59,24 @@ func clearHistory(ctx context.Context, history rootHistory, ismID uint64) error 
 	return history.Clear(ctx, collections.NewPrefixedPairRange[uint64, uint64](ismID))
 }
 
-// newestHistoryEntry returns the entry with the highest sequence for an ISM.
-func newestHistoryEntry(ctx context.Context, history rootHistory, ismID uint64) (uint64, types.RootHistoryEntry, bool, error) {
+// newestSequence returns the highest sequence in the history of an ISM.
+func newestSequence(ctx context.Context, history rootHistory, ismID uint64) (uint64, bool, error) {
 	iter, err := history.Iterate(ctx, collections.NewPrefixedPairRange[uint64, uint64](ismID).Descending())
 	if err != nil {
-		return 0, types.RootHistoryEntry{}, false, err
+		return 0, false, err
 	}
 	defer iter.Close()
 
 	if !iter.Valid() {
-		return 0, types.RootHistoryEntry{}, false, nil
+		return 0, false, nil
 	}
 
-	kv, err := iter.KeyValue()
+	key, err := iter.Key()
 	if err != nil {
-		return 0, types.RootHistoryEntry{}, false, err
+		return 0, false, err
 	}
 
-	return kv.Key.K2(), kv.Value, true, nil
+	return key.K2(), true, nil
 }
 
 // historyContains reports whether any history entry of an ISM satisfies match, checking the newest entries first.
