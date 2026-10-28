@@ -18,4 +18,5 @@ var (
 	ErrInvalidMerkleTreeAddress     = errorsmod.Register(ModuleName, 9, "invalid merkle tree address")
 	ErrMessageProofAlreadySubmitted = errorsmod.Register(ModuleName, 10, "message proof already submitted for current state root")
 	ErrInvalidPublicValuesLength    = errorsmod.Register(ModuleName, 11, "invalid public values length")
+	ErrInvalidMetadata              = errorsmod.Register(ModuleName, 12, "invalid metadata")
 )

@@ -1,6 +1,7 @@
 # Required review policy
 
-PRs into `main` need independent human approval according to their risk tier.
+PRs into `main`, and PRs stacked on them, need independent human approval
+according to their risk tier.
 GitHub's native required approvals enforce it, and one small workflow,
 `.github/workflows/auto-approve.yml`, supplies the approval for PRs that need
 no human. The policy supplements CI, automated bug and security review, and
@@ -70,4 +71,5 @@ approval never satisfies code-owner review.
 5. Keep "Allow GitHub Actions to create and approve pull requests" disabled.
    The App, not `GITHUB_TOKEN`, supplies approvals.
 
-This policy governs `main` only. Release branches keep their own protections.
+This policy governs `main` and PRs stacked on it. Release branches keep their
+own protections.

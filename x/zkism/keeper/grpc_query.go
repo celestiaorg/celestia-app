@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"errors"
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -64,8 +65,8 @@ func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*ty
 	}, nil
 }
 
-// Messages implements types.QueryServer.
-func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesRequest) (*types.QueryMessagesResponse, error) {
+// MerkleTreeState implements types.QueryServer.
+func (q queryServer) MerkleTreeState(ctx context.Context, req *types.QueryMerkleTreeStateRequest) (*types.QueryMerkleTreeStateResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
 	}
@@ -75,36 +76,15 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
 	}
 
-	transformFunc := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
-		return types.EncodeHex(key.K2()), nil
+	treeState, err := q.k.treeStates.Get(ctx, ismId.GetInternalId())
+	if errors.Is(err, collections.ErrNotFound) {
+		return nil, status.Errorf(codes.NotFound, "merkle tree state not found: %s", req.Id)
 	}
-
-	pagination := req.Pagination
-	if pagination == nil {
-		pagination = &query.PageRequest{Limit: types.MaxPaginationLimit}
-	} else if pagination.Limit == 0 || pagination.Limit > types.MaxPaginationLimit {
-		pagination = &query.PageRequest{
-			Key:        pagination.Key,
-			Offset:     pagination.Offset,
-			Limit:      types.MaxPaginationLimit,
-			CountTotal: pagination.CountTotal,
-			Reverse:    pagination.Reverse,
-		}
-	}
-
-	msgs, pageRes, err := query.CollectionPaginate(
-		ctx,
-		q.k.messages,
-		pagination,
-		transformFunc,
-		query.WithCollectionPaginationPairPrefix[uint64, []byte](ismId.GetInternalId()),
-	)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryMessagesResponse{
-		Messages:   msgs,
-		Pagination: pageRes,
+	return &types.QueryMerkleTreeStateResponse{
+		TreeState: treeState,
 	}, nil
 }
