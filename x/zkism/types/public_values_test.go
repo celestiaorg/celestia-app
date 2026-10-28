@@ -2,10 +2,9 @@ package types_test
 
 import (
 	"bytes"
-	"encoding/binary"
+	"math"
 	"testing"
 
-	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/stretchr/testify/require"
 )
@@ -55,71 +54,44 @@ func TestStateTransitionPublicValuesUnmarshalFailure(t *testing.T) {
 }
 
 func TestStateMembershipPublicValuesEncoding(t *testing.T) {
-	messageIds := make([][32]byte, 0, 5)
-	for i := range 5 {
-		msg := util.HyperlaneMessage{
-			Nonce: uint32(i),
-		}
-
-		messageIds = append(messageIds, msg.Id())
-	}
-
 	expected := types.StateMembershipValues{
 		StateRoot:         [32]byte{0x01},
 		MerkleTreeAddress: [32]byte{0x02},
-		MessageIds:        messageIds,
+		TreeRoot:          [32]byte{0x03},
+		Count:             math.MaxUint32,
 	}
 
 	bz, err := expected.Marshal()
 	require.NoError(t, err)
-	require.NotEmpty(t, bz)
+	require.Len(t, bz, types.StateMembershipValuesBytes)
 
 	var decoded types.StateMembershipValues
 	err = decoded.Unmarshal(bz)
 	require.NoError(t, err)
-
-	require.Equal(t, expected.StateRoot, decoded.StateRoot)
-	require.Equal(t, expected.MerkleTreeAddress, decoded.MerkleTreeAddress)
-	require.Len(t, decoded.MessageIds, len(expected.MessageIds))
-	require.Equal(t, expected.MessageIds, decoded.MessageIds)
+	require.Equal(t, expected, decoded)
 }
 
-// TestStateMembershipPublicValuesUnmarshalRejectsTrailingBytes ensures the
-// canonical-encoding contract holds: every byte string that successfully
-// parses is exactly the canonical encoding of the resulting struct. Without
-// this guarantee, two distinct payloads can decode to the same struct.
-func TestStateMembershipPublicValuesUnmarshalRejectsTrailingBytes(t *testing.T) {
-	canonical := make([]byte, 72) // StateRoot=0, MerkleTreeAddress=0, count=0
-	withTail := append(append([]byte{}, canonical...), 0xAA, 0xBB, 0xCC)
-
-	var canonicalDecoded types.StateMembershipValues
-	require.NoError(t, canonicalDecoded.Unmarshal(canonical))
-
-	var tailDecoded types.StateMembershipValues
-	require.Error(t, tailDecoded.Unmarshal(withTail), "trailing bytes must be rejected")
-}
-
-func TestStateMembershipPublicValuesUnmarshalRejectsShortInputs(t *testing.T) {
-	for _, n := range []int{1, 31, 32, 40, 64, 71} {
+func TestStateMembershipPublicValuesUnmarshalRejectsInvalidLength(t *testing.T) {
+	// 72 and 104 are the lengths of legacy message id payloads (72 + 32 * n) with zero and one message id. The
+	// single id payload used to collide with the previous u64 count layout; the decoder must never accept them.
+	for _, n := range []int{0, 1, 32, 72, 104, types.StateMembershipValuesBytes - 1, types.StateMembershipValuesBytes + 1} {
 		var v types.StateMembershipValues
 		err := v.Unmarshal(make([]byte, n))
 		require.Error(t, err, "expected error on %d-byte input", n)
 	}
 }
 
-func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
-	// Create a crafted payload with count exceeding MaxMessageIdsCount
-	// Format: StateRoot (32 bytes) + MerkleTreeAddress (32 bytes) + count (8 bytes little-endian)
-	payload := make([]byte, 72)
-	copy(payload[0:32], bytes.Repeat([]byte{0x01}, 32))  // StateRoot
-	copy(payload[32:64], bytes.Repeat([]byte{0x02}, 32)) // MerkleTreeAddress
+func TestStateMembershipPublicValuesUnmarshalRejectsUnsupportedVersion(t *testing.T) {
+	valid, err := (&types.StateMembershipValues{Count: 1}).Marshal()
+	require.NoError(t, err)
 
-	// Set count to MaxMessageIdsCount + 1 (little-endian uint64)
-	overLimitCount := uint64(types.MaxMessageIdsCount + 1)
-	binary.LittleEndian.PutUint64(payload[64:72], overLimitCount)
+	for _, version := range []byte{0, types.StateMembershipValuesVersion + 1, 0xFF} {
+		payload := bytes.Clone(valid)
+		payload[0] = version
 
-	var decoded types.StateMembershipValues
-	err := decoded.Unmarshal(payload)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "exceeds maximum allowed")
+		var decoded types.StateMembershipValues
+		err := decoded.Unmarshal(payload)
+		require.Error(t, err, "expected error on version %d", version)
+		require.Contains(t, err.Error(), "unsupported state membership values version")
+	}
 }

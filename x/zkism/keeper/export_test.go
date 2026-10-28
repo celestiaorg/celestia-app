@@ -3,19 +3,18 @@ package keeper
 import (
 	"context"
 
-	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 )
 
-// HasMessageId is a test func used for checking existence of a message id in the messages store collection.
-func (k *Keeper) HasMessageId(ctx context.Context, ismId util.HexAddress, messageId []byte) (bool, error) {
-	return k.messages.Has(ctx, collections.Join(ismId.GetInternalId(), messageId))
+// GetMerkleTreeState is a test func used for getting the merkle tree state of an ISM.
+func (k *Keeper) GetMerkleTreeState(ctx context.Context, ismId util.HexAddress) (types.MerkleTreeState, error) {
+	return k.treeStates.Get(ctx, ismId.GetInternalId())
 }
 
-// SetMessageId is a test func used for setting a message id in the messages store collection.
-func (k *Keeper) SetMessageId(ctx context.Context, ismId util.HexAddress, messageId []byte) error {
-	return k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId))
+// SetMerkleTreeState is a test func used for setting the merkle tree state of an ISM.
+func (k *Keeper) SetMerkleTreeState(ctx context.Context, ismId util.HexAddress, treeState types.MerkleTreeState) error {
+	return k.treeStates.Set(ctx, ismId.GetInternalId(), treeState)
 }
 
 // GetMessageProofSubmitted is a test func used for getting message proof submission state.

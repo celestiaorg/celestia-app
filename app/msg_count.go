@@ -66,7 +66,7 @@ func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 
 func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	switch msg := msg.(type) {
-	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 		return 1
 	case *authz.MsgExec:
 		return execWeight(ctx, ck, msg, zkProofMsgWeight)
@@ -386,7 +386,8 @@ func isFanOutTypeURL(typeURL string) bool {
 func isZKProofTypeURL(typeURL string) bool {
 	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{}) ||
 		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
-		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{})
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{}) ||
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateVerifyingKeys{})
 }
 
 // countProtoMsgs counts the entries of a proto3 encoded CosmosTx, or -1 if the
