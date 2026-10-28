@@ -17,9 +17,7 @@ const (
 	// MaxZKProofMessages bounds messages that verify a ZK proof or parse a verifying key in a block.
 	MaxZKProofMessages = 64
 
-	// MaxISMSignatures bounds the signatures carried by Hyperlane MsgProcessMessage
-	// metadata in a block, each one secp256k1 recovery when a multisig ISM verifies.
-	// GasPerISMSignature prices each signature; this budget caps the total at about
-	// 90 ms of recovery per block with cgo, or 350 ms with the pure-Go fallback.
+	// MaxISMSignatures bounds Hyperlane multisig ISM signatures in a block, about
+	// 90 ms of secp256k1 recovery with cgo or 350 ms in pure Go.
 	MaxISMSignatures = 2048
 )

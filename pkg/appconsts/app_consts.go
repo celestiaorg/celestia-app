@@ -77,9 +77,8 @@ const (
 	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
 
-	// GasPerISMSignature is charged in the ante handler per signature a
-	// Hyperlane MsgProcessMessage carries. It prices one secp256k1 recovery:
-	// about 170 us in the pure-Go fallback at the chain's usual ~4.7 ns per gas.
+	// GasPerISMSignature is charged per Hyperlane ISM signature, pricing one
+	// secp256k1 recovery (~170 us pure Go at ~4.7 ns per gas).
 	GasPerISMSignature uint64 = 36_000
 )
 

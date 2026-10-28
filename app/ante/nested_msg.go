@@ -19,8 +19,7 @@ var _ sdk.AnteDecorator = NestedMsgDecorator{}
 // or the proposal-time settlement replay). ZK proof messages are rejected in
 // governance proposals, including ISM creation's verifying-key pairing work,
 // because their deferred execution would bypass the per-block proof-work budget.
-// Hyperlane MsgProcessMessage is rejected there for the same reason: its ISM
-// signature recovery is budgeted per block at proposal time.
+// Hyperlane MsgProcessMessage is rejected there for the same reason.
 // It also rejects a nested MsgExec or MsgSubmitProposal so
 // those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}

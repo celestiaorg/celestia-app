@@ -77,10 +77,8 @@ func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	}
 }
 
-// countISMSignatures counts the signatures that Hyperlane MsgProcessMessage
-// metadata carries, including messages dispatched by authz and ICA wrappers.
-// A multisig ISM recovers one secp256k1 key per signature. The ante handler
-// prices that work per tx; this budget bounds the total per block.
+// countISMSignatures counts the signatures Hyperlane MsgProcessMessage metadata
+// carries, including through authz and ICA wrappers.
 func countISMSignatures(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 	count := 0
@@ -106,9 +104,8 @@ func ismSignatureWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	}
 }
 
-// execWeight applies weigh to each message a MsgExec dispatches and sums the
-// result. It skips a nested MsgExec: ante rejects it, and counting runs before
-// ante, so the attacker-controlled wrapper depth must not be recursed into.
+// execWeight sums weigh over the messages a MsgExec dispatches, skipping a
+// nested MsgExec, which ante rejects, rather than recursing into it.
 func execWeight(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec, weigh func(sdk.Context, channelKeeper, sdk.Msg) int) int {
 	nested, err := exec.GetMessages()
 	if err != nil {
@@ -223,19 +220,14 @@ func countICAPacketZKProofMsgs(ctx sdk.Context, ck channelKeeper, packet channel
 	return countICAPacketWeighted(ctx, ck, packet, zkProofTypeURLWeight, appconsts.MaxZKProofMessages+1)
 }
 
-// countICAPacketISMSignatures returns the ISM signature weight of the messages
-// the ICA host would dispatch. The wire-level walk sees type URLs, not metadata
-// lengths, so a MsgProcessMessage counts over the limit. It is not on the ICA
-// allow list, so no packet the host would accept is affected.
+// countICAPacketISMSignatures fails closed on a MsgProcessMessage in an ICA
+// payload: the wire-level walk sees type URLs, not metadata lengths.
 func countICAPacketISMSignatures(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet) int {
 	return countICAPacketWeighted(ctx, ck, packet, ismTypeURLWeight, appconsts.MaxISMSignatures+1)
 }
 
-// countICAPacketWeighted applies weigh to the type URL of each message the ICA
-// host would dispatch from packet and sums the result: zero if the packet is
-// not bound for the host or does not decode, or over if the payload cannot be
-// walked under the channel's encoding or names a message that dispatches
-// further messages.
+// countICAPacketWeighted sums weigh over the type URLs the ICA host would
+// dispatch from packet, or returns over if the payload cannot be walked.
 func countICAPacketWeighted(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet, weigh func(typeURL string) int, over int) int {
 	if packet.DestinationPort != icatypes.HostPortID {
 		return 0
@@ -277,8 +269,7 @@ func zkProofTypeURLWeight(typeURL string) int {
 	return 0
 }
 
-// ismTypeURLWeight fails closed on a MsgProcessMessage: the wire-level walk
-// cannot see its metadata length, so it counts as a full block's budget.
+// ismTypeURLWeight counts a MsgProcessMessage as over budget; see above.
 func ismTypeURLWeight(typeURL string) int {
 	if typeURL == sdk.MsgTypeURL(&hyperlanetypes.MsgProcessMessage{}) {
 		return appconsts.MaxISMSignatures + 1
@@ -286,8 +277,7 @@ func ismTypeURLWeight(typeURL string) int {
 	return 0
 }
 
-// countProtoWeighted applies weigh to each entry of a proto3 encoded CosmosTx
-// and sums the result, or returns -1 if the bytes are not one.
+// countProtoWeighted sums weigh over a proto3 CosmosTx, or -1 if bz is not one.
 func countProtoWeighted(bz []byte, weigh func(string) int, over int) int {
 	count := 0
 	for len(bz) > 0 {
@@ -410,8 +400,7 @@ func countJSONMsgs(bz []byte) int {
 	return len(tx.Messages)
 }
 
-// countJSONWeighted applies weigh to each entry of a proto3json encoded
-// CosmosTx and sums the result, or returns -1 if the bytes are not one.
+// countJSONWeighted sums weigh over a proto3json CosmosTx, or -1 if bz is not one.
 func countJSONWeighted(bz []byte, weigh func(string) int, over int) int {
 	var tx struct {
 		Messages []struct {

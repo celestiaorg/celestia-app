@@ -11,24 +11,17 @@ import (
 
 var _ sdk.AnteDecorator = ISMSignatureGasDecorator{}
 
-// Multisig ISM metadata is a fixed header followed by whole 65-byte
-// signatures, and both multisig parsers reject any other length before a key
-// is recovered. The two headers differ by 1028 bytes, which is not a multiple
-// of 65, so a length matches at most one layout.
+// Multisig ISM metadata is a header followed by whole 65-byte signatures; any
+// other length is rejected before a key is recovered.
 const (
 	MessageIDMultisigHeaderLen  = 68
 	MerkleRootMultisigHeaderLen = 1096
 	ISMSignatureLen             = 65
 )
 
-// ProcessMessageSignatures returns the signatures a multisig ISM would recover
-// keys for from a MsgProcessMessage, from the length of its hex metadata
-// alone: no decoding and no state read, so the count is O(1) per message.
-// Metadata that fits neither multisig layout, such as the fixed-size merkle
-// proof a ZK ISM takes or hex of odd length, recovers nothing and weighs zero.
-// Which ISM the recipient uses is not consulted, since resolving it needs state
-// reads whose cost is not bounded here; a multisig ISM recovers at most one key
-// per signature in a layout it accepts, so the layout alone bounds the work.
+// ProcessMessageSignatures bounds the keys a multisig ISM recovers for a
+// MsgProcessMessage from its hex metadata length alone. Metadata that fits
+// neither multisig layout, such as a ZK ISM merkle proof, weighs zero.
 func ProcessMessageSignatures(metadata string) int {
 	hexLen := len(strings.TrimPrefix(metadata, "0x"))
 	if hexLen%2 != 0 {
@@ -43,13 +36,8 @@ func ProcessMessageSignatures(metadata string) int {
 	return 0
 }
 
-// ISMSignatureGasDecorator charges gas for every signature a Hyperlane
-// MsgProcessMessage carries, at a rate that prices the secp256k1 recovery the
-// ISM performs per signature. Each signature also takes a slot of the
-// per-block signature budget, so a signature costs its sender what it costs
-// the chain whether or not the ISM accepts it. The hyperlane module charges
-// its own, much smaller, per-signature gas at execution; this charge is
-// additional.
+// ISMSignatureGasDecorator charges GasPerISMSignature for every signature a
+// MsgProcessMessage carries, in addition to the hyperlane module's own charge.
 type ISMSignatureGasDecorator struct{}
 
 func NewISMSignatureGasDecorator() ISMSignatureGasDecorator {
@@ -63,11 +51,8 @@ func (ISMSignatureGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 	return next(ctx, tx, simulate)
 }
 
-// ismSignatureCount sums ProcessMessageSignatures over msgs and over the
-// messages a MsgExec dispatches. A nested MsgExec is skipped: NestedMsgDecorator
-// rejects it, so no message inside it ever executes. ICA packets are not
-// walked: proposal counting fails closed on any MsgProcessMessage inside one,
-// so no such tx reaches execution.
+// ismSignatureCount sums ProcessMessageSignatures over msgs and one level of
+// MsgExec. Nested MsgExec and ICA packets never execute a MsgProcessMessage.
 func ismSignatureCount(msgs []sdk.Msg) int {
 	count := 0
 	for _, msg := range msgs {
