@@ -2,9 +2,10 @@ name: review-policy-evaluator
 
 # Privileged evaluation always uses protected default-branch code. Review and
 # queue events arrive through workflow_run, never by executing PR code here.
+# pull_request_target has no branch filter so stacked PRs refresh too; GitHub
+# runs it from the default branch whatever the PR's base.
 on:
   pull_request_target:
-    branches: [main]
     types: [opened, reopened, synchronize, edited, ready_for_review, converted_to_draft]
   workflow_run:
     workflows: [review-policy-events, review-policy-tests]

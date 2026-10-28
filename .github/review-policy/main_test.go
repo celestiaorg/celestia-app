@@ -61,7 +61,7 @@ func (f *fakeAPI) Get(path string, out any) error {
 		for _, pr := range f.pulls {
 			if pr.Number == number {
 				f.reads++
-				if f.mutate && f.reads > 2 {
+				if f.mutate && f.reads > 1 {
 					pr.Head.SHA = strings.Repeat("c", 40)
 				}
 				v = pr
@@ -143,6 +143,64 @@ func TestSharedCommitUsesStrictestResult(t *testing.T) {
 	invoke(t, f, "pull_request_target", prEvent())
 	if len(f.statuses) != 1 || f.statuses[0].state != "failure" {
 		t.Errorf("got %+v, want one failure", f.statuses)
+	}
+}
+
+// branchPR returns a PR from head into base whose head branch lives in repo.
+func branchPR(number int, base, head, repo string) PullRequest {
+	pr := basePR()
+	pr.Number, pr.Base.Ref, pr.Head.Ref = number, base, head
+	pr.Head.SHA = strings.Repeat(strconv.Itoa(number), 40)
+	pr.Head.Repo = &struct {
+		FullName string `json:"full_name"`
+	}{repo}
+	return pr
+}
+
+func TestStackedPulls(t *testing.T) {
+	const repo = "celestiaorg/celestia-app"
+	stack := func() *fakeAPI {
+		f := newFake()
+		f.pulls = []PullRequest{
+			branchPR(1, "main", "bottom", repo),
+			branchPR(2, "bottom", "middle", repo),
+			branchPR(3, "middle", "top", repo),
+			branchPR(4, "release", "backport", repo),
+			// A fork's head branch is not a base in this repository.
+			branchPR(5, "main", "forked", "contributor/fork"),
+			branchPR(6, "forked", "orphan", repo),
+		}
+		return f
+	}
+	published := func(f *fakeAPI) []string {
+		var shas []string
+		for _, s := range f.statuses {
+			shas = append(shas, s.sha)
+		}
+		return shas
+	}
+	want := func(numbers ...int) []string {
+		var shas []string
+		for _, n := range numbers {
+			shas = append(shas, strings.Repeat(strconv.Itoa(n), 40))
+		}
+		return shas
+	}
+
+	f := stack()
+	invoke(t, f, "schedule", Event{})
+	if got := published(f); !slices.Equal(got, want(1, 2, 3, 5)) {
+		t.Errorf("sweep published on %v, want %v", got, want(1, 2, 3, 5))
+	}
+
+	// A change to a stacked PR refreshes it; changes to ungoverned PRs do nothing.
+	for n, w := range map[int][]string{3: want(3), 4: nil, 6: nil} {
+		f = stack()
+		pr := f.pulls[n-1]
+		invoke(t, f, "pull_request_target", Event{PullRequest: &pr})
+		if got := published(f); !slices.Equal(got, w) {
+			t.Errorf("change to #%d published on %v, want %v", n, got, w)
+		}
 	}
 }
 
