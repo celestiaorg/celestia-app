@@ -10,6 +10,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -111,6 +112,35 @@ func FundAccounts(codec codec.Codec, addresses []sdk.AccAddress, balance sdk.Coi
 
 		bankGenState.Balances = append(bankGenState.Balances, genBalances...)
 		state[banktypes.ModuleName] = codec.MustMarshalJSON(&bankGenState)
+		return state
+	}
+}
+
+// zkismTreeStatesField is the zkism genesis field introduced in app version 11.
+const zkismTreeStatesField = "tree_states"
+
+// StripZkismTreeStates removes the tree_states field from the zkism genesis
+// state. Binaries for app versions below 11 reject unknown genesis fields, so
+// a genesis produced by the current app must be shaped like theirs before a
+// multiplexer network can start on an older app version.
+func StripZkismTreeStates() Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		raw, ok := state[zkismtypes.ModuleName]
+		if !ok {
+			return state
+		}
+
+		var zkismState map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &zkismState); err != nil {
+			panic(fmt.Sprintf("invalid zkism genesis state: %v", err))
+		}
+		delete(zkismState, zkismTreeStatesField)
+
+		bz, err := json.Marshal(zkismState)
+		if err != nil {
+			panic(fmt.Sprintf("marshal zkism genesis state: %v", err))
+		}
+		state[zkismtypes.ModuleName] = bz
 		return state
 	}
 }
