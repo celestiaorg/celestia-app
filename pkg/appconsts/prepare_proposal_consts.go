@@ -19,7 +19,7 @@ const (
 
 	// MaxISMSignatures bounds the signatures carried by Hyperlane MsgProcessMessage
 	// metadata in a block, each one secp256k1 recovery when a multisig ISM verifies.
-	// GasPerISMSignature prices each signature; this budget only caps the total
-	// and is set high enough that MaxSDKMessages binds first for honest traffic.
-	MaxISMSignatures = 8192
+	// GasPerISMSignature prices each signature; this budget caps the total and
+	// leaves several times the headroom honest traffic needs.
+	MaxISMSignatures = 2048
 )
