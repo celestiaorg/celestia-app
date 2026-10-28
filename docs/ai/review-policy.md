@@ -4,7 +4,8 @@ The `review-policy` commit status enforces independent human approvals for PRs
 into the default branch (initially `main`). It supplements CI, automated bug and
 security review, and conversation resolution; it does not replace those checks.
 The design follows [how Anthropic reviews code](https://claude.dev/blog/solving-code-review-at-anthropic/):
-tiered approval counts, commit-bound approvals, and agent approvals never count.
+tiered approval counts and agent approvals never count. Unlike that design,
+approvals are not bound to a commit: they persist across later pushes.
 
 ## Review requirements
 
@@ -21,17 +22,18 @@ prompted an agent may give that approval: for agent PRs, the prompter counts as
 a reviewer, and no separate sponsorship step exists.
 
 Approvals count only from humans with write permission other than the author.
-Each reviewer counts once; their latest decisive review must approve the exact
-current head SHA. Comments do not erase an earlier approval. Dismissed approvals
-do not count, and an outstanding change request from a maintainer blocks the
-policy. Drafts never pass.
+Each reviewer counts once, and their latest decisive review must be an
+approval. An approval persists when commits are pushed after it, whoever pushes
+them. Comments do not erase an earlier approval. Dismissed approvals do not
+count, and an outstanding change request from a maintainer blocks the policy.
+Drafts never pass.
 
 ## Risk classification
 
 The PR title's conventional-commit `[low]`, `[medium]`, or `[high]` tag is the
 only input to the tier; the evaluator does not inspect changed files. A title
-without a valid tag fails the check. Editing the title re-evaluates the PR, and
-approvals still count only on the current head commit. Reviewers are
+without a valid tag fails the check. Editing the title re-evaluates the PR
+against the new tier, and earlier approvals still count. Reviewers are
 responsible for confirming the chosen tag, as described in the README.
 
 ## Trusted execution and refreshes
@@ -79,7 +81,9 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
    lint, test, and security requirements.
 5. Keep the GitHub merge queue required. The policy revalidates on the
    merge-group SHA; direct merging could use a status from before a review was
-   dismissed. Keep conversation resolution and stale-approval dismissal enabled.
+   dismissed. Keep conversation resolution enabled. Disable "Dismiss stale pull
+   request approvals when new commits are pushed"; otherwise GitHub dismisses
+   approvals on every push and they stop counting toward this policy.
 6. Disable "Allow GitHub Actions to create and approve pull requests" so no
    workflow can supply an approval.
 7. Set the global approval count to zero only after the above requirements work.

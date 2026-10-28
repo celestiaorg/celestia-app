@@ -35,7 +35,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return app.BaseApp.CheckTx(req)
 	}
 
-	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
+	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
 	if isBlob && err != nil {
 		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil

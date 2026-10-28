@@ -46,6 +46,9 @@ type serverMetrics struct {
 	// successful UploadShard RPC, or zero before the first one.
 	uploadShardLastSuccess atomic.Int64
 
+	// requestRejected counts requests rejected by memory admission.
+	requestRejected metric.Int64Counter
+
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
 	downloadShardDuration metric.Float64Histogram
@@ -102,6 +105,13 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard rejected counter: %w", err)
+	}
+
+	sm.requestRejected, err = m.Int64Counter("fibre.server.request.rejected",
+		metric.WithDescription("gRPC requests rejected by memory admission, by method and reason"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating request rejected counter: %w", err)
 	}
 
 	sm.uploadShardDupeHits, err = m.Int64Counter("fibre.server.upload_shard.dupe_hits",

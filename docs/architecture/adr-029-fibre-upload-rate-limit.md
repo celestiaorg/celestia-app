@@ -139,6 +139,8 @@ This work adds three transport caps, as gRPC server options and a wrapped listen
 
 Together these bound receive memory and connection load. With them plus the verifier pool, the application-level in-flight cap from the draft PR (#7481) is not needed here and is dropped. These are fixed, protocol-sane values, not derived from the disk budget.
 
+Receive memory is now bounded by request admission instead; see ADR-031.
+
 ### Configuration and tuning
 
 The only tunable is the `FullStakeStorageBudget` governance parameter; every per-node budget is derived from it. Making it governance-changeable, rather than local config, removes the failure mode where a validator has the disk but never updates a local number and quietly throttles the network. Because it is normalized to full stake and scaled per node, one on-chain value fits validators of any stake. The only local control is a CLI flag to disable the limiter, an emergency off-switch; there is no local budget to misconfigure.
