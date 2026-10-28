@@ -478,7 +478,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			Metadata: ismMetadataHex(appconsts.MaxISMSignatures),
 			Message:  "0x",
 		}
-		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(20000000), user.SetFee(10000))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(400000000), user.SetFee(10000))
 		require.NoError(t, err)
 		ismSigTxs = append(ismSigTxs, rawTx)
 		accountIndex++
@@ -487,7 +487,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		Relayer:  addrs[accountIndex].String(),
 		Metadata: ismMetadataHex(appconsts.MaxISMSignatures + 1),
 		Message:  "0x",
-	}}, user.SetGasLimit(20000000), user.SetFee(10000))
+	}}, user.SetGasLimit(400000000), user.SetFee(10000))
 	require.NoError(t, err)
 
 	testCases := []struct {

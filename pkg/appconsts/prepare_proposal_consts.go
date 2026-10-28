@@ -4,7 +4,8 @@ package appconsts
 
 // The following consts are not consensus breaking and will be applied straight
 // after this binary is started.
-// These numbers softly constrain the processing time of blocks to 0.25sec.
+// The message caps softly constrain the processing time of blocks to 0.25sec,
+// except MaxISMSignatures, which relies on gas pricing instead; see its comment.
 // The benchmarks used to find these limits can be found in `app/benchmarks`.
 const (
 	// MaxPFBMessages is the maximum number of PFB messages that a block can contain.
@@ -17,6 +18,8 @@ const (
 	MaxZKProofMessages = 64
 
 	// MaxISMSignatures bounds the signatures carried by Hyperlane MsgProcessMessage
-	// metadata in a block. Each costs one secp256k1 recovery when the ISM verifies.
-	MaxISMSignatures = 256
+	// metadata in a block, each one secp256k1 recovery when a multisig ISM verifies.
+	// GasPerISMSignature prices each signature; this budget only caps the total
+	// and is set high enough that MaxSDKMessages binds first for honest traffic.
+	MaxISMSignatures = 8192
 )

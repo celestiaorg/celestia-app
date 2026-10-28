@@ -534,7 +534,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			Metadata: ismMetadataHex(sigs),
 			Message:  "0x",
 		}
-		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(20000000), user.SetFee(10000))
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(400000000), user.SetFee(10000))
 		require.NoError(t, err)
 		return rawTx
 	}

@@ -26,9 +26,9 @@ const (
 // alone: no decoding and no state read, so the count is O(1) per message.
 // Metadata that fits neither multisig layout, such as the fixed-size merkle
 // proof a ZK ISM takes or hex of odd length, recovers nothing and weighs zero.
-// Which ISM the recipient uses is not consulted: it costs state reads an
-// attacker can make expensive, and a multisig ISM recovers at most one key per
-// signature in a layout it accepts, so the layout alone bounds the work.
+// Which ISM the recipient uses is not consulted, since resolving it needs state
+// reads whose cost is not bounded here; a multisig ISM recovers at most one key
+// per signature in a layout it accepts, so the layout alone bounds the work.
 func ProcessMessageSignatures(metadata string) int {
 	hexLen := len(strings.TrimPrefix(metadata, "0x"))
 	if hexLen%2 != 0 {
@@ -46,10 +46,10 @@ func ProcessMessageSignatures(metadata string) int {
 // ISMSignatureGasDecorator charges gas for every signature a Hyperlane
 // MsgProcessMessage carries, at a rate that prices the secp256k1 recovery the
 // ISM performs per signature. Each signature also takes a slot of the
-// per-block signature budget, so without this charge a tx of junk metadata
-// could fill that budget for the price of its bytes and delay every honest
-// delivery in the block. The hyperlane module charges its own, much smaller,
-// per-signature gas at execution; this charge is additional.
+// per-block signature budget, so a signature costs its sender what it costs
+// the chain whether or not the ISM accepts it. The hyperlane module charges
+// its own, much smaller, per-signature gas at execution; this charge is
+// additional.
 type ISMSignatureGasDecorator struct{}
 
 func NewISMSignatureGasDecorator() ISMSignatureGasDecorator {

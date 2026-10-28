@@ -43,7 +43,7 @@ func TestProcessMessageSignatures(t *testing.T) {
 		{name: "no prefix", metadata: strings.Repeat("00", ante.MessageIDMultisigHeaderLen+ante.ISMSignatureLen), want: 1},
 		{name: "odd hex length never decodes", metadata: ismMetadataHex(1) + "0", want: 0},
 		{name: "invalid hex counts by length", metadata: "0x" + strings.Repeat("zz", ante.MessageIDMultisigHeaderLen+ante.ISMSignatureLen), want: 1},
-		{name: "reported attack shape", metadata: ismMetadataHex(64_000), want: 64_000},
+		{name: "64,000 signatures", metadata: ismMetadataHex(64_000), want: 64_000},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
