@@ -7,10 +7,16 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 ```ascii
 /celestia.blob.v1.MsgPayForBlobs
 /celestia.blob.v1.MsgUpdateBlobParams
+/celestia.fibre.v1.MsgDepositToEscrow
+/celestia.fibre.v1.MsgPayForFibre
+/celestia.fibre.v1.MsgPaymentPromiseTimeout
+/celestia.fibre.v1.MsgRequestWithdrawal
+/celestia.fibre.v1.MsgUpdateFibreParams
 /celestia.forwarding.v1.MsgForward
 /celestia.minfee.v1.MsgUpdateMinfeeParams
 /celestia.signal.v1.MsgSignalVersion
 /celestia.signal.v1.MsgTryUpgrade
+/celestia.valaddr.v1.MsgSetFibreProviderInfo
 /celestia.zkism.v1.MsgCreateInterchainSecurityModule
 /celestia.zkism.v1.MsgSubmitMessages
 /celestia.zkism.v1.MsgUpdateInterchainSecurityModule
@@ -82,6 +88,7 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /hyperlane.core.v1.MsgProcessMessage
 /hyperlane.core.v1.MsgSetMailbox
 /hyperlane.warp.v1.MsgCreateCollateralToken
+/hyperlane.warp.v1.MsgCreateNativeSyntheticToken
 /hyperlane.warp.v1.MsgCreateSyntheticToken
 /hyperlane.warp.v1.MsgEnrollRemoteRouter
 /hyperlane.warp.v1.MsgRemoteTransfer
@@ -130,37 +137,27 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 
 ## Events
 
-The following is an exhaustive list of supported events for app version 10.
+The following is a list of the typed (protobuf) events that app version 10 can emit. Cosmos SDK modules such as bank and staking also emit untyped string events, which are not listed here.
 
 ```ascii
 celestia.blob.v1.EventPayForBlobs
 celestia.blob.v1.EventUpdateBlobParams
+celestia.fibre.v1.EventDepositToEscrow
+celestia.fibre.v1.EventPayForFibre
+celestia.fibre.v1.EventPaymentPromiseTimeout
+celestia.fibre.v1.EventProcessedPaymentPruned
+celestia.fibre.v1.EventUpdateFibreParams
+celestia.fibre.v1.EventWithdrawFromEscrowExecuted
+celestia.fibre.v1.EventWithdrawFromEscrowRequest
 celestia.forwarding.v1.EventTokenForwarded
 celestia.minfee.v1.EventUpdateMinfeeParams
+celestia.valaddr.v1.EventSetFibreProviderInfo
 celestia.zkism.v1.EventCreateInterchainSecurityModule
 celestia.zkism.v1.EventSubmitMessages
 celestia.zkism.v1.EventUpdateInterchainSecurityModule
 cosmos.authz.v1beta1.EventGrant
 cosmos.authz.v1beta1.EventPruneExpiredGrants
 cosmos.authz.v1beta1.EventRevoke
-cosmos.base.abci.v1beta1.StringEvent
-cosmos.distribution.v1beta1.ValidatorSlashEvent
-cosmos.distribution.v1beta1.ValidatorSlashEventRecord
-cosmos.distribution.v1beta1.ValidatorSlashEvents
-cosmos.group.v1.EventCreateGroup
-cosmos.group.v1.EventCreateGroupPolicy
-cosmos.group.v1.EventExec
-cosmos.group.v1.EventLeaveGroup
-cosmos.group.v1.EventProposalPruned
-cosmos.group.v1.EventSubmitProposal
-cosmos.group.v1.EventTallyError
-cosmos.group.v1.EventUpdateGroup
-cosmos.group.v1.EventUpdateGroupPolicy
-cosmos.group.v1.EventVote
-cosmos.group.v1.EventWithdrawProposal
-cosmos.tx.v1beta1.GetTxsEventRequest
-cosmos.tx.v1beta1.GetTxsEventResponse
-envoy.config.core.v3.EventServiceConfig
 hyperlane.core.interchain_security.v1.EventAnnounceStorageLocation
 hyperlane.core.interchain_security.v1.EventCreateMerkleRootMultisigIsm
 hyperlane.core.interchain_security.v1.EventCreateMessageIdMultisigIsm
