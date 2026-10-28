@@ -116,14 +116,14 @@ func FundAccounts(codec codec.Codec, addresses []sdk.AccAddress, balance sdk.Coi
 	}
 }
 
-// zkismTreeStatesField is the zkism genesis field introduced in app version 11.
-const zkismTreeStatesField = "tree_states"
+// zkismV11Fields are the zkism genesis fields introduced in app version 11.
+var zkismV11Fields = []string{"tree_states", "state_root_history", "tree_state_history"}
 
-// StripZkismTreeStates removes the tree_states field from the zkism genesis
-// state. Binaries for app versions below 11 reject unknown genesis fields, so
-// a genesis produced by the current app must be shaped like theirs before a
-// multiplexer network can start on an older app version.
-func StripZkismTreeStates() Modifier {
+// StripZkismV11Fields removes the zkism genesis fields introduced in app
+// version 11. Binaries for app versions below 11 reject unknown genesis
+// fields, so a genesis produced by the current app must be shaped like theirs
+// before a multiplexer network can start on an older app version.
+func StripZkismV11Fields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		raw, ok := state[zkismtypes.ModuleName]
 		if !ok {
@@ -134,7 +134,9 @@ func StripZkismTreeStates() Modifier {
 		if err := json.Unmarshal(raw, &zkismState); err != nil {
 			panic(fmt.Sprintf("invalid zkism genesis state: %v", err))
 		}
-		delete(zkismState, zkismTreeStatesField)
+		for _, field := range zkismV11Fields {
+			delete(zkismState, field)
+		}
 
 		bz, err := json.Marshal(zkismState)
 		if err != nil {
