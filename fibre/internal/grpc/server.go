@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
-	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
@@ -19,17 +18,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Connection and stream caps bound how many requests run at once; receive
-// memory is bounded by request admission (see admission.go and ADR-031).
+// Connection and stream caps are for safety and fairness; receive memory is
+// bounded by request admission (see admission.go and ADR-031).
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
 // memory for them, and rejects oversized DownloadShard requests before copying
 // them.
 const (
-	// DefaultMaxConnections is the default total connection cap.
-	DefaultMaxConnections = 16
+	// DefaultMaxConnectionsPerIP caps connections per source IP (IPv6 by /64).
+	DefaultMaxConnectionsPerIP = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
-	DefaultMaxConcurrentStreams = 13
+	DefaultMaxConcurrentStreams = 100
+	// globalConnLimit is a fixed fd-safety cap.
+	globalConnLimit = 4096
 
 	// Fixed receive windows (>=65535) disable BDP tuning; the stream window only
 	// bounds a paused stream, since RecvMsg grants a whole-message window.
@@ -37,7 +38,7 @@ const (
 	initialConnWindowSize = 16 << 20
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
-	// LimitListener slot with a stalled handshake for the 120s gRPC default.
+	// connection slot with a stalled handshake for the 120s gRPC default.
 	connectionTimeout = 15 * time.Second
 
 	// maxHeaderListSize caps request headers, which grpc buffers before any
@@ -70,11 +71,12 @@ type Server struct {
 	maxConcurrentStreams uint32
 }
 
-// Listen creates a [Server] bound to listenAddr that admits requests per admCfg.
+// Listen creates a [Server] bound to listenAddr that admits requests per admCfg
+// and fail-fast caps connections per source IP (maxConnectionsPerIP, 0 disables).
 // The underlying [grpc.Server] is created lazily by [Server.Register] so callers
 // can defer building credentials until after the listener address is known
 // (e.g., for TLS certs that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int, admCfg AdmissionConfig) (*Server, error) {
+func Listen(listenAddr string, maxConnectionsPerIP, maxConcurrentStreams int, admCfg AdmissionConfig) (*Server, error) {
 	adm, err := newAdmission(admCfg)
 	if err != nil {
 		return nil, err
@@ -83,10 +85,11 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int, admCfg 
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
-	// Cap total connections so a peer cannot dodge the per-connection stream cap
-	// by opening many connections.
-	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, adm: adm, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	return &Server{
+		listener:             newLimitedListener(listener, globalConnLimit, maxConnectionsPerIP),
+		adm:                  adm,
+		maxConcurrentStreams: uint32(maxConcurrentStreams),
+	}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
