@@ -1,7 +1,10 @@
 # Required review policy
 
 The `review-policy` commit status enforces independent human approvals for PRs
-into the default branch (initially `main`). It supplements CI, automated bug and
+into the default branch (initially `main`) and for PRs stacked on them, whose
+base is the head branch of another governed PR in this repository. Stacked PRs
+reach the default branch when their stack merges, so they carry the status
+before then. It supplements CI, automated bug and
 security review, and conversation resolution; it does not replace those checks.
 The design follows [how Anthropic reviews code](https://claude.dev/blog/solving-code-review-at-anthropic/):
 tiered approval counts and agent approvals never count. Unlike that design,
@@ -92,7 +95,7 @@ Adding a workflow does **not** make its status mandatory. Activate it as follows
    applies only to the paths in step 3. Keep routine bypass disabled for people
    and agents.
 
-This implementation governs `main` only. Do not relax release-branch protections
+This implementation governs `main` and PRs stacked on it only. Do not relax release-branch protections
 until event filters, evaluation, and queue coverage are extended to them.
 
 GitHub Actions shares an app identity across workflows, so binding the status to
