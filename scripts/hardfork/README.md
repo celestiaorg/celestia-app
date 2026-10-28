@@ -1,6 +1,6 @@
 # Hard fork recovery
 
-`recovery.sh` rolls back a validator node and checks its app hash.
+`recovery.sh` rolls back or restarts a validator node and checks its app hash.
 
 See [docs/hardfork/rollback.md](../../docs/hardfork/rollback.md). Run `bash recovery.sh --help` for flags.
 

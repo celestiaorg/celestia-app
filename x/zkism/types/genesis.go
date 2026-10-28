@@ -55,32 +55,25 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
-	messages := make(map[uint64]struct{}, len(gs.Messages))
-	for i := range gs.Messages {
-		msgs := gs.Messages[i]
-		if msgs.Id.IsZeroAddress() {
+	treeStates := make(map[uint64]struct{}, len(gs.TreeStates))
+	for i := range gs.TreeStates {
+		entry := gs.TreeStates[i]
+		if entry.Id.IsZeroAddress() {
 			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 		}
 
-		internalID := msgs.Id.GetInternalId()
+		internalID := entry.Id.GetInternalId()
 		if _, exists := isms[internalID]; !exists {
-			return errorsmod.Wrapf(ErrIsmNotFound, "messages defined for unknown ism %s", msgs.Id.String())
+			return errorsmod.Wrapf(ErrIsmNotFound, "merkle tree state defined for unknown ism %s", entry.Id.String())
 		}
 
-		if _, exists := messages[internalID]; exists {
-			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate messages entry for ism %s", msgs.Id.String())
+		if _, exists := treeStates[internalID]; exists {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate merkle tree state entry for ism %s", entry.Id.String())
 		}
-		messages[internalID] = struct{}{}
+		treeStates[internalID] = struct{}{}
 
-		for _, msg := range msgs.Messages {
-			msgID, err := DecodeHex(msg)
-			if err != nil {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid message id %q for ism %s: %v", msg, msgs.Id.String(), err)
-			}
-
-			if len(msgID) != 32 {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid message id length for ism %s: expected 32 bytes, got %d", msgs.Id.String(), len(msgID))
-			}
+		if len(entry.TreeState.Root) != 32 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid merkle tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(entry.TreeState.Root))
 		}
 	}
 

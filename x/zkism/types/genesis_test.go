@@ -111,37 +111,30 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "messages zero identifier",
+			name: "merkle tree state zero identifier",
 			malleate: func(gs *types.GenesisState) {
-				gs.Messages[0].Id = util.NewZeroAddress()
+				gs.TreeStates[0].Id = util.NewZeroAddress()
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
-			name: "messages for unknown ism",
+			name: "merkle tree state for unknown ism",
 			malleate: func(gs *types.GenesisState) {
-				gs.Messages[0].Id = util.CreateMockHexAddress("module", 2)
+				gs.TreeStates[0].Id = util.CreateMockHexAddress("module", 2)
 			},
 			expErr: types.ErrIsmNotFound,
 		},
 		{
-			name: "duplicate messages entry",
+			name: "duplicate merkle tree state entry",
 			malleate: func(gs *types.GenesisState) {
-				gs.Messages = append(gs.Messages, gs.Messages[0])
+				gs.TreeStates = append(gs.TreeStates, gs.TreeStates[0])
 			},
 			expErr: sdkerrors.ErrAppConfig,
 		},
 		{
-			name: "invalid message id",
+			name: "invalid merkle tree root length",
 			malleate: func(gs *types.GenesisState) {
-				gs.Messages[0].Messages = []string{"0xzz"}
-			},
-			expErr: sdkerrors.ErrAppConfig,
-		},
-		{
-			name: "invalid message id length",
-			malleate: func(gs *types.GenesisState) {
-				gs.Messages[0].Messages = []string{types.EncodeHex(bytes.Repeat([]byte{0x01}, 31))}
+				gs.TreeStates[0].TreeState.Root = bytes.Repeat([]byte{0x01}, 31)
 			},
 			expErr: sdkerrors.ErrAppConfig,
 		},
@@ -198,16 +191,19 @@ func newValidGenesisState(groth16Vk []byte) types.GenesisState {
 				StateMembershipVkey: bytes.Repeat([]byte{0x04}, 32),
 			},
 		},
-		Messages: []types.GenesisMessages{
-			{
-				Id:       ismID,
-				Messages: []string{types.EncodeHex(bytes.Repeat([]byte{0x05}, 32))},
-			},
-		},
 		Submissions: []types.GenesisProofSubmission{
 			{
 				Id:        ismID,
 				Submitted: true,
+			},
+		},
+		TreeStates: []types.GenesisMerkleTreeState{
+			{
+				Id: ismID,
+				TreeState: types.MerkleTreeState{
+					Root:  bytes.Repeat([]byte{0x05}, 32),
+					Count: 1,
+				},
 			},
 		},
 	}

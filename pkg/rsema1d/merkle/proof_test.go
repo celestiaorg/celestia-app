@@ -1,6 +1,7 @@
 package merkle_test
 
 import (
+	"errors"
 	"math/rand/v2"
 	"testing"
 
@@ -113,4 +114,50 @@ func TestRootFromProofsErrors(t *testing.T) {
 
 	_, err := merkle.RootFromProofs(nil, 4)
 	require.Error(t, err, "empty batch")
+}
+
+// FuzzRootFromProofs tampers with one input of a batch and checks that
+// RootFromProofs agrees with verifying every proof on its own.
+func FuzzRootFromProofs(f *testing.F) {
+	rng := rand.New(rand.NewPCG(17, 18))
+	leaves := make([][]byte, 8)
+	for i := range leaves {
+		leaves[i] = randBytes(rng, 100)
+	}
+	tree := merkle.NewTree(nil, leaves, 1)
+	inputs := make([]merkle.ProofInput, len(leaves))
+	for i := range leaves {
+		proof, err := tree.Proof(i)
+		require.NoError(f, err)
+		inputs[i] = merkle.ProofInput{Leaf: leaves[i], Index: i, Path: proof}
+	}
+	f.Add(uint8(0), uint8(0), byte(1), uint8(7))
+	f.Add(uint8(3), uint8(2), byte(0), uint8(0))
+	f.Fuzz(func(t *testing.T, which, level uint8, delta byte, trunc uint8) {
+		cp := append([]merkle.ProofInput(nil), inputs...)
+		in := &cp[which%8]
+		in.Leaf = append([]byte(nil), in.Leaf...)
+		in.Leaf[int(delta)%len(in.Leaf)] += delta
+		in.Path = append([][]byte(nil), in.Path...)
+		l := int(level) % len(in.Path)
+		in.Path[l] = in.Path[l][:min(merkle.NodeSize, int(trunc))]
+
+		// reference: every proof verifies on its own and all agree
+		want, wantErr := merkle.RootFromProof(cp[0].Leaf, cp[0].Index, cp[0].Path)
+		for _, in := range cp[1:] {
+			if wantErr != nil {
+				break
+			}
+			root, err := merkle.RootFromProof(in.Leaf, in.Index, in.Path)
+			if err == nil && root != want {
+				err = errors.New("root mismatch")
+			}
+			wantErr = err
+		}
+		got, err := merkle.RootFromProofs(cp, 1)
+		require.Equal(t, wantErr != nil, err != nil, "got %v, want %v", err, wantErr)
+		if err == nil {
+			require.Equal(t, want, got)
+		}
+	})
 }

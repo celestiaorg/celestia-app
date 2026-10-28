@@ -1,22 +1,120 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"text/tabwriter"
 	"time"
 
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
 
+type objectStorageCheckError struct {
+	cause error
+}
+
+func (e *objectStorageCheckError) Error() string { return "object storage check failed" }
+func (e *objectStorageCheckError) Unwrap() error { return e.cause }
+
 func newStoreCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "store", Short: "Inspect the Fibre store"}
-	cmd.AddCommand(newStoreStatsCmd(), newStoreMarkersCmd())
+	cmd := &cobra.Command{Use: "store", Short: "Inspect the Fibre store and object storage"}
+	cmd.AddCommand(newStoreStatsCmd(), newStoreMarkersCmd(), newStoreCheckBucketCmd())
 	return cmd
+}
+
+func newStoreCheckBucketCmd() *cobra.Command {
+	return newStoreCheckBucketCmdWithCheck(fibre.CheckObjectStorage)
+}
+
+func newStoreCheckBucketCmdWithCheck(check func(context.Context, fibre.ObjectStorageConfig) (fibre.ObjectStorageCheckResult, error)) *cobra.Command {
+	var chainID, validatorAddress string
+	cmd := &cobra.Command{
+		Use:   "check-bucket",
+		Short: "Check object storage connectivity and permissions",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			home, err := cmd.Flags().GetString(flagHome)
+			if err != nil {
+				return fmt.Errorf("get %q flag: %w", flagHome, err)
+			}
+			cfg := fibre.DefaultServerConfig()
+			if err := cfg.Load(fibre.DefaultConfigPath(home)); err != nil {
+				return err
+			}
+			cfg.ObjectStorage.ChainID = chainID
+			cfg.ObjectStorage.ValidatorAddress = validatorAddress
+			result, err := check(cmd.Context(), cfg.ObjectStorage)
+			if err != nil {
+				return err
+			}
+			if err := writeObjectStorageCheck(cmd.OutOrStdout(), result); err != nil {
+				return err
+			}
+			if err := result.Err(); err != nil {
+				return &objectStorageCheckError{cause: err}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&chainID, "chain-id", "", "chain ID for a validator-scoped canary")
+	cmd.Flags().StringVar(&validatorAddress, "validator-address", "", "validator consensus address for a validator-scoped canary")
+	return cmd
+}
+
+func writeObjectStorageCheck(out io.Writer, result fibre.ObjectStorageCheckResult) error {
+	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "CHECK\tSTATUS")
+	writeCheckResult(w, "head bucket", result.HeadBucketErr)
+	writeCheckResult(w, "put canary", result.PutCanaryErr)
+	writeCheckResult(w, "delete canary", result.DeleteCanaryErr)
+	fmt.Fprintf(w, "\ncanary key: %s\n", result.CanaryKey)
+	fmt.Fprintf(w, "credential source: %s\n", result.CredentialSource)
+	fmt.Fprintf(w, "access key ID suffix: %s\n", result.AccessKeyIDSuffix)
+	if !result.NamespaceScoped && hasObjectStorageErrorCode(result.PutCanaryErr, "AccessDenied") {
+		fmt.Fprintln(w, "hint: path-scoped credentials may require --chain-id and --validator-address")
+	}
+	return w.Flush()
+}
+
+func hasObjectStorageErrorCode(err error, code string) bool {
+	apiErr, ok := errors.AsType[smithy.APIError](err)
+	return ok && apiErr.ErrorCode() == code
+}
+
+func writeCheckResult(w io.Writer, name string, err error) {
+	status := "ok"
+	if err != nil {
+		status = "failed"
+	}
+	fmt.Fprintf(w, "%s\t%s\n", name, status)
+	if err != nil {
+		fmt.Fprintf(w, "  %s\n", formatObjectStorageError(err))
+	}
+}
+
+func formatObjectStorageError(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "request timed out"
+	}
+	if dnsErr, ok := errors.AsType[*net.DNSError](err); ok {
+		return fmt.Sprintf("DNS lookup failed for %s: %s", dnsErr.Name, dnsErr.Err)
+	}
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+		message := fmt.Sprintf("%s: %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
+		if responseErr, ok := errors.AsType[*smithyhttp.ResponseError](err); ok && responseErr.HTTPStatusCode() != 0 {
+			return fmt.Sprintf("HTTP %d %s", responseErr.HTTPStatusCode(), message)
+		}
+		return message
+	}
+	return err.Error()
 }
 
 func newStoreStatsCmd() *cobra.Command {

@@ -56,7 +56,11 @@ func (t *Tree) fillProof(dst [][]byte, index int) error {
 func RootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) {
 	var current Root
 	hashLeaf(leaf, current[:])
+	return rootFromLeafHash(current, index, proof)
+}
 
+// rootFromLeafHash walks proof up from the already-hashed leaf at index.
+func rootFromLeafHash(current Root, index int, proof [][]byte) (Root, error) {
 	pos := index
 	for _, siblingBytes := range proof {
 		if len(siblingBytes) != NodeSize {
@@ -123,18 +127,28 @@ func RootFromProofs(inputs []ProofInput, workers int) (Root, error) {
 
 // reduceProofs recomputes the root of inputs[start:end] (a non-empty range) and
 // returns it, erroring if any input yields a different root than the range's first.
+// Leaves are hashed in pairs (see [hashLeafPair]).
 func reduceProofs(inputs []ProofInput, start, end int) (Root, error) {
-	want, err := RootFromProof(inputs[start].Leaf, inputs[start].Index, inputs[start].Path)
-	if err != nil {
-		return Root{}, fmt.Errorf("input %d (tree index %d): %w", start, inputs[start].Index, err)
-	}
-	for i := start + 1; i < end; i++ {
-		root, err := RootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
-		if err != nil {
-			return Root{}, fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+	var want Root
+	var leaves [2]Root
+	for i := start; i < end; i += 2 {
+		pair := min(2, end-i)
+		if pair == 2 {
+			hashLeafPair(inputs[i].Leaf, inputs[i+1].Leaf, leaves[0][:], leaves[1][:])
+		} else {
+			hashLeaf(inputs[i].Leaf, leaves[0][:])
 		}
-		if root != want {
-			return Root{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
+		for j := range pair {
+			in := inputs[i+j]
+			root, err := rootFromLeafHash(leaves[j], in.Index, in.Path)
+			if err != nil {
+				return Root{}, fmt.Errorf("input %d (tree index %d): %w", i+j, in.Index, err)
+			}
+			if i+j == start {
+				want = root
+			} else if root != want {
+				return Root{}, fmt.Errorf("input %d (tree index %d): root mismatch", i+j, in.Index)
+			}
 		}
 	}
 	return want, nil
