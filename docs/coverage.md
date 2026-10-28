@@ -46,6 +46,9 @@ statement-weighted; the handler summary records those independently. Neither
 metric proves branch coverage. Do not add unreachable store/dependency failures
 just to meet a percentage. Keep defensive gaps documented when promoting goals.
 
+For the risk-ranked fuzz entry-point inventory, nightly target registrations and
+known harness exclusions, see [Fuzzing](fuzzing.md).
+
 ## Proposal accept/reject invariant matrix
 
 These existing tests are credited by the full coverage suite; a high percentage
