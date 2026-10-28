@@ -205,7 +205,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if pfbMessageCount >= appconsts.MaxPFBMessages {
 			break
 		}
-		bTx, _, err := tx.UnmarshalBlobTx(rawTx)
+		bTx, _, err := tx.UnmarshalBlobTxNoCopy(rawTx)
 		if err != nil {
 			// Drop malformed blob txs. Matches ProcessProposalHandler. CheckTx should have
 			// rejected this; reaching here indicates a regression so log + count it.

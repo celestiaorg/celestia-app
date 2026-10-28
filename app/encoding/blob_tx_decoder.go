@@ -7,7 +7,7 @@ import (
 
 func blobTxDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
-		blobTx, isBlobTx, err := tx.UnmarshalBlobTx(txBytes)
+		blobTx, isBlobTx, err := tx.UnmarshalBlobTxNoCopy(txBytes)
 		if isBlobTx {
 			if err != nil {
 				return nil, err
