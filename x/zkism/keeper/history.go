@@ -13,26 +13,20 @@ import (
 // that at most the ISM's root history size remain.
 type rootHistory = collections.Map[collections.Pair[uint64, uint64], types.RootHistoryEntry]
 
-// pushHistory records a replaced root for an ISM, at most once per block. A root replaced earlier in the same block
-// was the value committed at the end of the previous block, so later replacements within the block are dropped:
-// clients only ever observe committed state.
+// pushHistory records a replaced root for an ISM. The message server accepts at most one proof per ISM per block, so
+// every replaced value was committed at the end of a block and the history spans at least size blocks.
 func pushHistory(ctx context.Context, history rootHistory, ismID uint64, size uint32, entry types.RootHistoryEntry) error {
-	height := sdk.UnwrapSDKContext(ctx).BlockHeight()
-
-	newestSeq, newest, found, err := newestHistoryEntry(ctx, history, ismID)
+	newestSeq, _, found, err := newestHistoryEntry(ctx, history, ismID)
 	if err != nil {
 		return err
 	}
 
 	seq := uint64(0)
 	if found {
-		if newest.Height == height {
-			return nil
-		}
 		seq = newestSeq + 1
 	}
 
-	entry.Height = height
+	entry.Height = sdk.UnwrapSDKContext(ctx).BlockHeight()
 	if err := history.Set(ctx, collections.Join(ismID, seq), entry); err != nil {
 		return err
 	}

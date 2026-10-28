@@ -21,4 +21,5 @@ var (
 	ErrInvalidMetadata              = errorsmod.Register(ModuleName, 12, "invalid metadata")
 	ErrStaleMerkleTreeState         = errorsmod.Register(ModuleName, 13, "merkle tree count does not exceed the latest proven count")
 	ErrInvalidRootHistorySize       = errorsmod.Register(ModuleName, 14, "invalid root history size")
+	ErrAlreadyUpdatedInBlock        = errorsmod.Register(ModuleName, 15, "a proof was already accepted for this ism in the current block")
 )

@@ -30,6 +30,10 @@ func (gs GenesisState) Validate() error {
 		if err := ValidateRootHistorySize(ism.RootHistorySize); err != nil {
 			return errorsmod.Wrapf(ErrInvalidRootHistorySize, "ism %s: %v", ism.Id.String(), err)
 		}
+
+		if ism.StateHeight < 0 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "negative state height for ism %s", ism.Id.String())
+		}
 		isms[internalID] = EffectiveRootHistorySize(ism.RootHistorySize)
 
 		if len(ism.State) < MinStateBytes {
@@ -80,6 +84,10 @@ func (gs GenesisState) Validate() error {
 
 		if len(entry.TreeState.Root) != 32 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid merkle tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(entry.TreeState.Root))
+		}
+
+		if entry.TreeState.Height < 0 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "negative merkle tree state height for ism %s", entry.Id.String())
 		}
 	}
 

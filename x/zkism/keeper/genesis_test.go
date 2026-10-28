@@ -203,7 +203,10 @@ func (suite *KeeperTestSuite) TestInitGenesisRootHistorySequenceBound() {
 func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeight() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
 	genesisState := types.GenesisState{
-		Isms: []types.InterchainSecurityModule{{Id: ismId, Owner: "test"}},
+		Isms: []types.InterchainSecurityModule{{Id: ismId, Owner: "test", StateHeight: 10}},
+		TreeStates: []types.GenesisMerkleTreeState{
+			{Id: ismId, TreeState: types.MerkleTreeState{Root: randBytes(32), Count: 1, Height: 11}},
+		},
 		StateRootHistory: []types.GenesisRootHistoryEntry{
 			{Id: ismId, Sequence: 0, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 9}},
 			{Id: ismId, Sequence: 1, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 10}},
@@ -220,4 +223,13 @@ func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeig
 		heights[i] = entry.Height
 	}
 	suite.Require().Equal([]int64{9, 9, 9}, heights)
+
+	// The proof heights of the ISM state and the latest tree state are lowered the same way, so the first proof at
+	// height 10 is not rejected as a repeat within the block.
+	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, ismId)
+	suite.Require().NoError(err)
+	suite.Require().Equal(int64(9), ism.StateHeight)
+	treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ismId)
+	suite.Require().NoError(err)
+	suite.Require().Equal(int64(9), treeState.Height)
 }

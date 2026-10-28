@@ -13,9 +13,13 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// InitGenesis initialises the module genesis state.
+// InitGenesis initialises the module genesis state. Proof heights only serve the one-proof-per-block rule and the
+// history window, so heights at or after the first block of this chain (e.g. after a zero-height export) are lowered
+// below it; otherwise the first proof at that height would be rejected or dropped.
 func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
+	firstHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1)
 	for _, ism := range gs.Isms {
+		ism.StateHeight = clampGenesisHeight(ism.StateHeight, firstHeight)
 		if err := k.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 			return err
 		}
@@ -31,24 +35,30 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 			return errorsmod.Wrapf(types.ErrIsmNotFound, "merkle tree state defined for unknown ism %s", ismId.String())
 		}
 
+		entry.TreeState.Height = clampGenesisHeight(entry.TreeState.Height, firstHeight)
 		if err := k.treeStates.Set(ctx, ismId.GetInternalId(), entry.TreeState); err != nil {
 			return err
 		}
 	}
 
 	// Submissions are no longer tracked; the deprecated genesis field is ignored.
-	if err := k.importRootHistory(ctx, k.stateRootHistory, gs.StateRootHistory); err != nil {
+	if err := k.importRootHistory(ctx, k.stateRootHistory, gs.StateRootHistory, firstHeight); err != nil {
 		return err
 	}
 
-	return k.importRootHistory(ctx, k.treeStateHistory, gs.TreeStateHistory)
+	return k.importRootHistory(ctx, k.treeStateHistory, gs.TreeStateHistory, firstHeight)
 }
 
-// importRootHistory writes genesis root history entries, rejecting entries for unknown isms. Entry heights only serve
-// the once-per-block check in pushHistory, so heights at or after the first block of this chain (e.g. after a
-// zero-height export) are lowered below it; otherwise the first replacement at that height would be dropped.
-func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, entries []types.GenesisRootHistoryEntry) error {
-	firstHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1)
+// clampGenesisHeight lowers an imported proof height to the block before the first block of this chain.
+func clampGenesisHeight(height, firstHeight int64) int64 {
+	if height >= firstHeight {
+		return firstHeight - 1
+	}
+	return height
+}
+
+// importRootHistory writes genesis root history entries, rejecting entries for unknown isms.
+func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, entries []types.GenesisRootHistoryEntry, firstHeight int64) error {
 	for _, entry := range entries {
 		exists, err := k.isms.Has(ctx, entry.Id.GetInternalId())
 		if err != nil {
@@ -63,9 +73,7 @@ func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, ent
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "root history sequence %d for ism %s exceeds %d", entry.Sequence, entry.Id.String(), int64(math.MaxInt64))
 		}
 
-		if entry.Entry.Height >= firstHeight {
-			entry.Entry.Height = firstHeight - 1
-		}
+		entry.Entry.Height = clampGenesisHeight(entry.Entry.Height, firstHeight)
 
 		if err := history.Set(ctx, collections.Join(entry.Id.GetInternalId(), entry.Sequence), entry.Entry); err != nil {
 			return err

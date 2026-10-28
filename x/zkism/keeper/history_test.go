@@ -29,21 +29,22 @@ func historyRoots(entries []types.RootHistoryEntry) [][]byte {
 	return roots
 }
 
-func (suite *KeeperTestSuite) TestRootHistoryKeepsOneRootPerBlock() {
+func (suite *KeeperTestSuite) TestRootHistoryRecordsEveryPush() {
 	ism := suite.CreateTestIsm(randBytes(64))
 
-	// The first root replaced in a block was committed at the end of the previous block; later replacements in the
-	// same block were never committed and are dropped.
+	// The message server admits one proof per ISM per block, so the history itself records every push it is given.
 	ctx := suite.ctx.WithBlockHeight(10)
-	committed := randBytes(32)
-	suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(ctx, ism, committed))
-	suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(ctx, ism, randBytes(32)))
-	suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(ctx, ism, randBytes(32)))
+	roots := [][]byte{randBytes(32), randBytes(32)}
+	for _, root := range roots {
+		suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(ctx, ism, root))
+	}
 
 	entries, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
-	suite.Require().Equal([][]byte{committed}, historyRoots(entries))
-	suite.Require().Equal(int64(10), entries[0].Height)
+	suite.Require().Equal(roots, historyRoots(entries))
+	for _, entry := range entries {
+		suite.Require().Equal(int64(10), entry.Height)
+	}
 }
 
 func (suite *KeeperTestSuite) TestRootHistoryEvictsOldest() {
@@ -163,7 +164,7 @@ func (suite *KeeperTestSuite) TestSubmitMessagesKeepsReplacedTreeState() {
 		suite.Require().NoError(tree.Insert(leaf))
 	}
 	previousRoot := tree.GetRoot()
-	previous := types.MerkleTreeState{Root: previousRoot[:], Count: uint32(len(previousLeaves))}
+	previous := types.MerkleTreeState{Root: previousRoot[:], Count: uint32(len(previousLeaves)), Height: suite.ctx.BlockHeight() - 1}
 
 	ism := suite.CreateTestIsm(provenState)
 	suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, previous))
@@ -175,6 +176,10 @@ func (suite *KeeperTestSuite) TestSubmitMessagesKeepsReplacedTreeState() {
 	treeStates, err := suite.zkISMKeeper.GetTreeStateHistory(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
 	suite.Require().Equal([]types.RootHistoryEntry{{Root: previous.Root, Count: previous.Count, Height: suite.ctx.BlockHeight()}}, treeStates)
+
+	latest, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ism.Id)
+	suite.Require().NoError(err)
+	suite.Require().Equal(suite.ctx.BlockHeight(), latest.Height)
 
 	// A message relayed against the previous root and one relayed against the new root both verify.
 	authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(previousLeaves, 0), messages[0])

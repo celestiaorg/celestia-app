@@ -175,6 +175,20 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: sdkerrors.ErrAppConfig,
 		},
 		{
+			name: "negative ism state height",
+			malleate: func(gs *types.GenesisState) {
+				gs.Isms[0].StateHeight = -1
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "negative merkle tree state height",
+			malleate: func(gs *types.GenesisState) {
+				gs.TreeStates[0].TreeState.Height = -1
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
 			name: "state root history sequence that could wrap around",
 			malleate: func(gs *types.GenesisState) {
 				gs.StateRootHistory[0].Sequence = math.MaxUint64

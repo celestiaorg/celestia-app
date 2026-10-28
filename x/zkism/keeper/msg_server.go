@@ -80,6 +80,13 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
+	// A proven state is deterministic and final, so a second transition proof in the same block adds nothing and
+	// would only replace a root other relayers are about to prove against.
+	height := sdk.UnwrapSDKContext(ctx).BlockHeight()
+	if ism.StateHeight == height {
+		return nil, errorsmod.Wrapf(types.ErrAlreadyUpdatedInBlock, "state updated at height %d", height)
+	}
+
 	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
 	if err != nil {
 		return nil, err
@@ -97,6 +104,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 
 	// Store the new State from outputs as the ISM state
 	ism.State = publicValues.NewState
+	ism.StateHeight = height
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
@@ -150,6 +158,10 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return nil, err
 	}
+	height := sdk.UnwrapSDKContext(ctx).BlockHeight()
+	if hasLatest && latest.Height == height {
+		return nil, errorsmod.Wrapf(types.ErrAlreadyUpdatedInBlock, "merkle tree state proven at height %d", height)
+	}
 	if hasLatest && publicValues.Count <= latest.Count {
 		return nil, errorsmod.Wrapf(types.ErrStaleMerkleTreeState, "count %d does not exceed latest proven count %d", publicValues.Count, latest.Count)
 	}
@@ -177,8 +189,9 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	treeState := types.MerkleTreeState{
-		Root:  publicValues.TreeRoot[:],
-		Count: publicValues.Count,
+		Root:   publicValues.TreeRoot[:],
+		Count:  publicValues.Count,
+		Height: height,
 	}
 	if err := m.treeStates.Set(ctx, ismID, treeState); err != nil {
 		return nil, err

@@ -138,6 +138,19 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 			expError: sdkerrors.ErrInvalidType,
 		},
 		{
+			name: "state already updated in this block",
+			setupTest: func() {
+				ism.StateHeight = suite.ctx.BlockHeight()
+				suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+				msg = &types.MsgUpdateInterchainSecurityModule{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: types.ErrAlreadyUpdatedInBlock,
+		},
+		{
 			name: "trusted state mismatch",
 			setupTest: func() {
 				msg = &types.MsgUpdateInterchainSecurityModule{
@@ -198,6 +211,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewState, res.State)
+				suite.Require().Equal(suite.ctx.BlockHeight(), suite.snapshotIsm(ism.Id).ism.StateHeight)
 
 				// The replaced state root stays acceptable for membership proofs.
 				suite.Require().NotEqual(trustedState[:32], publicValues.NewState[:32])
@@ -248,6 +262,18 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				}
 			},
 			expError: sdkerrors.ErrInvalidType,
+		},
+		{
+			name: "merkle tree state already proven in this block",
+			setupTest: func() {
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 0, Height: suite.ctx.BlockHeight()}))
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
+				}
+			},
+			expError: types.ErrAlreadyUpdatedInBlock,
 		},
 		{
 			name: "count equal to latest proven count rejected",
@@ -366,9 +392,12 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 	suite.Require().NoError(err)
 	suite.Require().Equal(publicValues.TreeRoot[:], treeState.Root)
 	suite.Require().Equal(publicValues.Count, treeState.Count)
+	suite.Require().Equal(suite.ctx.BlockHeight(), treeState.Height)
 
-	// A second submission for the same state root does not add leaves and is rejected.
+	// A second proof in the same block is rejected; in a later block the same proof adds no leaves and is rejected.
 	_, err = msgServer.SubmitMessages(suite.ctx, msg)
+	suite.Require().ErrorIs(err, types.ErrAlreadyUpdatedInBlock)
+	_, err = msgServer.SubmitMessages(suite.ctx.WithBlockHeight(suite.ctx.BlockHeight()+1), msg)
 	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
 
 	// Every message dispatched on the source chain verifies against the proven root.
