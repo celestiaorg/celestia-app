@@ -1,6 +1,7 @@
 package app
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -551,4 +552,13 @@ type countingChannelKeeper struct {
 func (k *countingChannelKeeper) GetAppVersion(sdk.Context, string, string) (string, bool) {
 	k.reads++
 	return string(icatypes.ModuleCdc.MustMarshalJSON(&icatypes.Metadata{Encoding: k.encoding})), true
+}
+
+func TestFitsSDKGas(t *testing.T) {
+	require.True(t, fitsSDKGas(0, appconsts.MaxSDKGas))
+	require.False(t, fitsSDKGas(0, appconsts.MaxSDKGas+1))
+	require.True(t, fitsSDKGas(appconsts.MaxSDKGas, 0))
+	require.False(t, fitsSDKGas(appconsts.MaxSDKGas, 1))
+	// An attacker chosen gas limit must not wrap the sum back under the limit.
+	require.False(t, fitsSDKGas(1, math.MaxUint64))
 }

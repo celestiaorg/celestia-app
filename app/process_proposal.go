@@ -70,6 +70,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		zkProofMsgCount int
 		ismSigCount     int
+		sdkGas          uint64
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -251,6 +252,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil
 				}
+				txGas, ok := txGasLimit(sdkTx)
+				if !ok {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d declares no gas limit", idx))
+					return reject(), nil
+				}
+				if !fitsSDKGas(sdkGas, txGas) {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK gas of %d", appconsts.MaxSDKGas))
+					return reject(), nil
+				}
+				sdkGas += txGas
 			}
 
 			// we need to increment the sequence for every transaction so that

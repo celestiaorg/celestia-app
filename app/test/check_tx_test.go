@@ -132,6 +132,37 @@ func TestCheckTxISMSignatureLimit(t *testing.T) {
 	})
 }
 
+// CheckTx must reject a tx whose gas limit alone exceeds MaxSDKGas, since no
+// proposal can include it.
+func TestCheckTxSDKGasLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+
+	for _, gas := range []uint64{appconsts.MaxSDKGas, appconsts.MaxSDKGas + 1} {
+		for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+			t.Run(fmt.Sprintf("%d/%s", gas, checkType), func(t *testing.T) {
+				builder := encodingConfig.TxConfig.NewTxBuilder()
+				require.NoError(t, builder.SetMsgs(msg))
+				builder.SetGasLimit(gas)
+				rawTx, err := encodingConfig.TxConfig.TxEncoder()(builder.GetTx())
+				require.NoError(t, err)
+
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+				require.NoError(t, err)
+				if gas > appconsts.MaxSDKGas {
+					require.Equal(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				} else {
+					// This unsigned fixture fails later validation, but a tx
+					// declaring exactly one block's gas must pass the budget check.
+					require.NotEqual(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				}
+			})
+		}
+	}
+}
+
 // TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's
 // payload rather than falling back to the fail-closed count. Both paths reject a
 // packet over the limit with the same code, so only a packet under the limit

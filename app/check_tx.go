@@ -80,6 +80,14 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	if err := validatePayForFibreTxShape(sdkTx); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
+	// A tx whose gas limit alone exceeds the block's SDK gas budget can never be
+	// included. PayForFibre txs are bounded by their own per-block count instead.
+	if fibretypes.PayForFibreMsg(sdkTx) == nil {
+		if gas, ok := txGasLimit(sdkTx); ok && !fitsSDKGas(0, gas) {
+			err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKGas, "tx gas limit is %d, limit is %d", gas, appconsts.MaxSDKGas)
+			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+		}
+	}
 
 	return app.forwardCheckTx(req, sdkTx)
 }

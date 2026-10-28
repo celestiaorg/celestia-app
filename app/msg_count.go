@@ -50,6 +50,23 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 	return count
 }
 
+// txGasLimit returns the gas limit tx declares, which caps the gas its
+// execution can consume. ok is false if tx declares none; ante rejects it.
+func txGasLimit(tx sdk.Tx) (gas uint64, ok bool) {
+	feeTx, ok := tx.(sdk.FeeTx)
+	if !ok {
+		return 0, false
+	}
+	return feeTx.GetGas(), true
+}
+
+// fitsSDKGas reports whether a tx with gas limit txGas fits a block whose txs
+// already declare used gas, with used <= MaxSDKGas. Subtracting rather than
+// adding keeps an attacker chosen txGas from overflowing the sum.
+func fitsSDKGas(used, txGas uint64) bool {
+	return txGas <= appconsts.MaxSDKGas-used
+}
+
 // countZKProofMsgs counts messages that perform ZK proof verification or
 // verifying-key pairing work, including messages dispatched by authz and ICA wrappers.
 func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
