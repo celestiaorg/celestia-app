@@ -1694,9 +1694,12 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <li>The tx's count of signatures &lt;= the max number of signatures. The max number of signatures is <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L231"><code>TxSigLimit = 7</code></a>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's signatures.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/types/tx/signing/signature.go#L10-L26">signatures</a> are valid. For each signature, ensure that the signature's sequence number (a.k.a nonce) matches the account sequence number of the signer.</li>
-<li>The tx does not contain a <code>MsgExec</code> with a nested <code>MsgExec</code> or <code>MsgPayForBlobs</code>.</li>
+<li>The tx does not contain a <code>MsgExec</code> or <code>MsgSubmitProposal</code> that wraps a <code>MsgPayForBlobs</code>, <code>MsgPayForFibre</code>, <code>MsgPaymentPromiseTimeout</code>, <code>MsgDepositToEscrow</code>, <code>MsgRequestWithdrawal</code>, <code>MsgExec</code> or <code>MsgSubmitProposal</code>.</li>
+<li>The tx's gas meter is charged a fixed amount of gas per validator signature in a <code>MsgPayForFibre</code>, before the signatures are checked.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the blob size(s). Since blobs are charged based on the number of shares they occupy, the gas consumed is calculated as follows: <code>gasToConsume = sharesNeeded(blob) * bytesPerShare * gasPerBlobByte</code>. Where <code>bytesPerShare</code> is a global constant (an alias for <a href="https://github.com/celestiaorg/go-square/blob/b3db9faa7b36decbebb4db45b1778468022a0019/share/consts.go#L10"><code>ShareSize = 512</code></a>) from the go-square package and <code>gasPerBlobByte</code> is a versioned constant that can be modified through hard forks (the <a href="https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/pkg/appconsts/app_consts.go#L32"><code>GasPerBlobByte = 8</code></a>).</li>
 <li>The tx's total blob share count is &lt;= the max blob share count. The max blob share count is derived from the maximum valid square size. The max valid square size is the minimum of: <code>GovMaxSquareSize</code> and <code>SquareSizeUpperBound</code>.</li>
+<li>In <code>CheckTx</code> and recheck only, the <code>MsgPayForFibre</code> payment promise can still settle (for example, it has not already been settled). This keeps unsettleable promises out of the mempool; <code>PrepareProposal</code> remains the authoritative settlement check.</li>
+<li>In <code>CheckTx</code>, recheck and <code>ProcessProposal</code>, the <code>MsgPayForFibre</code> validator signatures are valid. Signatures that already passed verification are cached and not re-verified. <code>FinalizeBlock</code> skips this check, so a committed block's outcome never depends on the node-local cache.</li>
 <li>The tx does not contain a message of type <a href="https://github.com/cosmos/cosmos-sdk/blob/d6d929843bbd331b885467475bcb3050788e30ca/proto/cosmos/gov/v1/tx.proto#L33-L43">MsgSubmitProposal</a> with zero proposal messages or with a proposal message that modifies a parameter that is not governance modifiable.</li>
 <li>The tx is not an IBC packet or update message that has already been processed.</li>
 </ul>
@@ -3241,11 +3244,11 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>consensus.block.MaxBytes</td><td>32 MiB</td><td>Governance parameter for the maximum size of the protobuf encoded block. Set via the v9 upgrade handler.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
-<tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>False</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
-<tr><td>consensus.Version.AppVersion</td><td>10</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>True</td></tr>
+<tr><td>consensus.Version.AppVersion</td><td>10</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
 <tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint denomination for proposing a block.</td><td>True</td></tr>
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
 <tr><td>distribution.CommunityTax</td><td>0.02 (2%)</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
@@ -4294,10 +4297,16 @@ hyperlane.warp.v1.EventUnrollRemoteRouter
 <p>The following is an exhaustive list of supported Cosmos SDK Msgs for app version 10.</p>
 <pre><code class="language-ascii">/celestia.blob.v1.MsgPayForBlobs
 /celestia.blob.v1.MsgUpdateBlobParams
+/celestia.fibre.v1.MsgDepositToEscrow
+/celestia.fibre.v1.MsgPayForFibre
+/celestia.fibre.v1.MsgPaymentPromiseTimeout
+/celestia.fibre.v1.MsgRequestWithdrawal
+/celestia.fibre.v1.MsgUpdateFibreParams
 /celestia.forwarding.v1.MsgForward
 /celestia.minfee.v1.MsgUpdateMinfeeParams
 /celestia.signal.v1.MsgSignalVersion
 /celestia.signal.v1.MsgTryUpgrade
+/celestia.valaddr.v1.MsgSetFibreProviderInfo
 /celestia.zkism.v1.MsgCreateInterchainSecurityModule
 /celestia.zkism.v1.MsgSubmitMessages
 /celestia.zkism.v1.MsgUpdateInterchainSecurityModule
@@ -4369,6 +4378,7 @@ hyperlane.warp.v1.EventUnrollRemoteRouter
 /hyperlane.core.v1.MsgProcessMessage
 /hyperlane.core.v1.MsgSetMailbox
 /hyperlane.warp.v1.MsgCreateCollateralToken
+/hyperlane.warp.v1.MsgCreateNativeSyntheticToken
 /hyperlane.warp.v1.MsgCreateSyntheticToken
 /hyperlane.warp.v1.MsgEnrollRemoteRouter
 /hyperlane.warp.v1.MsgRemoteTransfer
@@ -4415,35 +4425,25 @@ hyperlane.warp.v1.EventUnrollRemoteRouter
 /ibc.core.connection.v1.MsgUpdateParams
 </code></pre>
 <h2 id="events-5"><a class="header" href="#events-5">Events</a></h2>
-<p>The following is an exhaustive list of supported events for app version 10.</p>
+<p>The following is a list of the typed (protobuf) events that app version 10 can emit. Cosmos SDK modules such as bank and staking also emit untyped string events, which are not listed here.</p>
 <pre><code class="language-ascii">celestia.blob.v1.EventPayForBlobs
 celestia.blob.v1.EventUpdateBlobParams
+celestia.fibre.v1.EventDepositToEscrow
+celestia.fibre.v1.EventPayForFibre
+celestia.fibre.v1.EventPaymentPromiseTimeout
+celestia.fibre.v1.EventProcessedPaymentPruned
+celestia.fibre.v1.EventUpdateFibreParams
+celestia.fibre.v1.EventWithdrawFromEscrowExecuted
+celestia.fibre.v1.EventWithdrawFromEscrowRequest
 celestia.forwarding.v1.EventTokenForwarded
 celestia.minfee.v1.EventUpdateMinfeeParams
+celestia.valaddr.v1.EventSetFibreProviderInfo
 celestia.zkism.v1.EventCreateInterchainSecurityModule
 celestia.zkism.v1.EventSubmitMessages
 celestia.zkism.v1.EventUpdateInterchainSecurityModule
 cosmos.authz.v1beta1.EventGrant
 cosmos.authz.v1beta1.EventPruneExpiredGrants
 cosmos.authz.v1beta1.EventRevoke
-cosmos.base.abci.v1beta1.StringEvent
-cosmos.distribution.v1beta1.ValidatorSlashEvent
-cosmos.distribution.v1beta1.ValidatorSlashEventRecord
-cosmos.distribution.v1beta1.ValidatorSlashEvents
-cosmos.group.v1.EventCreateGroup
-cosmos.group.v1.EventCreateGroupPolicy
-cosmos.group.v1.EventExec
-cosmos.group.v1.EventLeaveGroup
-cosmos.group.v1.EventProposalPruned
-cosmos.group.v1.EventSubmitProposal
-cosmos.group.v1.EventTallyError
-cosmos.group.v1.EventUpdateGroup
-cosmos.group.v1.EventUpdateGroupPolicy
-cosmos.group.v1.EventVote
-cosmos.group.v1.EventWithdrawProposal
-cosmos.tx.v1beta1.GetTxsEventRequest
-cosmos.tx.v1beta1.GetTxsEventResponse
-envoy.config.core.v3.EventServiceConfig
 hyperlane.core.interchain_security.v1.EventAnnounceStorageLocation
 hyperlane.core.interchain_security.v1.EventCreateMerkleRootMultisigIsm
 hyperlane.core.interchain_security.v1.EventCreateMessageIdMultisigIsm
@@ -6113,7 +6113,7 @@ attributes:
   host = &lt;host:port&gt;
 </code></pre>
 <h2 id="queries-1"><a class="header" href="#queries-1">Queries</a></h2>
-<p>The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is jailed, unbonded, and past its unbonding time plus a seven-day grace period.</p>
+<p>The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is not bonded and is past its unbonding time plus a seven-day grace period, whether or not it is jailed.</p>
 <h3 id="fibreproviderinfo-1"><a class="header" href="#fibreproviderinfo-1">FibreProviderInfo</a></h3>
 <p>Queries Fibre provider information for a specific validator consensus address.</p>
 <pre><code class="language-protobuf">message QueryFibreProviderInfoRequest {

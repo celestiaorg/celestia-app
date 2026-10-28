@@ -210,7 +210,7 @@ attributes:
   host = &lt;host:port&gt;
 </code></pre>
 <h2 id="queries"><a class="header" href="#queries">Queries</a></h2>
-<p>The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is jailed, unbonded, and past its unbonding time plus a seven-day grace period.</p>
+<p>The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is not bonded and is past its unbonding time plus a seven-day grace period, whether or not it is jailed.</p>
 <h3 id="fibreproviderinfo-1"><a class="header" href="#fibreproviderinfo-1">FibreProviderInfo</a></h3>
 <p>Queries Fibre provider information for a specific validator consensus address.</p>
 <pre><code class="language-protobuf">message QueryFibreProviderInfoRequest {

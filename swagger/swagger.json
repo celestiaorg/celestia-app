@@ -1007,15 +1007,15 @@
         ]
       }
     },
-    "/celestia/zkism/v1/messages/{id}": {
+    "/celestia/zkism/v1/isms/{id}/merkle_tree_state": {
       "get": {
-        "summary": "Messages defines an rpc method for querying authorized Hyperlane message IDs.",
-        "operationId": "Messages",
+        "summary": "MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.",
+        "operationId": "MerkleTreeState",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1QueryMessagesResponse"
+              "$ref": "#/definitions/v1QueryMerkleTreeStateResponse"
             }
           },
           "default": {
@@ -1032,44 +1032,6 @@
             "in": "path",
             "required": true,
             "type": "string"
-          },
-          {
-            "name": "pagination.key",
-            "description": "key is a value returned in PageResponse.next_key to begin\nquerying the next page most efficiently. Only one of offset or key\nshould be set.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "byte"
-          },
-          {
-            "name": "pagination.offset",
-            "description": "offset is a numeric offset that can be used when key is unavailable.\nIt is less efficient than using key. Only one of offset or key should\nbe set.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "pagination.limit",
-            "description": "limit is the total number of results to be returned in the result page.\nIf left empty it will default to a value to be set by each app.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "pagination.countTotal",
-            "description": "count_total is set to true  to indicate that the result set should include\na count of the total number of items available for pagination in UIs.\ncount_total is only respected when offset is used. It is ignored when key\nis set.",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "pagination.reverse",
-            "description": "reverse is set to true if results are to be returned in the descending order.\n\nSince: cosmos-sdk 0.43",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
           }
         ],
         "tags": [
@@ -6351,22 +6313,31 @@
       },
       "description": "QueryIsmsResponse is the response type for the Isms rpc method."
     },
-    "v1QueryMessagesResponse": {
+    "v1QueryMerkleTreeStateResponse": {
       "type": "object",
       "properties": {
-        "messages": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "messages is a list of authorized Hyperlane message IDs."
-        },
-        "pagination": {
-          "$ref": "#/definitions/v1beta1PageResponse",
-          "description": "pagination defines the pagination in the response."
+        "treeState": {
+          "$ref": "#/definitions/zkismv1MerkleTreeState",
+          "description": "tree_state is the latest proven source chain merkle tree state."
         }
       },
-      "description": "QueryMessagesResponse is the response type for the Messages rpc method."
+      "description": "QueryMerkleTreeStateResponse is the response type for the MerkleTreeState rpc method."
+    },
+    "zkismv1MerkleTreeState": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "format": "byte",
+          "title": "root of the source chain merkle tree"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int64",
+          "title": "number of leaves inserted into the source chain merkle tree"
+        }
+      },
+      "description": "MerkleTreeState is the source chain Hyperlane merkle tree state proven for an ISM."
     },
     "v1MsgCreateInterchainSecurityModuleResponse": {
       "type": "object",
@@ -6384,15 +6355,21 @@
           "type": "string",
           "title": "state commitment root used to verify messages (hex-encoded)"
         },
-        "messages": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "list of authorized messages ids"
+        "treeRoot": {
+          "type": "string",
+          "title": "source chain merkle tree root that messages are verified against (hex-encoded)"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int64",
+          "title": "number of leaves in the source chain merkle tree"
         }
       },
       "description": "MsgSubmitMessagesResponse is the response type for SubmitMessages."
+    },
+    "v1MsgTransferOwnershipResponse": {
+      "type": "object",
+      "description": "MsgTransferOwnershipResponse is the response type for TransferOwnership."
     },
     "v1MsgUpdateInterchainSecurityModuleResponse": {
       "type": "object",
@@ -6404,6 +6381,10 @@
         }
       },
       "description": "MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule."
+    },
+    "v1MsgUpdateVerifyingKeysResponse": {
+      "type": "object",
+      "description": "MsgUpdateVerifyingKeysResponse is the response type for UpdateVerifyingKeys."
     },
     "authv1beta1Params": {
       "type": "object",
