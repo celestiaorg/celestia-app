@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
@@ -87,6 +88,48 @@ func TestCheckTxZKProofMessageLimit(t *testing.T) {
 			}
 		}
 	}
+}
+
+// CheckTx must reject ISM signature work that cannot fit in any proposal before
+// the sender is charged, through every dispatch path. An ICA packet naming a
+// MsgProcessMessage fails closed regardless of its metadata.
+func TestCheckTxISMSignatureLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	seedICAHostChannel(t, testApp)
+
+	for _, count := range []int{appconsts.MaxISMSignatures, appconsts.MaxISMSignatures + 1} {
+		msg := &hyperlanetypes.MsgProcessMessage{Metadata: ismMetadataHex(count)}
+		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{msg})
+		for name, wrapped := range map[string][]sdk.Msg{"direct": {msg}, "authz": {&exec}} {
+			for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+				t.Run(fmt.Sprintf("%d/%s/%s", count, name, checkType), func(t *testing.T) {
+					rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, wrapped...)
+					resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+					require.NoError(t, err)
+					if count > appconsts.MaxISMSignatures {
+						require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					} else {
+						// These unsigned fixtures fail later validation, but exactly
+						// one block's work must pass the admission budget check.
+						require.NotEqual(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					}
+				})
+			}
+		}
+	}
+
+	payload, err := icatypes.SerializeCosmosTx(encodingConfig.Codec, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{Metadata: "0x"}}, icaEncoding)
+	require.NoError(t, err)
+	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+	recv := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), "signer")
+	t.Run("ICA fails closed", func(t *testing.T) {
+		rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, recv)
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+		require.NoError(t, err)
+		require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+	})
 }
 
 // TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's

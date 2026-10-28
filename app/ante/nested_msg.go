@@ -1,6 +1,7 @@
 package ante
 
 import (
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
@@ -18,6 +19,7 @@ var _ sdk.AnteDecorator = NestedMsgDecorator{}
 // or the proposal-time settlement replay). ZK proof messages are rejected in
 // governance proposals, including ISM creation's verifying-key pairing work,
 // because their deferred execution would bypass the per-block proof-work budget.
+// Hyperlane MsgProcessMessage is rejected there for the same reason.
 // It also rejects a nested MsgExec or MsgSubmitProposal so
 // those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}
@@ -71,6 +73,10 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 			if container == "MsgSubmitProposal" {
 				return sdkerrors.ErrNotSupported.Wrapf("ZK proof verification inside %s is not supported", container)
+			}
+		case *hyperlanetypes.MsgProcessMessage:
+			if container == "MsgSubmitProposal" {
+				return sdkerrors.ErrNotSupported.Wrapf("MsgProcessMessage inside %s is not supported", container)
 			}
 		}
 	}

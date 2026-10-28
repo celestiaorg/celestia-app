@@ -14,4 +14,7 @@ const (
 
 	// MaxZKProofMessages arbitrary high numbers for running benchmarks.
 	MaxZKProofMessages = 999999999999
+
+	// MaxISMSignatures arbitrary high numbers for running benchmarks.
+	MaxISMSignatures = 999999999999
 )
