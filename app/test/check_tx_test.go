@@ -1050,12 +1050,11 @@ func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFi
 // commitBlockAt is commitBlock with an explicit block time.
 func commitBlockAt(t *testing.T, testApp *app.App, blockTime time.Time, txs ...[]byte) *abci.ResponseFinalizeBlock {
 	t.Helper()
-	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+	resp, err := testApp.FinalizeBlock(testutil.WithBlockHash(&abci.RequestFinalizeBlock{
 		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
 		Txs:    txs,
-	})
+	}))
 	require.NoError(t, err)
 	_, err = testApp.Commit()
 	require.NoError(t, err)
