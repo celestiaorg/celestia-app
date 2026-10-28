@@ -51,6 +51,11 @@ func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string
 	// Fires immediately so the first check doesn't wait for the next block.
 	fallback := time.NewTimer(0)
 	defer fallback.Stop()
+	// direct is the in-flight direct check, if any. A status from the feed
+	// supersedes it, so a stalled query never hides a delivered result.
+	var direct <-chan directStatus
+	stopDirect := func() {}
+	defer func() { stopDirect() }()
 	var evictedAt time.Time
 	for {
 		var status *tx.TxStatusResponse
@@ -58,11 +63,18 @@ func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case status = <-statuses:
+			stopDirect()
+			direct = nil
 		case <-fallback.C:
-			var err error
-			if status, err = client.committedTxStatus(ctx, txHash); err != nil {
-				return nil, err
+			direct, stopDirect = client.startDirectCheck(ctx, txHash)
+			continue
+		case r := <-direct:
+			stopDirect()
+			direct = nil
+			if r.err != nil {
+				return nil, r.err
 			}
+			status = r.status
 		}
 		fallback.Reset(confirmationFallbackInterval)
 		if status == nil {
@@ -72,6 +84,27 @@ func (client *TxClient) ConfirmTxSubscription(ctx context.Context, txHash string
 			return resp, err
 		}
 	}
+}
+
+type directStatus struct {
+	status *tx.TxStatusResponse
+	err    error
+}
+
+// startDirectCheck runs committedTxStatus in the background with a timeout and
+// returns its result channel and a function that cancels it.
+func (client *TxClient) startDirectCheck(ctx context.Context, txHash string) (<-chan directStatus, context.CancelFunc) {
+	result := make(chan directStatus, 1)
+	checkCtx, cancel := context.WithTimeout(ctx, confirmationBatchTimeout)
+	go func() {
+		status, err := client.committedTxStatus(checkCtx, txHash)
+		if err != nil && ctx.Err() == nil && checkCtx.Err() != nil {
+			// The check itself timed out: retry at the next fallback.
+			status, err = nil, nil
+		}
+		result <- directStatus{status, err}
+	}()
+	return result, cancel
 }
 
 // committedTxStatus queries a single transaction status, returning nil while a

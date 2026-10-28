@@ -36,6 +36,7 @@ type confirmationServer struct {
 	batchHash  string // when set, batches answer with this hash
 	single     int
 	singleErr  error // when set, TxStatus fails with it
+	singleHang bool  // when set, TxStatus blocks until cancelled
 	batches    int
 
 	streams chan confirmationStream
@@ -46,29 +47,41 @@ type confirmationStream struct {
 	err     chan error
 }
 
-func (s *confirmationServer) lookup(ctx context.Context, hash string) (*tx.TxStatusResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.height >= 0 {
-		if err := grpc.SetHeader(ctx, metadata.Pairs(grpctypes.GRPCBlockHeightHeader, strconv.FormatInt(s.height, 10))); err != nil {
-			return nil, err
-		}
+// setHeight sets the committed height header once per response, as the app does.
+// The caller holds s.mu.
+func (s *confirmationServer) setHeight(ctx context.Context) error {
+	if s.height < 0 {
+		return nil
 	}
+	return grpc.SetHeader(ctx, metadata.Pairs(grpctypes.GRPCBlockHeightHeader, strconv.FormatInt(s.height, 10)))
+}
+
+// lookup returns the status of hash. The caller holds s.mu.
+func (s *confirmationServer) lookup(hash string) *tx.TxStatusResponse {
 	if st, ok := s.statuses[hash]; ok {
-		return st, nil
+		return st
 	}
-	return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
+	return &tx.TxStatusResponse{Status: core.TxStatusPending}
 }
 
 func (s *confirmationServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
 	s.mu.Lock()
 	s.single++
-	err := s.singleErr
+	err, hang := s.singleErr, s.singleHang
 	s.mu.Unlock()
+	if hang {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	if err != nil {
 		return nil, err
 	}
-	return s.lookup(ctx, req.TxId)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.setHeight(ctx); err != nil {
+		return nil, err
+	}
+	return s.lookup(req.TxId), nil
 }
 
 func (s *confirmationServer) TxStatusBatch(ctx context.Context, req *tx.TxStatusBatchRequest) (*tx.TxStatusBatchResponse, error) {
@@ -81,12 +94,14 @@ func (s *confirmationServer) TxStatusBatch(ctx context.Context, req *tx.TxStatus
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.setHeight(ctx); err != nil {
+		return nil, err
+	}
 	resp := &tx.TxStatusBatchResponse{}
 	for _, hash := range req.TxIds {
-		st, err := s.lookup(ctx, hash)
-		if err != nil {
-			return nil, err
-		}
+		st := s.lookup(hash)
 		if batchHash != "" {
 			hash = batchHash
 		}
@@ -274,7 +289,8 @@ func TestConfirmationManyWaitersSlowBatches(t *testing.T) {
 			got := <-result
 			require.NoError(t, got.err, "waiter %d", i)
 		}
-		_, batches := server.calls()
+		single, batches := server.calls()
+		require.Equal(t, waiters, single, "only the initial direct checks; results must come from the feed")
 		require.Equal(t, waiters/confirmationBatchSize, batches)
 		requireFeedStopped(t, client)
 	})
@@ -390,5 +406,26 @@ func TestConfirmationDirectCheckErrors(t *testing.T) {
 			require.Equal(t, codes.Unimplemented, status.Code(got.err))
 			requireFeedStopped(t, client)
 		})
+	})
+}
+
+// A stalled direct check must not hide a status the feed already delivered.
+func TestConfirmationStalledDirectCheck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		client, server := newConfirmationTestClient(t)
+		hash := fmt.Sprintf("%064X", 1)
+		server.singleHang = true
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		result := confirmAsync(ctx, client, hash)
+		stream := <-server.streams
+		requireWaiting(t, result)
+
+		server.commit(2, hash)
+		stream.heights <- 2
+		got := <-result
+		require.NoError(t, got.err)
+		require.Equal(t, int64(2), got.response.Height)
+		requireFeedStopped(t, client)
 	})
 }
