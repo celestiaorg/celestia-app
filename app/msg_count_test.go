@@ -222,6 +222,7 @@ func TestCountZKProofMsgs(t *testing.T) {
 	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
 	update := func() sdk.Msg { return &zkismtypes.MsgUpdateInterchainSecurityModule{} }
 	submit := func() sdk.Msg { return &zkismtypes.MsgSubmitMessages{} }
+	updateKeys := func() sdk.Msg { return &zkismtypes.MsgUpdateVerifyingKeys{} }
 	execWith := func(msgs ...sdk.Msg) sdk.Msg {
 		exec := authz.NewMsgExec(sdk.AccAddress{}, msgs)
 		return &exec
@@ -244,6 +245,10 @@ func TestCountZKProofMsgs(t *testing.T) {
 		{name: "authz", msgs: []sdk.Msg{execWith(update(), &banktypes.MsgSend{}, submit())}, want: 2},
 		{name: "protobuf ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
 		{name: "JSON ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
+		{name: "direct (updateKeys)", msgs: []sdk.Msg{updateKeys(), &banktypes.MsgSend{}, submit()}, want: 2},
+		{name: "authz (updateKeys)", msgs: []sdk.Msg{execWith(updateKeys(), &banktypes.MsgSend{}, submit())}, want: 2},
+		{name: "protobuf ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
+		{name: "JSON ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
 		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
 		{name: "ICA authz fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
 		{name: "ICA gov proposal fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
@@ -265,6 +270,22 @@ func TestCountZKProofMsgs(t *testing.T) {
 			msgs := make([]sdk.Msg, count)
 			for i := range msgs {
 				msgs[i] = &zkismtypes.MsgCreateInterchainSecurityModule{}
+			}
+			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
+			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
+			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+				require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
+			}
+		})
+	}
+
+	// UpdateVerifyingKeys decompresses EC points and must be counted against the
+	// same ZK proof ceiling as the other zkism message types.
+	for _, count := range []int{appconsts.MaxZKProofMessages, appconsts.MaxZKProofMessages + 1} {
+		t.Run("update verifying keys boundary "+strconv.Itoa(count), func(t *testing.T) {
+			msgs := make([]sdk.Msg, count)
+			for i := range msgs {
+				msgs[i] = &zkismtypes.MsgUpdateVerifyingKeys{}
 			}
 			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
 			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))

@@ -88,13 +88,13 @@ func NewQueryIsmsCmd() *cobra.Command {
 	return cmd
 }
 
-// NewQueryMessagesCmd creates and returns the query command for authorized messages.
-func NewQueryMessagesCmd() *cobra.Command {
+// NewQueryMerkleTreeStateCmd creates and returns the query command for the proven source chain merkle tree state.
+func NewQueryMerkleTreeStateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "messages [ism-id]",
-		Short:   "Query authorized Hyperlane message IDs",
-		Long:    "Query authorized Hyperlane message IDs stored by the zkism module for a given ISM.",
-		Example: fmt.Sprintf("%s query %s messages 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
+		Use:     "merkle-tree-state [ism-id]",
+		Short:   "Query the proven source chain merkle tree state",
+		Long:    "Query the source chain merkle tree root and leaf count most recently proven for a given ISM. Messages are verified against this root.",
+		Example: fmt.Sprintf("%s query %s merkle-tree-state 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -104,17 +104,7 @@ func NewQueryMessagesCmd() *cobra.Command {
 
 			queryClient := types.NewQueryClient(clientCtx)
 
-			pageReq, err := client.ReadPageRequest(cmd.Flags())
-			if err != nil {
-				return err
-			}
-
-			req := &types.QueryMessagesRequest{
-				Id:         args[0],
-				Pagination: pageReq,
-			}
-
-			res, err := queryClient.Messages(cmd.Context(), req)
+			res, err := queryClient.MerkleTreeState(cmd.Context(), &types.QueryMerkleTreeStateRequest{Id: args[0]})
 			if err != nil {
 				return err
 			}
@@ -124,6 +114,5 @@ func NewQueryMessagesCmd() *cobra.Command {
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
-	flags.AddPaginationFlagsToCmd(cmd, "messages")
 	return cmd
 }
