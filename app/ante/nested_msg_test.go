@@ -34,6 +34,7 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
 	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
 	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
+	proposalWithVerifyingKeyUpdate := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateVerifyingKeys{})
 	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
@@ -110,6 +111,11 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name:    "Reject proposal with verifying-key pairing work",
 			msg:     proposalWithISMCreation,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with verifying-key rotation pairing work",
+			msg:     proposalWithVerifyingKeyUpdate,
 			wantErr: sdkerrors.ErrNotSupported,
 		},
 		{

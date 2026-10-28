@@ -2,15 +2,116 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"errors"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
 )
+
+func TestWriteObjectStorageCheck(t *testing.T) {
+	result := fibre.ObjectStorageCheckResult{
+		CanaryKey:         "fibre/.fibre-check/canary",
+		CredentialSource:  "EnvConfigCredentials",
+		AccessKeyIDSuffix: "CDEF",
+		HeadBucketErr:     errors.New("access denied"),
+	}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Regexp(t, `(?m)^CHECK\s+STATUS$`, output.String())
+	require.Regexp(t, `(?m)^head bucket\s+failed$`, output.String())
+	require.Contains(t, output.String(), "  access denied\n")
+	require.Regexp(t, `(?m)^put canary\s+ok\s*$`, output.String())
+	require.Regexp(t, `(?m)^delete canary\s+ok\s*$`, output.String())
+	require.Contains(t, output.String(), "canary key: "+result.CanaryKey)
+	require.Contains(t, output.String(), "credential source: EnvConfigCredentials")
+	require.Contains(t, output.String(), "access key ID suffix: CDEF")
+}
+
+func TestWriteObjectStorageCheckReportsIndependentDelete(t *testing.T) {
+	result := fibre.ObjectStorageCheckResult{
+		CanaryKey:       "fibre/.fibre-check/canary",
+		PutCanaryErr:    errors.New("put denied"),
+		DeleteCanaryErr: errors.New("delete denied"),
+	}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Regexp(t, `(?m)^put canary\s+failed$`, output.String())
+	require.Contains(t, output.String(), "  put denied\n")
+	require.Regexp(t, `(?m)^delete canary\s+failed$`, output.String())
+	require.Contains(t, output.String(), "  delete denied\n")
+	require.NotContains(t, output.String(), "hint: path-scoped credentials")
+}
+
+func TestWriteObjectStorageCheckFormatsAPIErrors(t *testing.T) {
+	apiErr := &smithy.GenericAPIError{Code: "AccessDenied", Message: "Access Denied", Fault: smithy.FaultClient}
+	responseErr := &smithyhttp.ResponseError{
+		Response: &smithyhttp.Response{Response: &http.Response{StatusCode: http.StatusForbidden}},
+		Err:      apiErr,
+	}
+	result := fibre.ObjectStorageCheckResult{PutCanaryErr: &smithy.OperationError{
+		ServiceID: "S3", OperationName: "PutObject", Err: responseErr,
+	}}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Contains(t, output.String(), "  HTTP 403 AccessDenied: Access Denied\n")
+	require.Contains(t, output.String(), "hint: path-scoped credentials may require --chain-id and --validator-address")
+	require.NotContains(t, output.String(), "operation error")
+
+	result.NamespaceScoped = true
+	output.Reset()
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.NotContains(t, output.String(), "hint: path-scoped credentials")
+}
+
+func TestWriteObjectStorageCheckFormatsDNSErrors(t *testing.T) {
+	result := fibre.ObjectStorageCheckResult{HeadBucketErr: &smithy.OperationError{
+		ServiceID: "S3", OperationName: "HeadBucket",
+		Err: &net.DNSError{Name: "missing.example.com", Err: "no such host", IsNotFound: true},
+	}}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Contains(t, output.String(), "  DNS lookup failed for missing.example.com: no such host\n")
+	require.NotContains(t, output.String(), "operation error")
+}
+
+func TestObjectStorageCheckErrorIsConciseAndUnwraps(t *testing.T) {
+	cause := errors.New("put denied")
+	err := &objectStorageCheckError{cause: cause}
+	require.EqualError(t, err, "object storage check failed")
+	require.ErrorIs(t, err, cause)
+}
+
+func TestStoreCheckBucketCmdRequiresNamespaceFlagsTogether(t *testing.T) {
+	cmd := newStoreCheckBucketCmd()
+	cmd.Flags().String(flagHome, t.TempDir(), "")
+	cmd.SetArgs([]string{"--chain-id", "mocha-4"})
+	require.EqualError(t, cmd.ExecuteContext(t.Context()), "chain ID and validator address must be provided together")
+}
+
+func TestStoreCheckBucketCmdPassesNamespaceFlags(t *testing.T) {
+	home := t.TempDir()
+	var checked fibre.ObjectStorageConfig
+	cmd := newStoreCheckBucketCmdWithCheck(func(_ context.Context, cfg fibre.ObjectStorageConfig) (fibre.ObjectStorageCheckResult, error) {
+		checked = cfg
+		return fibre.ObjectStorageCheckResult{}, nil
+	})
+	cmd.Flags().String(flagHome, home, "")
+	cmd.SetArgs([]string{"--chain-id", "mocha-4", "--validator-address", "celestiavalcons1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a"})
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+	require.Equal(t, "mocha-4", checked.ChainID)
+	require.Equal(t, "celestiavalcons1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a", checked.ValidatorAddress)
+}
 
 func TestStoreStatsCmdDoesNotInitializeHome(t *testing.T) {
 	home := t.TempDir()

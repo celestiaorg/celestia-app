@@ -2,10 +2,8 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
-	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
@@ -19,26 +17,18 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
-	for _, messages := range gs.Messages {
-		ismId := messages.Id
+	for _, entry := range gs.TreeStates {
+		ismId := entry.Id
 		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
 		if err != nil {
 			return err
 		}
-
 		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "messages defined for unknown ism %s", ismId.String())
+			return errorsmod.Wrapf(types.ErrIsmNotFound, "merkle tree state defined for unknown ism %s", ismId.String())
 		}
 
-		for _, msg := range messages.Messages {
-			messageId, err := types.DecodeHex(msg)
-			if err != nil {
-				return fmt.Errorf("invalid message id %q: %w", msg, err)
-			}
-
-			if err := k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId)); err != nil {
-				return err
-			}
+		if err := k.treeStates.Set(ctx, ismId.GetInternalId(), entry.TreeState); err != nil {
+			return err
 		}
 	}
 
@@ -70,34 +60,6 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return nil, err
 	}
 
-	genesisMessages := make([]types.GenesisMessages, 0, len(isms))
-	for _, ism := range isms {
-		// Walk instead of paginating: a nil page request caps results at the
-		// default query limit, which would silently drop messages.
-		var msgs []string
-		rng := collections.NewPrefixedPairRange[uint64, []byte](ism.Id.GetInternalId())
-		if err := k.messages.Walk(ctx, rng, func(key collections.Pair[uint64, []byte]) (bool, error) {
-			msgs = append(msgs, types.EncodeHex(key.K2()))
-			return false, nil
-		}); err != nil {
-			return nil, errorsmod.Wrapf(err, "collecting messages for ism %s", ism.Id.String())
-		}
-
-		if len(msgs) == 0 {
-			continue
-		}
-
-		sort.Strings(msgs)
-		genesisMessages = append(genesisMessages, types.GenesisMessages{
-			Id:       ism.Id,
-			Messages: msgs,
-		})
-	}
-
-	sort.Slice(genesisMessages, func(i, j int) bool {
-		return genesisMessages[i].Id.Compare(genesisMessages[j].Id) < 0
-	})
-
 	ismByID := make(map[uint64]util.HexAddress, len(isms))
 	for i := range isms {
 		ism := isms[i]
@@ -124,9 +86,29 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return submissions[i].Id.Compare(submissions[j].Id) < 0
 	})
 
+	treeStates := make([]types.GenesisMerkleTreeState, 0)
+	if err := k.treeStates.Walk(ctx, nil, func(key uint64, value types.MerkleTreeState) (bool, error) {
+		ismId, ok := ismByID[key]
+		if !ok {
+			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "merkle tree state entry for unknown ism %d", key)
+		}
+
+		treeStates = append(treeStates, types.GenesisMerkleTreeState{
+			Id:        ismId,
+			TreeState: value,
+		})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(treeStates, func(i, j int) bool {
+		return treeStates[i].Id.Compare(treeStates[j].Id) < 0
+	})
+
 	return &types.GenesisState{
 		Isms:        isms,
-		Messages:    genesisMessages,
 		Submissions: submissions,
+		TreeStates:  treeStates,
 	}, nil
 }

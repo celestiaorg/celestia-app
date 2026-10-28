@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 
-	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,7 +23,7 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 // CreateInterchainSecurityModule implements types.MsgServer.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
-	// Deserializing the verifying key performs pairing work, so charge for it first.
+	// Deserializing the verifying key decompresses elliptic curve points, so charge for it first.
 	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verifying key parse")
 	if _, err := types.NewSP1Groth16Verifier(msg.Groth16Vkey); err != nil {
 		return nil, err
@@ -151,13 +150,12 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
-	messages := make([]string, 0, len(publicValues.MessageIds))
-	for _, messageId := range publicValues.MessageIds {
-		if err := m.messages.Set(ctx, collections.Join(ism.Id.GetInternalId(), messageId[:])); err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, types.EncodeHex(messageId[:]))
+	treeState := types.MerkleTreeState{
+		Root:  publicValues.TreeRoot[:],
+		Count: publicValues.Count,
+	}
+	if err := m.treeStates.Set(ctx, ism.Id.GetInternalId(), treeState); err != nil {
+		return nil, err
 	}
 
 	// Mark that a message proof has been submitted for the current state root
@@ -165,12 +163,90 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
-	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism, publicValues.MessageIds); err != nil {
+	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism, treeState); err != nil {
 		return nil, err
 	}
 
 	return &types.MsgSubmitMessagesResponse{
 		StateRoot: types.EncodeHex(publicValues.StateRoot[:]),
-		Messages:  messages,
+		TreeRoot:  types.EncodeHex(treeState.Root),
+		Count:     treeState.Count,
 	}, nil
+}
+
+// UpdateVerifyingKeys implements types.MsgServer.
+func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdateVerifyingKeys) (*types.MsgUpdateVerifyingKeysResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	if ism.Owner == "" || msg.Owner != ism.Owner {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
+	}
+
+	// Deserializing the verifying key decompresses elliptic curve points, so charge for it first.
+	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verifying key parse")
+	if _, err := types.NewSP1Groth16Verifier(msg.Groth16Vkey); err != nil {
+		return nil, err
+	}
+
+	ism.Groth16Vkey = msg.Groth16Vkey
+	ism.StateTransitionVkey = msg.StateTransitionVkey
+	ism.StateMembershipVkey = msg.StateMembershipVkey
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	// Nothing proven under the replaced keys stays in force: drop the merkle tree state so no message verifies until
+	// the new membership program has proven a tree root, and allow that proof for the current state root.
+	if err := m.treeStates.Remove(ctx, ism.Id.GetInternalId()); err != nil {
+		return nil, err
+	}
+
+	if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateVerifyingKeysEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateVerifyingKeysResponse{}, nil
+}
+
+// TransferOwnership implements types.MsgServer. Only the current owner can transfer ownership to another address or
+// renounce it. Renouncing is irreversible: with no owner, no account can call UpdateVerifyingKeys or TransferOwnership.
+func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransferOwnership) (*types.MsgTransferOwnershipResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	if ism.Owner == "" || msg.Owner != ism.Owner {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
+	}
+
+	// ValidateBasic guarantees exactly one of new_owner and renounce_ownership is set and that new_owner is a valid
+	// bech32 address. Store the canonical spelling: bech32 is case-insensitive, but the owner checks compare strings,
+	// and wallets sign with the lowercase form.
+	if msg.RenounceOwnership {
+		ism.Owner = ""
+	} else {
+		newOwner, err := sdk.AccAddressFromBech32(msg.NewOwner)
+		if err != nil {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid new owner: %s", err)
+		}
+		ism.Owner = newOwner.String()
+	}
+
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitTransferOwnershipEvent(sdk.UnwrapSDKContext(ctx), ism.Id, msg); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgTransferOwnershipResponse{}, nil
 }

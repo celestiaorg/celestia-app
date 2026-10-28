@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -9,9 +10,17 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// typedEventNameRegexp matches the simple (unqualified) name of a typed
+// event: "Event" followed by an upper-case letter, e.g. EventPayForBlobs.
+// It rejects "Event" itself (tendermint.abci.Event) and names that merely
+// contain "Event" such as StringEvent, ValidatorSlashEvent or
+// GetTxsEventRequest.
+var typedEventNameRegexp = regexp.MustCompile(`^Event[A-Z]`)
 
 // listTypesCmd returns a command that lists all registered SDK messages, events, and proto types
 func listTypesCmd() *cobra.Command {
@@ -20,7 +29,15 @@ func listTypesCmd() *cobra.Command {
 		Short: "List all registered SDK messages, events, and proto types",
 		Long: `Lists all registered protobuf types from the encoding configuration.
 This includes SDK messages, events, and other proto types that are registered
-in the interface registry.`,
+in the interface registry.
+
+The "Event Types" section lists typed (protobuf) events only. A proto message
+is treated as a typed event when its simple name starts with "Event" followed
+by an upper-case letter (e.g. EventPayForBlobs, but not Event, StringEvent or
+GetTxsEventRequest) and its proto package, or a parent package, registers at
+least one cosmos.base.v1beta1.Msg implementation. The second rule drops events
+of modules whose proto files are compiled in but which are not wired into the
+app (e.g. cosmos.group.v1). Untyped string events are not listed.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Create a temporary app instance to access the encoding config
 			opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
@@ -46,23 +63,24 @@ in the interface registry.`,
 				fmt.Println()
 			}
 
+			// Proto packages that register at least one sdk.Msg. A module that
+			// is wired into the app registers its Msgs; a module whose proto
+			// files are merely compiled in does not.
+			msgPackages := msgProtoPackages(registry.ListImplementations(sdk.MsgInterfaceProtoName))
+
 			// Get all protobuf types from file descriptors
 			var allProtoTypes []string
 			var eventTypes []string
-			var messageTypes []string
 
 			registry.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 				messages := fd.Messages()
 				for i := 0; i < messages.Len(); i++ {
 					msg := messages.Get(i)
-					fullName := string(msg.FullName())
-					allProtoTypes = append(allProtoTypes, fullName)
+					fullName := msg.FullName()
+					allProtoTypes = append(allProtoTypes, string(fullName))
 
-					// Categorize event types vs other message types
-					if strings.Contains(strings.ToLower(fullName), "event") {
-						eventTypes = append(eventTypes, fullName)
-					} else {
-						messageTypes = append(messageTypes, fullName)
+					if isTypedEvent(fullName, msgPackages) {
+						eventTypes = append(eventTypes, string(fullName))
 					}
 				}
 				return true
@@ -70,7 +88,6 @@ in the interface registry.`,
 
 			sort.Strings(allProtoTypes)
 			sort.Strings(eventTypes)
-			sort.Strings(messageTypes)
 
 			// Print event types
 			fmt.Println("=== Event Types ===")
@@ -105,4 +122,34 @@ in the interface registry.`,
 	}
 
 	return cmd
+}
+
+// msgProtoPackages returns the set of proto packages of the given sdk.Msg type
+// URLs (e.g. "/celestia.blob.v1.MsgPayForBlobs" -> "celestia.blob.v1").
+func msgProtoPackages(msgTypeURLs []string) map[protoreflect.FullName]bool {
+	packages := make(map[protoreflect.FullName]bool, len(msgTypeURLs))
+	for _, typeURL := range msgTypeURLs {
+		fullName := protoreflect.FullName(strings.TrimPrefix(typeURL, "/"))
+		if !fullName.IsValid() {
+			continue
+		}
+		packages[fullName.Parent()] = true
+	}
+	return packages
+}
+
+// isTypedEvent reports whether the proto message fullName is a typed event
+// emitted by a module wired into the app: its simple name matches
+// typedEventNameRegexp and its package, or a parent package, is in
+// msgPackages (the packages that register at least one sdk.Msg).
+func isTypedEvent(fullName protoreflect.FullName, msgPackages map[protoreflect.FullName]bool) bool {
+	if !typedEventNameRegexp.MatchString(string(fullName.Name())) {
+		return false
+	}
+	for pkg := fullName.Parent(); pkg != ""; pkg = pkg.Parent() {
+		if msgPackages[pkg] {
+			return true
+		}
+	}
+	return false
 }

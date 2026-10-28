@@ -121,6 +121,10 @@ fail() {
     exit 1
 }
 
+inode() {
+    stat -c %i "$1" 2>/dev/null || stat -f %i "$1"
+}
+
 called() {
     grep -qxF "$1" "$STUB_LOG"
 }
@@ -271,6 +275,63 @@ echo 'indexer = "kv"' >>"$NODE_HOME/config/config.toml"
 recovery rollback --home "$NODE_HOME" --height 18 || fail "rollback with warnings failed"
 grep -qxF "warning: app.toml sets halt-height = 25; the node stops again there" "$TMP/out.log" || fail "halt-height warning"
 grep -q "kv tx index keeps results from before the rollback" "$TMP/out.log" || fail "kv index warning"
+
+# restart: stop, clear halt-height and halt-time, start, verify; no rollback.
+new_node
+printf 'halt-height = 25\n  halt-time = 1700000000 # stop\nmin-retain-blocks = 0\n' >"$NODE_HOME/config/app.toml"
+echo 'indexer = "kv"' >>"$NODE_HOME/config/config.toml"
+INODE=$(inode "$NODE_HOME/config/app.toml")
+recovery restart --home "$NODE_HOME" --expect-version 10.0.0 --check-height 19 --expect-app-hash abcd12 ||
+    fail "restart failed"
+grep -E '^sudo |rollback|snapshots' "$STUB_LOG" >"$TMP/order.log" || true
+cat >"$TMP/want.log" <<EOF
+sudo systemctl stop celestia-appd
+sudo systemctl start celestia-appd
+EOF
+diff "$TMP/want.log" "$TMP/order.log" || fail "restart call order"
+printf 'halt-height = 0\n  halt-time = 0\nmin-retain-blocks = 0\n' >"$TMP/want.toml"
+diff "$TMP/want.toml" "$NODE_HOME/config/app.toml" || fail "restart did not clear the halt"
+[ -f "$NODE_HOME/config/app.toml.bak" ] || fail "restart did not keep app.toml.bak"
+[ "$(inode "$NODE_HOME/config/app.toml")" = "$INODE" ] || fail "restart replaced app.toml instead of rewriting it"
+grep -qxF "app hash at height 19 matches" "$TMP/out.log" || fail "restart app hash not verified"
+if grep -Eq 'the node stops again there|kv tx index' "$TMP/out.log"; then
+    fail "restart printed a rollback warning"
+fi
+
+# restart --dry-run: the halt edit is printed, not made.
+new_node
+echo 'halt-height = 25' >"$NODE_HOME/config/app.toml"
+recovery restart --home "$NODE_HOME" --dry-run || fail "restart dry-run failed"
+grep -qF "+ sh -c cp \"\$1\" \"\$1.bak\" && sed -E \"\$2\" \"\$1.bak\" > \"\$1\" sh $NODE_HOME/config/app.toml" "$TMP/out.log" ||
+    fail "restart dry-run did not print the halt edit"
+grep -qxF 'halt-height = 25' "$NODE_HOME/config/app.toml" || fail "restart dry-run changed app.toml"
+if grep -Eq '^systemctl (stop|start)' "$STUB_LOG"; then
+    fail "restart dry-run changed state"
+fi
+
+# restart without a halt: app.toml is not touched.
+new_node
+recovery restart --home "$NODE_HOME" || fail "restart without a halt failed"
+[ ! -e "$NODE_HOME/config/app.toml.bak" ] || fail "restart edited app.toml without a halt"
+
+# restart with an old binary: refused before the node is stopped.
+new_node
+if recovery restart --home "$NODE_HOME" --expect-version 10.0.1; then
+    fail "restart accepted the wrong version"
+fi
+grep -q "binary version is 10.0.0, expected 10.0.1" "$TMP/out.log" || fail "restart version message"
+if grep -q '^sudo ' "$STUB_LOG"; then
+    fail "restart stopped the node with the wrong version"
+fi
+
+# restart with docker: the halt is cleared in a one-off container.
+new_node
+echo 'halt-height = 25' >"$NODE_HOME/config/app.toml"
+recovery restart --setup docker --container node0 --home "$NODE_HOME" || fail "docker restart failed"
+grep -q "^docker run --rm --volumes-from node0 --user celestia --entrypoint sh sha256:feed -c cp" "$STUB_LOG" ||
+    fail "docker restart halt edit"
+grep -qxF 'halt-height = 0' "$NODE_HOME/config/app.toml" || fail "docker restart did not clear the halt"
+called "docker start node0" || fail "docker restart did not start the container"
 
 # --height 0 means "current height - 1" to the binary, so it is refused.
 new_node

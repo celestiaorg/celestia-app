@@ -25,3 +25,15 @@ lint:
 breaking:
   use:
     - FILE
+  # The zkism message id API was deleted on purpose in v11 (messages are now verified against a proven merkle tree
+  # root). Only those deletions are exempt; every other breaking rule still applies to the package.
+  ignore_only:
+    FIELD_NO_DELETE:
+      - celestia/zkism/v1/events.proto
+      - celestia/zkism/v1/genesis.proto
+      - celestia/zkism/v1/tx.proto
+    MESSAGE_NO_DELETE:
+      - celestia/zkism/v1/genesis.proto
+      - celestia/zkism/v1/query.proto
+    RPC_NO_DELETE:
+      - celestia/zkism/v1/query.proto
