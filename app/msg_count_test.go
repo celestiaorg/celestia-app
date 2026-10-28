@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
@@ -306,32 +307,7 @@ func TestCountZKProofMsgs(t *testing.T) {
 // ismMetadataHex returns hex metadata in the message-id multisig layout that
 // carries sigs signatures, so the counter is exercised on the real format.
 func ismMetadataHex(sigs int) string {
-	return "0x" + strings.Repeat("00", ismMetadataHeaderLen+sigs*ismSignatureLen)
-}
-
-func TestProcessMessageSignatures(t *testing.T) {
-	tests := []struct {
-		name     string
-		metadata string
-		want     int
-	}{
-		{name: "empty", metadata: "", want: 0},
-		{name: "prefix only", metadata: "0x", want: 0},
-		{name: "short header", metadata: "0x" + strings.Repeat("00", ismMetadataHeaderLen-1), want: 0},
-		{name: "header only", metadata: ismMetadataHex(0), want: 0},
-		{name: "one signature", metadata: ismMetadataHex(1), want: 1},
-		{name: "two signatures", metadata: ismMetadataHex(2), want: 2},
-		{name: "partial signature is not counted", metadata: ismMetadataHex(1) + strings.Repeat("00", ismSignatureLen-1), want: 1},
-		{name: "no prefix", metadata: strings.Repeat("00", ismMetadataHeaderLen+ismSignatureLen), want: 1},
-		{name: "odd hex length rounds down", metadata: ismMetadataHex(1) + "0", want: 1},
-		{name: "invalid hex counts by length", metadata: "0x" + strings.Repeat("zz", ismMetadataHeaderLen+ismSignatureLen), want: 1},
-		{name: "reported attack shape", metadata: ismMetadataHex(64_000), want: 64_000},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, processMessageSignatures(&hyperlanetypes.MsgProcessMessage{Metadata: tc.metadata}))
-		})
-	}
+	return "0x" + strings.Repeat("00", ante.MessageIDMultisigHeaderLen+sigs*ante.ISMSignatureLen)
 }
 
 func TestCountISMSignatures(t *testing.T) {

@@ -2,10 +2,10 @@ package app
 
 import (
 	"encoding/json"
-	"strings"
 
 	storetypes "cosmossdk.io/store/types"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -79,8 +79,8 @@ func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 
 // countISMSignatures counts the signatures that Hyperlane MsgProcessMessage
 // metadata carries, including messages dispatched by authz and ICA wrappers.
-// A multisig ISM recovers one secp256k1 key per signature up to its threshold,
-// work the per-signature gas does not pay for, so a block budgets them.
+// A multisig ISM recovers one secp256k1 key per signature. The ante handler
+// prices that work per tx; this budget bounds the total per block.
 func countISMSignatures(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 	count := 0
@@ -96,7 +96,7 @@ func countISMSignatures(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 func ismSignatureWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	switch msg := msg.(type) {
 	case *hyperlanetypes.MsgProcessMessage:
-		return processMessageSignatures(msg)
+		return ante.ProcessMessageSignatures(msg.Metadata)
 	case *authz.MsgExec:
 		return execWeight(ctx, ck, msg, ismSignatureWeight)
 	case *channeltypes.MsgRecvPacket:
@@ -104,26 +104,6 @@ func ismSignatureWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	default:
 		return 0
 	}
-}
-
-// Multisig ISM metadata is a fixed header followed by 65-byte signatures. The
-// message-id layout has a 68-byte header; the merkle-root layout a larger one.
-// Measuring every layout against the smaller header bounds both from above.
-const (
-	ismMetadataHeaderLen = 68
-	ismSignatureLen      = 65
-)
-
-// processMessageSignatures bounds the signatures a MsgProcessMessage carries
-// from the length of its hex metadata alone: no decoding and no state read, so
-// proposal counting stays O(1) per message. Malformed hex or a partial
-// signature fails before any key is recovered, so over-counting it is safe.
-func processMessageSignatures(msg *hyperlanetypes.MsgProcessMessage) int {
-	metadataLen := len(strings.TrimPrefix(msg.Metadata, "0x")) / 2
-	if metadataLen < ismMetadataHeaderLen {
-		return 0
-	}
-	return (metadataLen - ismMetadataHeaderLen) / ismSignatureLen
 }
 
 // execWeight applies weigh to each message a MsgExec dispatches and sums the
