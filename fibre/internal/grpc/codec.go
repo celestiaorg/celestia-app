@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/encoding"
@@ -101,12 +102,20 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if _, ok := v.(*types.DownloadShardRequest); ok && data.Len() > maxDownloadShardRequestSize {
 		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
 	}
-	buf := data.Materialize()
-	// Check row and proof counts before the generated decoder allocates for them.
-	if _, ok := v.(*types.UploadShardRequest); ok && c.maxShardRows > 0 {
-		if err := c.validateUploadShard(buf); err != nil {
-			return err
+	if req, ok := v.(*types.UploadShardRequest); ok {
+		buf := data.Materialize()
+		// Check row and proof counts before the generated decoder allocates for them.
+		if c.maxShardRows > 0 {
+			if err := c.validateUploadShard(buf); err != nil {
+				return err
+			}
 		}
+		// Decode shard rows as views into the GC-owned buffer; the request keeps
+		// it alive, so there is no lifetime concern. Fall back for odd layouts.
+		if unmarshalUploadViews(slices.Clip(buf), req) {
+			return nil
+		}
+		return req.Unmarshal(buf)
 	}
-	return msg.Unmarshal(buf)
+	return msg.Unmarshal(data.Materialize())
 }
