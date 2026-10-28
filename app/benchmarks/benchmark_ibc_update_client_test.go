@@ -246,7 +246,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 // ABCI method.
 func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, numberOfMessages, offsetAccountSequence int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithoutOptimisticExecution(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

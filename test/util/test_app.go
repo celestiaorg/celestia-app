@@ -76,6 +76,14 @@ func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusPar
 	return testApp, kr
 }
 
+// SetupTestAppWithoutOptimisticExecution is SetupTestAppWithGenesisValSetAndMaxSquareSize
+// with optimistic execution disabled, for ProcessProposal benchmarks.
+func SetupTestAppWithoutOptimisticExecution(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp, valSet, kr := newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(baseapp.DisableOptimisticExecution()), cparams, maxSquareSize, genAccounts...)
+	initialiseTestApp(testApp, valSet)
+	return testApp, kr
+}
+
 func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 	// first block
 	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
@@ -95,7 +103,7 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 }
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
-func NewTestApp() *app.App {
+func NewTestApp(baseAppOptions ...func(*baseapp.BaseApp)) *app.App {
 	db := dbm.NewMemDB()
 
 	return app.New(
@@ -105,7 +113,7 @@ func NewTestApp() *app.App {
 		0,
 		0,
 		EmptyAppOptions{},
-		baseapp.SetChainID(ChainID),
+		append([]func(*baseapp.BaseApp){baseapp.SetChainID(ChainID)}, baseAppOptions...)...,
 	)
 }
 
@@ -120,7 +128,10 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 // NewTestAppWithGenesisSetAndMaxSquareSize initializes a new app with genesis accounts and a specific max square size
 // and returns the testApp, validator set and keyring.
 func NewTestAppWithGenesisSetAndMaxSquareSize(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
-	testApp := NewTestApp()
+	return newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(), cparams, maxSquareSize, genAccounts...)
+}
+
+func newTestAppWithGenesisSetAndMaxSquareSize(testApp *app.App, cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
 	// hacky way of changing the gov max square size without changing the consts

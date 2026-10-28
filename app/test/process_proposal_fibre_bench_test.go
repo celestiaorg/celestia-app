@@ -30,7 +30,7 @@ func BenchmarkProcessProposalMaturingWithdrawals(b *testing.B) {
 	for _, n := range maturingWithdrawalCounts {
 		b.Run(fmt.Sprintf("withdrawals=%d", n), func(b *testing.B) {
 			accounts := testfactory.GenerateAccounts(1)
-			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+			testApp, kr := testutil.SetupTestAppWithoutOptimisticExecution(app.DefaultConsensusParams(), appconsts.DefaultGovMaxSquareSize, accounts...)
 			seedManyMaturedWithdrawals(b, testApp, testfactory.GetAddress(kr, accounts[0]), n)
 			req := processProposalRequest(b, testApp, [][]byte{})
 
@@ -76,7 +76,7 @@ func BenchmarkProcessProposalUnderLoad(b *testing.B) {
 		b.Run(fmt.Sprintf("txs=%d/withdrawals=%d", blockTxs, n), func(b *testing.B) {
 			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			accounts := testfactory.GenerateAccounts(1)
-			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+			testApp, kr := testutil.SetupTestAppWithoutOptimisticExecution(app.DefaultConsensusParams(), appconsts.DefaultGovMaxSquareSize, accounts...)
 			infos := queryAccountInfo(testApp, accounts, kr)
 			signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 			require.NoError(b, err)
