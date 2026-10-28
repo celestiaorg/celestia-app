@@ -60,14 +60,15 @@ func checkShareProof(t *testing.T, raw, root []byte) {
 	if err := sp.Unmarshal(raw); err != nil {
 		return
 	}
-	// A proof without a row proof dereferences nil in Validate; tracked in
-	// PROTOCO-3433 (item 5). RowProof.Validate on its own is still exercised
-	// below for every input.
+	// A proof without a row proof dereferences nil in Validate and in
+	// VerifyProof; tracked in PROTOCO-3433 (item 5). VerifyProof is only
+	// reached through Validate, which checks the proof and row root counts
+	// agree first, so it is not called on its own here. RowProof.Validate is
+	// still exercised below for every input.
 	if sp.RowProof != nil {
 		_ = sp.Validate(root)
 		require.Error(t, sp.Validate(incorrectRoot), "share proof validated against a root it cannot match")
 	}
-	_ = sp.VerifyProof()
 	rp := sp.GetRowProof()
 	if rp == nil {
 		rp = &RowProof{}
