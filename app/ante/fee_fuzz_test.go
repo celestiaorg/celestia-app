@@ -13,11 +13,14 @@ import (
 // Price is expressed in attoutia/gas (18 decimal places); fees span uint64.
 func FuzzAnteFeeArithmetic(f *testing.F) {
 	for _, seed := range [][3]uint64{
-		{0, 0, 0}, {0, 1, 1}, {1, 1, 1},
+		{0, 0, 0},
+		{0, 1, 1},
+		{1, 1, 1},
 		{800, 200_000, 4_000_000_000_000_000},
 		{799, 200_000, 4_000_000_000_000_000},
 		{1 << 63, 1 << 63, 1_000_000_000_000_000_000},
-		{1 << 63, 1, 1}, {^uint64(0), ^uint64(0), ^uint64(0)},
+		{1 << 63, 1, 1},
+		{^uint64(0), ^uint64(0), ^uint64(0)},
 	} {
 		f.Add(seed[0], seed[1], seed[2])
 	}
