@@ -27,7 +27,8 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 	for _, tc := range tests {
 		g := genesis.NewDefaultGenesis().
 			WithAppVersion(tc.appVersion).
-			WithValidators(genesis.NewDefaultValidator("validator-0"))
+			WithValidators(genesis.NewDefaultValidator("validator-0")).
+			WithModifiers(seedZkismIsm)
 
 		bz, err := g.ExportBytes()
 		require.NoError(t, err)
@@ -46,6 +47,29 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 			require.Equal(t, tc.wantV11Fields, has, "app version %d, field %s", tc.appVersion, field)
 		}
 		require.Contains(t, zkismState, "isms", "app version %d", tc.appVersion)
+
+		var isms []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(zkismState["isms"], &isms))
+		require.Len(t, isms, 1, "app version %d", tc.appVersion)
+		for _, field := range []string{"root_history_size", "state_height"} {
+			_, has := isms[0][field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, ism field %s", tc.appVersion, field)
+		}
 		require.Contains(t, zkismState, "submissions", "app version %d", tc.appVersion)
 	}
+}
+
+// seedZkismIsm adds one ISM to the zkism genesis state so the export covers the per-ISM fields.
+func seedZkismIsm(state map[string]json.RawMessage) map[string]json.RawMessage {
+	var zkismState map[string]json.RawMessage
+	if err := json.Unmarshal(state[zkismtypes.ModuleName], &zkismState); err != nil {
+		panic(err)
+	}
+	zkismState["isms"] = json.RawMessage(`[{"id":"0x726f757465725f69736d000000000000000000000000002a0000000000000001","owner":"","state":"AA==","merkle_tree_address":"AA==","groth16_vkey":"AA==","state_transition_vkey":"AA==","state_membership_vkey":"AA==","root_history_size":64,"state_height":"7"}]`)
+	bz, err := json.Marshal(zkismState)
+	if err != nil {
+		panic(err)
+	}
+	state[zkismtypes.ModuleName] = bz
+	return state
 }
