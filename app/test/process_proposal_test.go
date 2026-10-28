@@ -11,6 +11,7 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/da"
@@ -776,10 +777,9 @@ func icaHostRecvPacket(t *testing.T, cdc codec.Codec, addr sdk.AccAddress, numMs
 }
 
 // ismMetadataHex returns hex metadata in the Hyperlane message-id multisig
-// layout, a 68-byte header followed by 65-byte signatures, carrying sigs
-// signatures.
+// layout carrying sigs signatures.
 func ismMetadataHex(sigs int) string {
-	return "0x" + strings.Repeat("00", 68+sigs*65)
+	return "0x" + strings.Repeat("00", ante.MessageIDMultisigHeaderLen+sigs*ante.ISMSignatureLen)
 }
 
 // seedICAHostChannel writes the ICA host channel the test packets arrive on, so

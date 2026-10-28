@@ -27,13 +27,9 @@ const (
 	// minimum, changing SubtreeRootThreshold requires a new client release and
 	// deployment before the change takes effect on the network.
 	// See: https://github.com/celestiaorg/celestia-app/issues/6831
-	SubtreeRootThreshold int    = 64
-	TxSizeCostPerByte    uint64 = 10
-	GasPerBlobByte       uint32 = 8
-	// GasPerISMSignature is charged in the ante handler per signature a
-	// Hyperlane MsgProcessMessage carries. It prices one secp256k1 recovery:
-	// about 170 us in the pure-Go fallback at the chain's usual ~4.7 ns per gas.
-	GasPerISMSignature    uint64 = 36_000
+	SubtreeRootThreshold  int    = 64
+	TxSizeCostPerByte     uint64 = 10
+	GasPerBlobByte        uint32 = 8
 	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
 	TimeoutPropose               = time.Millisecond * 3000
 	TimeoutProposeDelta          = time.Millisecond * 500
@@ -80,6 +76,11 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
+
+	// GasPerISMSignature is charged in the ante handler per signature a
+	// Hyperlane MsgProcessMessage carries. It prices one secp256k1 recovery:
+	// about 170 us in the pure-Go fallback at the chain's usual ~4.7 ns per gas.
+	GasPerISMSignature uint64 = 36_000
 )
 
 // MinCommissionRate is 20%.

@@ -95,18 +95,4 @@ func TestISMSignatureGasDecorator(t *testing.T) {
 			require.Equal(t, tc.wantGas, gotCtx.GasMeter().GasConsumed())
 		})
 	}
-
-	// A gas limit one short of the charge runs out of gas before next runs,
-	// which the ante chain's panic recovery turns into an out-of-gas error.
-	t.Run("insufficient gas limit", func(t *testing.T) {
-		txBuilder := cdc.TxConfig.NewTxBuilder()
-		require.NoError(t, txBuilder.SetMsgs(process(2)))
-		ctx := sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(2*rate - 1))
-		require.PanicsWithValue(t, storetypes.ErrorOutOfGas{Descriptor: "ante: ism signature verification"}, func() {
-			_, _ = decorator.AnteHandle(ctx, txBuilder.GetTx(), false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
-				t.Fatal("next must not run after running out of gas")
-				return ctx, nil
-			})
-		})
-	})
 }

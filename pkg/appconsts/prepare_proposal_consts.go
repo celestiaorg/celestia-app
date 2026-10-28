@@ -19,7 +19,7 @@ const (
 
 	// MaxISMSignatures bounds the signatures carried by Hyperlane MsgProcessMessage
 	// metadata in a block, each one secp256k1 recovery when a multisig ISM verifies.
-	// GasPerISMSignature prices each signature; this budget caps the total and
-	// leaves several times the headroom honest traffic needs.
+	// GasPerISMSignature prices each signature; this budget caps the total at about
+	// 90 ms of recovery per block with cgo, or 350 ms with the pure-Go fallback.
 	MaxISMSignatures = 2048
 )
