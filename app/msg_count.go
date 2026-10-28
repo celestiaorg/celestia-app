@@ -52,16 +52,16 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 }
 
 // txGasLimit returns the gas limit tx declares, which caps the gas its
-// execution can consume. ok is false if tx is not a protobuf tx; ante rejects
-// it. It reads the fee through the nil safe proto getters because it runs
-// before ante, and FeeTx.GetGas panics on a tx without AuthInfo or Fee. Such a
-// tx reports zero gas here and ante rejects it.
-func txGasLimit(tx sdk.Tx) (gas uint64, ok bool) {
+// execution can consume. It reads the fee through the nil safe proto getters
+// because it runs before ante, and FeeTx.GetGas panics on a tx without AuthInfo
+// or Fee. A tx without a fee, or one that is not a protobuf tx, reports zero
+// here and ante rejects it.
+func txGasLimit(tx sdk.Tx) uint64 {
 	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
 	if !ok {
-		return 0, false
+		return 0
 	}
-	return protoTx.GetProtoTx().GetAuthInfo().GetFee().GetGasLimit(), true
+	return protoTx.GetProtoTx().GetAuthInfo().GetFee().GetGasLimit()
 }
 
 // fitsSDKGas reports whether a tx with gas limit txGas fits a block whose txs

@@ -161,8 +161,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			logger.Debug("skipping tx because the max ISM signature count was reached", "tx", lazyTxHash(tx))
 			continue
 		}
-		txGas, ok := txGasLimit(sdkTx)
-		if !ok || !fitsSDKGas(sdkGas, txGas) {
+		txGas := txGasLimit(sdkTx)
+		if !fitsSDKGas(sdkGas, txGas) {
 			logger.Debug("skipping tx because the max SDK gas was reached", "tx", lazyTxHash(tx))
 			continue
 		}
