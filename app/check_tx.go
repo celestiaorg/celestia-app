@@ -71,6 +71,10 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
+	if sigCount := countISMSignatures(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxISMSignatures, "tx carries %d ISM signatures, limit is %d", sigCount, appconsts.MaxISMSignatures)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
 
 	// MsgPayForFibre must be the only message in its tx.
 	if err := validatePayForFibreTxShape(sdkTx); err != nil {

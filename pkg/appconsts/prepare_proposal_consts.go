@@ -15,4 +15,8 @@ const (
 
 	// MaxZKProofMessages bounds messages that verify a ZK proof or parse a verifying key in a block.
 	MaxZKProofMessages = 64
+
+	// MaxISMSignatures bounds the signatures carried by Hyperlane MsgProcessMessage
+	// metadata in a block. Each costs one secp256k1 recovery when the ISM verifies.
+	MaxISMSignatures = 256
 )

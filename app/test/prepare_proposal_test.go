@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -468,6 +469,27 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
+	// Two txs that each carry a full block's ISM signature budget, and one
+	// that exceeds it on its own.
+	ismSigTxs := make([][]byte, 0, 2)
+	for range 2 {
+		msg := &hyperlanetypes.MsgProcessMessage{
+			Relayer:  addrs[accountIndex].String(),
+			Metadata: ismMetadataHex(appconsts.MaxISMSignatures),
+			Message:  "0x",
+		}
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		ismSigTxs = append(ismSigTxs, rawTx)
+		accountIndex++
+	}
+	ismSigOverTx, _, err := signer.CreateTx([]sdk.Msg{&hyperlanetypes.MsgProcessMessage{
+		Relayer:  addrs[accountIndex].String(),
+		Metadata: ismMetadataHex(appconsts.MaxISMSignatures + 1),
+		Message:  "0x",
+	}}, user.SetGasLimit(10000000), user.SetFee(10000))
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name                 string
 		inputTransactions    [][]byte
@@ -493,6 +515,16 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			name:                 "capping ZK proof transactions",
 			inputTransactions:    zkProofTxs,
 			expectedTransactions: zkProofTxs[:appconsts.MaxZKProofMessages],
+		},
+		{
+			name:                 "capping ISM signature transactions",
+			inputTransactions:    ismSigTxs,
+			expectedTransactions: ismSigTxs[:1],
+		},
+		{
+			name:                 "dropping a transaction over the ISM signature budget on its own",
+			inputTransactions:    [][]byte{ismSigOverTx, ismSigTxs[0]},
+			expectedTransactions: ismSigTxs[:1],
 		},
 		{
 			name: "capping msg send after pfb transactions",

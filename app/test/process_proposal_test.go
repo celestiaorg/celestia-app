@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -412,8 +414,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
 	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
-	// MsgModuleQuerySafe txs and +4 sign the ICA and tight-gas txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 11
+	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +2 sign the ZK
+	// proof txs and +3 sign the ISM signature txs.
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 14
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -520,6 +523,27 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	zkProofsExceedTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages+1)
 	accountIndex++
 	zkProofsAtLimitTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages)
+	accountIndex++
+
+	// Build a tx with one MsgProcessMessage whose metadata carries sigs
+	// multisig signatures. Verification never runs here, only the ante handler,
+	// so the metadata only needs the right length.
+	buildISMSignatureTx := func(accIdx, sigs int) []byte {
+		msg := &hyperlanetypes.MsgProcessMessage{
+			Relayer:  addrs[accIdx].String(),
+			Metadata: ismMetadataHex(sigs),
+			Message:  "0x",
+		}
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	ismSigsExceedTx := buildISMSignatureTx(accountIndex, appconsts.MaxISMSignatures+1)
+	accountIndex++
+	ismSigsAtLimitTx := buildISMSignatureTx(accountIndex, appconsts.MaxISMSignatures)
+	accountIndex++
+	ismSigsOneTx := buildISMSignatureTx(accountIndex, 1)
 	accountIndex++
 
 	// Build a tx with a single MsgModuleQuerySafe weighing totalWeight. The
@@ -646,6 +670,24 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
+			name:           "reject block exceeding MaxISMSignatures in one tx",
+			txs:            [][]byte{ismSigsExceedTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject block exceeding MaxISMSignatures across txs",
+			txs:            [][]byte{ismSigsAtLimitTx, ismSigsOneTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept block at exactly MaxISMSignatures",
+			txs:            [][]byte{ismSigsAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
 			name:           "reject MsgModuleQuerySafe queries beyond MaxSDKMessages",
 			txs:            [][]byte{querySafeExceedsTx},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -731,6 +773,13 @@ func icaHostRecvPacket(t *testing.T, cdc codec.Codec, addr sdk.AccAddress, numMs
 	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
 	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
 	return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), addr.String())
+}
+
+// ismMetadataHex returns hex metadata in the Hyperlane message-id multisig
+// layout, a 68-byte header followed by 65-byte signatures, carrying sigs
+// signatures.
+func ismMetadataHex(sigs int) string {
+	return "0x" + strings.Repeat("00", 68+sigs*65)
 }
 
 // seedICAHostChannel writes the ICA host channel the test packets arrive on, so

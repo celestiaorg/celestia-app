@@ -3,6 +3,7 @@ package ante_test
 import (
 	"testing"
 
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
@@ -35,6 +36,8 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
 	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
 	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
+	proposalWithProcessMessage := newMsgSubmitProposal(t, &hyperlanetypes.MsgProcessMessage{})
+	msgExecWithProcessMessage := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -115,6 +118,15 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name: "Accept authz with budgeted verifying-key pairing work",
 			msg:  &msgExecWithISMCreation,
+		},
+		{
+			name:    "Reject proposal with Hyperlane MsgProcessMessage",
+			msg:     proposalWithProcessMessage,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted Hyperlane MsgProcessMessage",
+			msg:  &msgExecWithProcessMessage,
 		},
 		{
 			name:    "Reject proposal with MsgExec",
