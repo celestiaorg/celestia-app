@@ -228,15 +228,23 @@ func (c *Client) downloadBlob(
 		return nil, err
 	}
 
-	for from := range state.ShardSources(ctx) {
-		c.closeWg.Go(func() {
-			if err := c.downloadFrom(ctx, from, id, state); err != nil {
-				state.SkipShard(from)
-			}
-		})
-	}
+	for {
+		for from := range state.ShardSources(ctx) {
+			c.closeWg.Go(func() {
+				if err := c.downloadFrom(ctx, from, id, state); err != nil {
+					state.SkipShard(from)
+				}
+			})
+		}
 
-	return state.Blob(ctx)
+		blob, err := state.Blob(ctx)
+		if errors.Is(err, errRefetch) {
+			// committed original rows failed their RLC check; fetch
+			// replacements from the remaining validators once
+			continue
+		}
+		return blob, err
+	}
 }
 
 // errDownloaded signals that context was cancelled because download completed successfully.

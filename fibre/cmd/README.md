@@ -140,6 +140,27 @@ truncated. Set `--limit 0` to list all matching markers. Both commands require
 the Fibre server to be stopped because Pebble allows only one process to hold
 the store lock.
 
+Check the currently configured object storage destination and credentials with:
+
+```sh
+fibre store check-bucket
+```
+
+The command reports the bucket-level check and the canary `PUT` and `DELETE`
+separately, along with the AWS credential source and the final four characters
+of the access key ID. By default it writes the canary under
+`<prefix>/.fibre-check/`. For credentials restricted to a validator's shard
+path, pass both namespace flags so it writes under
+`<prefix>/<chain-id>/<validator-address>/shards/.fibre-check/`:
+
+```sh
+fibre store check-bucket \
+  --chain-id mocha-4 \
+  --validator-address celestiavalcons1...
+```
+
+The command does not open Pebble, so Fibre can remain running.
+
 ## Config
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
@@ -198,6 +219,31 @@ Fibre needs credentials to reach the bucket configured in `[object_storage]`. It
 
 To rotate keys, update `/etc/fibre/s3.env` and restart Fibre. If the host already has credentials from an IAM role or the shared AWS credentials file, Fibre uses them, and you can skip this section.
 
+Run the check without `sudo` when the current shell already contains the same
+AWS credentials used by the Fibre service. Otherwise, the check may test
+different credentials and produce a false pass or failure:
+
+```sh
+fibre store check-bucket --home /path/to/fibre-home
+```
+
+Use `sudo` when `/etc/fibre/s3.env` is readable only by root. Because `sudo`
+changes the user environment and default home directory, load the environment
+file explicitly and pass the Fibre service's actual home:
+
+```sh
+sudo -i
+set -a
+. /etc/fibre/s3.env
+set +a
+
+/path/to/fibre store check-bucket --home /path/to/fibre-home
+```
+
+Add `--chain-id` and `--validator-address` to either command when the service
+uses path-scoped credentials, as shown above. Exit the root shell after the
+check completes.
+
 ### Switching shard storage backends
 
 Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
@@ -220,17 +266,19 @@ At startup, Fibre records the object endpoint, bucket, prefix, chain ID, and val
 
 Startup fails if the saved record is corrupt, or if retained object shards have no namespace record. After all object shards are pruned, namespace changes need no override.
 
-### Connection caps and memory
+### Request memory and connection caps
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+`max_request_memory` (default 16 GiB) bounds the bytes of request messages buffered in memory: every request is admitted against this budget before it is read, and rejected (retryably) when it is full. It is not an RSS bound — decode and verification allocate on top — so leave host headroom. See ADR-031.
+
+`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+
+**Deprecated:** sizing memory with these caps. Before memory admission, gRPC buffered a full upload message (~132 MiB) per in-flight stream, so the caps bounded worst-case receive memory:
 
 ```text
 worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
 ```
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
-
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+That bound no longer applies: buffered request memory is capped by `max_request_memory` alone, whatever the connection and stream caps are. Set `max_request_memory` to size memory, and use these caps only to limit concurrency.
 
 ## Signing
 
@@ -308,9 +356,9 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 - `set-host` is only accepted once the chain runs app version 10; before the v10 upgrade activates, the `x/valaddr` module does not exist and the transaction is rejected.
 - Prepare everything else — install the binary, configure the signer links, verify the KMS supports `SignRawBytes` — before the upgrade, then start the server and register once v10 is live.
-- Starting with celestia-app v11, `set-host` is only accepted while your validator is bonded (in the active set). You cannot register before bonding, including in the same block or transaction as `MsgCreateValidator`, and a jailed validator cannot update its host until it is unjailed and bonded again. Register as soon as your validator enters the active set.
+- Starting with celestia-app v11, `set-host` is only accepted while your validator is bonded (in the active set). You cannot register before bonding, including in the same block or transaction as `MsgCreateValidator`, and once a jailed validator leaves the active set it cannot update its host until it is unjailed and bonded again. Register as soon as your validator enters the active set.
 - Start the server **before** registering: a registered-but-unreachable host makes clients dial and time out against you.
-- Registration is persistent. Re-run `set-host` only when the address changes. The entry is garbage-collected automatically if your validator permanently leaves the set (removed from staking, or jailed and unbonded for over 7 days) — after coming back, register again.
+- Registration is persistent. Re-run `set-host` only when the address changes. The entry is garbage-collected automatically if your validator permanently leaves the set (removed from staking, or not bonded for over 7 days after it finished unbonding, whether or not it was jailed) — after coming back, register again.
 
 ## Transport security (TLS)
 
@@ -457,6 +505,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
 | `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
+| `fibre.server.request.rejected` | Counter | `method`, `reason` | gRPC requests rejected by memory admission (`per_ip`, `memory_timeout`, `memory_overflow`) |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
 | `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |

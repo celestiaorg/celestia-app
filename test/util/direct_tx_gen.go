@@ -42,13 +42,15 @@ func RandBlobTxsWithAccounts(
 	require.Greater(t, blobCount, 0)
 
 	txs := make([]coretypes.Tx, len(accounts))
+	// One signer for all accounts: NewSigner lists the whole keyring each time.
+	signer, err := user.NewSigner(kr, cfg, chainid)
+	require.NoError(t, err)
 
 	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
 		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence())
-		signer, err := user.NewSigner(kr, cfg, chainid, account)
-		require.NoError(t, err)
+		require.NoError(t, signer.AddAccount(account))
 
 		randomizedSize := size
 		if randSize {
@@ -65,7 +67,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), randomizedSize, randomizedBlobCount)
+		blobs := blobfactory.RandV0Blobs(random.New(), randomizedSize, randomizedBlobCount)
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
@@ -100,11 +102,12 @@ func RandBlobTxsWithManualSequence(
 
 	opts := blobfactory.DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
+	signer, err := user.NewSigner(kr, cfg, chainid)
+	require.NoError(t, err)
 	for i := range accounts {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := user.NewAccount(accounts[i], accountNum, sequence)
-		signer, err := user.NewSigner(kr, cfg, chainid, acc)
-		require.NoError(t, err)
+		require.NoError(t, signer.AddAccount(acc))
 
 		randomizedSize := size
 		if randSize {
@@ -172,6 +175,9 @@ func SendTxsWithAccounts(
 	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
 
 	txs := make([]coretypes.Tx, len(accounts))
+	signer, err := user.NewSigner(kr, enc, chainid)
+	require.NoError(t, err)
+	toAddr := getAddress(toAccount, kr)
 	for i := range accounts {
 		signingAddr := getAddress(accounts[i], kr)
 
@@ -180,19 +186,11 @@ func SendTxsWithAccounts(
 		if acc == nil {
 			t.Fatalf("account %s not found", signingAddr)
 		}
+		require.NoError(t, signer.AddAccount(user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence())))
 
-		txs[i] = SendTxWithManualSequence(
-			t,
-			enc,
-			kr,
-			accounts[i],
-			toAccount,
-			amount,
-			chainid,
-			acc.GetSequence(),
-			acc.GetAccountNumber(),
-			opts...,
-		)
+		msg := banktypes.NewMsgSend(signingAddr, toAddr, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewIntFromUint64(amount))))
+		txs[i], _, err = signer.CreateTx([]sdk.Msg{msg}, opts...)
+		require.NoError(t, err)
 	}
 
 	return txs

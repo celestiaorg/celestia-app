@@ -26,7 +26,7 @@ func TestCertKeyFromContext(t *testing.T) {
 	requireNoKey(sdk.Context{}.WithTxBytes(raw), "no value attached")
 
 	// The key is returned only for the exact bytes it was derived from.
-	ctx := types.WithCertKey(sdk.Context{}.WithTxBytes(raw), d)
+	ctx := withCertKey(sdk.Context{}.WithTxBytes(raw), d)
 	got, ok := types.CertKeyFromContext(ctx)
 	require.True(t, ok)
 	require.Equal(t, key, got)
@@ -38,12 +38,19 @@ func TestCertKeyFromContext(t *testing.T) {
 	requireNoKey(ctx.WithTxBytes([]byte{0x01, 0x02}), "other bytes")
 
 	// A later tx clears it, and a view that could not be keyed never sets it.
-	requireNoKey(types.WithCertKey(ctx, nil), "cleared by a nil view")
-	requireNoKey(types.WithCertKey(ctx, &types.DecodedPayForFibre{Raw: raw}), "view carries no key")
-	requireNoKey(types.WithCertKey(ctx, &types.DecodedPayForFibre{CertKey: key, CertKeyed: true}), "view has no bytes")
+	requireNoKey(withCertKey(ctx, nil), "cleared by a nil view")
+	requireNoKey(withCertKey(ctx, &types.DecodedPayForFibre{Raw: raw}), "view carries no key")
+	requireNoKey(withCertKey(ctx, &types.DecodedPayForFibre{CertKey: key, CertKeyed: true}), "view has no bytes")
 }
 
 func TestPromiseKeyed(t *testing.T) {
 	require.False(t, (&types.DecodedPayForFibre{}).PromiseKeyed())
 	require.True(t, (&types.DecodedPayForFibre{PromiseSignBytes: []byte{0x01}}).PromiseKeyed())
+}
+
+// withCertKey attaches a fresh holder pointed at d.
+func withCertKey(ctx sdk.Context, d *types.DecodedPayForFibre) sdk.Context {
+	h := &types.CertKeyHolder{}
+	h.Set(d)
+	return types.WithCertKeyHolder(ctx, h)
 }

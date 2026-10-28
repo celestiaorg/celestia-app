@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ func TestRollbackSameCode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	before := runNode(t, cfg, NewAppServer, 8)
 	s := heights(t, cfg)[1]
@@ -51,6 +53,7 @@ func TestRollbackChangedCode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	before := runNode(t, cfg, NewAppServer, 8)
 	s := heights(t, cfg)[1]
@@ -65,7 +68,9 @@ func TestRollbackResumeAfterCrash(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	t.Run("core only", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		runNode(t, cfg, NewAppServer, 8)
 		s := heights(t, cfg)[1]
@@ -79,6 +84,7 @@ func TestRollbackResumeAfterCrash(t *testing.T) {
 	})
 
 	t.Run("app half rolled back", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		runNode(t, cfg, NewAppServer, 8)
 		s := heights(t, cfg)[1]
@@ -107,7 +113,9 @@ func TestRollbackPrunedState(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	t.Run("app versions", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		cfg.AppOptions.Set(server.FlagPruning, pruningtypes.PruningOptionCustom)
 		cfg.AppOptions.Set(server.FlagPruningKeepRecent, uint64(2))
@@ -120,6 +128,7 @@ func TestRollbackPrunedState(t *testing.T) {
 	})
 
 	t.Run("blocks", func(t *testing.T) {
+		t.Parallel()
 		cfg := newRollbackHome(t)
 		cfg.AppOptions.Set(server.FlagMinRetainBlocks, uint64(3))
 		// Snapshots off, so the snapshot window does not hold back block pruning.
@@ -137,6 +146,7 @@ func TestRollbackRefusesForeignAppVersion(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping rollback integration test in short mode")
 	}
+	t.Parallel()
 	cfg := newRollbackHome(t)
 	runNode(t, cfg, NewAppServer, 3)
 	saveStateAppVersion(t, cfg.TmConfig, appconsts.Version-1)
@@ -189,9 +199,16 @@ func runNode(t *testing.T, cfg *testnode.Config, creator servertypes.AppCreator,
 	return appHash
 }
 
+// rootCmdMu serializes building and running the root command, which writes
+// process-wide state (the global viper instance, cobra.OnInitialize and
+// package-level flag variables) and so races across parallel tests.
+var rootCmdMu sync.Mutex
+
 // runRollback runs the rollback command of celestia-appd on the node home.
 func runRollback(t *testing.T, cfg *testnode.Config, args ...string) error {
 	t.Helper()
+	rootCmdMu.Lock()
+	defer rootCmdMu.Unlock()
 	home := cfg.TmConfig.RootDir
 	root := NewRootCmd()
 	root.SetArgs(append([]string{"rollback", "--home", home}, args...))

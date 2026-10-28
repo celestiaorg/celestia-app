@@ -36,6 +36,7 @@ type MsgServerTestSuite struct {
 	suite.Suite
 
 	ctx           sdk.Context
+	storeKey      *storetypes.KVStoreKey
 	keeper        *keeper.Keeper
 	msgServer     types.MsgServer
 	cdc           codec.Codec
@@ -50,6 +51,7 @@ func TestMsgServerTestSuite(t *testing.T) {
 
 func (suite *MsgServerTestSuite) SetupTest() {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
+	suite.storeKey = storeKey
 	tkey := storetypes.NewTransientStoreKey("transient_test")
 
 	db := dbm.NewMemDB()
@@ -598,8 +600,8 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 	key := protoPromiseKey(suite.T(), &paymentPromise)
 
 	cache := newCountingSigCache()
-	// Signature verification reads no module state, so the store is never mounted.
-	k := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+	// Signature verification reads only the genesis height from module state.
+	k := keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
 
 	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
 		msg := &types.MsgPayForFibre{
@@ -1344,10 +1346,11 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 	suite.NoError(err)
 	val.ConsensusPubkey = anyPubKey
 
-	// Create historical info
+	// Staking records the set that signs block H under historical info H-1.
+	historicalHeight := suite.ctx.BlockHeight() - 1
 	historicalInfo := stakingtypes.HistoricalInfo{
 		Header: cmtproto.Header{
-			Height: suite.ctx.BlockHeight(),
+			Height: historicalHeight,
 			Time:   suite.ctx.BlockTime(),
 		},
 		Valset: []stakingtypes.Validator{val},
@@ -1360,7 +1363,7 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 
 	// Update mock to return this validator set
 	suite.stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		suite.ctx.BlockHeight(): historicalInfo,
+		historicalHeight: historicalInfo,
 	}
 }
 

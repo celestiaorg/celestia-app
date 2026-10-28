@@ -106,13 +106,17 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
+	// Staking records historical info before slashing and evidence run, so the
+	// entry for H holds the tokens and order of the set EndBlock(H-1) produced.
+	// That is the set CometBFT signs H+1 with, and x/fibre verifies certificates
+	// for H+1 against it by position; a slash in BeginBlock(H) must not reorder it.
 	beginBlockers := []string{
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
+		stakingtypes.ModuleName,
 		slashingtypes.ModuleName,
 		evidencetypes.ModuleName,
-		stakingtypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
 		genutiltypes.ModuleName,

@@ -229,6 +229,8 @@ type App struct {
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
 	checkStateMu *sync.RWMutex
+	// stateFixes repair committed state at set heights. See state_fixes.go.
+	stateFixes []StateFix
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -278,6 +280,7 @@ func New(
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
+		stateFixes:              stateFixes,
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -614,7 +617,14 @@ func (app *App) PreBlocker(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sd
 	// the transactions execute. Validator certificates are left out:
 	// FinalizeBlock never verifies them.
 	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{})
-	return app.ModuleManager.PreBlock(ctx)
+	res, err := app.ModuleManager.PreBlock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := app.applyStateFixes(ctx, req); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // BeginBlocker application updates every begin block

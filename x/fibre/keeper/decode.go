@@ -19,26 +19,18 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 // DerivePayForFibre is DecodePayForFibre for a caller that already holds the
 // non-nil message decoded from raw.
 func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
-	certKey, certKeyed := sigcache.Key{}, false
-	if key, err := msg.SigCacheKey(); err == nil {
-		certKey, certKeyed = key, true
-	}
-	d := decodedFrom(msg, certKey, certKeyed)
-	d.Raw = raw
+	certKey, err := msg.SigCacheKey()
+	d := DecodedFromMsg(msg, certKey)
+	d.Raw, d.CertKeyed = raw, err == nil
 	return d
 }
 
 // DecodedFromMsg builds the decoded view of a message the caller already holds,
 // around the certificate key it already derived: DecodePayForFibre without the
-// unmarshal. Raw stays nil, so it must never be attached to a context.
+// unmarshal. Raw stays nil, so it must never be attached to a context. The promise
+// sign bytes and key stay unset when the promise is too malformed to key.
 func DecodedFromMsg(msg *types.MsgPayForFibre, certKey sigcache.Key) *types.DecodedPayForFibre {
-	return decodedFrom(msg, certKey, true)
-}
-
-// decodedFrom builds the view around msg with the promise sign bytes and key, both
-// unset when the promise is too malformed to key (the sequential verifier reports it).
-func decodedFrom(msg *types.MsgPayForFibre, certKey sigcache.Key, certKeyed bool) *types.DecodedPayForFibre {
-	d := &types.DecodedPayForFibre{Msg: msg, CertKey: certKey, CertKeyed: certKeyed}
+	d := &types.DecodedPayForFibre{Msg: msg, CertKey: certKey, CertKeyed: true}
 	promise := &fibre.PaymentPromise{}
 	if err := promise.FromProto(&msg.PaymentPromise); err != nil || promise.SignerKey == nil {
 		return d

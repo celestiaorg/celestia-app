@@ -25,6 +25,7 @@ echo "$0 $*" >>"$STUB_LOG"
 case "$*" in
 version) echo 10.0.0 ;;
 *--dry-run*) ;;
+"snapshots list"*) printf 'height: 17 format: 3 chunks: 1\nheight: 19 format: 3 chunks: 1\n' >&2 ;;
 rollback*)
     if [ -f "$STUB_STATE/fail-once" ]; then
         rm "$STUB_STATE/fail-once"
@@ -105,6 +106,7 @@ new_node() {
 priv_validator_state_file = "data/priv_validator_state.json"
 priv_validator_laddr = ""
 EOF
+    echo 'halt-height = 0' >"$NODE_HOME/config/app.toml"
     echo '{"height":"20","round":0,"step":3}' >"$NODE_HOME/data/priv_validator_state.json"
     touch "$STUB_STATE/active" "$STUB_LOG"
 }
@@ -133,22 +135,28 @@ if grep -Eq '^systemctl (stop|start)|rollback .*--height 18$' "$STUB_LOG"; then
 fi
 grep -qxF "+ sudo systemctl stop celestia-appd" "$TMP/out.log" || fail "dry-run did not print the stop"
 grep -qxF "+ $APPD rollback --home $NODE_HOME --height 18" "$TMP/out.log" || fail "dry-run did not print the rollback"
+grep -qxF "snapshot cleanup skipped: the node is running" "$TMP/out.log" || fail "dry-run listed snapshots of a running node"
 
 # dry-run on a stopped node runs the rollback check.
 new_node
 rm "$STUB_STATE/active"
 recovery rollback --home "$NODE_HOME" --height 18 --dry-run || fail "dry-run on a stopped node failed"
 called "$APPD rollback --home $NODE_HOME --height 18 --dry-run" || fail "dry-run skipped the rollback check"
+grep -qxF "+ $APPD snapshots delete --home $NODE_HOME 19 3" "$TMP/out.log" || fail "dry-run did not print the snapshot delete"
+if grep -q 'snapshots delete' "$STUB_LOG"; then
+    fail "dry-run deleted a snapshot"
+fi
 
-# systemd: stop with sudo, check, roll back, start, verify.
+# systemd: stop with sudo, check, roll back, delete newer snapshots, start, verify.
 new_node
 recovery rollback --home "$NODE_HOME" --height 18 --check-height 19 --expect-app-hash abcd12 ||
     fail "systemd rollback failed"
-grep -E '^sudo |rollback' "$STUB_LOG" >"$TMP/order.log"
+grep -E '^sudo |rollback|snapshots delete' "$STUB_LOG" >"$TMP/order.log"
 cat >"$TMP/want.log" <<EOF
 sudo systemctl stop celestia-appd
 $APPD rollback --home $NODE_HOME --height 18 --dry-run
 $APPD rollback --home $NODE_HOME --height 18
+$APPD snapshots delete --home $NODE_HOME 19 3
 sudo systemctl start celestia-appd
 EOF
 diff "$TMP/want.log" "$TMP/order.log" || fail "systemd call order"
@@ -255,6 +263,14 @@ if recovery rollback --home "$NODE_HOME" --height 18; then
     fail "quoted config key accepted"
 fi
 grep -q "cannot parse config.toml" "$TMP/out.log" || fail "quoted key parse message"
+
+# halt-height and a kv tx index: warnings only.
+new_node
+printf 'halt-height = 25\nhalt-time = 0\n' >"$NODE_HOME/config/app.toml"
+echo 'indexer = "kv"' >>"$NODE_HOME/config/config.toml"
+recovery rollback --home "$NODE_HOME" --height 18 || fail "rollback with warnings failed"
+grep -qxF "warning: app.toml sets halt-height = 25; the node stops again there" "$TMP/out.log" || fail "halt-height warning"
+grep -q "kv tx index keeps results from before the rollback" "$TMP/out.log" || fail "kv index warning"
 
 # --height 0 means "current height - 1" to the binary, so it is refused.
 new_node

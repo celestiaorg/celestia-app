@@ -76,5 +76,5 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 ## Pull Requests
 
 - Follow [README.md#contributing](README.md#contributing) for review levels. Use the higher level when unsure and reassess if scope changes.
-- Include the title's review tag in the description with a brief reason, e.g., `Review level: [low] — documentation only.`
+- Don't repeat the review tag in the PR description; the title already carries it.
 - Keep PRs under 700 lines of code; propose independently reviewable splits for larger changes.

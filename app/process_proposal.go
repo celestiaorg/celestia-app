@@ -79,6 +79,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	var (
 		sdkMessageCount int
+		zkProofMsgCount int
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -93,8 +94,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		blobTxs = cached.blobTxs
 	}
 
-	// Decode every tx once, up front. Oversize txs are left to the loop, which
-	// rejects them without decoding.
+	// Decode blob txs and pick out PFF decode candidates up front. Oversize txs are
+	// left to the walk, which rejects them without decoding.
+	var decodeCandidates []int
 	for idx, rawTx := range req.Txs {
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
@@ -109,12 +111,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				blobTxs[idx] = decodedBlob
 			}
 		}
-	}
-	// Inspect the envelope before scheduling bounded SDK decoding. Certificate
-	// inputs are then derived from that same decoded message.
-	var decodeCandidates []int
-	for idx, rawTx := range req.Txs {
-		if len(rawTx) > appconsts.MaxTxSize || blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
+		if blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
 			continue
 		}
 
@@ -128,21 +125,21 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		decodeCandidates = append(decodeCandidates, idx)
 	}
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
-	decodeErrs := make([]error, len(req.Txs))
 	decoder := app.encodingConfig.TxConfig.TxDecoder()
 	waitDecode := forEachParallel(len(decodeCandidates), func(candidate int) {
 		idx := decodeCandidates[candidate]
-		sdkTxs[idx], decodeErrs[idx] = decoder(req.Txs[idx])
-		if decodeErrs[idx] != nil {
+		sdkTx, err := decoder(req.Txs[idx])
+		if err != nil {
 			return
 		}
-		if msg := fibretypes.PayForFibreMsg(sdkTxs[idx]); msg != nil {
+		sdkTxs[idx] = sdkTx
+		if msg := fibretypes.PayForFibreMsg(sdkTx); msg != nil {
 			decoded[idx] = fibrekeeper.DerivePayForFibre(req.Txs[idx], msg)
 		}
 		// Prime the SDK wrapper's lazy signer cache while each tx has one worker; ante still
 		// reports any signer error or panic in block order.
 		defer func() { _ = recover() }()
-		if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
+		if sigTx, ok := sdkTx.(authsigning.SigVerifiableTx); ok {
 			_, _ = sigTx.GetSigners()
 		}
 	})
@@ -155,27 +152,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	// Gated on candidates, not on prepared fibre work: with every certificate cached the
-	// fibre pass prepares nothing, but tx signatures still need warming.
-	if len(decodeCandidates) > 0 {
-		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
-	}
+	ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	if verifyPFF != nil {
-		// The pass's workers recover their own panics; re-raise any other after the walk
-		// so the recover above still rejects the block.
-		var verifyPanic any
-		verifyDone := make(chan struct{})
-		go func() {
-			defer close(verifyDone)
-			defer func() { verifyPanic = recover() }()
-			verifyPFF()
-		}()
-		defer func() {
-			<-verifyDone
-			if verifyPanic != nil {
-				panic(verifyPanic)
-			}
-		}()
+		// Runs alongside the walk; a panic is re-raised after it, so the recover above rejects the block.
+		waitVerify := goWait(verifyPFF)
+		defer waitVerify()
 	}
 
 	// One holder for the whole walk, so the context does not grow by a value
@@ -187,19 +168,18 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// during the walk; a cache hit already has it.
 	var (
 		square       proposalSquareResult
-		squareDone   = make(chan struct{})
 		squareCancel atomic.Bool
+		waitSquare   func()
 	)
 	if cached == nil {
-		go func() {
-			defer close(squareDone)
+		waitSquare = goWait(func() {
 			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
-		}()
+		})
 		defer func() {
 			// Cancel before waiting, so a proposal rejected at its first
 			// tx does not pay for a whole square first.
 			squareCancel.Store(true)
-			<-squareDone
+			waitSquare()
 		}()
 	}
 
@@ -224,7 +204,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 
 		// Pay-for-fibre txs were decoded above; every other tx is decoded here.
-		sdkTx, err := sdkTxs[idx], decodeErrs[idx]
+		sdkTx := sdkTxs[idx]
+		var err error
 		if decoded[idx] == nil {
 			sdkTx, err = decoder(sdkTxBytes)
 		}
@@ -265,6 +246,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
+				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				if zkProofMsgCount > appconsts.MaxZKProofMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
+					return reject(), nil
+				}
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
@@ -342,16 +328,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	<-squareDone
+	waitSquare()
 	if square.err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build proposal square", square.err)
 		return reject(), nil
 	}
 
-	// Assert that the square size stated by the proposer is correct. Compare
-	// the halved EDS width rather than the doubled proposer value: doubling an
-	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
-	// otherwise be indistinguishable.
+	// Assert that the square size stated by the proposer is correct.
 	if square.size != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
 		return reject(), nil
@@ -394,6 +377,11 @@ func forEachParallel(n int, fn func(i int)) (wait func()) {
 			panic(*r)
 		}
 	}
+}
+
+// goWait runs fn on its own goroutine; wait blocks until fn returns and re-raises its panic.
+func goWait(fn func()) (wait func()) {
+	return forEachParallel(1, func(int) { fn() })
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
