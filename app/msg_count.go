@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -51,13 +52,16 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 }
 
 // txGasLimit returns the gas limit tx declares, which caps the gas its
-// execution can consume. ok is false if tx declares none; ante rejects it.
+// execution can consume. ok is false if tx is not a protobuf tx; ante rejects
+// it. It reads the fee through the nil safe proto getters because it runs
+// before ante, and FeeTx.GetGas panics on a tx without AuthInfo or Fee. Such a
+// tx reports zero gas here and ante rejects it.
 func txGasLimit(tx sdk.Tx) (gas uint64, ok bool) {
-	feeTx, ok := tx.(sdk.FeeTx)
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
 	if !ok {
 		return 0, false
 	}
-	return feeTx.GetGas(), true
+	return protoTx.GetProtoTx().GetAuthInfo().GetFee().GetGasLimit(), true
 }
 
 // fitsSDKGas reports whether a tx with gas limit txGas fits a block whose txs

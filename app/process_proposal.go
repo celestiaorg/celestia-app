@@ -254,7 +254,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				}
 				txGas, ok := txGasLimit(sdkTx)
 				if !ok {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d declares no gas limit", idx))
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not a protobuf tx", idx))
 					return reject(), nil
 				}
 				if !fitsSDKGas(sdkGas, txGas) {
