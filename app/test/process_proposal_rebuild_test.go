@@ -16,25 +16,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProcessProposalRebuildsSquareAfterReverts checks ProcessProposal accepts a
-// proposal built through each revert path, on both the reuse and rebuild paths.
-func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
+// TestProcessProposalRebuildsSquareAfterDrops checks ProcessProposal accepts a
+// proposal built through each path that drops a tx after it fit the square, on
+// both the reuse and rebuild paths.
+func TestProcessProposalRebuildsSquareAfterDrops(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// Every tx fits the square and the message caps, so the only way to drop
-	// the second one is an append followed by a revert.
+	// the second one is the ante handler or settlement rejecting it after Fits.
 	tests := []struct {
-		name   string
-		revert string
-		txs    func(t *testing.T, testApp *app.App, kr keyring.Keyring, accounts []string, newSigner func(int) *user.Signer) [][]byte
+		name string
+		drop string
+		txs  func(t *testing.T, testApp *app.App, kr keyring.Keyring, accounts []string, newSigner func(int) *user.Signer) [][]byte
 	}{
 		{
-			name:   "normal tx reverted after the ante handler rejects it",
-			revert: "RevertLastTx",
+			name: "normal tx dropped after the ante handler rejects it",
+			drop: "ante handler",
 			txs: func(t *testing.T, testApp *app.App, kr keyring.Keyring, accounts []string, _ func(int) *user.Signer) [][]byte {
 				seq, num := accountSequence(testApp, kr, accounts[0])
 				// The second tx skips a sequence number, so the ante handler
-				// rejects it after AppendTx has already placed it.
+				// rejects it after Fits has accepted it.
 				send := func(sequence uint64) []byte {
 					const gasLimit = 200_000
 					fee := uint64(float64(gasLimit)*appconsts.DefaultMinGasPrice) + 1
@@ -45,8 +46,8 @@ func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 			},
 		},
 		{
-			name:   "blob tx reverted after the ante handler rejects it",
-			revert: "RevertLastBlobTx",
+			name: "blob tx dropped after the ante handler rejects it",
+			drop: "ante handler",
 			txs: func(t *testing.T, testApp *app.App, kr keyring.Keyring, accounts []string, _ func(int) *user.Signer) [][]byte {
 				seq, num := accountSequence(testApp, kr, accounts[0])
 				return [][]byte{
@@ -56,11 +57,11 @@ func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 			},
 		},
 		{
-			name:   "pay-for-fibre tx reverted after settlement fails",
-			revert: "RevertLastPayForFibreTx",
+			name: "pay-for-fibre tx dropped after settlement fails",
+			drop: "settlement",
 			txs: func(t *testing.T, testApp *app.App, kr keyring.Keyring, accounts []string, newSigner func(int) *user.Signer) [][]byte {
 				// Fund exactly one payment, so the second promise overdraws the
-				// escrow and settlement fails after AppendFibreTx succeeded.
+				// escrow and settlement fails after Fits accepted it.
 				payment := fibretypes.PaymentAmount(100).Amount.Int64()
 				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
 				base := time.Now()
@@ -91,9 +92,9 @@ func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// The revert fired. If this ever reports 2, the case has stopped
-			// exercising tc.revert.
-			require.Len(t, prepared.Txs, 1, "second tx must be dropped via %s", tc.revert)
+			// The drop fired. If this ever reports 2, the case has stopped
+			// exercising tc.drop.
+			require.Len(t, prepared.Txs, 1, "second tx must be dropped by the %s", tc.drop)
 			require.Equal(t, txs[0], prepared.Txs[0])
 
 			process := func() abci.ResponseProcessProposal_ProposalStatus {
@@ -111,7 +112,7 @@ func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(),
 				"reuse path must accept the block the proposer built")
 			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(),
-				"rebuild path must derive the same square and data root after %s", tc.revert)
+				"rebuild path must derive the same square and data root after a %s drop", tc.drop)
 		})
 	}
 }

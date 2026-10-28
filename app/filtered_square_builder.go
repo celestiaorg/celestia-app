@@ -161,7 +161,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		if !fsb.builder.AppendTx(tx) {
+		fits, err := fsb.builder.Fits(square.NewClassifiedTx(tx))
+		if err != nil {
+			logger.Debug("skipping tx due to error", "tx", lazyTxHash(tx), "err", err)
+			continue
+		}
+		if !fits {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(tx))
 			continue
 		}
@@ -181,10 +186,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 				"msgs", msgTypes(sdkTx),
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
-			err = fsb.builder.RevertLastTx()
-			if err != nil {
-				logger.Error("reverting last transaction", "error", err)
-			}
+			continue
+		}
+		// Fits ran on the same builder state, so this append succeeds.
+		if !fsb.builder.AppendTx(tx) {
+			logger.Error("appending tx that fit the square", "tx", lazyTxHash(tx))
 			continue
 		}
 		commit()
@@ -241,12 +247,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			}
 		}
 
-		ok, err := fsb.builder.AppendBlobTx(bTx)
+		fits, err := fsb.builder.Fits(square.ClassifiedTx{Bytes: rawTx, BlobTx: bTx})
 		if err != nil {
 			logger.Debug("skipping blob tx due to error", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
-		if !ok {
+		if !fits {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(bTx.Tx))
 			continue
 		}
@@ -261,10 +267,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 				"filtering already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
-			err = fsb.builder.RevertLastBlobTx()
-			if err != nil {
-				logger.Error("reverting last blob transaction failed", "error", err)
-			}
+			continue
+		}
+		// Fits ran on the same builder state, so this append succeeds.
+		if ok, err := fsb.builder.AppendBlobTx(bTx); err != nil || !ok {
+			logger.Error("appending blob tx that fit the square", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
 		commit()
@@ -482,12 +489,12 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		txCtx = txCtx.WithTxBytes(rawTx)
 		certKeys.Set(entry.decoded)
 
-		ok, err := fsb.builder.AppendFibreTx(fibreTx)
+		fits, err := fsb.builder.Fits(square.ClassifiedTx{Bytes: rawTx, FibreTx: fibreTx})
 		if err != nil {
-			logger.Error("appending pay-for-fibre transaction to builder", "tx", lazyTxHash(rawTx), "error", err)
+			logger.Error("sizing pay-for-fibre transaction", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
-		if !ok {
+		if !fits {
 			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", lazyTxHash(rawTx))
 			continue
 		}
@@ -501,9 +508,6 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 				"msgs", msgTypes(sdkTx),
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_pay_for_fibre_txs")
-			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
-				logger.Error("reverting last pay-for-fibre transaction", "error", revertErr)
-			}
 			continue
 		}
 
@@ -519,9 +523,11 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 				"error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "unsettleable_pay_for_fibre_txs")
-			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
-				logger.Error("reverting last pay-for-fibre transaction", "error", revertErr)
-			}
+			continue
+		}
+		// Fits ran on the same builder state, so this append succeeds.
+		if ok, err := fsb.builder.AppendFibreTx(fibreTx); err != nil || !ok {
+			logger.Error("appending pay-for-fibre transaction that fit the square", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
 		commit()
