@@ -21,7 +21,14 @@ func applyV11FromFibreV1(t *testing.T, testApp *app.App, ctx sdk.Context) error 
 	require.NoError(t, err)
 	versions[fibretypes.ModuleName] = 1
 	require.NoError(t, testApp.UpgradeKeeper.SetModuleVersionMap(ctx, versions))
-	return testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()})
+	// Like FinalizeBlock, commit the enclosing context only if the upgrade
+	// succeeds. The migration must not allocate its own full-state cache.
+	upgradeCtx, write := ctx.CacheContext()
+	if err := testApp.UpgradeKeeper.ApplyUpgrade(upgradeCtx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}); err != nil {
+		return err
+	}
+	write()
+	return nil
 }
 
 func fundFibreModule(t *testing.T, testApp *app.App, ctx sdk.Context, coins sdk.Coins) {
@@ -106,11 +113,15 @@ func TestV11UpgradeMigratesFibreEscrows(t *testing.T) {
 
 func TestV11FibreMigrationRollsBackRefunds(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	ctx := testApp.NewContext(false).WithBlockHeight(1).WithBlockTime(util.GenesisTime.Add(time.Hour))
 	owners := []sdk.AccAddress{bytes.Repeat([]byte{1}, 20), bytes.Repeat([]byte{2}, 20)}
 	for _, owner := range owners {
 		testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{
-			Signer: owner.String(), Balance: sdk.NewInt64Coin("stake", 50), AvailableBalance: sdk.NewInt64Coin("stake", 50),
+			Signer: owner.String(), Balance: sdk.NewInt64Coin("stake", 50), AvailableBalance: sdk.NewInt64Coin("stake", 40),
+		})
+		testApp.FibreKeeper.SetWithdrawal(ctx, fibretypes.Withdrawal{
+			Signer: owner.String(), Amount: sdk.NewInt64Coin("stake", 10),
+			RequestedTimestamp: ctx.BlockTime(), AvailableTimestamp: ctx.BlockTime().Add(time.Hour),
 		})
 	}
 	// The second refund fails after the first one has succeeded in the cache.

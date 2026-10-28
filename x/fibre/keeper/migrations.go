@@ -23,123 +23,186 @@ func NewMigrator(keeper Keeper) Migrator {
 // and utia-only messages. Unsupported denominations are refunded in full;
 // pending withdrawals are part of Balance, so they must not be paid separately.
 func (m Migrator) Migrate1to2(ctx sdk.Context) error {
-	ctx, write := ctx.CacheContext()
-	k := m.keeper
-	accounts, withdrawals, err := m.legacyEscrows(ctx)
-	if err != nil {
+	// The upgrade runs in the block's cached context. On error the caller must
+	// discard that context; another full-state cache here doubles memory use.
+	if err := m.validateLegacyEscrows(ctx); err != nil {
 		return err
 	}
-
-	// Remove the old keys before rebuilding: a canonical key may already exist
-	// for the same owner. All iterators have been closed before any writes.
-	for _, account := range accounts {
-		k.DeleteEscrowAccount(ctx, account.Signer)
-	}
-	for _, withdrawal := range withdrawals {
-		k.DeleteWithdrawal(ctx, withdrawal)
-	}
-	for _, account := range accounts {
-		addr, err := sdk.AccAddressFromBech32(account.Signer)
+	k := m.keeper
+	// Remove unsupported records before canonicalizing: a lowercase key may
+	// contain an unsupported denomination while its uppercase alias holds utia.
+	for _, normalize := range []bool{false, true} {
+		err := m.walkLegacyRecords(ctx, types.WithdrawalsBySignerKeyPrefix, storetypes.PrefixEndBytes(types.WithdrawalsBySignerKeyPrefix), func(_, value []byte) error {
+			var withdrawal types.Withdrawal
+			if err := k.cdc.Unmarshal(value, &withdrawal); err != nil {
+				return err
+			}
+			if withdrawal.Amount.Denom != appconsts.BondDenom {
+				if !normalize {
+					k.DeleteWithdrawal(ctx, withdrawal)
+				}
+				return nil // Refunded with the owning escrow's total balance.
+			}
+			if !normalize {
+				return nil
+			}
+			addr, err := sdk.AccAddressFromBech32(withdrawal.Signer)
+			if err != nil {
+				return err
+			}
+			if withdrawal.Signer == addr.String() {
+				return nil
+			}
+			k.DeleteWithdrawal(ctx, withdrawal)
+			withdrawal.Signer = addr.String()
+			if existing, found := k.GetWithdrawal(ctx, withdrawal.Signer, withdrawal.RequestedTimestamp); found {
+				withdrawal.Amount.Amount, err = existing.Amount.Amount.SafeAdd(withdrawal.Amount.Amount)
+				if err != nil {
+					return fmt.Errorf("merge fibre withdrawal amount: %w", err)
+				}
+				// Neither request may become available early after a merge.
+				if existing.AvailableTimestamp.After(withdrawal.AvailableTimestamp) {
+					withdrawal.AvailableTimestamp = existing.AvailableTimestamp
+				}
+				k.DeleteWithdrawal(ctx, existing)
+			}
+			k.SetWithdrawal(ctx, withdrawal)
+			return nil
+		})
 		if err != nil {
 			return err
 		}
-		if account.Balance.Denom != appconsts.BondDenom {
-			if account.Balance.IsPositive() {
-				if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, addr, sdk.NewCoins(account.Balance)); err != nil {
-					return fmt.Errorf("refund fibre escrow %s: %w", account.Signer, err)
+	}
+	for _, normalize := range []bool{false, true} {
+		err := m.walkLegacyRecords(ctx, types.EscrowAccountKeyPrefix, storetypes.PrefixEndBytes(types.EscrowAccountKeyPrefix), func(_, value []byte) error {
+			var account types.EscrowAccount
+			if err := k.cdc.Unmarshal(value, &account); err != nil {
+				return err
+			}
+			if account.Balance.Denom == appconsts.BondDenom && !normalize {
+				return nil
+			}
+			addr, err := sdk.AccAddressFromBech32(account.Signer)
+			if err != nil {
+				return err
+			}
+			if account.Balance.Denom != appconsts.BondDenom {
+				if account.Balance.IsPositive() {
+					if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, addr, sdk.NewCoins(account.Balance)); err != nil {
+						return fmt.Errorf("refund fibre escrow %s: %w", account.Signer, err)
+					}
+				}
+				k.DeleteEscrowAccount(ctx, account.Signer)
+				return nil
+			}
+			if account.Signer == addr.String() {
+				return nil
+			}
+			k.DeleteEscrowAccount(ctx, account.Signer)
+			account.Signer = addr.String()
+			if existing, found := k.GetEscrowAccount(ctx, account.Signer); found {
+				account.Balance.Amount, err = existing.Balance.Amount.SafeAdd(account.Balance.Amount)
+				if err != nil {
+					return fmt.Errorf("merge fibre escrow balance: %w", err)
+				}
+				account.AvailableBalance.Amount, err = existing.AvailableBalance.Amount.SafeAdd(account.AvailableBalance.Amount)
+				if err != nil {
+					return fmt.Errorf("merge fibre available balance: %w", err)
 				}
 			}
-			continue
-		}
-		account.Signer = addr.String()
-		if existing, found := k.GetEscrowAccount(ctx, account.Signer); found {
-			account.Balance.Amount, err = existing.Balance.Amount.SafeAdd(account.Balance.Amount)
-			if err != nil {
-				return fmt.Errorf("merge fibre escrow balance: %w", err)
-			}
-			account.AvailableBalance.Amount, err = existing.AvailableBalance.Amount.SafeAdd(account.AvailableBalance.Amount)
-			if err != nil {
-				return fmt.Errorf("merge fibre available balance: %w", err)
-			}
-		}
-		k.SetEscrowAccount(ctx, account)
-	}
-	for _, withdrawal := range withdrawals {
-		if withdrawal.Amount.Denom != appconsts.BondDenom {
-			continue // Refunded with the owning escrow's total balance above.
-		}
-		addr, err := sdk.AccAddressFromBech32(withdrawal.Signer)
+			k.SetEscrowAccount(ctx, account)
+			return nil
+		})
 		if err != nil {
 			return err
 		}
-		withdrawal.Signer = addr.String()
-		if existing, found := k.GetWithdrawal(ctx, withdrawal.Signer, withdrawal.RequestedTimestamp); found {
-			withdrawal.Amount.Amount, err = existing.Amount.Amount.SafeAdd(withdrawal.Amount.Amount)
-			if err != nil {
-				return fmt.Errorf("merge fibre withdrawal amount: %w", err)
-			}
-			// Aliases can have requests at the same block time with different
-			// delays. Keep the later deadline so neither request pays early.
-			if existing.AvailableTimestamp.After(withdrawal.AvailableTimestamp) {
-				withdrawal.AvailableTimestamp = existing.AvailableTimestamp
-			}
-			k.DeleteWithdrawal(ctx, existing)
-		}
-		k.SetWithdrawal(ctx, withdrawal)
 	}
-	write()
 	return nil
 }
 
-// legacyEscrows snapshots the two primary indexes in store order. Validate
-// legacy state before coin arithmetic, and never mutate an open iterator's range.
-func (m Migrator) legacyEscrows(ctx sdk.Context) ([]types.EscrowAccount, []types.Withdrawal, error) {
+// walkLegacyRecords closes each iterator before processing its fixed-size batch.
+// Resume after the last original key even when the visitor deletes or moves it.
+func (m Migrator) walkLegacyRecords(ctx sdk.Context, start, end []byte, visit func(key, value []byte) error) error {
+	const batchSize = 128
+	type record struct{ key, value []byte }
 	store := ctx.KVStore(m.keeper.storeKey)
-	var accounts []types.EscrowAccount
-	var withdrawals []types.Withdrawal
-	iterator := store.Iterator(types.EscrowAccountKeyPrefix, storetypes.PrefixEndBytes(types.WithdrawalsBySignerKeyPrefix))
-	defer iterator.Close()
-	for ; iterator.Valid(); iterator.Next() {
+	for {
+		batch := make([]record, 0, batchSize)
+		iterator := store.Iterator(start, end)
+		for ; iterator.Valid() && len(batch) < batchSize; iterator.Next() {
+			batch = append(batch, record{bytes.Clone(iterator.Key()), bytes.Clone(iterator.Value())})
+		}
+		// SDK cache iterators report Error at normal exhaustion; Close is
+		// the error boundary used by store traversal throughout the keeper.
+		if err := iterator.Close(); err != nil {
+			return err
+		}
+		if len(batch) == 0 {
+			return nil
+		}
+		for _, entry := range batch {
+			if err := visit(entry.key, entry.value); err != nil {
+				return err
+			}
+		}
+		start = batch[len(batch)-1].key
+		start = append(start, 0)
+	}
+}
+
+// validateLegacyEscrows checks primary indexes before making any changes.
+func (m Migrator) validateLegacyEscrows(ctx sdk.Context) error {
+	store := ctx.KVStore(m.keeper.storeKey)
+	return m.walkLegacyRecords(ctx, types.EscrowAccountKeyPrefix, storetypes.PrefixEndBytes(types.WithdrawalsBySignerKeyPrefix), func(key, value []byte) error {
 		switch {
-		case bytes.HasPrefix(iterator.Key(), types.EscrowAccountKeyPrefix):
+		case bytes.HasPrefix(key, types.EscrowAccountKeyPrefix):
 			var account types.EscrowAccount
-			if err := m.keeper.cdc.Unmarshal(iterator.Value(), &account); err != nil {
-				return nil, nil, fmt.Errorf("decode legacy fibre escrow: %w", err)
+			if err := m.keeper.cdc.Unmarshal(value, &account); err != nil {
+				return fmt.Errorf("decode legacy fibre escrow: %w", err)
 			}
 			if _, err := sdk.AccAddressFromBech32(account.Signer); err != nil {
-				return nil, nil, fmt.Errorf("invalid legacy fibre escrow signer: %w", err)
+				return fmt.Errorf("invalid legacy fibre escrow signer: %w", err)
 			}
-			if !bytes.Equal(iterator.Key(), types.EscrowAccountKey(account.Signer)) ||
+			if !bytes.Equal(key, types.EscrowAccountKey(account.Signer)) ||
 				!account.Balance.IsValid() || !account.AvailableBalance.IsValid() ||
 				account.Balance.Denom != account.AvailableBalance.Denom ||
 				account.AvailableBalance.Amount.GT(account.Balance.Amount) {
-				return nil, nil, fmt.Errorf("invalid legacy fibre escrow %s", account.Signer)
+				return fmt.Errorf("invalid legacy fibre escrow %s", account.Signer)
 			}
-			accounts = append(accounts, account)
-		case bytes.HasPrefix(iterator.Key(), types.WithdrawalsBySignerKeyPrefix):
+		case bytes.HasPrefix(key, types.WithdrawalsBySignerKeyPrefix):
 			var withdrawal types.Withdrawal
-			if err := m.keeper.cdc.Unmarshal(iterator.Value(), &withdrawal); err != nil {
-				return nil, nil, fmt.Errorf("decode legacy fibre withdrawal: %w", err)
+			if err := m.keeper.cdc.Unmarshal(value, &withdrawal); err != nil {
+				return fmt.Errorf("decode legacy fibre withdrawal: %w", err)
 			}
 			if _, err := sdk.AccAddressFromBech32(withdrawal.Signer); err != nil {
-				return nil, nil, fmt.Errorf("invalid legacy fibre withdrawal signer: %w", err)
+				return fmt.Errorf("invalid legacy fibre withdrawal signer: %w", err)
 			}
 			if !withdrawal.Amount.IsValid() || !withdrawal.Amount.IsPositive() ||
 				withdrawal.RequestedTimestamp.IsZero() || withdrawal.AvailableTimestamp.Before(withdrawal.RequestedTimestamp) ||
-				!bytes.Equal(iterator.Key(), types.WithdrawalsBySignerKey(withdrawal.Signer, withdrawal.RequestedTimestamp)) {
-				return nil, nil, fmt.Errorf("invalid legacy fibre withdrawal for %s", withdrawal.Signer)
+				!bytes.Equal(key, types.WithdrawalsBySignerKey(withdrawal.Signer, withdrawal.RequestedTimestamp)) {
+				return fmt.Errorf("invalid legacy fibre withdrawal for %s", withdrawal.Signer)
 			}
 			// Withdrawals must belong to an escrow of the same denomination;
 			// otherwise dropping a non-utia request could strand reserved utia.
 			var account types.EscrowAccount
-			if err := m.keeper.cdc.Unmarshal(store.Get(types.EscrowAccountKey(withdrawal.Signer)), &account); err != nil {
-				return nil, nil, fmt.Errorf("decode withdrawal's fibre escrow: %w", err)
+			// A point iterator avoids populating the SDK read cache with every
+			// unchanged canonical account referenced by a withdrawal.
+			accountKey := types.EscrowAccountKey(withdrawal.Signer)
+			iterator := store.Iterator(accountKey, append(bytes.Clone(accountKey), 0))
+			var accountBytes []byte
+			if iterator.Valid() {
+				accountBytes = bytes.Clone(iterator.Value())
+			}
+			if err := iterator.Close(); err != nil {
+				return err
+			}
+			if err := m.keeper.cdc.Unmarshal(accountBytes, &account); err != nil {
+				return fmt.Errorf("decode withdrawal's fibre escrow: %w", err)
 			}
 			if account.Balance.Denom != withdrawal.Amount.Denom {
-				return nil, nil, fmt.Errorf("legacy fibre withdrawal denomination does not match escrow for %s", withdrawal.Signer)
+				return fmt.Errorf("legacy fibre withdrawal denomination does not match escrow for %s", withdrawal.Signer)
 			}
-			withdrawals = append(withdrawals, withdrawal)
 		}
-	}
-	return accounts, withdrawals, nil
+		return nil
+	})
 }

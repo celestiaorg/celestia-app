@@ -2,8 +2,11 @@ package keeper_test
 
 import (
 	"bytes"
+	"context"
+	"encoding/binary"
 	"math/big"
 	"strings"
+	"testing"
 	"time"
 
 	"cosmossdk.io/math"
@@ -11,7 +14,156 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/require"
 )
+
+// Track the storage contract rather than heap measurements: no nested cache,
+// bounded iterator reads, and no writes while an iterator is open.
+type migrationMultiStore struct {
+	storetypes.MultiStore
+	store *migrationKVStore
+}
+
+func (s migrationMultiStore) GetKVStore(key storetypes.StoreKey) storetypes.KVStore {
+	if key.Name() == types.StoreKey {
+		return s.store
+	}
+	return s.MultiStore.GetKVStore(key)
+}
+
+func (s migrationMultiStore) CacheMultiStore() storetypes.CacheMultiStore {
+	s.store.t.Fatal("migration must use the enclosing upgrade context, without another full-state cache")
+	return nil
+}
+
+type migrationKVStore struct {
+	storetypes.KVStore
+	t      *testing.T
+	open   int
+	writes int
+	gets   int
+}
+
+func (s *migrationKVStore) Get(key []byte) []byte {
+	s.gets++
+	return s.KVStore.Get(key)
+}
+
+func (s *migrationKVStore) Set(key, value []byte) {
+	require.Zero(s.t, s.open, "close iterators before writing")
+	s.writes++
+	s.KVStore.Set(key, value)
+}
+
+func (s *migrationKVStore) Delete(key []byte) {
+	require.Zero(s.t, s.open, "close iterators before deleting")
+	s.writes++
+	s.KVStore.Delete(key)
+}
+
+func (s *migrationKVStore) Iterator(start, end []byte) storetypes.Iterator {
+	s.open++
+	return &migrationIterator{Iterator: s.KVStore.Iterator(start, end), store: s}
+}
+
+type migrationIterator struct {
+	storetypes.Iterator
+	store *migrationKVStore
+	reads int
+}
+
+func (i *migrationIterator) Next() {
+	i.reads++
+	require.LessOrEqual(i.store.t, i.reads, 128, "buffer at most one fixed-size batch")
+	i.Iterator.Next()
+}
+
+func (i *migrationIterator) Close() error {
+	i.store.open--
+	return i.Iterator.Close()
+}
+
+func (suite *KeeperTestSuite) TestMigrateEscrowsBoundedCanonicalState() {
+	suite.ctx, _ = suite.ctx.CacheContext()
+	for n := range uint64(300) {
+		addr := make([]byte, 20)
+		binary.BigEndian.PutUint64(addr, n)
+		signer := sdk.AccAddress(addr).String()
+		balance := int64(n % 2)
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer: signer, Balance: sdk.NewInt64Coin("utia", balance), AvailableBalance: sdk.NewInt64Coin("utia", 0),
+		})
+		if balance > 0 {
+			suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
+				Signer: signer, Amount: sdk.NewInt64Coin("utia", balance),
+				RequestedTimestamp: suite.ctx.BlockTime(), AvailableTimestamp: suite.ctx.BlockTime().Add(time.Hour),
+			})
+		}
+	}
+	store := &migrationKVStore{KVStore: suite.ctx.KVStore(suite.storeKey), t: suite.T()}
+	ctx := suite.ctx.WithMultiStore(migrationMultiStore{MultiStore: suite.ctx.MultiStore(), store: store})
+	suite.Require().NoError(keeper.NewMigrator(*suite.keeper).Migrate1to2(ctx))
+	suite.Zero(store.open)
+	suite.Zero(store.writes, "canonical accounts and withdrawals must not be rewritten")
+	suite.Zero(store.gets, "validation must not retain canonical records in the SDK read cache")
+}
+
+func (suite *KeeperTestSuite) TestMigrateEscrowsAcrossBatches() {
+	suite.ctx, _ = suite.ctx.CacheContext()
+	refunds := make(map[string]int)
+	suite.bankKeeper.(*MockBankKeeper).SendCoinsFromModuleToAccountFn = func(_ context.Context, module string, owner sdk.AccAddress, coins sdk.Coins) error {
+		suite.Equal(types.ModuleName, module)
+		suite.Equal(sdk.NewCoins(sdk.NewInt64Coin("stake", 20)), coins)
+		refunds[owner.String()]++
+		return nil
+	}
+	signers := make([]string, 0, 300)
+	requested := suite.ctx.BlockTime()
+	for n := range uint64(300) {
+		addr := make([]byte, 20)
+		binary.BigEndian.PutUint64(addr, n)
+		lower := sdk.AccAddress(addr).String()
+		signers = append(signers, lower)
+		for index, signer := range []string{lower, strings.ToUpper(lower)} {
+			denom, balance, reserved := "utia", int64(10), int64(1)
+			if uint64(index) == n%2 {
+				denom, balance, reserved = "stake", 20, 2
+			}
+			suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+				Signer: signer, Balance: sdk.NewInt64Coin(denom, balance), AvailableBalance: sdk.NewInt64Coin(denom, balance-reserved),
+			})
+			suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
+				Signer: signer, Amount: sdk.NewInt64Coin(denom, reserved),
+				RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour),
+			})
+		}
+	}
+	store := &migrationKVStore{KVStore: suite.ctx.KVStore(suite.storeKey), t: suite.T()}
+	ctx := suite.ctx.WithMultiStore(migrationMultiStore{MultiStore: suite.ctx.MultiStore(), store: store})
+	suite.Require().NoError(keeper.NewMigrator(*suite.keeper).Migrate1to2(ctx))
+	suite.Zero(store.open)
+	for _, signer := range signers {
+		account, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+		suite.Require().True(found)
+		suite.Equal(sdk.NewInt64Coin("utia", 10), account.Balance)
+		suite.Equal(sdk.NewInt64Coin("utia", 9), account.AvailableBalance)
+		withdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, signer, requested)
+		suite.Require().True(found)
+		suite.Equal(sdk.NewInt64Coin("utia", 1), withdrawal.Amount)
+		suite.Equal(1, refunds[signer])
+		_, found = suite.keeper.GetEscrowAccount(suite.ctx, strings.ToUpper(signer))
+		suite.False(found)
+		suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, strings.ToUpper(signer)))
+	}
+	genesis := suite.keeper.ExportGenesis(suite.ctx)
+	suite.Len(genesis.Withdrawals, len(signers))
+	suite.Require().NoError(genesis.Validate())
+	suite.Require().NoError(keeper.NewMigrator(*suite.keeper).Migrate1to2(ctx))
+	suite.Equal(genesis, suite.keeper.ExportGenesis(suite.ctx))
+	for _, count := range refunds {
+		suite.Equal(1, count, "retry must not refund twice")
+	}
+}
 
 func (suite *KeeperTestSuite) TestMigrateEscrowsUppercaseOnly() {
 	lower := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()
@@ -96,7 +248,9 @@ func (suite *KeeperTestSuite) TestMigrateEscrowsRejectsInvalidState() {
 			suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: lower, Balance: sdk.NewInt64Coin("utia", 10), AvailableBalance: sdk.NewInt64Coin("utia", 10)})
 			tc.mutate()
 			before := migrationStoreSnapshot(suite.ctx.KVStore(suite.storeKey))
-			suite.Error(keeper.NewMigrator(*suite.keeper).Migrate1to2(suite.ctx))
+			// Failed upgrades discard their enclosing block context.
+			ctx, _ := suite.ctx.CacheContext()
+			suite.Error(keeper.NewMigrator(*suite.keeper).Migrate1to2(ctx))
 			suite.Equal(before, migrationStoreSnapshot(suite.ctx.KVStore(suite.storeKey)))
 		})
 	}
