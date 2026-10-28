@@ -283,7 +283,7 @@ func TestMergeConfigPreservesOrder(t *testing.T) {
 func TestSyncFibreConfigFile(t *testing.T) {
 	// Fibre rejects unknown keys on load, so the fixture only uses real ones.
 	original := []byte("# operator\nserver_listen_address = '0.0.0.0:9999' # custom\n")
-	wantAdded := []string{"app_grpc_address", "max_connections", "object_storage.bucket"}
+	wantAdded := []string{"app_grpc_address", "max_connections_per_ip", "object_storage.bucket"}
 	reference, err := renderFibreConfig()
 	require.NoError(t, err)
 	path := filepath.Join(t.TempDir(), fibre.DefaultConfigFileName)
@@ -309,7 +309,7 @@ func TestSyncFibreConfigFile(t *testing.T) {
 	t.Log("file gains the missing keys; existing comments, values and permissions are kept")
 	data, err = os.ReadFile(path)
 	require.NoError(t, err)
-	require.Contains(t, string(data), "\nmax_connections = ", "added key should be written to the file")
+	require.Contains(t, string(data), "\nmax_connections_per_ip = ", "added key should be written to the file")
 	require.Contains(t, string(data), "# UnlimitedBudget disables", "added key should carry its documentation")
 	require.Contains(t, string(data), "# operator", "operator comment should be kept")
 	var before, after map[string]any
@@ -324,7 +324,7 @@ func TestSyncFibreConfigFile(t *testing.T) {
 	cfg := fibre.DefaultServerConfig()
 	require.NoError(t, cfg.Load(path), "Fibre should load the synced file")
 	require.Equal(t, "0.0.0.0:9999", cfg.ServerListenAddress, "custom value should survive sync")
-	require.Equal(t, fibre.DefaultServerConfig().MaxConnections, cfg.MaxConnections, "added key should carry the default")
+	require.Equal(t, fibre.DefaultServerConfig().MaxConnectionsPerIP, cfg.MaxConnectionsPerIP, "added key should carry the default")
 
 	t.Log("second sync is a no-op")
 	added, second, err := syncConfigFile(path, reference, false)
