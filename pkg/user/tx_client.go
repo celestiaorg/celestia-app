@@ -236,6 +236,10 @@ type TxClient struct {
 	txQueue *txQueue
 	// parallelQueueSize is the buffer size used when starting the tx queue.
 	parallelQueueSize int
+
+	// confirmationMu guards statusFeed, shared by ConfirmTxSubscription callers.
+	confirmationMu sync.Mutex
+	statusFeed     *statusFeed
 }
 
 // NewTxClient returns a new TxClient
@@ -772,7 +776,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
-	var evictionPollTimeStart *time.Time
+	var evictedAt time.Time
 
 	for {
 		span.AddEvent("txclient/ConfirmTx: polling for TxStatus")
@@ -781,79 +785,8 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, err
 		}
 
-		if evictionPollTimeStart != nil {
-			if time.Since(*evictionPollTimeStart) > client.evictionPollTimeout {
-				return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
-			}
-		}
-
-		switch resp.Status {
-		case core.TxStatusPending:
-			span.AddEvent("txclient/ConfirmTx: transaction pending")
-			// Continue polling if the transaction is still pending
-		case core.TxStatusCommitted:
-			span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
-				attribute.Int("resp_code", int(resp.ExecutionCode)),
-			))
-			if resp.ExecutionCode != abci.CodeTypeOK {
-				span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
-				client.deleteFromTxTracker(txHash)
-				return nil, client.buildExecutionError(txHash, resp)
-			}
-
-			span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
-			client.deleteFromTxTracker(txHash)
-			return client.buildTxResponse(txHash, resp), nil
-		case core.TxStatusEvicted:
-			_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
-			if !exists {
-				return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
-			}
-
-			if evictionPollTimeStart != nil {
-				// Eviction timer is running, no need to resubmit again
-				span.AddEvent("txclient/ConfirmTx: eviction timer already running")
-				break
-			}
-
-			span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
-				attribute.String("tx_hash", txHash),
-			))
-
-			// If we're not already tracking eviction timeout, try to resubmit
-			_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
-			if err != nil {
-				// Check if the error is a broadcast tx error
-				_, ok := err.(*BroadcastTxError)
-				if !ok {
-					return nil, err
-				}
-				// Start eviction timeout timer on any broadcast error during resubmission
-				span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
-				now := time.Now()
-				evictionPollTimeStart = &now
-			}
-			span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
-		case core.TxStatusRejected:
-			span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
-			sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
-			if !exists {
-				return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
-			}
-			// Reset sequence to the rejected tx's sequence to enable resubmission
-			// of subsequent transactions.
-			if err := client.signer.SetSequence(signer, sequence); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-			client.deleteFromTxTracker(txHash)
-			return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
-		default:
-			span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
-			client.deleteFromTxTracker(txHash)
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			return nil, fmt.Errorf("transaction with hash %s not found", txHash)
+		if result, err := client.checkTxStatus(ctx, txHash, resp, &evictedAt); result != nil || err != nil {
+			return result, err
 		}
 
 		// Single ticker wait point for all continuing cases
@@ -864,6 +797,91 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			continue
 		}
 	}
+}
+
+// checkTxStatus acts on one status of txHash and returns a result once the
+// transaction is final. evictedAt records when eviction recovery started and is
+// carried across calls. It is shared by ConfirmTx and ConfirmTxSubscription.
+func (client *TxClient) checkTxStatus(ctx context.Context, txHash string, resp *tx.TxStatusResponse, evictedAt *time.Time) (*TxResponse, error) {
+	span := trace.SpanFromContext(ctx)
+	if !evictedAt.IsZero() {
+		if time.Since(*evictedAt) > client.evictionPollTimeout {
+			return nil, fmt.Errorf("eviction poll timeout: transaction %s was evicted ", txHash)
+		}
+	}
+
+	switch resp.Status {
+	case core.TxStatusPending:
+		span.AddEvent("txclient/ConfirmTx: transaction pending")
+		// Continue polling if the transaction is still pending
+	case core.TxStatusCommitted:
+		span.AddEvent("txclient/ConfirmTx: transaction committed", trace.WithAttributes(
+			attribute.Int("resp_code", int(resp.ExecutionCode)),
+		))
+		if resp.ExecutionCode != abci.CodeTypeOK {
+			span.RecordError(fmt.Errorf("txclient/ConfirmTx: execution error: %s", resp.Error))
+			client.deleteFromTxTracker(txHash)
+			return nil, client.buildExecutionError(txHash, resp)
+		}
+
+		span.AddEvent("txclient/ConfirmTx: transaction confirmed successfully")
+		client.deleteFromTxTracker(txHash)
+		return client.buildTxResponse(txHash, resp), nil
+	case core.TxStatusEvicted:
+		_, _, txBytes, exists := client.GetTxFromTxTracker(txHash)
+		if !exists {
+			return nil, fmt.Errorf("tx: %s not found in txTracker; likely failed during broadcast", txHash)
+		}
+
+		if !evictedAt.IsZero() {
+			// Eviction timer is running, no need to resubmit again
+			span.AddEvent("txclient/ConfirmTx: eviction timer already running")
+			break
+		}
+
+		span.AddEvent("txclient/ConfirmTx: transaction evicted, attempting resubmission", trace.WithAttributes(
+			attribute.String("tx_hash", txHash),
+		))
+
+		// If we're not already tracking eviction timeout, try to resubmit
+		_, err := client.sendTxToConnection(ctx, client.conns[0], txBytes)
+		if err != nil {
+			// Check if the error is a broadcast tx error
+			_, ok := err.(*BroadcastTxError)
+			if !ok {
+				return nil, err
+			}
+			// Start eviction timeout timer on any broadcast error during resubmission
+			span.AddEvent("txclient/ConfirmTx: starting eviction timer for broadcast error")
+			*evictedAt = time.Now()
+		}
+		span.AddEvent("txclient/ConfirmTx: transaction resubmitted successfully after eviction")
+	case core.TxStatusRejected:
+		span.RecordError(fmt.Errorf("txclient/ConfirmTx: transaction rejected: %s", resp.Error))
+		sequence, signer, _, exists := client.GetTxFromTxTracker(txHash)
+		if !exists {
+			return nil, fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+		}
+		// Reset sequence to the rejected tx's sequence to enable resubmission
+		// of subsequent transactions.
+		client.mtx.Lock()
+		err := client.signer.SetSequence(signer, sequence)
+		client.mtx.Unlock()
+		if err != nil {
+			return nil, fmt.Errorf("setting sequence: %w", err)
+		}
+		client.deleteFromTxTracker(txHash)
+		return nil, fmt.Errorf("tx with hash %s was rejected by the node with execution code: %d and log: %s", txHash, resp.ExecutionCode, resp.Error)
+	default:
+		span.RecordError(fmt.Errorf("txclient/ConfirmTx: unknown tx status for tx: %s", txHash))
+		client.deleteFromTxTracker(txHash)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("transaction with hash %s not found", txHash)
+	}
+
+	return nil, nil
 }
 
 func extractSequenceError(fullError string) string {
