@@ -14,7 +14,8 @@ import (
 type rootHistory = collections.Map[collections.Pair[uint64, uint64], types.RootHistoryEntry]
 
 // pushHistory records a replaced root for an ISM. The message server accepts at most one proof per ISM per block, so
-// every replaced value was committed at the end of a block and the history spans at least size blocks.
+// every replaced value was committed at the end of a block (or is the ISM's initial state) and the history spans at
+// least size blocks.
 func pushHistory(ctx context.Context, history rootHistory, ismID uint64, size uint32, entry types.RootHistoryEntry) error {
 	newestSeq, found, err := newestSequence(ctx, history, ismID)
 	if err != nil {
