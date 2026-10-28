@@ -161,8 +161,8 @@ github.com/btcsuite/btcd/btcutil v1.2.0/go.mod h1:/Taflm113pYjUpbWKKQEfa6XOtI/+W
 github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
 github.com/bufbuild/protocompile v0.14.1/go.mod h1:ppVdAIhbr2H8asPk6k4pY7t9zB1OU5DoEw9xY/FUi1c=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v0.42.4 h1:OYu34EcceKUnW7Jv6SEDgO6YhqnkPJtbc/QqlV4aZeM=
-github.com/celestiaorg/celestia-core v0.42.4/go.mod h1:znDAw/NFVo/oZKG7Q70cHxRRLUVzi2/K9qJ911+lpYg=
+github.com/celestiaorg/celestia-core v0.42.5 h1:iu8hSFjoHOBTssQVISEQnQ/ZnIdUpYqJ5e3MN3otQKY=
+github.com/celestiaorg/celestia-core v0.42.5/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
 github.com/celestiaorg/cosmos-sdk v0.53.0 h1:ar4qdwzZzxX/jtgBl05F/KRhFJelF/GfO8Hjp8QgHnc=
 github.com/celestiaorg/cosmos-sdk v0.53.0/go.mod h1:AxPTacNgPT6jKaIV/Rl0uRMCmNMYNf1fvMndRJtBcAI=
 github.com/celestiaorg/cosmos-sdk/api v0.7.7 h1:Ns40Iu1jUWEzROcRcgjE1VoZPJsyUEdXuaCXEVOId6Q=
@@ -181,8 +181,8 @@ github.com/celestiaorg/go-square/v2 v2.3.3 h1:vhu6Lt39km19Q/Jk4nS3r2cuWJq6jFg+/1
 github.com/celestiaorg/go-square/v2 v2.3.3/go.mod h1:vY5RRv+qRmEVjPF6dAdr0dyLwKmTTDHHffENPQw8pUA=
 github.com/celestiaorg/go-square/v3 v3.0.2 h1:eSQOgNII8inK9IhiBZ+6GADQeWbRq4HYY72BOgcduA4=
 github.com/celestiaorg/go-square/v3 v3.0.2/go.mod h1:oFReMLsSDMRs82ICFEeFQFCqNvwdsbIM1BzCcb0f7dM=
-github.com/celestiaorg/go-square/v4 v4.2.0 h1:n2X1L2PGBCzS2tdZWxm0XBvaTrBXE3Q/G9RAflq5XdA=
-github.com/celestiaorg/go-square/v4 v4.2.0/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
+github.com/celestiaorg/go-square/v4 v4.2.2 h1:hfW3zJ9PrkLJpEfEzC8hKsPoiDUFThY2bIb8tqOzP/o=
+github.com/celestiaorg/go-square/v4 v4.2.2/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1 h1:DOCcKV+YKQE1n1zEavjLD/+WEnqHpjDjFrpdHgI1CJQ=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
@@ -392,8 +392,8 @@ github.com/gin-gonic/gin v1.6.3/go.mod h1:75u5sXoLsGZoRN5Sgbi1eraJ4GU3++wFwWzhwv
 github.com/go-errors/errors v1.4.2 h1:J6MZopCL4uSllY1OfXM374weqZFFItUbrImctkmUxIA=
 github.com/go-errors/errors v1.4.2/go.mod h1:sIVyrIiJhuEF+Pj9Ebtd6P/rEYROXFi3BopGUQ5a5Og=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
-github.com/go-jose/go-jose/v4 v4.1.4 h1:moDMcTHmvE6Groj34emNPLs/qtYXRVcd6S7NHbHz3kA=
-github.com/go-jose/go-jose/v4 v4.1.4/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
+github.com/go-jose/go-jose/v4 v4.1.6 h1:sNRkftxFJxwsILiQukqp5z83QBSmntVwmgRY7AqBDO4=
+github.com/go-jose/go-jose/v4 v4.1.6/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 github.com/go-kit/kit v0.8.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
 github.com/go-kit/kit v0.9.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
 github.com/go-kit/kit v0.10.0/go.mod h1:xUsJbQ/Fp4kEt7AFgCuvyX4a71u8h9jB8tj/ORgOZ7o=
@@ -1184,8 +1184,8 @@ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8T
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
 google.golang.org/api v0.3.1/go.mod h1:6wY9I6uQWHQ8EM57III9mq/AjF+i8G65rmVagqKMtkk=
-google.golang.org/api v0.302.0 h1:/eENsEv3+GE0QiEmXjdaLI84Mt76LNjGz4vp4E7sRVw=
-google.golang.org/api v0.302.0/go.mod h1:dcjRWAy1QdjGb3Z67Qu0gdBWH2gL8Qoy/RI2ZVuvdeE=
+google.golang.org/api v0.304.0 h1:2R1dYSiIVQRGcKN901u9yPFEdJu5h90oGY5X4TcgbmA=
+google.golang.org/api v0.304.0/go.mod h1:dcjRWAy1QdjGb3Z67Qu0gdBWH2gL8Qoy/RI2ZVuvdeE=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.2.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=

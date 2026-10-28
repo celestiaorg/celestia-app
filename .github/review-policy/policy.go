@@ -97,7 +97,7 @@ func evaluate(pr PullRequest, reviews []Review, canWrite func(string) (bool, err
 		switch r := latest[login]; {
 		case r.State == "CHANGES_REQUESTED":
 			res.Blocking = append(res.Blocking, login)
-		case r.State == "APPROVED" && r.CommitID == pr.Head.SHA:
+		case r.State == "APPROVED":
 			res.Approved = append(res.Approved, login)
 		}
 	}
