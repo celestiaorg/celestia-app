@@ -3,7 +3,9 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 
+	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,6 +44,7 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 		MerkleTreeAddress:   msg.MerkleTreeAddress,
 		StateTransitionVkey: msg.StateTransitionVkey,
 		StateMembershipVkey: msg.StateMembershipVkey,
+		RootHistorySize:     msg.RootHistorySize,
 	}
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
@@ -98,9 +101,10 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, err
 	}
 
-	// Reset the message proof submitted flag only if the state root has changed
+	// Keep the replaced state root so membership proofs generated against it can still be submitted.
 	if stateRootChanged {
-		if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
+		entry := types.RootHistoryEntry{Root: oldStateRoot}
+		if err := pushHistory(ctx, m.stateRootHistory, ism.Id.GetInternalId(), types.EffectiveRootHistorySize(ism.RootHistorySize), entry); err != nil {
 			return nil, err
 		}
 	}
@@ -126,14 +130,28 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 
+	ismID := ism.Id.GetInternalId()
 	if !bytes.Equal(publicValues.StateRoot[:], ism.State[:32]) {
-		return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x, got %x", ism.State[:32], publicValues.StateRoot)
+		known, err := historyContains(ctx, m.stateRootHistory, ismID, func(entry types.RootHistoryEntry) bool {
+			return bytes.Equal(entry.Root, publicValues.StateRoot[:])
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !known {
+			return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x or a state root in the root history, got %x", ism.State[:32], publicValues.StateRoot)
+		}
 	}
 
-	// Check if a message proof has already been submitted for the current state root
-	submitted, err := m.submissions.Get(ctx, ism.Id.GetInternalId())
-	if err == nil && submitted {
-		return nil, types.ErrMessageProofAlreadySubmitted
+	// Every accepted proof must add leaves to the proven tree. This rejects duplicate proofs and proofs against older
+	// state roots that the latest tree state already covers, so the latest tree state never regresses.
+	latest, err := m.treeStates.Get(ctx, ismID)
+	hasLatest := err == nil
+	if err != nil && !errors.Is(err, collections.ErrNotFound) {
+		return nil, err
+	}
+	if hasLatest && publicValues.Count <= latest.Count {
+		return nil, errorsmod.Wrapf(types.ErrStaleMerkleTreeState, "count %d does not exceed latest proven count %d", publicValues.Count, latest.Count)
 	}
 
 	if !bytes.Equal(publicValues.MerkleTreeAddress[:], ism.MerkleTreeAddress) {
@@ -150,20 +168,23 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
+	// Keep the replaced tree state so messages relayed with merkle proofs against it still verify.
+	if hasLatest {
+		entry := types.RootHistoryEntry{Root: latest.Root, Count: latest.Count}
+		if err := pushHistory(ctx, m.treeStateHistory, ismID, types.EffectiveRootHistorySize(ism.RootHistorySize), entry); err != nil {
+			return nil, err
+		}
+	}
+
 	treeState := types.MerkleTreeState{
 		Root:  publicValues.TreeRoot[:],
 		Count: publicValues.Count,
 	}
-	if err := m.treeStates.Set(ctx, ism.Id.GetInternalId(), treeState); err != nil {
+	if err := m.treeStates.Set(ctx, ismID, treeState); err != nil {
 		return nil, err
 	}
 
-	// Mark that a message proof has been submitted for the current state root
-	if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), true); err != nil {
-		return nil, err
-	}
-
-	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism, treeState); err != nil {
+	if err := EmitSubmitMessagesEvent(sdk.UnwrapSDKContext(ctx), ism.Id, publicValues.StateRoot[:], treeState); err != nil {
 		return nil, err
 	}
 
@@ -198,13 +219,17 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, err
 	}
 
-	// Nothing proven under the replaced keys stays in force: drop the merkle tree state so no message verifies until
-	// the new membership program has proven a tree root, and allow that proof for the current state root.
+	// Nothing proven under the replaced keys stays in force: drop the merkle tree state and both root histories so
+	// no message verifies until the new membership program has proven a tree root against the current state root.
 	if err := m.treeStates.Remove(ctx, ism.Id.GetInternalId()); err != nil {
 		return nil, err
 	}
 
-	if err := m.submissions.Set(ctx, ism.Id.GetInternalId(), false); err != nil {
+	if err := clearHistory(ctx, m.treeStateHistory, ism.Id.GetInternalId()); err != nil {
+		return nil, err
+	}
+
+	if err := clearHistory(ctx, m.stateRootHistory, ism.Id.GetInternalId()); err != nil {
 		return nil, err
 	}
 
@@ -249,4 +274,41 @@ func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransfer
 	}
 
 	return &types.MsgTransferOwnershipResponse{}, nil
+}
+
+// UpdateRootHistorySize implements types.MsgServer. Only the current owner can change how many replaced state roots
+// and merkle tree states the ISM keeps. Shrinking drops the oldest entries; growing keeps every entry.
+func (m msgServer) UpdateRootHistorySize(ctx context.Context, msg *types.MsgUpdateRootHistorySize) (*types.MsgUpdateRootHistorySizeResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+
+	if ism.Owner == "" || msg.Owner != ism.Owner {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "expected owner %s, got %s", ism.Owner, msg.Owner)
+	}
+
+	if err := types.ValidateRootHistorySize(msg.RootHistorySize); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidRootHistorySize, err.Error())
+	}
+
+	ism.RootHistorySize = msg.RootHistorySize
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	size := types.EffectiveRootHistorySize(ism.RootHistorySize)
+	if err := resizeHistory(ctx, m.stateRootHistory, ism.Id.GetInternalId(), size); err != nil {
+		return nil, err
+	}
+
+	if err := resizeHistory(ctx, m.treeStateHistory, ism.Id.GetInternalId(), size); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateRootHistorySizeEvent(sdk.UnwrapSDKContext(ctx), ism); err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateRootHistorySizeResponse{}, nil
 }

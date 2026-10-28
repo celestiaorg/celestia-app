@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"bytes"
+	"math"
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -139,25 +140,82 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: sdkerrors.ErrAppConfig,
 		},
 		{
-			name: "message proof submitted zero identifier",
+			name: "root history size above the maximum",
 			malleate: func(gs *types.GenesisState) {
-				gs.Submissions[0].Id = util.NewZeroAddress()
+				gs.Isms[0].RootHistorySize = types.MaxRootHistorySize + 1
+			},
+			expErr: types.ErrInvalidRootHistorySize,
+		},
+		{
+			name: "state root history zero identifier",
+			malleate: func(gs *types.GenesisState) {
+				gs.StateRootHistory[0].Id = util.NewZeroAddress()
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
-			name: "message proof submitted for unknown ism",
+			name: "state root history for unknown ism",
 			malleate: func(gs *types.GenesisState) {
-				gs.Submissions[0].Id = util.CreateMockHexAddress("module", 2)
+				gs.StateRootHistory[0].Id = util.CreateMockHexAddress("module", 2)
 			},
 			expErr: types.ErrIsmNotFound,
 		},
 		{
-			name: "duplicate message proof submitted entry",
+			name: "duplicate state root history sequence",
 			malleate: func(gs *types.GenesisState) {
-				gs.Submissions = append(gs.Submissions, gs.Submissions[0])
+				gs.StateRootHistory = append(gs.StateRootHistory, gs.StateRootHistory[0])
 			},
 			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "invalid state root history root length",
+			malleate: func(gs *types.GenesisState) {
+				gs.StateRootHistory[0].Entry.Root = bytes.Repeat([]byte{0x01}, 31)
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "state root history sequence that could wrap around",
+			malleate: func(gs *types.GenesisState) {
+				gs.StateRootHistory[0].Sequence = math.MaxUint64
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "success: largest state root history sequence",
+			malleate: func(gs *types.GenesisState) {
+				gs.StateRootHistory[0].Sequence = math.MaxInt64
+			},
+		},
+		{
+			name: "negative state root history height",
+			malleate: func(gs *types.GenesisState) {
+				gs.StateRootHistory[0].Entry.Height = -1
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "merkle tree state history for unknown ism",
+			malleate: func(gs *types.GenesisState) {
+				gs.TreeStateHistory[0].Id = util.CreateMockHexAddress("module", 2)
+			},
+			expErr: types.ErrIsmNotFound,
+		},
+		{
+			name: "merkle tree state history exceeds the root history size",
+			malleate: func(gs *types.GenesisState) {
+				gs.Isms[0].RootHistorySize = 1
+				entry := gs.TreeStateHistory[0]
+				entry.Sequence++
+				gs.TreeStateHistory = append(gs.TreeStateHistory, entry)
+			},
+			expErr: sdkerrors.ErrAppConfig,
+		},
+		{
+			name: "deprecated submissions are ignored",
+			malleate: func(gs *types.GenesisState) {
+				gs.Submissions = []types.GenesisProofSubmission{{Id: util.CreateMockHexAddress("module", 2), Submitted: true}} //nolint:staticcheck // deprecated field must stay accepted
+			},
 		},
 	}
 
@@ -191,12 +249,6 @@ func newValidGenesisState(groth16Vk []byte) types.GenesisState {
 				StateMembershipVkey: bytes.Repeat([]byte{0x04}, 32),
 			},
 		},
-		Submissions: []types.GenesisProofSubmission{
-			{
-				Id:        ismID,
-				Submitted: true,
-			},
-		},
 		TreeStates: []types.GenesisMerkleTreeState{
 			{
 				Id: ismID,
@@ -205,6 +257,12 @@ func newValidGenesisState(groth16Vk []byte) types.GenesisState {
 					Count: 1,
 				},
 			},
+		},
+		StateRootHistory: []types.GenesisRootHistoryEntry{
+			{Id: ismID, Sequence: 0, Entry: types.RootHistoryEntry{Root: bytes.Repeat([]byte{0x06}, 32), Height: 1}},
+		},
+		TreeStateHistory: []types.GenesisRootHistoryEntry{
+			{Id: ismID, Sequence: 0, Entry: types.RootHistoryEntry{Root: bytes.Repeat([]byte{0x07}, 32), Count: 1, Height: 1}},
 		},
 	}
 }

@@ -15,6 +15,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgSubmitMessages{},
 		&MsgUpdateVerifyingKeys{},
 		&MsgTransferOwnership{},
+		&MsgUpdateRootHistorySize{},
 	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)

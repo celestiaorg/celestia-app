@@ -43,6 +43,14 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 			expError: nil,
 		},
 		{
+			name: "success: root history size stored",
+			setupTest: func() {
+				msg = newMsg(groth16Vkey)
+				msg.RootHistorySize = types.MaxRootHistorySize
+			},
+			expError: nil,
+		},
+		{
 			// ValidateBasic only checks the key's structure, so the handler
 			// must reject a key that is well formed but does not deserialize.
 			name: "verifying key that passes ValidateBasic but does not deserialize",
@@ -73,6 +81,10 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
+
+				ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, res.Id)
+				suite.Require().NoError(err)
+				suite.Require().Equal(msg.RootHistorySize, ism.RootHistorySize)
 			}
 			// The key parse is charged whether or not it succeeds.
 			suite.Require().GreaterOrEqual(suite.ctx.GasMeter().GasConsumed(), uint64(types.DefaultProofVerifyCostGroth16))
@@ -167,7 +179,6 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 		suite.Run(tc.name, func() {
 			suite.SetupTest() // reset state
 			ism = suite.CreateTestIsm(trustedState)
-			suite.Require().NoError(suite.zkISMKeeper.SetMessageProofSubmitted(suite.ctx, ism.Id, true))
 
 			tc.setupTest()
 			before := suite.snapshotIsm(ism.Id)
@@ -187,7 +198,13 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewState, res.State)
-				suite.Require().False(suite.snapshotIsm(ism.Id).submitted)
+
+				// The replaced state root stays acceptable for membership proofs.
+				suite.Require().NotEqual(trustedState[:32], publicValues.NewState[:32])
+				stateRoots := suite.snapshotIsm(ism.Id).stateRoots
+				suite.Require().Len(stateRoots, 1)
+				suite.Require().Equal(trustedState[:32], stateRoots[0].Root)
+				suite.Require().Equal(suite.ctx.BlockHeight(), stateRoots[0].Height)
 			}
 		})
 	}
@@ -233,16 +250,28 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			expError: sdkerrors.ErrInvalidType,
 		},
 		{
-			name: "duplicate submission rejected",
+			name: "count equal to latest proven count rejected",
 			setupTest: func() {
-				suite.Require().NoError(suite.zkISMKeeper.SetMessageProofSubmitted(suite.ctx, ism.Id, true))
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 1}))
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
 				}
 			},
-			expError: types.ErrMessageProofAlreadySubmitted,
+			expError: types.ErrStaleMerkleTreeState,
+		},
+		{
+			name: "count below latest proven count rejected",
+			setupTest: func() {
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 2}))
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
+				}
+			},
+			expError: types.ErrStaleMerkleTreeState,
 		},
 		{
 			name: "state root mismatch",
@@ -338,9 +367,9 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 	suite.Require().Equal(publicValues.TreeRoot[:], treeState.Root)
 	suite.Require().Equal(publicValues.Count, treeState.Count)
 
-	// A second submission for the same state root is rejected.
+	// A second submission for the same state root does not add leaves and is rejected.
 	_, err = msgServer.SubmitMessages(suite.ctx, msg)
-	suite.Require().ErrorIs(err, types.ErrMessageProofAlreadySubmitted)
+	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
 
 	// Every message dispatched on the source chain verifies against the proven root.
 	messages := readStateMembershipMessages(suite.T())
@@ -369,22 +398,22 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 // ismSnapshot holds the ISM state that a rejected message must not change.
 type ismSnapshot struct {
 	ism          types.InterchainSecurityModule
-	hasSubmitted bool
-	submitted    bool
 	hasTreeState bool
 	treeState    types.MerkleTreeState
+	stateRoots   []types.RootHistoryEntry
+	treeStates   []types.RootHistoryEntry
 }
 
-// snapshotIsm reads the ISM, its submission flag and its merkle tree state.
+// snapshotIsm reads the ISM, its merkle tree state and its root histories.
 func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress) ismSnapshot {
 	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, id)
 	suite.Require().NoError(err)
 
-	submitted, err := suite.zkISMKeeper.GetMessageProofSubmitted(suite.ctx, id)
-	hasSubmitted := !errors.Is(err, collections.ErrNotFound)
-	if hasSubmitted {
-		suite.Require().NoError(err)
-	}
+	stateRoots, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, id)
+	suite.Require().NoError(err)
+
+	treeStates, err := suite.zkISMKeeper.GetTreeStateHistory(suite.ctx, id)
+	suite.Require().NoError(err)
 
 	treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, id)
 	hasTreeState := !errors.Is(err, collections.ErrNotFound)
@@ -392,7 +421,7 @@ func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress) ismSnapshot {
 		suite.Require().NoError(err)
 	}
 
-	return ismSnapshot{ism: ism, hasSubmitted: hasSubmitted, submitted: submitted, hasTreeState: hasTreeState, treeState: treeState}
+	return ismSnapshot{ism: ism, hasTreeState: hasTreeState, treeState: treeState, stateRoots: stateRoots, treeStates: treeStates}
 }
 
 // marshalStateTransitionValues decodes bz, applies modify and re-encodes it.
@@ -456,10 +485,11 @@ func (suite *KeeperTestSuite) TestUpdateVerifyingKeys() {
 			ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
 			ism.Owner = testfactory.TestAccAddr
 			suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
-			suite.Require().NoError(suite.zkISMKeeper.SetMessageProofSubmitted(suite.ctx, ism.Id, true))
 
 			treeState := types.MerkleTreeState{Root: randBytes(32), Count: 7}
 			suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, treeState))
+			suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(suite.ctx, ism, randBytes(32)))
+			suite.Require().NoError(suite.zkISMKeeper.PushTreeStateHistory(suite.ctx, ism, types.MerkleTreeState{Root: randBytes(32), Count: 3}))
 
 			msg = &types.MsgUpdateVerifyingKeys{
 				Id:                  ism.Id,
@@ -491,7 +521,8 @@ func (suite *KeeperTestSuite) TestUpdateVerifyingKeys() {
 			suite.Require().Equal(msg.StateMembershipVkey, after.ism.StateMembershipVkey)
 			suite.Require().Equal(ism.State, after.ism.State)
 			suite.Require().Equal(ism.Owner, after.ism.Owner)
-			suite.Require().False(after.submitted, "submission flag must be reset")
+			suite.Require().Empty(after.stateRoots, "state roots trusted under the replaced keys must be dropped")
+			suite.Require().Empty(after.treeStates, "tree states proven under the replaced keys must be dropped")
 
 			_, err = suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ism.Id)
 			suite.Require().ErrorIs(err, collections.ErrNotFound, "tree state proven under the replaced keys must be dropped")

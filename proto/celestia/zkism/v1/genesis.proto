@@ -14,10 +14,14 @@ message GenesisState {
   reserved 2;
   reserved "messages";
 
-  // tracks whether a message proof has been submitted for the current state root.
-  repeated GenesisProofSubmission submissions = 3 [(gogoproto.nullable) = false];
+  // deprecated: submissions are no longer tracked; ignored on import and never exported.
+  repeated GenesisProofSubmission submissions = 3 [(gogoproto.nullable) = false, deprecated = true];
   // source chain merkle tree state proven for each zk execution ism.
   repeated GenesisMerkleTreeState tree_states = 4 [(gogoproto.nullable) = false];
+  // replaced state roots still accepted for each zk execution ism.
+  repeated GenesisRootHistoryEntry state_root_history = 5 [(gogoproto.nullable) = false];
+  // replaced merkle tree states still accepted for each zk execution ism.
+  repeated GenesisRootHistoryEntry tree_state_history = 6 [(gogoproto.nullable) = false];
 }
 
 // GenesisProofSubmission contains the proof submission state for a zk execution ism.
@@ -40,4 +44,17 @@ message GenesisMerkleTreeState {
   ];
   // proven merkle tree state
   MerkleTreeState tree_state = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisRootHistoryEntry is a root history entry of a zk execution ism.
+message GenesisRootHistoryEntry {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // position of the entry in the ism history; entries are ordered oldest to newest
+  uint64 sequence = 2;
+  // history entry
+  RootHistoryEntry entry = 3 [(gogoproto.nullable) = false];
 }

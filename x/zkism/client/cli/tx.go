@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -15,7 +16,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const flagRenounce = "renounce"
+const (
+	flagRenounce        = "renounce"
+	flagRootHistorySize = "root-history-size"
+)
 
 // NewCreateInterchainSecurityModuleCmd creates and returns the zk ism creation cmd.
 func NewCreateInterchainSecurityModuleCmd() *cobra.Command {
@@ -64,6 +68,11 @@ Arguments:
 				return err
 			}
 
+			rootHistorySize, err := cmd.Flags().GetUint32(flagRootHistorySize)
+			if err != nil {
+				return err
+			}
+
 			msg := types.MsgCreateInterchainSecurityModule{
 				Creator:             clientCtx.GetFromAddress().String(),
 				State:               state,
@@ -71,12 +80,14 @@ Arguments:
 				Groth16Vkey:         groth16Vkey,
 				StateTransitionVkey: stateTransitionVerKey,
 				StateMembershipVkey: stateMembershipVerKey,
+				RootHistorySize:     rootHistorySize,
 			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 		},
 	}
 
+	cmd.Flags().Uint32(flagRootHistorySize, 0, fmt.Sprintf("Number of replaced state roots and merkle tree states the ISM keeps (0 means %d, at most %d)", types.DefaultRootHistorySize, types.MaxRootHistorySize))
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -281,6 +292,50 @@ Arguments:
 	}
 
 	cmd.Flags().Bool(flagRenounce, false, "Renounce ownership of the ISM instead of transferring it")
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// NewUpdateRootHistorySizeCmd creates and returns the cmd for the ism owner to change the root history size of an ism.
+func NewUpdateRootHistorySizeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-root-history-size [ism-id] [size]",
+		Short: "Update the root history size of a Hyperlane zk ism",
+		Long: strings.TrimSpace(fmt.Sprintf(`Update how many replaced state roots and merkle tree states a Hyperlane zk interchain security module
+(ISM) keeps. Membership proofs against a kept state root and messages relayed against a kept merkle tree root are still
+accepted. Only the ISM owner can do this. Shrinking drops the oldest entries.
+
+Arguments:
+  [ism-id]  Hex-encoded 32-byte ISM identifier (0x-prefixed is accepted).
+  [size]    Number of replaced roots to keep: 0 means %d, at most %d.`, types.DefaultRootHistorySize, types.MaxRootHistorySize)),
+		Example: fmt.Sprintf("%s tx %s update-root-history-size 0x726f757465725f69736d000000000000000000000000002a0000000000000000 128", version.AppName, types.ModuleName),
+		Args:    cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			ismID, err := util.DecodeHexAddress(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid ism identifier: %w", err)
+			}
+
+			size, err := strconv.ParseUint(args[1], 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid root history size: %w", err)
+			}
+
+			msg := types.MsgUpdateRootHistorySize{
+				Id:              ismID,
+				Owner:           clientCtx.GetFromAddress().String(),
+				RootHistorySize: uint32(size),
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
+		},
+	}
+
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

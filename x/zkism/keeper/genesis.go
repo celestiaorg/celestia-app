@@ -2,11 +2,15 @@ package keeper
 
 import (
 	"context"
+	"math"
 	"sort"
 
+	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // InitGenesis initialises the module genesis state.
@@ -32,21 +36,41 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
-	for _, entry := range gs.Submissions {
-		ismId := entry.Id
-		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
+	// Submissions are no longer tracked; the deprecated genesis field is ignored.
+	if err := k.importRootHistory(ctx, k.stateRootHistory, gs.StateRootHistory); err != nil {
+		return err
+	}
+
+	return k.importRootHistory(ctx, k.treeStateHistory, gs.TreeStateHistory)
+}
+
+// importRootHistory writes genesis root history entries, rejecting entries for unknown isms. Entry heights only serve
+// the once-per-block check in pushHistory, so heights at or after the first block of this chain (e.g. after a
+// zero-height export) are lowered below it; otherwise the first replacement at that height would be dropped.
+func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, entries []types.GenesisRootHistoryEntry) error {
+	firstHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1)
+	for _, entry := range entries {
+		exists, err := k.isms.Has(ctx, entry.Id.GetInternalId())
 		if err != nil {
 			return err
 		}
 		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "message proof submitted entry for unknown ism %s", ismId.String())
+			return errorsmod.Wrapf(types.ErrIsmNotFound, "root history defined for unknown ism %s", entry.Id.String())
 		}
 
-		if err := k.submissions.Set(ctx, ismId.GetInternalId(), entry.Submitted); err != nil {
+		// InitChain does not run genesis validation, so guard the bound that keeps pushHistory from wrapping here too.
+		if entry.Sequence > math.MaxInt64 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "root history sequence %d for ism %s exceeds %d", entry.Sequence, entry.Id.String(), int64(math.MaxInt64))
+		}
+
+		if entry.Entry.Height >= firstHeight {
+			entry.Entry.Height = firstHeight - 1
+		}
+
+		if err := history.Set(ctx, collections.Join(entry.Id.GetInternalId(), entry.Sequence), entry.Entry); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -65,26 +89,6 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		ism := isms[i]
 		ismByID[ism.Id.GetInternalId()] = ism.Id
 	}
-
-	submissions := make([]types.GenesisProofSubmission, 0)
-	if err := k.submissions.Walk(ctx, nil, func(key uint64, value bool) (bool, error) {
-		ismId, ok := ismByID[key]
-		if !ok {
-			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "message proof submitted entry for unknown ism %d", key)
-		}
-
-		submissions = append(submissions, types.GenesisProofSubmission{
-			Id:        ismId,
-			Submitted: value,
-		})
-		return false, nil
-	}); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(submissions, func(i, j int) bool {
-		return submissions[i].Id.Compare(submissions[j].Id) < 0
-	})
 
 	treeStates := make([]types.GenesisMerkleTreeState, 0)
 	if err := k.treeStates.Walk(ctx, nil, func(key uint64, value types.MerkleTreeState) (bool, error) {
@@ -106,9 +110,39 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return treeStates[i].Id.Compare(treeStates[j].Id) < 0
 	})
 
+	stateRootHistory, err := exportRootHistory(ctx, k.stateRootHistory, ismByID)
+	if err != nil {
+		return nil, err
+	}
+
+	treeStateHistory, err := exportRootHistory(ctx, k.treeStateHistory, ismByID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &types.GenesisState{
-		Isms:        isms,
-		Submissions: submissions,
-		TreeStates:  treeStates,
+		Isms:             isms,
+		TreeStates:       treeStates,
+		StateRootHistory: stateRootHistory,
+		TreeStateHistory: treeStateHistory,
 	}, nil
+}
+
+// exportRootHistory returns every root history entry, ordered by ism and then by sequence (the store key order).
+func exportRootHistory(ctx context.Context, history rootHistory, ismByID map[uint64]util.HexAddress) ([]types.GenesisRootHistoryEntry, error) {
+	entries := make([]types.GenesisRootHistoryEntry, 0)
+	err := history.Walk(ctx, nil, func(key collections.Pair[uint64, uint64], value types.RootHistoryEntry) (bool, error) {
+		ismId, ok := ismByID[key.K1()]
+		if !ok {
+			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "root history entry for unknown ism %d", key.K1())
+		}
+
+		entries = append(entries, types.GenesisRootHistoryEntry{
+			Id:       ismId,
+			Sequence: key.K2(),
+			Entry:    value,
+		})
+		return false, nil
+	})
+	return entries, err
 }

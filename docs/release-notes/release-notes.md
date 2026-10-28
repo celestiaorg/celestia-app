@@ -12,6 +12,9 @@ This guide provides notes for major version releases. These notes may be helpful
 - Existing ISMs keep working only after their owner installs the new program's verifying keys with `UpdateVerifyingKeys`. Until then no message verifies for that ISM.
 - ISM owners can replace the verifying keys (`UpdateVerifyingKeys`), and transfer or renounce ownership (`TransferOwnership`). Anyone relying on an ISM must trust its current owner; a renounced ISM (empty `owner`) is immutable. ISMs created before v11 keep their creator as owner and are mutable from the upgrade until that owner renounces. Rotating the keys discards the merkle tree state proven under the previous keys.
 - `UpdateVerifyingKeys` counts toward the per-block ZK proof message cap and, like the other proof-work messages, is rejected inside governance proposals.
+- Each ISM keeps a history of its last `root_history_size` replaced state roots and merkle tree states (default 64, at most 256, at most one per block). `SubmitMessages` accepts a proof against any kept state root and `Verify` accepts a merkle proof against any kept tree root, so a root update between proving and inclusion no longer invalidates in-flight proofs. The owner sets the size at creation or with `UpdateRootHistorySize`; the `RootHistory` query lists the kept roots.
+- `SubmitMessages` no longer allows exactly one proof per state root. Instead each proof must increase the proven leaf count; duplicate and stale proofs fail with `ErrStaleMerkleTreeState` (code 13) instead of `ErrMessageProofAlreadySubmitted` (code 10).
+- The genesis field `submissions` is deprecated: it is ignored on import and no longer exported. Genesis gains `state_root_history` and `tree_state_history`.
 - The zkism genesis section no longer contains `messages`. A genesis file exported by a v10 binary must have `app_state.zkism.messages` removed before a v11 binary can load it.
 
 See the [x/zkism README](../../x/zkism/README.md) for details.
