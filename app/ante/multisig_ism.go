@@ -16,8 +16,8 @@ var _ sdk.AnteDecorator = MultisigISMValidatorsDecorator{}
 // stored set, but the per-block MaxISMSignatures budget only counts signatures,
 // so an oversized ISM would make each MsgProcessMessage that uses it expensive.
 // Only one level of MsgExec and MsgSubmitProposal is inspected because
-// NestedMsgDecorator rejects deeper nesting, and the ICA allowlist cannot carry
-// these messages.
+// NestedMsgDecorator rejects deeper nesting, and the default ICA allowlist does
+// not carry these messages.
 type MultisigISMValidatorsDecorator struct{}
 
 func NewMultisigISMValidatorsDecorator() MultisigISMValidatorsDecorator {

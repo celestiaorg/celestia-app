@@ -16,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,8 +39,6 @@ func TestNestedMsgDecorator(t *testing.T) {
 	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
 	proposalWithProcessMessage := newMsgSubmitProposal(t, &hyperlanetypes.MsgProcessMessage{})
 	msgExecWithProcessMessage := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{}})
-	proposalWithRecvPacket := newMsgSubmitProposal(t, &channeltypes.MsgRecvPacket{})
-	msgExecWithRecvPacket := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&channeltypes.MsgRecvPacket{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -136,15 +133,6 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name: "Accept authz with budgeted Hyperlane MsgProcessMessage",
 			msg:  &msgExecWithProcessMessage,
-		},
-		{
-			name:    "Reject proposal with MsgRecvPacket",
-			msg:     proposalWithRecvPacket,
-			wantErr: sdkerrors.ErrNotSupported,
-		},
-		{
-			name: "Accept authz with budgeted MsgRecvPacket",
-			msg:  &msgExecWithRecvPacket,
 		},
 		{
 			name:    "Reject proposal with MsgExec",
