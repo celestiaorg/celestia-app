@@ -5,12 +5,6 @@ services:
       context: ../..
       dockerfile: docker/devnet/Dockerfile
       target: validator
-      args: &build-args
+      args:
         VERSION: ${VERSION:-dev}
         COMMIT: ${COMMIT:-unknown}
-  bridge:
-    build:
-      context: ../..
-      dockerfile: docker/devnet/Dockerfile
-      target: bridge
-      args: *build-args

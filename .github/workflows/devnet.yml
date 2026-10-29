@@ -59,7 +59,7 @@ jobs:
           shellcheck docker/devnet/*.sh
           docker run --rm -i hadolint/hadolint:v2.15.0 < docker/devnet/Dockerfile
           docker compose -f docker/devnet/compose.yaml -f docker/devnet/compose.build.yaml config --quiet
-      - name: Build both images
+      - name: Build image
         run: docker compose -f docker/devnet/compose.yaml -f docker/devnet/compose.build.yaml build
       - name: Test devnet and persistence
         run: bash docker/devnet/smoke.sh
@@ -70,11 +70,9 @@ jobs:
           name: devnet-logs-${{ matrix.arch }}
           path: ${{ env.DEVNET_LOG_DIR }}
           if-no-files-found: ignore
-      - name: Save tested images
+      - name: Save tested image
         if: steps.version.outputs.tag != '' && github.repository == 'celestiaorg/celestia-app'
-        run: |
-          docker save ghcr.io/celestiaorg/celestia-devnet-validator:local \
-            ghcr.io/celestiaorg/celestia-devnet-bridge:local | gzip > /tmp/devnet-images.tar.gz
+        run: docker save ghcr.io/celestiaorg/celestia-devnet-validator:local | gzip > /tmp/devnet-images.tar.gz
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.version.outputs.tag != '' && github.repository == 'celestiaorg/celestia-app'
         with:
@@ -95,6 +93,7 @@ jobs:
         arch: [amd64, arm64]
     runs-on: ubuntu-24.04
     env:
+      IMAGE: ghcr.io/celestiaorg/celestia-devnet-validator
       TAG: ${{ needs.build-test.outputs.tag }}
       ARCH: ${{ matrix.arch }}
     steps:
@@ -102,17 +101,14 @@ jobs:
         with:
           name: devnet-images-${{ matrix.arch }}
           path: /tmp
-      - name: Push tested images
+      - name: Push tested image
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker load < /tmp/devnet-images.tar.gz
-          for role in validator bridge; do
-            image="ghcr.io/celestiaorg/celestia-devnet-$role"
-            docker tag "$image:local" "$image:$TAG-$ARCH"
-            docker push "$image:$TAG-$ARCH"
-          done
+          docker tag "$IMAGE:local" "$IMAGE:$TAG-$ARCH"
+          docker push "$IMAGE:$TAG-$ARCH"
 
   manifests:
     needs: [build-test, publish]
@@ -120,6 +116,7 @@ jobs:
     permissions:
       packages: write
     env:
+      IMAGE: ghcr.io/celestiaorg/celestia-devnet-validator
       TAG: ${{ needs.build-test.outputs.tag }}
     steps:
       - name: Publish and verify version manifests
@@ -127,9 +124,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          for role in validator bridge; do
-            image="ghcr.io/celestiaorg/celestia-devnet-$role"
-            docker buildx imagetools create -t "$image:$TAG" "$image:$TAG-amd64" "$image:$TAG-arm64"
-            docker buildx imagetools inspect "$image:$TAG" --raw |
-              jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]'
-          done
+          docker buildx imagetools create -t "$IMAGE:$TAG" "$IMAGE:$TAG-amd64" "$IMAGE:$TAG-arm64"
+          docker buildx imagetools inspect "$IMAGE:$TAG" --raw |
+            jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]'
