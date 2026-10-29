@@ -75,12 +75,10 @@ const (
 	// PublicAndCommitmentCommitted length prefix in a serialized BN254 verifying key.
 	groth16VkeyPubCommittedOffset = groth16VkeyCommitmentKeysOffset + 4
 
-	// DefaultRootHistorySize is the number of replaced state roots and merkle tree states an ISM keeps when its
-	// root history size is unset (0).
+	// DefaultRootHistorySize is used when an ISM's root history size is 0.
 	DefaultRootHistorySize = 64
 
-	// MaxRootHistorySize bounds the root history size an ISM owner can set. Verify and SubmitMessages scan the
-	// history, so this bounds their work.
+	// MaxRootHistorySize bounds the history scanned by Verify and SubmitMessages.
 	MaxRootHistorySize = 256
 
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
@@ -94,8 +92,7 @@ var (
 	// Prefix 1 held authorized message IDs before messages were verified against the proven merkle tree root (v11).
 	// The entries are left in place because nothing reads them and deleting an attacker-sized set in the upgrade
 	// block is unbounded work. Do not reuse prefix 1.
-	// Prefix 2 held the per-ISM flag that allowed one message proof per state root. It was replaced by the strictly
-	// increasing merkle tree count; legacy entries are left in place. Do not reuse prefix 2.
+	// Prefix 2 held the legacy per-state-root submission flag; entries are left in place. Do not reuse prefix 2.
 	MerkleTreeStateKeyPrefix = collections.NewPrefix(3)
 	StateRootHistoryPrefix   = collections.NewPrefix(4)
 	TreeStateHistoryPrefix   = collections.NewPrefix(5)

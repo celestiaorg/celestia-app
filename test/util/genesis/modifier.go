@@ -123,9 +123,7 @@ var zkismV11Fields = []string{"tree_states", "state_root_history", "tree_state_h
 var zkismV11IsmFields = []string{"root_history_size", "state_height"}
 
 // StripZkismV11Fields removes the zkism genesis fields introduced in app
-// version 11. Binaries for app versions below 11 reject unknown genesis
-// fields, so a genesis produced by the current app must be shaped like theirs
-// before a multiplexer network can start on an older app version.
+// version 11, which older binaries reject as unknown.
 func StripZkismV11Fields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		raw, ok := state[zkismtypes.ModuleName]

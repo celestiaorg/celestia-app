@@ -154,8 +154,7 @@ func (suite *KeeperTestSuite) TestInitGenesisRootHistoryUnknownIsm() {
 	suite.Require().ErrorIs(err, types.ErrIsmNotFound)
 }
 
-// TestInitGenesisLowersFutureHistoryHeights checks that history heights from a chain that restarted at a lower height
-// cannot make the first replacement at that height look like a repeat within the block.
+// TestInitGenesisLowersFutureHistoryHeights checks that heights above the restart height do not block the first proof.
 func (suite *KeeperTestSuite) TestInitGenesisLowersFutureHistoryHeights() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
 	ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
@@ -198,8 +197,7 @@ func (suite *KeeperTestSuite) TestInitGenesisRootHistorySequenceBound() {
 	suite.Require().NoError(suite.zkISMKeeper.InitGenesis(suite.ctx, newGenesis(math.MaxInt64)))
 }
 
-// TestInitGenesisLowersHistoryHeightsFromInitialHeight checks the clamp boundary when the chain starts above height 1:
-// heights at or after the first block are lowered to the block before it, earlier heights are kept.
+// TestInitGenesisLowersHistoryHeightsFromInitialHeight checks the clamp boundary for an initial height above 1.
 func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeight() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
 	genesisState := types.GenesisState{
@@ -224,8 +222,7 @@ func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeig
 	}
 	suite.Require().Equal([]int64{9, 9, 9}, heights)
 
-	// The proof heights of the ISM state and the latest tree state are lowered the same way, so the first proof at
-	// height 10 is not rejected as a repeat within the block.
+	// The ISM and tree state proof heights are lowered the same way.
 	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, ismId)
 	suite.Require().NoError(err)
 	suite.Require().Equal(int64(9), ism.StateHeight)

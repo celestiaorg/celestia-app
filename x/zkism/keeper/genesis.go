@@ -13,9 +13,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// InitGenesis initialises the module genesis state. Proof heights only serve the one-proof-per-block rule and the
-// history window, so heights at or after the first block of this chain (e.g. after a zero-height export) are lowered
-// below it; otherwise the first proof at that height would be rejected or dropped.
+// InitGenesis initialises the module genesis state. Proof heights are clamped below the chain's first block so they
+// cannot block the first proof at that height.
 func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
 	firstHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1)
 	for _, ism := range gs.Isms {
@@ -68,7 +67,7 @@ func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, ent
 			return errorsmod.Wrapf(types.ErrIsmNotFound, "root history defined for unknown ism %s", entry.Id.String())
 		}
 
-		// InitChain does not run genesis validation, so guard the bound that keeps pushHistory from wrapping here too.
+		// InitChain skips genesis validation, so enforce the sequence bound here too.
 		if entry.Sequence > math.MaxInt64 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "root history sequence %d for ism %s exceeds %d", entry.Sequence, entry.Id.String(), int64(math.MaxInt64))
 		}
@@ -136,7 +135,7 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 	}, nil
 }
 
-// exportRootHistory returns every root history entry, ordered by ism and then by sequence (the store key order).
+// exportRootHistory returns every root history entry in store key order.
 func exportRootHistory(ctx context.Context, history rootHistory, ismByID map[uint64]util.HexAddress) ([]types.GenesisRootHistoryEntry, error) {
 	entries := make([]types.GenesisRootHistoryEntry, 0)
 	err := history.Walk(ctx, nil, func(key collections.Pair[uint64, uint64], value types.RootHistoryEntry) (bool, error) {

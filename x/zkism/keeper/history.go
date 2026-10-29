@@ -8,14 +8,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// rootHistory holds, per ISM, the state roots or merkle tree states that were replaced and are still accepted. It is
-// a bounded FIFO keyed by (ism id, sequence): sequences increase with every push and the oldest entries are trimmed so
-// that at most the ISM's root history size remain.
+// rootHistory is a per-ISM bounded FIFO of replaced roots, keyed by (ism id, sequence).
 type rootHistory = collections.Map[collections.Pair[uint64, uint64], types.RootHistoryEntry]
 
-// pushHistory records a replaced root for an ISM. The message server accepts at most one proof per ISM per block, so
-// every replaced value was committed at the end of a block (or is the ISM's initial state) and the history spans at
-// least size blocks.
+// pushHistory records a replaced root for an ISM and trims the history to size entries.
 func pushHistory(ctx context.Context, history rootHistory, ismID uint64, size uint32, entry types.RootHistoryEntry) error {
 	newestSeq, found, err := newestSequence(ctx, history, ismID)
 	if err != nil {

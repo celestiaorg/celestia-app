@@ -80,10 +80,11 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
-	// A proven state is deterministic and final, so a second transition proof in the same block adds nothing and
-	// would only replace a root other relayers are about to prove against.
-	height := sdk.UnwrapSDKContext(ctx).BlockHeight()
-	if ism.StateHeight == height {
+	// Accept at most one transition proof per ISM per block. Simulation runs at the last committed height while the
+	// tx lands in a later block, so it skips this check.
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	height := sdkCtx.BlockHeight()
+	if ism.StateHeight == height && sdkCtx.ExecMode() != sdk.ExecModeSimulate {
 		return nil, errorsmod.Wrapf(types.ErrAlreadyUpdatedInBlock, "state updated at height %d", height)
 	}
 
@@ -109,7 +110,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, err
 	}
 
-	// Keep the replaced state root so membership proofs generated against it can still be submitted.
+	// Keep the replaced state root for in-flight membership proofs.
 	if stateRootChanged {
 		entry := types.RootHistoryEntry{Root: oldStateRoot}
 		if err := pushHistory(ctx, m.stateRootHistory, ism.Id.GetInternalId(), types.EffectiveRootHistorySize(ism.RootHistorySize), entry); err != nil {
@@ -140,17 +141,16 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 
 	ismID := ism.Id.GetInternalId()
 
-	// A proven tree state is deterministic and final, so a second membership proof in the same block adds nothing
-	// and would only replace a root other relayers are about to deliver against. Every accepted proof must also add
-	// leaves to the proven tree: this rejects duplicate proofs and proofs against older state roots that the latest
-	// tree state already covers, so the latest tree state never regresses.
+	// Accept at most one membership proof per ISM per block, and only if it adds leaves, so duplicate and stale
+	// proofs are rejected. Simulation skips the per-block check, as in UpdateInterchainSecurityModule.
 	latest, err := m.treeStates.Get(ctx, ismID)
 	hasLatest := err == nil
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return nil, err
 	}
-	height := sdk.UnwrapSDKContext(ctx).BlockHeight()
-	if hasLatest && latest.Height == height {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	height := sdkCtx.BlockHeight()
+	if hasLatest && latest.Height == height && sdkCtx.ExecMode() != sdk.ExecModeSimulate {
 		return nil, errorsmod.Wrapf(types.ErrAlreadyUpdatedInBlock, "merkle tree state proven at height %d", height)
 	}
 	if hasLatest && publicValues.Count <= latest.Count {
@@ -183,7 +183,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, err
 	}
 
-	// Keep the replaced tree state so messages relayed with merkle proofs against it still verify.
+	// Keep the replaced tree state for in-flight relayed messages.
 	if hasLatest {
 		entry := types.RootHistoryEntry{Root: latest.Root, Count: latest.Count}
 		if err := pushHistory(ctx, m.treeStateHistory, ismID, types.EffectiveRootHistorySize(ism.RootHistorySize), entry); err != nil {
@@ -235,8 +235,7 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, err
 	}
 
-	// Nothing proven under the replaced keys stays in force: drop the merkle tree state and both root histories so
-	// no message verifies until the new membership program has proven a tree root against the current state root.
+	// Drop everything proven under the old keys; no message verifies until the new program submits.
 	if err := m.treeStates.Remove(ctx, ism.Id.GetInternalId()); err != nil {
 		return nil, err
 	}
@@ -292,8 +291,7 @@ func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransfer
 	return &types.MsgTransferOwnershipResponse{}, nil
 }
 
-// UpdateRootHistorySize implements types.MsgServer. Only the current owner can change how many replaced state roots
-// and merkle tree states the ISM keeps. Shrinking drops the oldest entries; growing keeps every entry.
+// UpdateRootHistorySize implements types.MsgServer. Only the owner can call it; shrinking drops the oldest entries.
 func (m msgServer) UpdateRootHistorySize(ctx context.Context, msg *types.MsgUpdateRootHistorySize) (*types.MsgUpdateRootHistorySizeResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {

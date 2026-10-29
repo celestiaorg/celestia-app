@@ -71,9 +71,7 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 }
 
 // Verify implements the util.InterchainSecurityModule interface. The metadata must contain a merkle proof of the
-// message id against the source chain merkle tree root most recently proven via SubmitMessages, or against one of the
-// replaced tree roots still kept in the ISM's root history. The source tree is append-only, so an older root never
-// authorizes a message a newer root does not.
+// message id against the latest proven merkle tree root or a root in the ISM's history.
 // Replay protection is provided by the Hyperlane mailbox, which rejects message ids it has already received.
 func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
@@ -88,8 +86,7 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 		return false, errorsmod.Wrap(types.ErrInvalidMetadata, err.Error())
 	}
 
-	// The leaf is always message.Id(), computed here rather than supplied, and BranchRoot always hashes TreeDepth
-	// levels, so only a message that is a leaf of the proven tree can match the root.
+	// The leaf is computed from the message, so only a message in the proven tree can match the root.
 	root := util.BranchRoot(message.Id(), proof.Branch, proof.Index)
 
 	treeState, err := k.treeStates.Get(ctx, ism.Id.GetInternalId())

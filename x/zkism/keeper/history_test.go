@@ -32,7 +32,7 @@ func historyRoots(entries []types.RootHistoryEntry) [][]byte {
 func (suite *KeeperTestSuite) TestRootHistoryRecordsEveryPush() {
 	ism := suite.CreateTestIsm(randBytes(64))
 
-	// The message server admits one proof per ISM per block, so the history itself records every push it is given.
+	// The per-block rule lives in the message server, so the history records every push.
 	ctx := suite.ctx.WithBlockHeight(10)
 	roots := [][]byte{randBytes(32), randBytes(32)}
 	for _, root := range roots {
@@ -77,8 +77,7 @@ func (suite *KeeperTestSuite) TestRootHistoryIsPerIsm() {
 	suite.Require().Equal(otherRoots, historyRoots(entries))
 }
 
-// TestSubmitMessagesAgainstHistoricalStateRoot submits the real membership proof after the state root it was
-// generated against has been replaced.
+// TestSubmitMessagesAgainstHistoricalStateRoot submits a membership proof after its state root was replaced.
 func (suite *KeeperTestSuite) TestSubmitMessagesAgainstHistoricalStateRoot() {
 	provenState, err := hex.DecodeString(stateMembershipTrustedState)
 	suite.Require().NoError(err)
@@ -140,8 +139,7 @@ func (suite *KeeperTestSuite) TestSubmitMessagesAgainstHistoricalStateRoot() {
 	}
 }
 
-// TestSubmitMessagesKeepsReplacedTreeState checks that a newer tree state moves the previous one into the history and
-// that messages relayed with merkle proofs against the previous root still verify.
+// TestSubmitMessagesKeepsReplacedTreeState checks that messages still verify against a replaced tree root.
 func (suite *KeeperTestSuite) TestSubmitMessagesKeepsReplacedTreeState() {
 	provenState, err := hex.DecodeString(stateMembershipTrustedState)
 	suite.Require().NoError(err)

@@ -98,8 +98,7 @@ func (gs GenesisState) Validate() error {
 	return validateRootHistory("merkle tree state", gs.TreeStateHistory, isms)
 }
 
-// validateRootHistory checks that every history entry belongs to a known ism, has a 32 byte root and a unique
-// sequence, and that no ism holds more entries than its root history size.
+// validateRootHistory checks history entries for a known ism, a 32 byte root, unique sequences and the size bound.
 func validateRootHistory(kind string, entries []GenesisRootHistoryEntry, isms map[uint64]uint32) error {
 	type entryKey struct {
 		ism      uint64
@@ -131,8 +130,7 @@ func validateRootHistory(kind string, entries []GenesisRootHistoryEntry, isms ma
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "%s history for ism %s exceeds root history size %d", kind, entry.Id.String(), size)
 		}
 
-		// Sequences grow by at most one per block, so a running chain never comes near the bound; a larger value would
-		// let the next sequence wrap around.
+		// Bound the sequence so the next push cannot wrap around.
 		if entry.Sequence > math.MaxInt64 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "%s history sequence %d for ism %s exceeds %d", kind, entry.Sequence, entry.Id.String(), int64(math.MaxInt64))
 		}

@@ -12,9 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesZkismV11Fields checks that genesis documents for app
-// versions below 11 omit the zkism genesis fields introduced in v11, which the
-// embedded v10 binary rejects as unknown, while the latest version keeps them.
+// TestExportBytesZkismV11Fields checks that the v11 zkism genesis fields are
+// only exported for app version 11 and above.
 func TestExportBytesZkismV11Fields(t *testing.T) {
 	tests := []struct {
 		appVersion    uint64

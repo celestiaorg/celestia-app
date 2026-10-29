@@ -151,6 +151,20 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 			expError: types.ErrAlreadyUpdatedInBlock,
 		},
 		{
+			name: "simulation skips the per-block check",
+			setupTest: func() {
+				ism.StateHeight = suite.ctx.BlockHeight()
+				suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+				suite.ctx = suite.ctx.WithExecMode(sdk.ExecModeSimulate)
+				msg = &types.MsgUpdateInterchainSecurityModule{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: nil,
+		},
+		{
 			name: "trusted state mismatch",
 			setupTest: func() {
 				msg = &types.MsgUpdateInterchainSecurityModule{
@@ -397,6 +411,9 @@ func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
 	// A second proof in the same block is rejected; in a later block the same proof adds no leaves and is rejected.
 	_, err = msgServer.SubmitMessages(suite.ctx, msg)
 	suite.Require().ErrorIs(err, types.ErrAlreadyUpdatedInBlock)
+	// Simulation skips the per-block check, so the same proof fails only as stale.
+	_, err = msgServer.SubmitMessages(suite.ctx.WithExecMode(sdk.ExecModeSimulate), msg)
+	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
 	_, err = msgServer.SubmitMessages(suite.ctx.WithBlockHeight(suite.ctx.BlockHeight()+1), msg)
 	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
 
