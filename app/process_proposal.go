@@ -69,6 +69,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	var (
 		sdkMessageCount int
 		zkProofMsgCount int
+		ismSigCount     int
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -238,6 +239,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if zkProofMsgCount > appconsts.MaxZKProofMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
+					return reject(), nil
+				}
+				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				if ismSigCount > appconsts.MaxISMSignatures {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
 					return reject(), nil
 				}
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)

@@ -25,12 +25,15 @@ Admit every request against a global FIFO byte budget (`max_request_memory`, def
 - **Static receive windows** (64 KiB stream / 16 MiB connection) disable BDP tuning; a paused stream holds at most its window.
 - Rejections are counted on `fibre.server.request.rejected{method,reason}` with reasons `per_ip`, `memory_timeout`, `memory_overflow`.
 
+### Connections
+
+With memory bounded by the budget, `netutil.LimitListener(max_connections)` (default 16), which let one peer hold every slot (PROTOCO-2220) and blocked downloads during uploads (PROTOCO-2706), is replaced by a listener with a fixed global fd-safety cap (4096) and `max_connections_per_ip` (default 16, IPv6 by /64). Over-cap connections are closed at once; rejecting the newcomer is preferred over evicting an existing connection, which would let an attacker churn honest peers. `max_connections` is deprecated and ignored, and `max_concurrent_streams` defaults to 100.
+
 ## Consequences
 
 - Receive memory is bounded by the budget, independent of the connection count; oversized requests on any method are gated before they are read.
 - `max_request_memory` bounds buffered request bytes, not RSS: decode and verification allocate on top, so it is set well below host RAM.
 - Every upload costs a full max message of budget while it is received.
-- Connection caps now only bound concurrency.
 - Download send tail: unary `SendMsg` queues the whole response and returns, so the reservation is released while a slow reader is still draining it. Those bytes sit in grpc's send buffer outside the budget, bounded by flow control and `MaxConnectionAge`. Chunked (server-streaming) downloads would close this; that is separate work.
 
 ## Alternatives
@@ -43,5 +46,6 @@ Admit every request against a global FIFO byte budget (`max_request_memory`, def
 
 - PROTOCO-3014: request memory admission.
 - PROTOCO-3351: download response accounting.
+- PROTOCO-2220, PROTOCO-2706: connection limits.
 - ADR-029: Fibre upload occupancy (disk) limiting.
-- `fibre/internal/grpc/admission.go`, `fibre/internal/grpc/server.go`.
+- `fibre/internal/grpc/{admission.go,conn_limiter.go,server.go}`.

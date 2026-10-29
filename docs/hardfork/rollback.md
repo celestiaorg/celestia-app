@@ -1,9 +1,9 @@
 # Rollback a node
 
-Use this runbook when the core team asks you to roll back your node, or when your node logs `wrong Block.Header.AppHash`.
+Use this runbook when the protocol team asks you to roll back your node, or when your node logs `wrong Block.Header.AppHash`.
 A rollback moves the node's state back to a target height X. On restart, the node re-executes the blocks after X with the binary it runs.
 
-The core team coordinates a network rollback with [rollback-coordination.md](rollback-coordination.md).
+The protocol team coordinates a network rollback with [rollback-coordination.md](rollback-coordination.md).
 
 ## Quick reference
 
@@ -25,12 +25,12 @@ The rollback deletes the node's blocks above X+1, and the node fetches them agai
 A rollback deeper than 100 heights needs `--force`.
 
 A single node with a wrong app hash logs `wrong Block.Header.AppHash` while validating block N. Its state at N-1 is wrong, so X is N-2.
-This holds only if N is the first height with a mismatch. If you are not sure, ask the core team for X.
+This holds only if N is the first height with a mismatch. If you are not sure, ask the protocol team for X.
 If the cause is unknown, first collect evidence with [app-hash-mismatch.md](../maintainers/app-hash-mismatch.md).
 
 ## Set variables
 
-Take the values from the announcement. The core team chooses H after the restart and posts H and HASH.
+Take the values from the announcement. The protocol team chooses H after the restart and posts H and HASH.
 
 ```sh
 HOME_DIR=<NODE_HOME>      # usually ~/.celestia-app; docker: the path inside the container, /home/celestia/.celestia-app in the release images
@@ -94,14 +94,14 @@ HASH=<CHECK_APP_HASH>
 
    If your systemd unit is not called `celestia-appd` (or `cosmovisor`), add `--service <unit>`.
 
-5. Send the output to the core team. A good run contains the following, where S is the node's current height:
+5. Send the output to the protocol team. A good run contains the following, where S is the node's current height:
 
    ```text
    rollback: height <S> -> <X>, blocks to delete: <M>
    dry run: rollback to height <X> is possible
    ```
 
-6. At the agreed time, run the same line as in step 4 without `--dry-run`. Add `--force` only if the core team confirmed it. The script runs the checks again, rolls back, deletes the state sync snapshots above X and starts the node:
+6. At the agreed time, run the same line as in step 4 without `--dry-run`. Add `--force` only if the protocol team confirmed it. The script runs the checks again, rolls back, deletes the state sync snapshots above X and starts the node:
 
    ```sh
    # systemd
@@ -114,7 +114,7 @@ HASH=<CHECK_APP_HASH>
 
    It prints `Rolled back to height <X>, app hash <APP_HASH>`.
 
-7. When the core team posts H and HASH, check your node:
+7. When the protocol team posts H and HASH, check your node:
 
    ```sh
    bash recovery.sh verify --check-height "$H" --expect-app-hash "$HASH"
@@ -140,7 +140,7 @@ This applies only while the node has not run since the rollback.
 1. Run the same command again with the same flags. A re-run usually finishes an interrupted rollback.
 2. If the re-run fails, restore the node with state sync or a snapshot. There is no backup. This can happen when a rollback of more than one height was interrupted.
 
-Once the node has started after the rollback, do not run `rollback` again. It would roll back to X again and delete newer blocks. Run `verify` (step 7) instead, or contact the core team.
+Once the node has started after the rollback, do not run `rollback` again. It would roll back to X again and delete newer blocks. Run `verify` (step 7) instead, or contact the protocol team.
 
 ## Messages
 
@@ -162,24 +162,24 @@ Setup and flags:
 Rollback checks:
 
 - `rollback check failed`: the line above it has the cause. Look it up in this list.
-- `rollback depth <D> exceeds 100; use --force`, or the same with `app rollback depth`: check X. Add `--force` only if the core team confirms it.
-- `rollback across an upgrade is not supported`: X is before an app version upgrade. Stop and tell the core team.
-- `node is on app version <N>, binary on <M>: use "celestia-appd passthrough ...`: the node is on an older app version. Stop and contact the core team.
+- `rollback depth <D> exceeds 100; use --force`, or the same with `app rollback depth`: check X. Add `--force` only if the protocol team confirms it.
+- `rollback across an upgrade is not supported`: X is before an app version upgrade. Stop and tell the protocol team.
+- `node is on app version <N>, binary on <M>: use "celestia-appd passthrough ...`: the node is on an older app version. Stop and contact the protocol team.
 - `node is on app version <N>, binary on <M>: use a newer celestia-appd`: install the release from the announcement.
-- `target height <X> out of range [<base>, <S>]`: the node has no state at X. Tell the core team.
+- `target height <X> out of range [<base>, <S>]`: the node has no state at X. Tell the protocol team.
 - `store <name> has no version <X>` or `block meta at height <N> not found`: the node pruned data the rollback needs. Use state sync or a snapshot.
-- `validator set at height <N>: <cause>` or `consensus params at height <N>: <cause>`: the node may have pruned data the rollback needs. Send the full error to the core team before you use state sync or a snapshot.
-- `app hash at height <X> is <A>; CometBFT expects <B>`: the local app state does not match the committed header. Stop and tell the core team.
+- `validator set at height <N>: <cause>` or `consensus params at height <N>: <cause>`: the node may have pruned data the rollback needs. Send the full error to the protocol team before you use state sync or a snapshot.
+- `app hash at height <X> is <A>; CometBFT expects <B>`: the local app state does not match the committed header. Stop and tell the protocol team.
 
 Signer:
 
-- `signer state not found: <path>`: the node uses a local signer, but its state file is missing. Do not start the node. Contact the core team. Never create a new file or restore an old copy: an old copy forgets later votes and can cause double signing.
-- `signer state changed since <home>/data/recovery-signer.sha256 was saved; do not start the node`: do not start the node. Contact the core team.
+- `signer state not found: <path>`: the node uses a local signer, but its state file is missing. Do not start the node. Contact the protocol team. Never create a new file or restore an old copy: an old copy forgets later votes and can cause double signing.
+- `signer state changed since <home>/data/recovery-signer.sha256 was saved; do not start the node`: do not start the node. Contact the protocol team.
 - `warning: signer state not checked; check the remote signer by hand`: check that the signer is running and its state wasn't changed. Never reset it.
 
 Other output:
 
-- `warning: app.toml sets halt-height = <N>; the node stops again there` (or `halt-time`): set it to 0 in `config/app.toml` before the node starts, unless the core team asked for it.
-- `warning: the kv tx index keeps results from before the rollback; ...`: `tx`, `tx_search` and `block_search` above X can return results from before the rollback. Tell the core team if this node serves RPC.
+- `warning: app.toml sets halt-height = <N>; the node stops again there` (or `halt-time`): set it to 0 in `config/app.toml` before the node starts, unless the protocol team asked for it.
+- `warning: the kv tx index keeps results from before the rollback; ...`: `tx`, `tx_search` and `block_search` above X can return results from before the rollback. Tell the protocol team if this node serves RPC.
 - `+ .../celestia-appd snapshots delete ...`: the script deletes a state sync snapshot above X. It holds the state from before the rollback, and peers that restore it fail state sync.
 - The node fails to start with `rollback to height <T> is not finished; run the rollback command again with --height <T>`: a rollback was interrupted. This is expected. Run step 6 again with the same flags and `--height <T>`.
