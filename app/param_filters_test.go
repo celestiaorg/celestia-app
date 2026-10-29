@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app/params"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -15,6 +16,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,6 +31,36 @@ func TestGovParamFilters(t *testing.T) {
 	require.Contains(t, filters, sdk.MsgTypeURL((*banktypes.MsgUpdateParams)(nil)))
 	require.Contains(t, filters, sdk.MsgTypeURL((*stakingtypes.MsgUpdateParams)(nil)))
 	require.Contains(t, filters, sdk.MsgTypeURL((*consensustypes.MsgUpdateParams)(nil)))
+	require.Contains(t, filters, sdk.MsgTypeURL((*icahosttypes.MsgUpdateParams)(nil)))
+}
+
+func TestICAHostParamFilter(t *testing.T) {
+	update := func(allow ...string) sdk.Msg {
+		return &icahosttypes.MsgUpdateParams{Params: icahosttypes.Params{HostEnabled: true, AllowMessages: allow}}
+	}
+	tests := []struct {
+		name        string
+		msg         sdk.Msg
+		expectedErr error
+	}{
+		{name: "default allowlist", msg: update(IcaAllowMessages()...)},
+		{name: "subset of default allowlist", msg: update(IcaAllowMessages()[0])},
+		{name: "empty allowlist", msg: update()},
+		{name: "wildcard", msg: update("*"), expectedErr: sdkerrors.ErrUnauthorized},
+		{name: "MsgProcessMessage", msg: update(append(IcaAllowMessages(), sdk.MsgTypeURL(&hyperlanetypes.MsgProcessMessage{}))...), expectedErr: sdkerrors.ErrUnauthorized},
+		{name: "invalid type", msg: &banktypes.MsgUpdateParams{}, expectedErr: sdkerrors.ErrInvalidType},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := icaHostParamFilter(tt.msg)
+			if tt.expectedErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.True(t, errors.IsOf(err, tt.expectedErr))
+			}
+		})
+	}
 }
 
 // TestBankParamFilter tests the filtering logic for banktypes.MsgUpdateParams.
