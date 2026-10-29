@@ -416,8 +416,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
 	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
 	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +2 sign the ZK
-	// proof txs and +3 sign the ISM signature txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 14
+	// proof txs, +3 sign the ISM signature txs and +2 sign the SDK gas txs.
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 16
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -447,7 +447,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(150_000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
 		accountIndex++
@@ -535,7 +535,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			Metadata: ismMetadataHex(sigs),
 			Message:  "0x",
 		}
-		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(400000000), user.SetFee(10000))
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(ismGasLimit(sigs)), user.SetFee(10000))
 		require.NoError(t, err)
 		return rawTx
 	}
@@ -545,6 +545,19 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	ismSigsAtLimitTx := buildISMSignatureTx(accountIndex, appconsts.MaxISMSignatures)
 	accountIndex++
 	ismSigsOneTx := buildISMSignatureTx(accountIndex, 1)
+	accountIndex++
+
+	// Build a MsgSend tx that declares gas, to test MaxSDKGas.
+	buildGasTx := func(accIdx int, gas uint64) []byte {
+		msg := banktypes.NewMsgSend(addrs[accIdx], testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gas), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	gasExceedsTx := buildGasTx(accountIndex, appconsts.MaxSDKGas+1)
+	accountIndex++
+	gasAtLimitTx := buildGasTx(accountIndex, appconsts.MaxSDKGas)
 	accountIndex++
 
 	// Build a tx with a single MsgModuleQuerySafe weighing totalWeight. The
@@ -689,6 +702,32 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
+			name:           "reject block exceeding MaxSDKGas in one tx",
+			txs:            [][]byte{gasExceedsTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject block exceeding MaxSDKGas across txs",
+			txs:            [][]byte{gasAtLimitTx, msgSendTxs[0]},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept block at exactly MaxSDKGas",
+			txs:            [][]byte{gasAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			// Blob txs are bounded by MaxPFBMessages and priced per byte, so their
+			// gas does not count against MaxSDKGas.
+			name:           "accept blob txs alongside a block at exactly MaxSDKGas",
+			txs:            [][]byte{gasAtLimitTx, pfbTxs[0]},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
 			name:           "reject MsgModuleQuerySafe queries beyond MaxSDKMessages",
 			txs:            [][]byte{querySafeExceedsTx},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -780,6 +819,12 @@ func icaHostRecvPacket(t *testing.T, cdc codec.Codec, addr sdk.AccAddress, numMs
 // layout carrying sigs signatures.
 func ismMetadataHex(sigs int) string {
 	return "0x" + strings.Repeat("00", ante.MessageIDMultisigHeaderLen+sigs*ante.ISMSignatureLen)
+}
+
+// ismGasLimit returns a gas limit that pays for sigs ISM signatures and still
+// fits MaxSDKGas.
+func ismGasLimit(sigs int) uint64 {
+	return uint64(sigs)*appconsts.GasPerISMSignature + 5_000_000
 }
 
 // seedICAHostChannel writes the ICA host channel the test packets arrive on, so

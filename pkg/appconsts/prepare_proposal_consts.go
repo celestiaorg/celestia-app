@@ -20,4 +20,8 @@ const (
 	// MaxISMSignatures bounds Hyperlane multisig ISM signatures in a block, about
 	// 90 ms of secp256k1 recovery with cgo or 350 ms in pure Go.
 	MaxISMSignatures = 2048
+
+	// MaxSDKGas bounds the summed gas limits of the txs MaxSDKMessages counts,
+	// so per-block execution is bounded by work as well as by message count.
+	MaxSDKGas = 100_000_000
 )

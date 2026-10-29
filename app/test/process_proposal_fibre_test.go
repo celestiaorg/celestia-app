@@ -218,7 +218,7 @@ func newMixedBlock(t *testing.T, pff, pfb, send int) (*app.App, [][]byte) {
 		case i < send:
 			to := testfactory.GetAddress(kr, accounts[(i+1)%n])
 			msg := banktypes.NewMsgSend(addr, to, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
-			tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+			tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.FeeTxOpts(10_000_000)...)
 			require.NoError(t, err)
 			txs = append(txs, tx)
 		case i < send+pfb:

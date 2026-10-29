@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -48,6 +49,26 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 		}
 	}
 	return count
+}
+
+// txGasLimit returns the gas limit tx declares, which caps the gas its
+// execution can consume. It reads the fee through the nil safe proto getters
+// because it runs before ante, and FeeTx.GetGas panics on a tx without AuthInfo
+// or Fee. A tx without a fee, or one that is not a protobuf tx, reports zero
+// here and ante rejects it.
+func txGasLimit(tx sdk.Tx) uint64 {
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
+	if !ok {
+		return 0
+	}
+	return protoTx.GetProtoTx().GetAuthInfo().GetFee().GetGasLimit()
+}
+
+// fitsSDKGas reports whether a tx with gas limit txGas fits a block whose txs
+// already declare used gas, with used <= MaxSDKGas. Subtracting rather than
+// adding keeps an attacker chosen txGas from overflowing the sum.
+func fitsSDKGas(used, txGas uint64) bool {
+	return txGas <= appconsts.MaxSDKGas-used
 }
 
 // countZKProofMsgs counts messages that perform ZK proof verification or
