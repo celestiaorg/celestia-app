@@ -1,6 +1,7 @@
 name: test-coverage
 
-# Full profiles on main seed the base for PR and merge-queue non-regression checks.
+# Full profiles on main seed the base for merge-queue non-regression checks.
+# PRs keep the required shard statuses but run the ordinary Go tests instead.
 on:
   push:
     branches:
@@ -28,16 +29,26 @@ jobs:
       matrix:
         shard: [app-test, fibre-tools, rest, txsim, user]
     steps:
+      # Keep the matrix expanded on PRs so every required shard name reports.
+      # A job-level condition would skip the matrix before expansion.
+      - name: Defer coverage to the merge queue
+        if: github.event_name == 'pull_request'
+        run: echo "PR Go tests run in ci-release; coverage runs on the combined merge result."
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+        if: github.event_name != 'pull_request'
 
       - uses: ./.github/actions/setup-go
+        if: github.event_name != 'pull_request'
 
       - name: Generate shard coverage.txt
+        if: github.event_name != 'pull_request'
         env:
           COVER_SHARD: ${{ matrix.shard }}
         run: make test-coverage
 
       - name: Save shard coverage
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
         with:
           name: coverage-shard-${{ matrix.shard }}
@@ -46,6 +57,7 @@ jobs:
           retention-days: 1
 
   test-coverage:
+    if: github.event_name != 'pull_request'
     needs: test-coverage-shard
     runs-on: ubuntu-latest
     permissions:
@@ -83,9 +95,11 @@ jobs:
         if: always()
         run: |
           if [ -f coverage-summary.txt ]; then
-            echo '```text' >> "$GITHUB_STEP_SUMMARY"
-            cat coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo '```text'
+              cat coverage-summary.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Save coverage reports

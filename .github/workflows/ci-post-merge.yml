@@ -1,7 +1,7 @@
 name: Post-merge CI
 
-# Catch failures on main that slip through the merge queue (e.g. two PRs that
-# individually pass but conflict once both land).
+# Smoke-check the landed source. The merge queue already validates the combined
+# result with the full suite; coverage on main separately publishes its baseline.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -12,20 +12,29 @@ on:
       - main
 
 jobs:
-  lint:
-    uses: ./.github/workflows/lint.yml
-
-  build:
-    uses: ./.github/workflows/build.yml
-
-  test:
-    uses: ./.github/workflows/test.yml
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: ./.github/actions/setup-go
+      - name: Build standalone binary
+        run: make -o mod build-standalone
+      - name: Check CLI and initialize a node
+        run: |
+          build/celestia-appd version
+          build/celestia-appd init ci-smoke --chain-id ci-post-merge --home "$RUNNER_TEMP/ci-smoke"
+          jq -e '.chain_id == "ci-post-merge"' "$RUNNER_TEMP/ci-smoke/config/genesis.json"
+          test -s "$RUNNER_TEMP/ci-smoke/config/config.toml"
+          test -s "$RUNNER_TEMP/ci-smoke/config/app.toml"
 
   notify-slack-on-failure:
     name: Notify Slack on failure
     runs-on: ubuntu-latest
-    needs: [lint, build, test]
-    if: ${{ always() && (needs.lint.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    needs: smoke
+    if: ${{ always() && needs.smoke.result == 'failure' }}
     steps:
       - name: Slack Notification
         uses: slackapi/slack-github-action@v4.0.0

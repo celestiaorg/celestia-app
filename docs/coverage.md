@@ -1,11 +1,20 @@
 # Coverage reports and staged checks
 
 [Coverage CI](../.github/workflows/test-coverage.yml) runs the full serial suite,
-split into shards on parallel runners and merged into one report, on main, PRs
-targeting main, and the merge queue. It preserves the corrected
+split into shards on parallel runners and merged into one report, on main and
+the merge queue (also available by manual dispatch). It preserves the corrected
 [cross-package instrumentation and production scope](../scripts/README.md#test_coversh).
 Tests in other packages credit the production code they execute. Generated code,
 test utilities, and developer tools remain excluded.
+
+PRs targeting main run the ordinary Go test matrix for feedback. The five
+required coverage shard jobs report success with their work skipped, and the
+required coverage merge job reports skipped. Coverage reports and instrumentation
+checks run in the merge queue, replacing its ordinary Go test matrix. A separate
+queue job runs `test/util/...`, whose tests the coverage script excludes. ARM64,
+multiplexer, and Docker E2E tests still run independently. Keep all five shard
+statuses and `test-coverage` required in the main ruleset: `test / test` covers
+the other tests and cannot observe this separate workflow's result.
 
 [Codecov configuration](../.github/codecov.yml) sets an 80% goal for all production
 code. New production packages enter this scope automatically; no component entry
@@ -32,7 +41,7 @@ bash scripts/check_proposal_coverage.sh
    reports fail the checks. Main uploads supply the corrected baseline. The 80%
    production and 95% proposal goals are informational initially.
 2. **Ratchet:** as existing or new tests raise coverage, `auto` uses the improved
-   base on subsequent PRs. Review the full profile before promoting a goal;
+   base on subsequent merge groups. Review the full profile before promoting a goal;
    remove `informational: true` for a component once its goal is sustainable.
    Raise the production check to 80% the same way. Keep non-regression checks.
 3. **Maintain:** require the coverage job and non-regression statuses in repository
