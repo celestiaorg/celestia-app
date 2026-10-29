@@ -80,8 +80,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, publicValues.State)
 	}
 
-	// Accept at most one transition proof per ISM per block. Simulation runs at the last committed height while the
-	// tx lands in a later block, so it skips this check.
+	// Accept at most one transition proof per ISM per block. Skipped in simulation, which runs at the previous height.
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	height := sdkCtx.BlockHeight()
 	if ism.StateHeight == height && sdkCtx.ExecMode() != sdk.ExecModeSimulate {
@@ -142,7 +141,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	ismID := ism.Id.GetInternalId()
 
 	// Accept at most one membership proof per ISM per block, and only if it adds leaves, so duplicate and stale
-	// proofs are rejected. Simulation skips the per-block check, as in UpdateInterchainSecurityModule.
+	// proofs are rejected. The per-block check is skipped in simulation.
 	latest, err := m.treeStates.Get(ctx, ismID)
 	hasLatest := err == nil
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
