@@ -1,10 +1,15 @@
 name: devnet
 
 on:
-  pull_request:
-  merge_group:
+  # Release branches are tested before tagging; only tags publish.
   push:
+    branches: ['v*']
     tags: ['v*']
+  pull_request:
+    paths:
+      - 'docker/devnet/**'
+      - 'local_devnet/submit/**'
+      - '.github/workflows/devnet.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -17,7 +22,7 @@ permissions:
 
 concurrency:
   group: devnet-${{ github.event.inputs.tag || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-test:
@@ -82,9 +87,7 @@ jobs:
 
   publish:
     needs: build-test
-    if: >-
-      github.repository == 'celestiaorg/celestia-app' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'celestiaorg/celestia-app' && needs.build-test.outputs.tag != ''
     permissions:
       contents: read
       packages: write

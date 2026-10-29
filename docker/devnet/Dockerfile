@@ -18,7 +18,7 @@ LABEL org.opencontainers.image.source="https://github.com/celestiaorg/celestia-a
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$COMMIT"
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates curl jq netcat-openbsd \
+RUN apt-get update && apt-get install -y --no-install-recommends bash ca-certificates curl jq netcat-openbsd procps \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/devnet/credentials.sh docker/devnet/health.sh docker/devnet/provision.sh docker/devnet/validator.sh /opt/devnet/
 ENV P2P_NETWORK=devnet
@@ -32,6 +32,6 @@ COPY --from=build /src/build/celestia-appd /src/build/fibre /src/build/submit /u
 COPY --from=credentials /credentials /credentials
 ENV CELESTIA_APP_HOME=/data/validator FIBRE_HOST=localhost:7980
 EXPOSE 1317 9090 26657 7980
-HEALTHCHECK --interval=2s --timeout=5s --start-period=10s --retries=60 \
+HEALTHCHECK --interval=2s --timeout=5s --start-period=240s --retries=3 \
     CMD ["bash", "/opt/devnet/health.sh"]
 CMD ["bash", "/opt/devnet/validator.sh"]

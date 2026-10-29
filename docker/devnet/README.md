@@ -26,7 +26,7 @@ docker compose -f docker/devnet/compose.yaml up -d --wait
 bash docker/devnet/smoke.sh
 ```
 
-The smoke suite uses isolated project names and dynamically allocated loopback ports. It removes its own volumes and saves logs under `/tmp/celestia-devnet-test-<pid>`; set `DEVNET_LOG_DIR` to choose another directory.
+The smoke suite uses an isolated project name and dynamically allocated loopback ports. It removes its own volumes and saves logs under `/tmp/celestia-devnet-test-<pid>`; set `DEVNET_LOG_DIR` to choose another directory.
 
 ## Connections and settings
 
