@@ -12,6 +12,9 @@ type limitedListener struct {
 	globalMax int64
 	open      atomic.Int64
 	perIP     *keyedCounter
+
+	rejectedGlobal atomic.Int64
+	rejectedPerIP  atomic.Int64
 }
 
 func newLimitedListener(inner net.Listener, globalMax int64, perIPMax int) *limitedListener {
@@ -36,10 +39,12 @@ func (l *limitedListener) Accept() (net.Conn, error) {
 func (l *limitedListener) acquire(key string) bool {
 	if l.open.Add(1) > l.globalMax {
 		l.open.Add(-1)
+		l.rejectedGlobal.Add(1)
 		return false
 	}
 	if !l.perIP.tryAcquire(key) {
 		l.open.Add(-1)
+		l.rejectedPerIP.Add(1)
 		return false
 	}
 	return true

@@ -91,6 +91,10 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
+	if err := registerGRPCMetrics(cfg.Meter, server.grpc); err != nil {
+		server.grpc.Stop(context.Background()) // closes the listener
+		return nil, fmt.Errorf("creating metrics: %w", err)
+	}
 
 	return server, nil
 }

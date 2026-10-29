@@ -56,6 +56,7 @@ func TestLimitedListenerFailFast(t *testing.T) {
 			dialTCP(t, addr)
 			mustAccept(t, accepted)
 			require.EqualValues(t, 2, ln.open.Load())
+			require.EqualValues(t, 1, ln.rejectedGlobal.Load()+ln.rejectedPerIP.Load())
 		})
 	}
 }
