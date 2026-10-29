@@ -154,32 +154,6 @@ func (suite *KeeperTestSuite) TestInitGenesisRootHistoryUnknownIsm() {
 	suite.Require().ErrorIs(err, types.ErrIsmNotFound)
 }
 
-// TestInitGenesisLowersFutureHistoryHeights checks that heights above the restart height do not block the first proof.
-func (suite *KeeperTestSuite) TestInitGenesisLowersFutureHistoryHeights() {
-	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
-	ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
-	root := randBytes(32)
-	genesisState := types.GenesisState{
-		Isms: []types.InterchainSecurityModule{ism},
-		StateRootHistory: []types.GenesisRootHistoryEntry{
-			{Id: ismId, Entry: types.RootHistoryEntry{Root: root, Height: 5_000_000}},
-		},
-	}
-
-	suite.Require().NoError(suite.zkISMKeeper.InitGenesis(suite.ctx.WithBlockHeight(0), &genesisState))
-
-	entries, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, ismId)
-	suite.Require().NoError(err)
-	suite.Require().Equal([]types.RootHistoryEntry{{Root: root, Height: 0}}, entries)
-
-	// The first replacement at the old height is recorded.
-	replaced := randBytes(32)
-	suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(suite.ctx.WithBlockHeight(5_000_000), ism, replaced))
-	entries, err = suite.zkISMKeeper.GetStateRootHistory(suite.ctx, ismId)
-	suite.Require().NoError(err)
-	suite.Require().Equal([][]byte{root, replaced}, historyRoots(entries))
-}
-
 func (suite *KeeperTestSuite) TestInitGenesisRootHistorySequenceBound() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
 	newGenesis := func(sequence uint64) *types.GenesisState {
@@ -197,8 +171,9 @@ func (suite *KeeperTestSuite) TestInitGenesisRootHistorySequenceBound() {
 	suite.Require().NoError(suite.zkISMKeeper.InitGenesis(suite.ctx, newGenesis(math.MaxInt64)))
 }
 
-// TestInitGenesisLowersHistoryHeightsFromInitialHeight checks the clamp boundary for an initial height above 1.
-func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeight() {
+// TestInitGenesisLowersProofHeights checks that proof heights at or above the first block are lowered to the block
+// before it, and that history heights are kept.
+func (suite *KeeperTestSuite) TestInitGenesisLowersProofHeights() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
 	genesisState := types.GenesisState{
 		Isms: []types.InterchainSecurityModule{{Id: ismId, Owner: "test", StateHeight: 10}},
@@ -207,26 +182,22 @@ func (suite *KeeperTestSuite) TestInitGenesisLowersHistoryHeightsFromInitialHeig
 		},
 		StateRootHistory: []types.GenesisRootHistoryEntry{
 			{Id: ismId, Sequence: 0, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 9}},
-			{Id: ismId, Sequence: 1, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 10}},
-			{Id: ismId, Sequence: 2, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 11}},
+			{Id: ismId, Sequence: 1, Entry: types.RootHistoryEntry{Root: randBytes(32), Height: 11}},
 		},
 	}
 
 	suite.Require().NoError(suite.zkISMKeeper.InitGenesis(suite.ctx.WithBlockHeight(10), &genesisState))
 
-	entries, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, ismId)
-	suite.Require().NoError(err)
-	heights := make([]int64, len(entries))
-	for i, entry := range entries {
-		heights[i] = entry.Height
-	}
-	suite.Require().Equal([]int64{9, 9, 9}, heights)
-
-	// The ISM and tree state proof heights are lowered the same way.
 	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, ismId)
 	suite.Require().NoError(err)
 	suite.Require().Equal(int64(9), ism.StateHeight)
+
 	treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ismId)
 	suite.Require().NoError(err)
 	suite.Require().Equal(int64(9), treeState.Height)
+
+	entries, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, ismId)
+	suite.Require().NoError(err)
+	suite.Require().Equal(int64(9), entries[0].Height)
+	suite.Require().Equal(int64(11), entries[1].Height)
 }

@@ -13,66 +13,47 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// InitGenesis initialises the module genesis state. Proof heights are clamped below the chain's first block so they
-// cannot block the first proof at that height.
+// InitGenesis initialises the module genesis state. The deprecated submissions field is ignored.
 func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
-	firstHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1)
+	// Proof heights from an exported chain may be at or above this chain's first block, where they would block the
+	// first proof. Lower them to the block before.
+	lastHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1) - 1
+
 	for _, ism := range gs.Isms {
-		ism.StateHeight = clampGenesisHeight(ism.StateHeight, firstHeight)
+		ism.StateHeight = min(ism.StateHeight, lastHeight)
 		if err := k.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 			return err
 		}
 	}
 
 	for _, entry := range gs.TreeStates {
-		ismId := entry.Id
-		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
-		if err != nil {
+		if err := k.requireIsm(ctx, entry.Id); err != nil {
 			return err
 		}
-		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "merkle tree state defined for unknown ism %s", ismId.String())
-		}
 
-		entry.TreeState.Height = clampGenesisHeight(entry.TreeState.Height, firstHeight)
-		if err := k.treeStates.Set(ctx, ismId.GetInternalId(), entry.TreeState); err != nil {
+		entry.TreeState.Height = min(entry.TreeState.Height, lastHeight)
+		if err := k.treeStates.Set(ctx, entry.Id.GetInternalId(), entry.TreeState); err != nil {
 			return err
 		}
 	}
 
-	// Submissions are no longer tracked; the deprecated genesis field is ignored.
-	if err := k.importRootHistory(ctx, k.stateRootHistory, gs.StateRootHistory, firstHeight); err != nil {
+	if err := k.importRootHistory(ctx, k.stateRootHistory, gs.StateRootHistory); err != nil {
 		return err
 	}
-
-	return k.importRootHistory(ctx, k.treeStateHistory, gs.TreeStateHistory, firstHeight)
+	return k.importRootHistory(ctx, k.treeStateHistory, gs.TreeStateHistory)
 }
 
-// clampGenesisHeight lowers an imported proof height to the block before the first block of this chain.
-func clampGenesisHeight(height, firstHeight int64) int64 {
-	if height >= firstHeight {
-		return firstHeight - 1
-	}
-	return height
-}
-
-// importRootHistory writes genesis root history entries, rejecting entries for unknown isms.
-func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, entries []types.GenesisRootHistoryEntry, firstHeight int64) error {
+// importRootHistory writes genesis root history entries.
+func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, entries []types.GenesisRootHistoryEntry) error {
 	for _, entry := range entries {
-		exists, err := k.isms.Has(ctx, entry.Id.GetInternalId())
-		if err != nil {
+		if err := k.requireIsm(ctx, entry.Id); err != nil {
 			return err
 		}
-		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "root history defined for unknown ism %s", entry.Id.String())
-		}
 
-		// InitChain skips genesis validation, so enforce the sequence bound here too.
+		// InitChain does not run genesis validation, so check the bound that keeps sequences from wrapping here.
 		if entry.Sequence > math.MaxInt64 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "root history sequence %d for ism %s exceeds %d", entry.Sequence, entry.Id.String(), int64(math.MaxInt64))
 		}
-
-		entry.Entry.Height = clampGenesisHeight(entry.Entry.Height, firstHeight)
 
 		if err := history.Set(ctx, collections.Join(entry.Id.GetInternalId(), entry.Sequence), entry.Entry); err != nil {
 			return err
@@ -81,20 +62,28 @@ func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, ent
 	return nil
 }
 
+// requireIsm returns ErrIsmNotFound if the ism does not exist.
+func (k *Keeper) requireIsm(ctx context.Context, id util.HexAddress) error {
+	exists, err := k.isms.Has(ctx, id.GetInternalId())
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errorsmod.Wrapf(types.ErrIsmNotFound, "genesis entry for unknown ism %s", id.String())
+	}
+	return nil
+}
+
 // ExportGenesis outputs the modules state for genesis exports.
 func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) {
 	var isms []types.InterchainSecurityModule
-	if err := k.isms.Walk(ctx, nil, func(_ uint64, value types.InterchainSecurityModule) (bool, error) {
+	ismByID := make(map[uint64]util.HexAddress)
+	if err := k.isms.Walk(ctx, nil, func(key uint64, value types.InterchainSecurityModule) (bool, error) {
 		isms = append(isms, value)
+		ismByID[key] = value.Id
 		return false, nil
 	}); err != nil {
 		return nil, err
-	}
-
-	ismByID := make(map[uint64]util.HexAddress, len(isms))
-	for i := range isms {
-		ism := isms[i]
-		ismByID[ism.Id.GetInternalId()] = ism.Id
 	}
 
 	treeStates := make([]types.GenesisMerkleTreeState, 0)
@@ -104,10 +93,7 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "merkle tree state entry for unknown ism %d", key)
 		}
 
-		treeStates = append(treeStates, types.GenesisMerkleTreeState{
-			Id:        ismId,
-			TreeState: value,
-		})
+		treeStates = append(treeStates, types.GenesisMerkleTreeState{Id: ismId, TreeState: value})
 		return false, nil
 	}); err != nil {
 		return nil, err
@@ -144,11 +130,7 @@ func exportRootHistory(ctx context.Context, history rootHistory, ismByID map[uin
 			return false, errorsmod.Wrapf(types.ErrIsmNotFound, "root history entry for unknown ism %d", key.K1())
 		}
 
-		entries = append(entries, types.GenesisRootHistoryEntry{
-			Id:       ismId,
-			Sequence: key.K2(),
-			Entry:    value,
-		})
+		entries = append(entries, types.GenesisRootHistoryEntry{Id: ismId, Sequence: key.K2(), Entry: value})
 		return false, nil
 	})
 	return entries, err
