@@ -270,15 +270,13 @@ Startup fails if the saved record is corrupt, or if retained object shards have 
 
 `max_request_memory` (default 16 GiB) bounds the bytes of request messages buffered in memory: every request is admitted against this budget before it is read, and rejected (retryably) when it is full. It is not an RSS bound — decode and verification allocate on top — so leave host headroom. See ADR-031.
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+Connections are capped only for safety and fairness, and over-cap connections are closed at once rather than parked:
 
-**Deprecated:** sizing memory with these caps. Before memory admission, gRPC buffered a full upload message (~132 MiB) per in-flight stream, so the caps bounded worst-case receive memory:
+- `max_connections_per_ip` (default 16, `0` disables) limits concurrent connections from one source IP (IPv6 by `/64`). A fixed internal cap of 4096 bounds the total.
+- `max_concurrent_streams` (default 100) bounds per-connection stream concurrency.
+- `max_connections` is deprecated and ignored; the key is kept so existing configs still load.
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
-```
-
-That bound no longer applies: buffered request memory is capped by `max_request_memory` alone, whatever the connection and stream caps are. Set `max_request_memory` to size memory, and use these caps only to limit concurrency.
+Existing config files keep their written values: unless edited, they keep `max_concurrent_streams = 13` and a `max_connections` that is now ignored. Raise `max_concurrent_streams` to 100 to pick up the new default.
 
 ## Signing
 
