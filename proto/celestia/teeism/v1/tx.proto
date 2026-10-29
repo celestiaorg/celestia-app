@@ -83,10 +83,16 @@ message MsgSubmitAttestation {
 message MsgSubmitAttestationResponse {
   // new ism state (hex-encoded)
   string state = 1;
-  // state commitment root the messages were authorized under (hex-encoded)
+  // new origin state root (hex-encoded)
   string state_root = 2;
-  // list of authorized message ids
-  repeated string messages = 3;
+  // Field 3 listed the authorized message ids when attestations named them.
+  reserved 3;
+  reserved "messages";
+  // the attested origin merkle tree root (hex-encoded), which delivery proofs
+  // are checked against
+  string tree_root = 4;
+  // the origin tree's leaf count at that root
+  uint32 tree_count = 5;
 }
 
 // MsgUpdateEnclaveIdentity is the request type for UpdateEnclaveIdentity.

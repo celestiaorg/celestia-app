@@ -19,22 +19,22 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
-	for _, messages := range gs.Messages {
-		ismId := messages.Id
+	for _, entry := range gs.Roots {
+		ismId := entry.Id
 		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
 		if err != nil {
 			return err
 		}
 		if !exists {
-			return errorsmod.Wrapf(types.ErrIsmNotFound, "messages defined for unknown ism %s", ismId.String())
+			return errorsmod.Wrapf(types.ErrIsmNotFound, "roots defined for unknown ism %s", ismId.String())
 		}
 
-		for _, msg := range messages.Messages {
-			messageId, err := types.DecodeHex(msg)
+		for _, root := range entry.Roots {
+			raw, err := types.DecodeHex(root)
 			if err != nil {
-				return fmt.Errorf("invalid message id %q: %w", msg, err)
+				return fmt.Errorf("invalid tree root %q: %w", root, err)
 			}
-			if err := k.messages.Set(ctx, collections.Join(ismId.GetInternalId(), messageId)); err != nil {
+			if err := k.roots.Set(ctx, collections.Join(ismId.GetInternalId(), raw)); err != nil {
 				return err
 			}
 		}
@@ -53,39 +53,39 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 		return nil, err
 	}
 
-	genesisMessages := make([]types.GenesisMessages, 0, len(isms))
+	genesisRoots := make([]types.GenesisRoots, 0, len(isms))
 	transform := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
 		return types.EncodeHex(key.K2()), nil
 	}
 
 	for _, ism := range isms {
-		msgs, _, err := query.CollectionPaginate(
+		roots, _, err := query.CollectionPaginate(
 			ctx,
-			k.messages,
+			k.roots,
 			nil,
 			transform,
 			query.WithCollectionPaginationPairPrefix[uint64, []byte](ism.Id.GetInternalId()),
 		)
 		if err != nil {
-			return nil, errorsmod.Wrapf(err, "collecting messages for ism %s", ism.Id.String())
+			return nil, errorsmod.Wrapf(err, "collecting roots for ism %s", ism.Id.String())
 		}
-		if len(msgs) == 0 {
+		if len(roots) == 0 {
 			continue
 		}
 
-		sort.Strings(msgs)
-		genesisMessages = append(genesisMessages, types.GenesisMessages{
-			Id:       ism.Id,
-			Messages: msgs,
+		sort.Strings(roots)
+		genesisRoots = append(genesisRoots, types.GenesisRoots{
+			Id:    ism.Id,
+			Roots: roots,
 		})
 	}
 
-	sort.Slice(genesisMessages, func(i, j int) bool {
-		return genesisMessages[i].Id.Compare(genesisMessages[j].Id) < 0
+	sort.Slice(genesisRoots, func(i, j int) bool {
+		return genesisRoots[i].Id.Compare(genesisRoots[j].Id) < 0
 	})
 
 	return &types.GenesisState{
-		Isms:     isms,
-		Messages: genesisMessages,
+		Isms:  isms,
+		Roots: genesisRoots,
 	}, nil
 }

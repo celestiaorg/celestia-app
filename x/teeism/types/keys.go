@@ -28,25 +28,18 @@ const (
 	// MaxCollateralFieldBytes caps any single Intel PCS artifact.
 	MaxCollateralFieldBytes = 256 * 1024
 
-	// MaxPayloadBytes caps an attested update. The message ids dominate, so this
-	// is the real bound on how many messages one attestation may carry.
-	MaxPayloadBytes = 4 * 1024 * 1024
-
 	// DefaultAttestationVerifyCost is the gas metered for one DCAP verification.
 	//
 	// Verification is a handful of ECDSA P-256 checks over a certificate chain
 	// plus JSON and CRL parsing. Measured at roughly 3ms, which puts it in the
 	// same range as the groth16 verification x/zkism meters at 6000.
 	DefaultAttestationVerifyCost = 6000
-
-	// DefaultMessageIDCost is metered per authorized message id, so a large batch
-	// pays for the storage it creates.
-	DefaultMessageIDCost = 1000
 )
 
 var (
-	IsmsKeyPrefix    = collections.NewPrefix(0)
-	MessageKeyPrefix = collections.NewPrefix(1)
+	IsmsKeyPrefix = collections.NewPrefix(0)
+	// Prefix 1 held the authorized message ids when attestations named them.
+	RootsKeyPrefix = collections.NewPrefix(2)
 )
 
 // EncodeHex encodes a byte slice as a 0x prefixed hexadecimal string.

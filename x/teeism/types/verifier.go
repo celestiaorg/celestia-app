@@ -55,6 +55,10 @@ type AttestationResult struct {
 //
 // overrides are the ism owner's overrides of step 1 (see VerifyQuoteWith); nil
 // means none. Steps 2 to 4 are never overridden.
+//
+// Whether the attestation brings a new tree root, and so whether it may advance
+// the state this soon, is the caller's to check against the root the ism holds
+// (VerifyBatchCadence).
 func VerifyAttestation(
 	quote []byte,
 	eventLogRaw []byte,
@@ -67,6 +71,26 @@ func VerifyAttestation(
 	measured, reportData, err := VerifyQuoteWith(quote, collateral, blockTime, overrides)
 	if err != nil {
 		return nil, err
+	}
+	return VerifyAttestedPayload(measured, reportData, eventLogRaw, payload, identity, blockTime)
+}
+
+// VerifyAttestedPayload runs steps 3 and 4 of VerifyAttestation on a quote
+// already verified by Intel's rules: measured and reportData are what
+// VerifyQuoteWith returned for it.
+//
+// Exported on its own so the payload rules can be tested without a genuine quote
+// committing to every payload under test.
+func VerifyAttestedPayload(
+	measured *Measurements,
+	reportData []byte,
+	eventLogRaw []byte,
+	payload []byte,
+	identity *EnclaveIdentity,
+	blockTime time.Time,
+) (*AttestationResult, error) {
+	if len(reportData) != 64 {
+		return nil, ErrInvalidQuote.Wrapf("report_data must be 64 bytes, got %d", len(reportData))
 	}
 
 	// Step 3. Our verdict on the software stack, as opposed to Intel's on the
@@ -96,9 +120,6 @@ func VerifyAttestation(
 	}
 
 	if err := VerifyTransition(update.PrevState, update.NewState); err != nil {
-		return nil, err
-	}
-	if err := VerifyBatchCadence(update.PrevState, update.NewState, len(update.MessageIDs)); err != nil {
 		return nil, err
 	}
 

@@ -51,31 +51,35 @@ func (gs GenesisState) Validate() error {
 		if state.IdentityDigest != ism.Identity.Digest() {
 			return errorsmod.Wrapf(ErrInvalidEnclaveIdentity, "ism %s state names a different enclave than the one it pins", ism.Id.String())
 		}
+		// Empty until the first attestation, 32 bytes after it.
+		if len(ism.TreeRoot) != 0 && len(ism.TreeRoot) != 32 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s tree root must be empty or 32 bytes, got %d", ism.Id.String(), len(ism.TreeRoot))
+		}
 	}
 
-	messages := make(map[uint64]struct{}, len(gs.Messages))
-	for i := range gs.Messages {
-		msgs := gs.Messages[i]
-		if msgs.Id.IsZeroAddress() {
+	roots := make(map[uint64]struct{}, len(gs.Roots))
+	for i := range gs.Roots {
+		entry := gs.Roots[i]
+		if entry.Id.IsZeroAddress() {
 			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 		}
 
-		internalID := msgs.Id.GetInternalId()
+		internalID := entry.Id.GetInternalId()
 		if _, exists := isms[internalID]; !exists {
-			return errorsmod.Wrapf(ErrIsmNotFound, "messages defined for unknown ism %s", msgs.Id.String())
+			return errorsmod.Wrapf(ErrIsmNotFound, "roots defined for unknown ism %s", entry.Id.String())
 		}
-		if _, exists := messages[internalID]; exists {
-			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate messages entry for ism %s", msgs.Id.String())
+		if _, exists := roots[internalID]; exists {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate roots entry for ism %s", entry.Id.String())
 		}
-		messages[internalID] = struct{}{}
+		roots[internalID] = struct{}{}
 
-		for _, msg := range msgs.Messages {
-			msgID, err := DecodeHex(msg)
+		for _, root := range entry.Roots {
+			raw, err := DecodeHex(root)
 			if err != nil {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid message id %q for ism %s: %v", msg, msgs.Id.String(), err)
+				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root %q for ism %s: %v", root, entry.Id.String(), err)
 			}
-			if len(msgID) != 32 {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid message id length for ism %s: expected 32 bytes, got %d", msgs.Id.String(), len(msgID))
+			if len(raw) != 32 {
+				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(raw))
 			}
 		}
 	}

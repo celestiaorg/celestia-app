@@ -32,17 +32,14 @@ func EmitUpdateEnclaveIdentityEvent(ctx sdk.Context, ism types.InterchainSecurit
 }
 
 // EmitSubmitAttestationEvent emits a typed event when an attestation advances an ISM.
-func EmitSubmitAttestationEvent(ctx sdk.Context, ism types.InterchainSecurityModule, state *types.IsmState, ids [][32]byte) error {
-	messages := make([]string, 0, len(ids))
-	for i := range ids {
-		messages = append(messages, types.EncodeHex(ids[i][:]))
-	}
+func EmitSubmitAttestationEvent(ctx sdk.Context, ism types.InterchainSecurityModule, state *types.IsmState) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitAttestation{
-		Id:         ism.Id,
-		State:      types.EncodeHex(ism.State),
-		StateRoot:  types.EncodeHex(state.StateRoot[:]),
-		Height:     state.Height,
-		MessageIds: messages,
+		Id:        ism.Id,
+		State:     types.EncodeHex(ism.State),
+		StateRoot: types.EncodeHex(state.StateRoot[:]),
+		Height:    state.Height,
+		TreeRoot:  types.EncodeHex(ism.TreeRoot),
+		TreeCount: ism.TreeCount,
 	})
 }
 

@@ -4,7 +4,13 @@
 //
 // An ISM is advanced by attestations (MsgSubmitAttestation): a TDX quote from the pinned enclave,
 // verified against Intel's collateral at block time, whose report data commits to the next
-// trusted state and the messages it authorizes.
+// trusted state and the origin merkle tree root at it. Every root ever attested stays accepted.
+//
+// A message is delivered with a merkle branch in its metadata (types.DeliveryMetadata), which
+// places it under one of those roots. So an attestation is the same size whatever the origin
+// dispatched, a message dispatched while the relayer was away is deliverable against any later
+// root, and someone else advancing the ISM first only gives a message a newer root to prove
+// against.
 //
 // Each ISM has an owner, the creator to begin with, who controls:
 //

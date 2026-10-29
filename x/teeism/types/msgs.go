@@ -96,7 +96,7 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 	}{
 		{"quote", len(msg.Quote), MaxQuoteBytes},
 		{"event_log", len(msg.EventLog), MaxEventLogBytes},
-		{"payload", len(msg.Payload), MaxPayloadBytes},
+		{"payload", len(msg.Payload), AttestedUpdateBytes},
 	} {
 		if f.size == 0 {
 			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "%s must not be empty", f.name)
@@ -120,6 +120,10 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 		if len(f.val) > MaxCollateralFieldBytes {
 			return errorsmod.Wrapf(ErrMessageTooLarge, "collateral %s is %d bytes, limit is %d", f.name, len(f.val), MaxCollateralFieldBytes)
 		}
+	}
+	// The payload has one shape; anything else could never decode.
+	if len(msg.Payload) != AttestedUpdateBytes {
+		return errorsmod.Wrapf(ErrMalformedPayload, "payload must be exactly %d bytes, got %d", AttestedUpdateBytes, len(msg.Payload))
 	}
 	// After the size caps, so the JSON walk only ever sees bounded input.
 	return msg.Collateral.Validate()

@@ -21,9 +21,10 @@ service Query {
     option (google.api.http).get = "/celestia/teeism/v1/isms";
   }
 
-  // Messages defines an rpc method for querying authorized Hyperlane message IDs.
-  rpc Messages(QueryMessagesRequest) returns (QueryMessagesResponse) {
-    option (google.api.http).get = "/celestia/teeism/v1/messages/{id}";
+  // Roots defines an rpc method for querying the origin tree roots an ism has
+  // attested, any of which a delivery proof may be checked against.
+  rpc Roots(QueryRootsRequest) returns (QueryRootsResponse) {
+    option (google.api.http).get = "/celestia/teeism/v1/roots/{id}";
   }
 }
 
@@ -53,18 +54,18 @@ message QueryIsmsResponse {
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
-// QueryMessagesRequest is the request type for the Messages rpc method.
-message QueryMessagesRequest {
+// QueryRootsRequest is the request type for the Roots rpc method.
+message QueryRootsRequest {
   // id is the hex-encoded ISM identifier.
   string id = 1;
   // pagination defines an optional pagination for the request.
   cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 
-// QueryMessagesResponse is the response type for the Messages rpc method.
-message QueryMessagesResponse {
-  // messages is a list of authorized Hyperlane message IDs.
-  repeated string messages = 1;
+// QueryRootsResponse is the response type for the Roots rpc method.
+message QueryRootsResponse {
+  // roots is a list of attested origin merkle tree roots (hex-encoded).
+  repeated string roots = 1;
   // pagination defines the pagination in the response.
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }

@@ -11,17 +11,18 @@ option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
 message GenesisState {
   // list of tee isms.
   repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
-  // messages authorized for each tee ism.
-  repeated GenesisMessages messages = 2 [(gogoproto.nullable) = false];
+  // the attested origin tree roots of each tee ism.
+  repeated GenesisRoots roots = 2 [(gogoproto.nullable) = false];
 }
 
-// GenesisMessages contains the authorized Hyperlane message IDs for a tee ism.
-message GenesisMessages {
+// GenesisRoots contains every origin merkle tree root attested for a tee ism,
+// which a message's delivery proof may be checked against.
+message GenesisRoots {
   // ism identifier
   string id = 1 [
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
-  // list of authorized message ids
-  repeated string messages = 2;
+  // list of attested tree roots (hex-encoded)
+  repeated string roots = 2;
 }

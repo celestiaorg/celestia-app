@@ -18,9 +18,11 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 // Keeper implements the InterchainSecurityModule interface required by the
 // Hyperlane ISM Router.
 type Keeper struct {
-	isms     collections.Map[uint64, types.InterchainSecurityModule]
-	messages collections.KeySet[collections.Pair[uint64, []byte]]
-	schema   collections.Schema
+	isms collections.Map[uint64, types.InterchainSecurityModule]
+	// roots holds every origin tree root each ism has ever attested, keyed by
+	// (ism, root). A delivery proof may be against any of them.
+	roots  collections.KeySet[collections.Pair[uint64, []byte]]
+	schema collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -31,7 +33,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	sb := collections.NewSchemaBuilder(storeService)
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
-	messages := collections.NewKeySet(sb, types.MessageKeyPrefix, "messages", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
+	roots := collections.NewKeySet(sb, types.RootsKeyPrefix, "roots", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -41,7 +43,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 	keeper := &Keeper{
 		coreKeeper: hyperlaneKeeper,
 		isms:       isms,
-		messages:   messages,
+		roots:      roots,
 		schema:     schema,
 		authority:  authority,
 	}
@@ -64,9 +66,12 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 
 // Verify implements hyperlane util.InterchainSecurityModule.
 //
-// Authorization is consume-once: a message id is removed as it is verified, so
-// the same attested message cannot be processed twice.
-func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, message util.HyperlaneMessage) (bool, error) {
+// A message is delivered with its place in the origin tree: the metadata names an
+// attested root, the leaf's index and the 32 siblings that fold the message id up
+// to that root (types.DeliveryMetadata). The attestation vouched for the root;
+// the branch places the message under it. Nothing is written: the mailbox already
+// refuses to process a message id twice.
+func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 	if err != nil {
 		return false, errorsmod.Wrap(types.ErrIsmNotFound, err.Error())
@@ -74,17 +79,21 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, _ []byte, me
 
 	k.Logger(ctx).Info("processing message", "id", message.Id().String(), "ism", ism.Id.String())
 
-	key := collections.Join(ism.Id.GetInternalId(), message.Id().Bytes())
-	authorized, err := k.messages.Has(ctx, key)
+	proof, err := types.DecodeDeliveryMetadata(metadata)
+	if err != nil {
+		k.Logger(ctx).Info("refusing message", "id", message.Id().String(), "reason", err.Error())
+		return false, nil
+	}
+
+	attested, err := k.roots.Has(ctx, collections.Join(ism.Id.GetInternalId(), proof.Root[:]))
 	if err != nil {
 		return false, err
 	}
-
-	if authorized {
-		if err := k.messages.Remove(ctx, key); err != nil {
-			return false, err
-		}
+	if !attested {
+		return false, nil
 	}
 
-	return authorized, nil
+	var leaf [32]byte
+	copy(leaf[:], message.Id().Bytes())
+	return proof.Proves(leaf), nil
 }

@@ -64,8 +64,8 @@ func (q queryServer) Isms(ctx context.Context, req *types.QueryIsmsRequest) (*ty
 	}, nil
 }
 
-// Messages implements types.QueryServer.
-func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesRequest) (*types.QueryMessagesResponse, error) {
+// Roots implements types.QueryServer.
+func (q queryServer) Roots(ctx context.Context, req *types.QueryRootsRequest) (*types.QueryRootsResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
 	}
@@ -92,9 +92,9 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 		}
 	}
 
-	msgs, pageRes, err := query.CollectionPaginate(
+	roots, pageRes, err := query.CollectionPaginate(
 		ctx,
-		q.k.messages,
+		q.k.roots,
 		pagination,
 		transformFunc,
 		query.WithCollectionPaginationPairPrefix[uint64, []byte](ismId.GetInternalId()),
@@ -103,8 +103,8 @@ func (q queryServer) Messages(ctx context.Context, req *types.QueryMessagesReque
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryMessagesResponse{
-		Messages:   msgs,
+	return &types.QueryRootsResponse{
+		Roots:      roots,
 		Pagination: pageRes,
 	}, nil
 }

@@ -26,19 +26,16 @@ const (
 	// MaxStateBytes is the maximum size of a trusted ism state (2 KiB).
 	MaxStateBytes = 2048
 
-	// MaxMessageIDsCount caps the number of message ids in one attested batch.
-	MaxMessageIDsCount = 1_000_000
-
 	offOriginDomain   = 32
 	offHeight         = 36
 	offTimestamp      = 44
 	offLcStoreCommit  = 52
 	offIdentityDigest = 84
 
-	// attestedUpdateHead is everything in an attested update before the message
-	// ids: two states, a 32-byte tree address, an 8-byte timestamp and an 8-byte
-	// count.
-	attestedUpdateHead = 2*IsmStateBytes + 48
+	// AttestedUpdateBytes is the exact length of an attested update: two states,
+	// a 32-byte tree address, an 8-byte timestamp, a 32-byte tree root and a
+	// 4-byte leaf count. Nothing in it grows with traffic.
+	AttestedUpdateBytes = 2*IsmStateBytes + 32 + 8 + 32 + 4
 )
 
 // IsmState is the trusted state an ISM carries between attestations.
@@ -117,23 +114,23 @@ func VerifyTransition(prev, next *IsmState) error {
 	return nil
 }
 
-// EmptyBatchMinIntervalSecs is how far an attestation with no messages must move the origin's
-// verified clock. An empty batch keeps a quiet route's trusted height close to its origin's
-// head, so the next proof starts from recent state. It cannot skip a message: the enclave
-// replays the batch from the tree proven under this ISM's own root, and zero ids reproduce the
-// head's tree only when nothing was dispatched. The interval bounds how often anyone, using
-// the public enclave, can advance the ISM with nothing in it, which would otherwise let them
-// keep invalidating the relayer's attestations in flight. The relayer sends one every hour.
+// EmptyBatchMinIntervalSecs is how far an attestation that brings no new leaves must move the
+// origin's verified clock. Such an attestation keeps a quiet route's trusted height close to
+// its origin's head, so the next proof starts from recent state. The interval bounds how often
+// anyone, using the public enclave, can advance the ISM with nothing in it, which would
+// otherwise let them keep invalidating the relayer's attestations in flight. The relayer sends
+// one a day.
 const EmptyBatchMinIntervalSecs = 30 * 60
 
-// VerifyBatchCadence refuses an empty batch that advances the origin's clock by less than
-// EmptyBatchMinIntervalSecs. A batch that carries messages is never held back.
-func VerifyBatchCadence(prev, next *IsmState, messages int) error {
-	if messages > 0 {
+// VerifyBatchCadence refuses an attestation whose tree root is the one the ISM already holds
+// unless it advances the origin's clock by at least EmptyBatchMinIntervalSecs. An attestation
+// that brings a new root is never held back.
+func VerifyBatchCadence(prev, next *IsmState, rootChanged bool) error {
+	if rootChanged {
 		return nil
 	}
 	if next.Timestamp < prev.Timestamp+EmptyBatchMinIntervalSecs {
-		return ErrInvalidTransition.Wrapf("an empty batch must advance the origin clock by at least %ds, this one advances it by %ds",
+		return ErrInvalidTransition.Wrapf("an attestation with no new leaves must advance the origin clock by at least %ds, this one advances it by %ds",
 			EmptyBatchMinIntervalSecs, next.Timestamp-prev.Timestamp)
 	}
 	return nil
@@ -142,11 +139,10 @@ func VerifyBatchCadence(prev, next *IsmState, messages int) error {
 // AttestedUpdate is the single payload an enclave hashes into a quote's
 // report_data.
 //
-// One attestation covers both the state transition and the message batch. That
-// is the whole reason this module needs one message where a proof-carrying ISM
-// needs two: there was only ever one quote, and the second transaction existed
-// only because two proofs had to project the same attestation through two
-// different public-value shapes.
+// One attestation covers the state transition and the origin tree it vouches
+// for. Messages are not named: each one proves itself at delivery with a merkle
+// branch against an attested TreeRoot, so an origin block of any size is one
+// attestation and nothing here grows with traffic.
 type AttestedUpdate struct {
 	PrevState *IsmState
 	NewState  *IsmState
@@ -159,30 +155,30 @@ type AttestedUpdate struct {
 	// head is old by design, because that lag is the fraud proof window, so
 	// bounding the submitter's clock against it would reject every honest proof.
 	AttestedAt uint64
-	// MessageIDs are the messages the enclave proved present in the origin tree
-	// at NewState.
-	MessageIDs [][32]byte
+	// TreeRoot is the hook's incremental merkle root at NewState, which the
+	// enclave proved out of the hook's storage under NewState's root.
+	TreeRoot [32]byte
+	// TreeCount is the hook's leaf count at TreeRoot.
+	TreeCount uint32
 }
 
 // EncodeAttestedUpdate serializes an update to the form the enclave hashed.
 func EncodeAttestedUpdate(u *AttestedUpdate) []byte {
-	out := make([]byte, 0, attestedUpdateHead+32*len(u.MessageIDs))
+	out := make([]byte, 0, AttestedUpdateBytes)
 	out = append(out, EncodeIsmState(u.PrevState)...)
 	out = append(out, EncodeIsmState(u.NewState)...)
 	out = append(out, u.MerkleTreeAddress[:]...)
 	out = binary.BigEndian.AppendUint64(out, u.AttestedAt)
-	out = binary.BigEndian.AppendUint64(out, uint64(len(u.MessageIDs)))
-	for _, id := range u.MessageIDs {
-		out = append(out, id[:]...)
-	}
+	out = append(out, u.TreeRoot[:]...)
+	out = binary.BigEndian.AppendUint32(out, u.TreeCount)
 	return out
 }
 
-// DecodeAttestedUpdate parses an attested update, rejecting both truncation and
-// trailing bytes so that exactly one encoding maps to any given update.
+// DecodeAttestedUpdate parses an attested update, rejecting any other length so
+// that exactly one encoding maps to any given update.
 func DecodeAttestedUpdate(b []byte) (*AttestedUpdate, error) {
-	if len(b) < attestedUpdateHead {
-		return nil, fmt.Errorf("attested update needs at least %d bytes, got %d", attestedUpdateHead, len(b))
+	if len(b) != AttestedUpdateBytes {
+		return nil, fmt.Errorf("attested update must be %d bytes, got %d", AttestedUpdateBytes, len(b))
 	}
 	prev, err := DecodeIsmState(b[:IsmStateBytes])
 	if err != nil {
@@ -199,22 +195,9 @@ func DecodeAttestedUpdate(b []byte) (*AttestedUpdate, error) {
 	o += 32
 	u.AttestedAt = binary.BigEndian.Uint64(b[o : o+8])
 	o += 8
-	count := binary.BigEndian.Uint64(b[o : o+8])
-	o += 8
-
-	if count > MaxMessageIDsCount {
-		return nil, fmt.Errorf("message id count %d exceeds the maximum of %d", count, MaxMessageIDsCount)
-	}
-	rest := b[o:]
-	// int64 rather than int, so count*32 cannot wrap on a 32-bit platform.
-	if int64(len(rest)) != int64(count)*32 {
-		return nil, fmt.Errorf("message ids need exactly %d bytes, have %d", int64(count)*32, len(rest))
-	}
-
-	u.MessageIDs = make([][32]byte, count)
-	for i := range u.MessageIDs {
-		copy(u.MessageIDs[i][:], rest[i*32:(i+1)*32])
-	}
+	copy(u.TreeRoot[:], b[o:o+32])
+	o += 32
+	u.TreeCount = binary.BigEndian.Uint32(b[o : o+4])
 	return u, nil
 }
 

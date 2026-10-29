@@ -42,8 +42,13 @@ message EventSubmitAttestation {
   string state_root = 3;
   // origin height the state now commits to
   uint64 height = 4;
-  // list of authorized message ids (hex-encoded)
-  repeated string message_ids = 5;
+  // Field 5 listed the authorized message ids when attestations named them.
+  reserved 5;
+  reserved "message_ids";
+  // the attested origin merkle tree root (hex-encoded)
+  string tree_root = 6;
+  // the origin tree's leaf count at that root
+  uint32 tree_count = 7;
 }
 
 // EventUpdateEnclaveIdentity is emitted when an owner re-pins an ism.

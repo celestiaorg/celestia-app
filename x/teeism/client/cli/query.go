@@ -88,13 +88,13 @@ func NewQueryIsmsCmd() *cobra.Command {
 	return cmd
 }
 
-// NewQueryMessagesCmd creates and returns the query command for authorized messages.
-func NewQueryMessagesCmd() *cobra.Command {
+// NewQueryRootsCmd creates and returns the query command for attested tree roots.
+func NewQueryRootsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "messages [ism-id]",
-		Short:   "Query authorized Hyperlane message IDs",
-		Long:    "Query authorized Hyperlane message IDs stored by the zkism module for a given ISM.",
-		Example: fmt.Sprintf("%s query %s messages 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
+		Use:     "roots [ism-id]",
+		Short:   "Query the origin tree roots an ism has attested",
+		Long:    "Query every origin merkle tree root a TEE ism has attested. A message is delivered with a merkle branch against any one of them.",
+		Example: fmt.Sprintf("%s query %s roots 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -109,12 +109,12 @@ func NewQueryMessagesCmd() *cobra.Command {
 				return err
 			}
 
-			req := &types.QueryMessagesRequest{
+			req := &types.QueryRootsRequest{
 				Id:         args[0],
 				Pagination: pageReq,
 			}
 
-			res, err := queryClient.Messages(cmd.Context(), req)
+			res, err := queryClient.Roots(cmd.Context(), req)
 			if err != nil {
 				return err
 			}
@@ -124,6 +124,6 @@ func NewQueryMessagesCmd() *cobra.Command {
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
-	flags.AddPaginationFlagsToCmd(cmd, "messages")
+	flags.AddPaginationFlagsToCmd(cmd, "roots")
 	return cmd
 }

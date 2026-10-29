@@ -1,9 +1,11 @@
 package types_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
@@ -12,9 +14,9 @@ import (
 
 // The enclave encodes these formats in Rust and this module decodes them in Go.
 // A single byte of drift rejects every attestation the bridge submits, and it
-// would do so at runtime on a live chain rather than here. The fixture is
-// produced by tee-circuit's `emit_vectors` example, which calls the same
-// functions the enclave and its circuits call.
+// would do so at runtime on a live chain rather than here. The state, identity
+// and event-log fixture is produced by the Rust encoder; the attested update
+// vectors are hardcoded below.
 type rustVectors struct {
 	IsmState struct {
 		StateRoot      string `json:"state_root"`
@@ -25,17 +27,6 @@ type rustVectors struct {
 		IdentityDigest string `json:"identity_digest"`
 		Encoded        string `json:"encoded"`
 	} `json:"ism_state"`
-	AttestedUpdate struct {
-		Encoded           string   `json:"encoded"`
-		Hash              string   `json:"hash"`
-		MerkleTreeAddress string   `json:"merkle_tree_address"`
-		AttestedAt        uint64   `json:"attested_at"`
-		MessageIDs        []string `json:"message_ids"`
-	} `json:"attested_update"`
-	AttestedUpdateEmpty struct {
-		Encoded string `json:"encoded"`
-		Hash    string `json:"hash"`
-	} `json:"attested_update_empty"`
 	Identity struct {
 		MrTd        string `json:"mr_td"`
 		Rtmr0       string `json:"rtmr0"`
@@ -97,18 +88,62 @@ func TestIsmStateMatchesRustEncoder(t *testing.T) {
 	require.Equal(t, unhex(t, v.IsmState.IdentityDigest), back.IdentityDigest[:])
 }
 
-func TestAttestedUpdateMatchesRustEncoder(t *testing.T) {
-	v := loadVectors(t)
+// The attested update as `tee-node`'s encoder writes it (crates/tee-node/tests/attest_request.rs,
+// `write_test_vectors`), with the sha256 the enclave puts in report_data. Hardcoded: a drift here
+// is a drift in what every attestation hashes to.
+var rustAttestedUpdates = []struct {
+	name, encoded, hash string
+	attestedAt          uint64
+	treeCount           uint32
+}{
+	{
+		name: "filled",
+		encoded: "0101010101010101010101010101010101010101010101010101010101010101" +
+			"01020304000000000000000a00000000000003e8" +
+			"0202020202020202020202020202020202020202020202020202020202020202" +
+			"0303030303030303030303030303030303030303030303030303030303030303" +
+			"0404040404040404040404040404040404040404040404040404040404040404" +
+			"01020304000000000000001400000000000007d0" +
+			"0505050505050505050505050505050505050505050505050505050505050505" +
+			"0606060606060606060606060606060606060606060606060606060606060606" +
+			"abababababababababababababababababababababababababababababababab" +
+			"0000000000000834" +
+			"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" +
+			"0a0b0c0d",
+		hash:       "442db67438e638c66061b8562ea50cdaee582e2638adb068cba8695edc0beb49",
+		attestedAt: 2100,
+		treeCount:  0x0a0b0c0d,
+	},
+	{
+		name: "empty tree",
+		encoded: "1010101010101010101010101010101010101010101010101010101010101010" +
+			"010203040000000000000005000000006553f100" +
+			"1111111111111111111111111111111111111111111111111111111111111111" +
+			"1212121212121212121212121212121212121212121212121212121212121212" +
+			"2020202020202020202020202020202020202020202020202020202020202020" +
+			"010203040000000000000006000000006553f10c" +
+			"2121212121212121212121212121212121212121212121212121212121212121" +
+			"2222222222222222222222222222222222222222222222222222222222222222" +
+			"0000000000000000000000000000000000000000000000000000000000000000" +
+			"000000006553f10c" +
+			"0000000000000000000000000000000000000000000000000000000000000000" +
+			"00000000",
+		hash:       "d31a3b8dcceb113390e9d597694503ddcafaa5c33e0de88860a4960e0c8cdc5d",
+		attestedAt: 1700000012,
+		treeCount:  0,
+	},
+}
 
-	for _, tc := range []struct{ name, encoded, hash string }{
-		{"with messages", v.AttestedUpdate.Encoded, v.AttestedUpdate.Hash},
-		{"empty batch", v.AttestedUpdateEmpty.Encoded, v.AttestedUpdateEmpty.Hash},
-	} {
+func TestAttestedUpdateMatchesRustEncoder(t *testing.T) {
+	for _, tc := range rustAttestedUpdates {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := unhex(t, tc.encoded)
+			require.Len(t, raw, types.AttestedUpdateBytes)
 
 			update, err := types.DecodeAttestedUpdate(raw)
 			require.NoError(t, err)
+			require.Equal(t, tc.attestedAt, update.AttestedAt)
+			require.Equal(t, tc.treeCount, update.TreeCount)
 
 			// Re-encoding must reproduce the exact bytes, or the payload hash the
 			// enclave signed would not be the payload hash we check.
@@ -120,19 +155,16 @@ func TestAttestedUpdateMatchesRustEncoder(t *testing.T) {
 		})
 	}
 
-	update, err := types.DecodeAttestedUpdate(unhex(t, v.AttestedUpdate.Encoded))
+	update, err := types.DecodeAttestedUpdate(unhex(t, rustAttestedUpdates[0].encoded))
 	require.NoError(t, err)
-	require.Equal(t, v.AttestedUpdate.AttestedAt, update.AttestedAt)
-	require.Equal(t, unhex(t, v.AttestedUpdate.MerkleTreeAddress), update.MerkleTreeAddress[:])
-	require.Len(t, update.MessageIDs, len(v.AttestedUpdate.MessageIDs))
-	for i, want := range v.AttestedUpdate.MessageIDs {
-		require.Equal(t, unhex(t, want), update.MessageIDs[i][:])
-	}
+	require.Equal(t, bytes.Repeat([]byte{0xab}, 32), update.MerkleTreeAddress[:])
+	require.Equal(t, bytes.Repeat([]byte{0xcd}, 32), update.TreeRoot[:])
+	require.Equal(t, uint64(20), update.NewState.Height)
+	require.Equal(t, uint64(2000), update.NewState.Timestamp)
 }
 
 func TestAttestedUpdateRejectsMalformed(t *testing.T) {
-	v := loadVectors(t)
-	raw := unhex(t, v.AttestedUpdate.Encoded)
+	raw := unhex(t, rustAttestedUpdates[0].encoded)
 
 	t.Run("truncated", func(t *testing.T) {
 		_, err := types.DecodeAttestedUpdate(raw[:len(raw)-1])
@@ -146,16 +178,81 @@ func TestAttestedUpdateRejectsMalformed(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("count larger than the buffer", func(t *testing.T) {
-		bad := append([]byte{}, raw...)
-		// The count sits immediately before the ids.
-		off := 2*types.IsmStateBytes + 32 + 8
-		for i := range 8 {
-			bad[off+i] = 0xFF
+	t.Run("the previous layout", func(t *testing.T) {
+		// It ended in count(8) ids(32 * count), so it was 280 + 32k bytes: never 308.
+		for k := range 4 {
+			_, err := types.DecodeAttestedUpdate(make([]byte, 280+32*k))
+			require.Error(t, err, "k=%d", k)
 		}
-		_, err := types.DecodeAttestedUpdate(bad)
-		require.Error(t, err)
 	})
+}
+
+// A message's delivery metadata, and the tree it is against, as the Rust side
+// builds them (root_vectors.json comes from the same `write_test_vectors`).
+type rootVectors struct {
+	Tree struct {
+		Leaves []string `json:"leaves"`
+		Root   string   `json:"root_hex"`
+		Count  uint32   `json:"count"`
+		Proofs []struct {
+			Index uint32   `json:"index"`
+			Proof []string `json:"proof"`
+		} `json:"proofs"`
+	} `json:"tree"`
+}
+
+func loadRootVectors(t *testing.T) rootVectors {
+	t.Helper()
+	raw, err := os.ReadFile("../internal/testdata/root_vectors.json")
+	require.NoError(t, err)
+	var v rootVectors
+	require.NoError(t, json.Unmarshal(raw, &v))
+	return v
+}
+
+func unhex0x(t *testing.T, s string) []byte {
+	t.Helper()
+	return unhex(t, strings.TrimPrefix(s, "0x"))
+}
+
+func metadataFor(t *testing.T, v rootVectors, index int) *types.DeliveryMetadata {
+	t.Helper()
+	m := &types.DeliveryMetadata{Index: v.Tree.Proofs[index].Index}
+	copy(m.Root[:], unhex0x(t, v.Tree.Root))
+	for i, p := range v.Tree.Proofs[index].Proof {
+		copy(m.Proof[i][:], unhex0x(t, p))
+	}
+	return m
+}
+
+func TestDeliveryMetadataFoldsToTheRustRoot(t *testing.T) {
+	v := loadRootVectors(t)
+	require.Len(t, v.Tree.Leaves, int(v.Tree.Count))
+	for i, leafHex := range v.Tree.Leaves {
+		var leaf [32]byte
+		copy(leaf[:], unhex0x(t, leafHex))
+		m := metadataFor(t, v, i)
+		require.True(t, m.Proves(leaf), "leaf %d", i)
+
+		// The encoding is what a relayer puts on the wire.
+		raw := types.EncodeDeliveryMetadata(m)
+		require.Len(t, raw, types.DeliveryMetadataBytes)
+		back, err := types.DecodeDeliveryMetadata(raw)
+		require.NoError(t, err)
+		require.Equal(t, m, back)
+
+		var other [32]byte
+		copy(other[:], unhex0x(t, v.Tree.Leaves[(i+1)%len(v.Tree.Leaves)]))
+		require.False(t, m.Proves(other), "another leaf under leaf %d's branch", i)
+		wrongIndex := *m
+		wrongIndex.Index ^= 1
+		require.False(t, wrongIndex.Proves(leaf), "leaf %d at the wrong index", i)
+	}
+
+	_, err := types.DecodeDeliveryMetadata(make([]byte, types.DeliveryMetadataBytes-1))
+	require.Error(t, err)
+	_, err = types.DecodeDeliveryMetadata(make([]byte, types.DeliveryMetadataBytes+1))
+	require.Error(t, err)
 }
 
 func TestIdentityDigestMatchesRust(t *testing.T) {

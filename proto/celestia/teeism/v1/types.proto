@@ -62,6 +62,12 @@ message InterchainSecurityModule {
   EnclaveIdentity identity = 5;
   // the owner's overrides of Intel's side of verification. Unset means none.
   VerifierOverrides verifier_overrides = 6;
+  // the origin merkle tree hook's root at the current trusted state, as the
+  // last attestation proved it. Zero until the first attestation. Every root
+  // ever attested stays accepted for delivery; this is the newest.
+  bytes tree_root = 7;
+  // the hook's leaf count at tree_root.
+  uint32 tree_count = 8;
 }
 
 // VerifierOverrides lets the owner update what Intel can change over time and

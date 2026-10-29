@@ -53,15 +53,13 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 
 // SubmitAttestation implements types.MsgServer.
 //
-// One attestation advances the state and authorizes its message batch together.
+// One attestation advances the state and records the origin tree root it vouches
+// for. Messages are delivered separately, each proving its place under an attested
+// root with a merkle branch in its metadata (Keeper.Verify), so nothing here grows
+// with how much the origin dispatched.
 //
-// A proof-carrying ISM has to split this in two, because two proofs project the
-// same attestation through two different public-value shapes and each needs its
-// own transaction. That split is also what forces the one-batch-per-state-root
-// bookkeeping such a module needs, since the two halves can arrive out of step.
-// Here there is one quote, one decode and one write, so none of that exists:
-// replay is prevented by the state chain itself, because an attestation names the
-// state it starts from and the transition rules require the height to advance.
+// Replay is prevented by the state chain itself: an attestation names the state it
+// starts from and the transition rules require the height to advance.
 func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAttestation) (*types.MsgSubmitAttestationResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -111,29 +109,38 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 			ism.MerkleTreeAddress, update.MerkleTreeAddress[:])
 	}
 
-	sdkCtx.GasMeter().ConsumeGas(uint64(len(update.MessageIDs))*types.DefaultMessageIDCost, "authorize messages")
+	// An attestation that brings the root the ism already holds carries no new
+	// leaves; it may still move the state, but not more often than the cadence
+	// allows, or anyone with the public enclave could keep invalidating the
+	// relayer's attestations in flight. The first attestation always passes:
+	// nothing is held yet.
+	rootChanged := !bytes.Equal(update.TreeRoot[:], ism.TreeRoot)
+	if err := types.VerifyBatchCadence(update.PrevState, update.NewState, rootChanged); err != nil {
+		return nil, err
+	}
 
-	messages := make([]string, 0, len(update.MessageIDs))
-	for _, messageId := range update.MessageIDs {
-		if err := m.messages.Set(ctx, collections.Join(ism.Id.GetInternalId(), messageId[:])); err != nil {
-			return nil, err
-		}
-		messages = append(messages, types.EncodeHex(messageId[:]))
+	// Every root ever attested stays accepted for delivery, so a proof a relayer
+	// built against one is never invalidated by a later attestation.
+	if err := m.roots.Set(ctx, collections.Join(ism.Id.GetInternalId(), update.TreeRoot[:])); err != nil {
+		return nil, err
 	}
 
 	ism.State = types.EncodeIsmState(update.NewState)
+	ism.TreeRoot = update.TreeRoot[:]
+	ism.TreeCount = update.TreeCount
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
 
-	if err := EmitSubmitAttestationEvent(sdkCtx, ism, update.NewState, update.MessageIDs); err != nil {
+	if err := EmitSubmitAttestationEvent(sdkCtx, ism, update.NewState); err != nil {
 		return nil, err
 	}
 
 	return &types.MsgSubmitAttestationResponse{
 		State:     types.EncodeHex(ism.State),
 		StateRoot: types.EncodeHex(update.NewState.StateRoot[:]),
-		Messages:  messages,
+		TreeRoot:  types.EncodeHex(ism.TreeRoot),
+		TreeCount: ism.TreeCount,
 	}, nil
 }
 

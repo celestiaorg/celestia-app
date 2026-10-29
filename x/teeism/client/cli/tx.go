@@ -201,11 +201,12 @@ value hex, with or without a 0x prefix:
 func NewSubmitAttestationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "submit-attestation [ism-id] [attestation-file]",
-		Short: "Advance a TEE ism and authorize its message batch",
+		Short: "Advance a TEE ism and attest its origin's merkle tree root",
 		Long: strings.TrimSpace(`Submit an enclave attestation to a Hyperlane TEE ism.
 
-One attestation advances the trusted state and authorizes the messages it covers,
-so this is the only transaction a relayer sends per batch.
+One attestation advances the trusted state and records the origin merkle tree
+root at it. Messages are then delivered with "hyperlane mailbox process", each
+carrying a merkle branch against an attested root in its metadata.
 
 The attestation file is JSON holding hex-encoded fields:
 
