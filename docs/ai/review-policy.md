@@ -54,9 +54,12 @@ approval never satisfies code-owner review.
 
 ## Administrator setup
 
-1. Create a GitHub App owned by the org with only the **Pull requests: write**
-   repository permission (metadata read is implicit), install it on this
-   repository only, and generate a private key.
+1. Create a GitHub App owned by the org with the **Pull requests: write** and
+   **Contents: write** repository permissions (metadata read is implicit),
+   install it on this repository only, and generate a private key. GitHub
+   counts an App's approval only when the App has write access to the
+   repository; with Pull requests alone its approvals exist but do not satisfy
+   the ruleset. The workflow still mints a token limited to pull requests.
 2. Create an `auto-approve` environment whose deployment branches are limited
    to `main`. Store the App's client ID as the `AUTO_APPROVE_CLIENT_ID`
    variable and its private key as the `AUTO_APPROVE_PRIVATE_KEY` secret in
