@@ -24,7 +24,7 @@ jobs:
         run: make -o mod build-standalone
       - name: Check CLI and initialize a node
         run: |
-          build/celestia-appd version
+          build/celestia-appd version --home "$RUNNER_TEMP/ci-smoke"
           build/celestia-appd init ci-smoke --chain-id ci-post-merge --home "$RUNNER_TEMP/ci-smoke"
           jq -e '.chain_id == "ci-post-merge"' "$RUNNER_TEMP/ci-smoke/config/genesis.json"
           test -s "$RUNNER_TEMP/ci-smoke/config/config.toml"
