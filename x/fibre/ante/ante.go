@@ -140,12 +140,8 @@ func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx,
 	return next(ctx, tx, simulate)
 }
 
-// FibreLegacyEscrowDecorator keeps MsgDepositToEscrow txs that would create or
-// grow a legacy escrow (a non-canonical signer key or a non-utia balance) out
-// of the mempool and out of locally proposed blocks. v11 migrates such escrows
-// at the upgrade height. ProcessProposal and FinalizeBlock still accept these
-// txs, so this filter is not consensus-breaking. MsgDepositToEscrow nested in
-// MsgExec or MsgSubmitProposal is already rejected by the NestedMsgDecorator.
+// FibreLegacyEscrowDecorator rejects MsgDepositToEscrow with a non-canonical
+// signer or a non-utia denom in CheckTx, recheck, simulation and PrepareProposal.
 type FibreLegacyEscrowDecorator struct{}
 
 // NewFibreLegacyEscrowDecorator returns a new FibreLegacyEscrowDecorator.
