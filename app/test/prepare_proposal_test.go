@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -711,6 +712,54 @@ func TestPrepareProposalDropsTxsProcessProposalRejects(t *testing.T) {
 		Txs:          prepareResp.Txs,
 		DataRootHash: prepareResp.DataRootHash,
 		SquareSize:   prepareResp.SquareSize,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status)
+}
+
+// TestPrepareProposalDropsLegacyEscrowDeposits checks that PrepareProposal drops
+// deposits that would create legacy escrows while ProcessProposal accepts them.
+func TestPrepareProposalDropsLegacyEscrowDeposits(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	deposit := func(index int, signer string) []byte {
+		msg := &fibretypes.MsgDepositToEscrow{Signer: signer, Amount: sdk.NewInt64Coin(appconsts.BondDenom, 1)}
+		tx, _, err := newSigner(index).CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		require.NoError(t, err)
+		return tx
+	}
+	canonical := testfactory.GetAddress(kr, accounts[0]).String()
+	legacy := strings.ToUpper(testfactory.GetAddress(kr, accounts[1]).String())
+	canonicalTx, legacyTx := deposit(0, canonical), deposit(1, legacy)
+
+	height := testApp.LastBlockHeight() + 1
+	now := time.Now()
+	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{canonicalTx, legacyTx},
+		Height: height,
+		Time:   now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, [][]byte{canonicalTx}, prepareResp.Txs)
+
+	// A block from another proposer that includes the legacy deposit stays valid.
+	txs := [][]byte{canonicalTx, legacyTx}
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+	processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         now,
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
 	})
 	require.NoError(t, err)
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status)

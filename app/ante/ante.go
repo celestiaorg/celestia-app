@@ -69,6 +69,9 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// Reject fibre escrow deposits that would create legacy escrows in
+		// CheckTx, recheck, simulation and PrepareProposal only.
+		fibreante.NewFibreLegacyEscrowDecorator(),
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).

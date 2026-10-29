@@ -1,14 +1,17 @@
 package ante
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 )
@@ -491,5 +494,57 @@ func nextRecorder(called *bool) sdk.AnteHandler {
 	return func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 		*called = true
 		return ctx, nil
+	}
+}
+
+func TestFibreLegacyEscrowDecorator(t *testing.T) {
+	signer := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()
+	deposit := func(signer, denom string) *fibretypes.MsgDepositToEscrow {
+		return &fibretypes.MsgDepositToEscrow{Signer: signer, Amount: sdk.NewInt64Coin(denom, 1)}
+	}
+	filterModes := map[string]sdk.ExecMode{
+		"check":            sdk.ExecModeCheck,
+		"recheck":          sdk.ExecModeReCheck,
+		"simulate":         sdk.ExecModeSimulate,
+		"prepare proposal": sdk.ExecModePrepareProposal,
+	}
+	consensusModes := map[string]sdk.ExecMode{
+		"process proposal": sdk.ExecModeProcessProposal,
+		"finalize":         sdk.ExecModeFinalize,
+	}
+	tests := map[string]struct {
+		msgs    []sdk.Msg
+		wantErr error
+	}{
+		"canonical utia deposit":  {msgs: []sdk.Msg{deposit(signer, "utia")}},
+		"no deposit":              {msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}},
+		"uppercase signer":        {msgs: []sdk.Msg{deposit(strings.ToUpper(signer), "utia")}, wantErr: sdkerrors.ErrInvalidAddress},
+		"non-utia denom":          {msgs: []sdk.Msg{deposit(signer, "stake")}, wantErr: sdkerrors.ErrInvalidCoins},
+		"invalid signer":          {msgs: []sdk.Msg{deposit("invalid", "utia")}, wantErr: sdkerrors.ErrInvalidAddress},
+		"legacy deposit after ok": {msgs: []sdk.Msg{deposit(signer, "utia"), deposit(signer, "stake")}, wantErr: sdkerrors.ErrInvalidCoins},
+	}
+	for name, tc := range tests {
+		for modeName, mode := range filterModes {
+			t.Run(name+"/"+modeName, func(t *testing.T) {
+				nextCalled := false
+				_, err := NewFibreLegacyEscrowDecorator().AnteHandle(sdk.Context{}.WithExecMode(mode), mockTx{msgs: tc.msgs}, mode == sdk.ExecModeSimulate, nextRecorder(&nextCalled))
+				if tc.wantErr != nil {
+					require.ErrorIs(t, err, tc.wantErr)
+					require.False(t, nextCalled)
+					return
+				}
+				require.NoError(t, err)
+				require.True(t, nextCalled)
+			})
+		}
+		// Blocks containing legacy deposits must remain valid on v10.
+		for modeName, mode := range consensusModes {
+			t.Run(name+"/"+modeName, func(t *testing.T) {
+				nextCalled := false
+				_, err := NewFibreLegacyEscrowDecorator().AnteHandle(sdk.Context{}.WithExecMode(mode), mockTx{msgs: tc.msgs}, false, nextRecorder(&nextCalled))
+				require.NoError(t, err)
+				require.True(t, nextCalled)
+			})
+		}
 	}
 }
