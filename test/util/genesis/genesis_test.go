@@ -27,7 +27,7 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 		g := genesis.NewDefaultGenesis().
 			WithAppVersion(tc.appVersion).
 			WithValidators(genesis.NewDefaultValidator("validator-0")).
-			WithModifiers(seedZkismIsm)
+			WithModifiers(seedZkism)
 
 		bz, err := g.ExportBytes()
 		require.NoError(t, err)
@@ -58,8 +58,8 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 	}
 }
 
-// seedZkismIsm adds one ISM to the zkism genesis state so the export covers the per-ISM fields.
-func seedZkismIsm(state map[string]json.RawMessage) map[string]json.RawMessage {
+// seedZkism adds one ISM to the zkism genesis state so the export covers the per-ISM fields.
+func seedZkism(state map[string]json.RawMessage) map[string]json.RawMessage {
 	var zkismState map[string]json.RawMessage
 	if err := json.Unmarshal(state[zkismtypes.ModuleName], &zkismState); err != nil {
 		panic(err)
