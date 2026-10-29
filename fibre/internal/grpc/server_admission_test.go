@@ -65,7 +65,7 @@ func (f *fakeFibre) DownloadShard(ctx context.Context, _ *types.DownloadShardReq
 // startServer serves svc and gRPC health with admission cfg and returns a client conn.
 func startServer(t *testing.T, cfg AdmissionConfig, svc types.FibreServer) (*Server, *grpc.ClientConn) {
 	t.Helper()
-	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, 100, cfg)
+	srv, err := Listen("127.0.0.1:0", 0, 100, cfg) // per-IP disabled
 	require.NoError(t, err)
 	srv.Register(svc)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
