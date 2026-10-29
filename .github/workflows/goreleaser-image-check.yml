@@ -9,6 +9,9 @@ on:
 
 jobs:
   goreleaser-image-check:
+    # The result depends only on the pinned version, which a merge cannot change
+    # without a textual conflict, so the PR run is enough.
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
