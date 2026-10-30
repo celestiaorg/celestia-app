@@ -18,7 +18,6 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -37,13 +36,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			resp = reject()
 		}
 	}()
-
-	// Core enforces this compatibility ceiling before protobuf decoding. Keep
-	// the same bound here for direct ABCI callers and defense in depth.
-	if len(req.Txs) > coretypes.MaxBlockTxsV10 {
-		logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("block exceeds transaction safety limit of %d", coretypes.MaxBlockTxsV10))
-		return reject(), nil
-	}
 
 	// Create the anteHandler that is used to check the validity of
 	// transactions. All transactions need to be equally validated here
