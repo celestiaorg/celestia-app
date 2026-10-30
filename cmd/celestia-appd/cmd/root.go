@@ -48,6 +48,9 @@ const (
 	// FlagPrivValGRPCAllowInsecure force-allows the privval gRPC endpoint to
 	// listen on a non-localhost address without mutual TLS.
 	FlagPrivValGRPCAllowInsecure = "privval-grpc-allow-insecure"
+
+	// FlagDisableOptimisticExecution turns off optimistic execution on this node.
+	FlagDisableOptimisticExecution = "disable-optimistic-execution"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -170,6 +173,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass config overrides for consensus timeouts, P2P rates, and mempool settings. The CAT mempool type and min-retain-blocks are always enforced. WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")
+	startCmd.Flags().Bool(FlagDisableOptimisticExecution, false, "execute blocks only in FinalizeBlock instead of speculatively from ProcessProposal; a per-node switch that does not affect consensus")
 	startCmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "DANGER: allow the privval gRPC endpoint to listen on a non-localhost address without mutual TLS; anyone who can reach it can request signatures from the validator key")
 	addOTelMetricsFlag(startCmd)
 
