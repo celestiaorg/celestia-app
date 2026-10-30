@@ -468,7 +468,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.1
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20261030212802-2b1607458ff7
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.0
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14.0.20261030225130-7bddc9fc8baf
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453

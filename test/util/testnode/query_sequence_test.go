@@ -14,6 +14,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/mempool"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ type MempoolQuerySequenceSuite struct {
 
 func (s *MempoolQuerySequenceSuite) SetupSuite() {
 	t := s.T()
-	s.accounts = testfactory.GenerateAccounts(2)
+	s.accounts = testfactory.GenerateAccounts(3)
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
@@ -191,4 +192,49 @@ func (s *MempoolQuerySequenceSuite) TestQuerySequenceIgnoresTxsOutsideMempool() 
 	after, err := s.cctx.tmNode.ProxyApp().Mempool().QuerySequence(ctx, &abci.RequestQuerySequence{Signer: addr.Bytes()})
 	require.NoError(err)
 	require.Equal(before.Sequence, after.Sequence)
+}
+
+// On a running node wired like the standalone start command, QuerySequence
+// never drops while blocks commit part of a burst and recheck the rest.
+func (s *MempoolQuerySequenceSuite) TestQuerySequenceMonotonicOnNode() {
+	t := s.T()
+	require := require.New(t)
+	ctx := context.Background()
+
+	rec, err := s.cctx.Keyring.Key(s.accounts[2])
+	require.NoError(err)
+	addr, err := rec.GetAddress()
+	require.NoError(err)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accNum, start, err := user.QueryAccount(ctx, s.cctx.GRPCClient, enc.InterfaceRegistry, addr)
+	require.NoError(err)
+	signer, err := user.NewSigner(s.cctx.Keyring, enc.TxConfig, s.cctx.ChainID, user.NewAccount(s.accounts[2], accNum, start))
+	require.NoError(err)
+
+	// 10M gas each: the per-block SDK gas cap admits 10, so 40 span 4 blocks.
+	const burst = 40
+	query := func() uint64 {
+		rsp, err := s.cctx.tmNode.ProxyApp().Mempool().QuerySequence(ctx, &abci.RequestQuerySequence{Signer: addr.Bytes()})
+		require.NoError(err)
+		return rsp.Sequence
+	}
+	for range burst {
+		msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+		raw, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10_000_000), user.SetFee(50_000))
+		require.NoError(err)
+		require.NoError(s.cctx.tmNode.Mempool().CheckTx(raw, nil, mempool.TxInfo{}))
+		require.NoError(signer.IncrementSequence(s.accounts[2]))
+	}
+	require.Equal(start+burst, query())
+
+	deadline := time.Now().Add(60 * time.Second)
+	for s.cctx.tmNode.Mempool().Size() > 0 && time.Now().Before(deadline) {
+		require.Equal(start+burst, query())
+		time.Sleep(time.Millisecond)
+	}
+	require.Zero(s.cctx.tmNode.Mempool().Size(), "burst not committed in time")
+	_, committed, err := user.QueryAccount(ctx, s.cctx.GRPCClient, enc.InterfaceRegistry, addr)
+	require.NoError(err)
+	require.Equal(start+burst, committed)
+	require.Equal(start+burst, query())
 }

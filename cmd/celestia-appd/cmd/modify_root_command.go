@@ -17,11 +17,19 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		app.NodeHome,
 		NewAppServer,
 		appExporter,
-		server.StartCmdOptions{
-			AddFlags: addStartFlags,
-			GRPCServerOptions: []grpc.ServerOption{
-				grpc.ChainUnaryInterceptor(observability.UnaryPrometheusInterceptor()),
-			},
-		},
+		standaloneStartCmdOptions(),
 	)
+}
+
+// standaloneStartCmdOptions configures the SDK start command for the
+// non-multiplexer build.
+func standaloneStartCmdOptions() server.StartCmdOptions {
+	return server.StartCmdOptions{
+		AddFlags: addStartFlags,
+		GRPCServerOptions: []grpc.ServerOption{
+			grpc.ChainUnaryInterceptor(observability.UnaryPrometheusInterceptor()),
+		},
+		// QuerySequence reads pending sequences from the node's mempool.
+		PreNodeStart: app.WirePendingSequencer,
+	}
 }
