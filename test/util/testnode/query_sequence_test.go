@@ -230,6 +230,7 @@ func (s *MempoolQuerySequenceSuite) TestQuerySequenceMonotonicOnNode() {
 	deadline := time.Now().Add(60 * time.Second)
 	for s.cctx.tmNode.Mempool().Size() > 0 && time.Now().Before(deadline) {
 		require.Equal(start+burst, query())
+		time.Sleep(time.Millisecond)
 	}
 	require.Zero(s.cctx.tmNode.Mempool().Size(), "burst not committed in time")
 	_, committed, err := user.QueryAccount(ctx, s.cctx.GRPCClient, enc.InterfaceRegistry, addr)

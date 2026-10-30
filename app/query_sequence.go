@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 
 	storetypes "cosmossdk.io/store/types"
@@ -24,13 +25,22 @@ func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
 	app.pendingSequencer.Store(&p)
 }
 
-// WirePendingSequencer hands an in-process app the node's mempool before the
-// node starts; the standalone start command and testnode use it.
+type pendingSequencerSetter interface {
+	SetPendingSequencer(mempool.PendingSequencer)
+}
+
+// WirePendingSequencer hands an in-process app (or a wrapper embedding *App)
+// the node's mempool before the node starts; standalone start and testnode use it.
 func WirePendingSequencer(a servertypes.Application, n *node.Node) error {
-	app, ok := a.(*App)
-	if p, isSeq := n.Mempool().(mempool.PendingSequencer); ok && isSeq {
-		app.SetPendingSequencer(p)
+	s, ok := a.(pendingSequencerSetter)
+	if !ok {
+		return nil
 	}
+	p, ok := n.Mempool().(mempool.PendingSequencer)
+	if !ok {
+		return fmt.Errorf("mempool %T does not report pending sequences", n.Mempool())
+	}
+	s.SetPendingSequencer(p)
 	return nil
 }
 
