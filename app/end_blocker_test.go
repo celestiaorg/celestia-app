@@ -32,7 +32,7 @@ func TestEndBlockerUpgrade(t *testing.T) {
 
 		res, err := testApp.EndBlocker(ctx)
 		require.NoError(t, err)
-		require.Equal(t, testApp.TimeoutInfo(), res.TimeoutInfo)
+		require.Equal(t, testApp.TimeoutInfo(current), res.TimeoutInfo)
 		requireNoUpgradeScheduled(t, testApp, ctx, home, current)
 	})
 
@@ -69,7 +69,7 @@ func TestEndBlockerUpgrade(t *testing.T) {
 
 		res, err := testApp.EndBlocker(ctx)
 		require.NoError(t, err)
-		require.Equal(t, testApp.TimeoutInfo(), res.TimeoutInfo)
+		require.Equal(t, testApp.TimeoutInfo(current+1), res.TimeoutInfo)
 
 		appVersion, err := testApp.AppVersion(ctx)
 		require.NoError(t, err)

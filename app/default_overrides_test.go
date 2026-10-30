@@ -97,8 +97,9 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	})
 
 	t.Run("consensus overrides", func(t *testing.T) {
-		assert.Equal(t, appconsts.TimeoutPropose, got.Consensus.TimeoutPropose)
-		assert.Equal(t, appconsts.TimeoutCommit, got.Consensus.TimeoutCommit)
+		assert.Equal(t, 1500*time.Millisecond, got.Consensus.TimeoutPropose)
+		assert.Equal(t, time.Nanosecond, got.Consensus.TimeoutCommit)
+		assert.False(t, got.Consensus.SkipTimeoutCommit)
 		assert.Equal(t, 10*time.Millisecond, got.Consensus.PeerGossipSleepDuration)
 	})
 

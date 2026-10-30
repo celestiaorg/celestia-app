@@ -27,6 +27,8 @@ const (
 	TimeoutCommitFlag = "timeout-commit"
 	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
 	DelayedPrecommitTimeout = "delayed-precommit-timeout"
+	// DynamicTimeoutCommitFlag is a flag that can be used to override the DynamicTimeoutCommit.
+	DynamicTimeoutCommitFlag = "dynamic-timeout-commit"
 )
 
 type UniversalTestingConfig struct {
@@ -101,6 +103,13 @@ func (c *Config) WithDelayedPrecommitTimeout(d time.Duration) *Config {
 	return c
 }
 
+// WithDynamicTimeoutCommit sets the DynamicTimeoutCommit, the floor on the
+// block interval from app version 11, in the app options and returns the Config.
+func (c *Config) WithDynamicTimeoutCommit(d time.Duration) *Config {
+	c.AppOptions.Set(DynamicTimeoutCommitFlag, d)
+	return c
+}
+
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithKeyringAccounts(
@@ -153,7 +162,9 @@ func DefaultConfig() *Config {
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
 		WithDelayedPrecommitTimeout(200 * time.Millisecond).
-		WithTimeoutCommit(time.Millisecond)
+		WithTimeoutCommit(time.Millisecond).
+		// 1ns, not 0 (unset), so the v11 800ms floor doesn't slow tests down.
+		WithDynamicTimeoutCommit(time.Nanosecond)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
@@ -202,6 +213,9 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,
 		)
+		if v := appOptions.Get(DynamicTimeoutCommitFlag); v != nil {
+			app.SetDynamicTimeoutCommit(v.(time.Duration))
+		}
 
 		for _, opt := range opts {
 			opt(app)
