@@ -22,6 +22,7 @@
 1 ./app/test            FuzzCheckTxMutatedTxs               5m -
 1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
 1 ./app                 FuzzCountICAPacketMsgs              5m -
+1 ./app                 FuzzCountTxMsgs                     5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
 1 ./app/encoding        FuzzTxDecoderFastPath               5m 100x
 1 ./app/ante            FuzzNestedMsgDecorator              2m 100x
