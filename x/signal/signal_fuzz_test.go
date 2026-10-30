@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -83,7 +84,17 @@ func (m *fuzzStakingKeeper) GetValidator(_ context.Context, addr sdk.ValAddress)
 	if m.bonded[i] {
 		status = stakingtypes.Bonded
 	}
-	return stakingtypes.Validator{OperatorAddress: addr.String(), Status: status}, nil
+	return stakingtypes.Validator{
+		OperatorAddress: addr.String(),
+		Status:          status,
+		Description:     stakingtypes.Description{Moniker: fuzzMoniker(i)},
+	}, nil
+}
+
+// fuzzMoniker gives each validator a unique moniker, so the oracle can check
+// which validators GetMissingValidators reports, not only how many.
+func fuzzMoniker(i int) string {
+	return fmt.Sprintf("val-%d", i)
 }
 
 func (m *fuzzStakingKeeper) IterateValidators(_ context.Context, cb func(int64, stakingtypes.ValidatorI) bool) error {
@@ -272,13 +283,13 @@ func fuzzSignalTryUpgrade(t *testing.T, script []byte) {
 			require.Equal(t, total.Uint64(), res.TotalVotingPower)
 			missing, err := k.GetMissingValidators(ctx, &types.QueryGetMissingValidatorsRequest{Version: version})
 			require.NoError(t, err)
-			wantMissing := 0
+			wantMissing := []string{}
 			for i, a := range staking.addrs {
 				if v, ok := signals[a.String()]; staking.exists[i] && staking.bonded[i] && (!ok || v != version) {
-					wantMissing++
+					wantMissing = append(wantMissing, fuzzMoniker(i))
 				}
 			}
-			require.Len(t, missing.MissingValidators, wantMissing)
+			require.Equal(t, wantMissing, missing.MissingValidators, "missing validators for version %d", version)
 		}
 		requireStoredSignals(t, ctx.KVStore(key), staking, signals)
 	}
