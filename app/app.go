@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -66,6 +67,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/mempool"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -225,10 +227,13 @@ type App struct {
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
-	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
-	// This prevents data races between Commit updating checkState and QuerySequence
-	// reading it via CheckState().
+	// checkStateMu serializes the app's CheckTx and Commit against readers of
+	// checkState (QuerySequence fallback, Simulate).
 	checkStateMu *sync.RWMutex
+	// pendingSequencer is the in-process CAT mempool; unset when out of process.
+	pendingSequencer *atomic.Pointer[mempool.PendingSequencer]
+	// committedCtx reads the last committed state; Commit replaces it.
+	committedCtx *atomic.Pointer[sdk.Context]
 	// stateFixes repair committed state at set heights. See state_fixes.go.
 	stateFixes []StateFix
 }
@@ -280,6 +285,8 @@ func New(
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
+		pendingSequencer:        &atomic.Pointer[mempool.PendingSequencer]{},
+		committedCtx:            &atomic.Pointer[sdk.Context]{},
 		stateFixes:              stateFixes,
 	}
 
@@ -972,5 +979,15 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
-	return app.BaseApp.Commit()
+	res, err := app.BaseApp.Commit()
+	app.storeCommittedContext()
+	return res, err
+}
+
+// Simulate runs BaseApp.Simulate under checkStateMu so it never overlaps the
+// app's CheckTx or Commit.
+func (app *App) Simulate(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) {
+	app.checkStateMu.RLock()
+	defer app.checkStateMu.RUnlock()
+	return app.BaseApp.Simulate(txBytes)
 }

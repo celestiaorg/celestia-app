@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/mempool"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	pvm "github.com/cometbft/cometbft/privval"
@@ -77,6 +78,8 @@ type Multiplexer struct {
 	// cmNode is the comet node which has been created. A reference is required in order to establish
 	// a local connection to it.
 	cmNode *node.Node
+	// pendingSequencer is cmNode's mempool, which the native app reads in QuerySequence.
+	pendingSequencer mempool.PendingSequencer
 	// versions is a list of versions which contain all embedded binaries.
 	versions Versions
 	// startFlags contains the operator flags parsed by Cobra, reused on upgrades.
@@ -540,6 +543,7 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to start latest app: %w", err)
 			}
+			wirePendingSequencer(app, m.pendingSequencer)
 
 			// NOTE: we don't need to create a comet node as that will have been created when Start was called.
 
@@ -653,12 +657,31 @@ func (m *Multiplexer) startCmtNode() error {
 		return err
 	}
 
+	if p, ok := cmNode.Mempool().(mempool.PendingSequencer); ok {
+		m.pendingSequencer = p
+		wirePendingSequencer(m.nativeApp, p)
+	}
+
 	if err := cmNode.Start(); err != nil {
 		return err
 	}
 
 	m.cmNode = cmNode
 	return nil
+}
+
+// pendingSequencerSetter is implemented by apps that read pending sequences
+// from the node's mempool in QuerySequence.
+type pendingSequencerSetter interface {
+	SetPendingSequencer(mempool.PendingSequencer)
+}
+
+// wirePendingSequencer lets an in-process app serve QuerySequence from the
+// node's mempool instead of its recheck-dependent checkState.
+func wirePendingSequencer(app servertypes.Application, p mempool.PendingSequencer) {
+	if s, ok := app.(pendingSequencerSetter); ok && p != nil {
+		s.SetPendingSequencer(p)
+	}
 }
 
 // Stop stops the multiplexer and all its components. It intentionally proceeds
