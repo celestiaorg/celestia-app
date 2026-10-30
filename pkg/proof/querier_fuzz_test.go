@@ -14,8 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/da"
 	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -23,6 +24,8 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -54,26 +57,49 @@ var (
 )
 
 // fuzzQueryTxPool returns normal, blob and pay-for-fibre transactions that a
-// fuzz input picks from to form a block. Normal and fibre txs are fixed;
-// blob txs are signed with a fresh test key.
+// fuzz input picks from to form a block. Every tx is a pure function of fixed
+// keys and seeds, so a saved fuzz input reproduces the same block.
 func fuzzQueryTxPool() []poolTx {
 	queryTxPoolOnce.Do(func() {
 		for i, size := range []int{1, 100, 479, 480, 1000, 2000} {
 			queryTxPool = append(queryTxPool, poolTx{poolNormal, bytes.Repeat([]byte{byte(i + 1)}, size)})
 		}
-		signer, err := testnode.NewOfflineSigner()
+		signer, err := fixedBlobSigner()
 		if err != nil {
 			panic(err)
 		}
 		r := rand.New(rand.NewSource(1))
 		for _, size := range []int{1, 600, 5000} {
-			for _, tx := range blobfactory.RandBlobTxs(signer, r, 1, 1+size%2, size) {
-				queryTxPool = append(queryTxPool, poolTx{poolBlob, tx})
+			// ManyBlobs draws namespaces and data from r, unlike RandBlobTxs.
+			count := 1 + size%2
+			sizes := make([]int, count)
+			for i := range sizes {
+				sizes[i] = size
 			}
+			blobs := blobfactory.ManyBlobs(r, testfactory.RandomBlobNamespaces(r, count), sizes)
+			tx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, blobfactory.DefaultTxOpts()...)
+			if err != nil {
+				panic(err)
+			}
+			queryTxPool = append(queryTxPool, poolTx{poolBlob, tx})
 		}
 		queryTxPool = append(queryTxPool, poolTx{poolFibre, payForFibreTx()})
 	})
 	return queryTxPool
+}
+
+// fuzzSignerMnemonic is a fixed test mnemonic; secp256k1 signing is
+// deterministic, so blob txs signed with it are identical on every run.
+const fuzzSignerMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+
+// fixedBlobSigner returns a signer whose key is derived from fuzzSignerMnemonic.
+func fixedBlobSigner() (*user.Signer, error) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	kr := keyring.NewInMemory(encCfg.Codec)
+	if _, err := kr.NewAccount(testfactory.TestAccName, fuzzSignerMnemonic, "", sdk.FullFundraiserPath, hd.Secp256k1); err != nil {
+		return nil, err
+	}
+	return user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, user.NewAccount(testfactory.TestAccName, 0, 0))
 }
 
 // payForFibreTx returns an unsigned pay-for-fibre tx with a fixed key and
