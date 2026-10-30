@@ -44,6 +44,9 @@
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
 2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+2 ./pkg/rsema1d         FuzzVerifier                        2m 100x
+2 ./pkg/rsema1d         FuzzReconstructor                   2m 100x
+2 ./pkg/rsema1d/rlc     FuzzUnmarshal                       2m 100x
 3 ./pkg/rsema1d/merkle  FuzzRootFromProofs                  2m 100x
 3 ./pkg/rsema1d/rlc     FuzzCompute                         2m 100x
 3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
