@@ -18,7 +18,7 @@ The initial nightly baseline was seven targets. PRs
 [#8381](https://github.com/celestiaorg/celestia-app/pull/8381) added eight, with
 [#8383](https://github.com/celestiaorg/celestia-app/pull/8383) correcting the share
 proof harness. This follow-up adds two focused ante targets and registers five
-existing targets that were missing from the nightly script. All **22 targets**
+existing targets that were missing from the nightly script. All **24 targets**
 are now registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
 
 The two additional targets prioritize nested-message restrictions, which stop
@@ -47,6 +47,7 @@ can cover several functions; target presence does not establish branch coverage.
 | 2 | `pkg/da.DataAvailabilityHeaderFromProto`: serialized row/column roots | `FuzzDataAvailabilityHeaderFromProto` in [pkg/da](../pkg/da/data_availability_header_fuzz_test.go) | Accepted headers validate, hash, respect square bounds and survive a proto round trip. |
 | 2 | `fibre/internal/grpc` scatter/view/pooled codecs: upload and download RPC bytes | `FuzzScatterMarshalParity`, `FuzzUploadViewsParity`, `FuzzDownloadViewsParity` in [fibre/internal/grpc](../fibre/internal/grpc) | Canonical protobuf parity, malformed wire inputs and contiguous/fragmented buffer decoding. |
 | 2 | `fibre` shard codec and reader: stored/transferred shard bytes | `FuzzShardCodecRoundTrip`, `FuzzShardCodecReadNoPanic`, `FuzzShardReader` in [fibre](../fibre) | Codec round trips, arbitrary read bytes and reader behavior. |
+| 2 | `fibre/validator.QuorumPrefix`, `SignatureSet`, `Set.Assign`, `ShardMap.Verify`: validator sets and certificate signatures | `FuzzQuorumPrefix`, `FuzzAssign` in [fibre/validator](../fibre/validator/set_fuzz_test.go) | The quorum prefix agrees with the sequential `x/fibre` signature walk for absent, valid and invalid signatures; shard maps give each validator its distinct rows and `Verify` accepts exactly them. Voting powers span the CometBFT range; an `AssignedRows` overflow is excluded pending a fix. |
 | 3 | `pkg/rsema1d/merkle.RootFromProofs`: decoded shard proofs | `FuzzRootFromProofs` in [pkg/rsema1d/merkle](../pkg/rsema1d/merkle/proof_test.go) | Batch verification agrees with individual proofs under mutation. |
 | 3 | `pkg/rsema1d/rlc.Compute`: validated rows and coefficients | `FuzzCompute` in [pkg/rsema1d/rlc](../pkg/rsema1d/rlc/poly_test.go) | Dispatched, pure-Go and scalar computations agree for bounded valid shapes. |
 | 3 | `pkg/rsema1d/internal/sha256x2.Sum`: hash input buffers | `FuzzSum` in [pkg/rsema1d/internal/sha256x2](../pkg/rsema1d/internal/sha256x2/sha256x2_test.go) | Two-lane hashing agrees with the standard implementation. Assembly coverage depends on the runner architecture. |
