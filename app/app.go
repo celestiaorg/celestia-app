@@ -816,6 +816,7 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.FibreKeeper,
 		app.sigCache,
 		app.CountSDKMessages,
+		app.simulateNextSequence,
 	)
 }
 
@@ -1039,9 +1040,8 @@ func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
 	app.dynamicTimeoutCommit = d
 }
 
-// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
-// This prevents data races between commit updating checkState (mempool state) and
-// QuerySequence reading it via CheckState().
+// Commit serializes BaseApp's Commit with the app's checkState readers and
+// refreshes the committed context QuerySequence reads.
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
@@ -1049,6 +1049,13 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	res, err := app.BaseApp.Commit()
 	app.storeCommittedContext()
 	return res, err
+}
+
+// simulateNextSequence feeds the simulate ante decorator; nextSequence takes no
+// locks, which Simulate already holds.
+func (app *App) simulateNextSequence(signer []byte) (uint64, bool) {
+	sequence, ok, err := app.nextSequence(signer)
+	return sequence, ok && err == nil
 }
 
 // Simulate runs BaseApp.Simulate under checkStateMu so it never overlaps the

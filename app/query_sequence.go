@@ -22,41 +22,44 @@ func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
 	app.pendingSequencer.Store(&p)
 }
 
-// QuerySequence returns the signer's next sequence: the larger of its committed
-// sequence and one past its highest sequence pending in the mempool. Neither
-// depends on recheck progress, so the value does not drop while recheck
-// rebuilds checkState after Commit. A pending tx that is evicted no longer
-// counts, so the value falls back to the committed sequence.
-//
-// Without an in-process mempool (SetPendingSequencer not called) it reads
-// checkState as before, which lags the true value during recheck.
+// QuerySequence returns the signer's next sequence from the mempool and
+// committed state (see nextSequence), so it does not lag during recheck.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
-	p := app.pendingSequencer.Load()
-	if p == nil {
-		return app.querySequenceFromCheckState(req.Signer)
-	}
-
-	// Read the mempool first: a tx it drops after a commit is then already in
-	// the committed state read below.
-	pending, hasPending := (*p).HighestPendingSequence(req.Signer)
-
-	ctx, ok := app.committedContext()
-	if !ok {
-		// No block committed yet.
-		return app.querySequenceFromCheckState(req.Signer)
-	}
-	sequence, err := app.accountSequence(ctx, req.Signer)
+	sequence, ok, err := app.nextSequence(req.Signer)
 	if err != nil {
 		return nil, err
 	}
-	if hasPending && pending != math.MaxUint64 && pending+1 > sequence {
-		sequence = pending + 1
+	if !ok {
+		return app.querySequenceFromCheckState(req.Signer)
 	}
 	return &abci.ResponseQuerySequence{Sequence: sequence}, nil
 }
 
+// nextSequence returns max(committed sequence, highest pending sequence + 1),
+// or false without an in-process mempool or a Commit since start. Lock free.
+func (app *App) nextSequence(signer []byte) (uint64, bool, error) {
+	p := app.pendingSequencer.Load()
+	if p == nil {
+		return 0, false, nil
+	}
+	// Mempool first: a tx it drops after a Commit is then in the state read below.
+	pending, hasPending := (*p).HighestPendingSequence(signer)
+	committed := app.committedCtx.Load()
+	if committed == nil {
+		return 0, false, nil
+	}
+	sequence, err := app.accountSequence(committed.WithGasMeter(storetypes.NewInfiniteGasMeter()), signer)
+	if err != nil {
+		return 0, false, err
+	}
+	if hasPending && pending != math.MaxUint64 && pending+1 > sequence {
+		sequence = pending + 1
+	}
+	return sequence, true, nil
+}
+
 // storeCommittedContext caches a read-only context on the state Commit just
-// wrote, so QuerySequence does not branch every store on each call.
+// wrote; each reader gives it its own gas meter.
 func (app *App) storeCommittedContext() {
 	ctx, err := app.CreateQueryContext(0, false)
 	if err != nil {
@@ -66,18 +69,8 @@ func (app *App) storeCommittedContext() {
 	app.committedCtx.Store(&ctx)
 }
 
-// committedContext returns a context on the last committed state with its own
-// gas meter, as the cached context is shared between callers.
-func (app *App) committedContext() (sdk.Context, bool) {
-	if ctx := app.committedCtx.Load(); ctx != nil {
-		return ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), true
-	}
-	// Before the first Commit since start.
-	ctx, err := app.CreateQueryContext(0, false)
-	return ctx, err == nil
-}
-
-// querySequenceFromCheckState returns the signer's sequence in checkState.
+// querySequenceFromCheckState is the fallback when nextSequence has no answer
+// (out-of-process node, no Commit yet); it lags the true value during recheck.
 func (app *App) querySequenceFromCheckState(signer []byte) (*abci.ResponseQuerySequence, error) {
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()

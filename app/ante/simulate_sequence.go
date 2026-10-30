@@ -7,20 +7,24 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-// SimulateSequenceDecorator sets each signer's account sequence to the one in
-// its signature when simulating, so the sequence check that follows cannot fail
-// and gas estimation does not depend on recheck progress. It is a no-op outside
-// simulation, and its reads and writes are not metered.
+// NextSequenceFn returns a signer's next sequence including its pending txs,
+// or false if unknown. It must not take app locks: Simulate holds them.
+type NextSequenceFn func(signer []byte) (uint64, bool)
+
+// SimulateSequenceDecorator lifts a lagging checkState sequence, unmetered, up
+// to the tx's when the tx uses the signer's next sequence, so gas estimation
+// does not depend on recheck progress. Any other sequence still fails as before.
 type SimulateSequenceDecorator struct {
-	ak ante.AccountKeeper
+	ak   ante.AccountKeeper
+	next NextSequenceFn
 }
 
-func NewSimulateSequenceDecorator(ak ante.AccountKeeper) SimulateSequenceDecorator {
-	return SimulateSequenceDecorator{ak: ak}
+func NewSimulateSequenceDecorator(ak ante.AccountKeeper, next NextSequenceFn) SimulateSequenceDecorator {
+	return SimulateSequenceDecorator{ak: ak, next: next}
 }
 
 func (d SimulateSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if !simulate {
+	if !simulate || d.next == nil {
 		return next(ctx, tx, simulate)
 	}
 	sigTx, ok := tx.(authsigning.SigVerifiableTx)
@@ -39,7 +43,10 @@ func (d SimulateSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	unmetered := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 	for i, sig := range sigs {
 		acc := d.ak.GetAccount(unmetered, signers[i])
-		if acc == nil || acc.GetSequence() == sig.Sequence {
+		if acc == nil || sig.Sequence <= acc.GetSequence() {
+			continue
+		}
+		if want, ok := d.next(signers[i]); !ok || sig.Sequence != want {
 			continue
 		}
 		if err := acc.SetSequence(sig.Sequence); err != nil {

@@ -564,7 +564,7 @@ func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to start latest app: %w", err)
 			}
-			wirePendingSequencer(app, m.pendingSequencer)
+			m.wirePendingSequencer(app)
 
 			// NOTE: we don't need to create a comet node as that will have been created when Start was called.
 
@@ -679,8 +679,10 @@ func (m *Multiplexer) startCmtNode() error {
 	}
 
 	if p, ok := cmNode.Mempool().(mempool.PendingSequencer); ok {
+		m.mu.Lock()
 		m.pendingSequencer = p
-		wirePendingSequencer(m.nativeApp, p)
+		m.wirePendingSequencer(m.nativeApp)
+		m.mu.Unlock()
 	}
 
 	if err := cmNode.Start(); err != nil {
@@ -698,10 +700,11 @@ type pendingSequencerSetter interface {
 }
 
 // wirePendingSequencer lets an in-process app serve QuerySequence from the
-// node's mempool instead of its recheck-dependent checkState.
-func wirePendingSequencer(app servertypes.Application, p mempool.PendingSequencer) {
-	if s, ok := app.(pendingSequencerSetter); ok && p != nil {
-		s.SetPendingSequencer(p)
+// node's mempool instead of its recheck-dependent checkState. Hold m.mu.
+func (m *Multiplexer) wirePendingSequencer(app servertypes.Application) {
+	if s, ok := app.(pendingSequencerSetter); ok && m.pendingSequencer != nil {
+		s.SetPendingSequencer(m.pendingSequencer)
+		m.logger.Info("QuerySequence reads pending sequences from the mempool")
 	}
 }
 
