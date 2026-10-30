@@ -115,7 +115,7 @@ Thus, the expected flow is:
 
 1) Off-chain prover generates a state transition proof; submit via `UpdateInterchainSecurityModule`.
 2) Off-chain prover generates a membership proof of the source chain merkle tree root; submit via `SubmitMessages`.
-3) Relayers deliver each message with a merkle proof against the latest proven root or a root still in the history; Hyperlane core invokes `Verify` per message.
+3) Relayers deliver each message with a merkle proof against the latest proven root or a root still in the tree state history; Hyperlane core invokes `Verify` per message.
 
 ## Queries (gRPC/REST)
 
@@ -171,7 +171,7 @@ The module enforces the following invariants:
 - Proof prefix must match the expected verifying key hash prefix.
 - Proof length must be exactly 256 bytes + the 4-byte prefix, equalling a total of 260 bytes.
 - State transition proofs must include the currently stored state (minimum 32 bytes) and replace it entirely with `new_state` (minimum 32 bytes).
-- Membership proofs must bind to the trusted root stored in `ism.State[:32]` or a state root in the history, and to the ISM's `merkle_tree_address`.
+- Membership proofs must bind to the trusted root stored in `ism.State[:32]` or a state root in the state root history, and to the ISM's `merkle_tree_address`.
 - Each accepted membership proof strictly increases the proven leaf count.
 - Each root history holds at most `root_history_size` (≤ 256) entries per ISM.
 - At most one transition proof and one membership proof are accepted per ISM per block.

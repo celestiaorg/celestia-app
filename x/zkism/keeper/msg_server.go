@@ -164,7 +164,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 			return nil, err
 		}
 		if !known {
-			return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x or a state root in the root history, got %x", ism.State[:32], publicValues.StateRoot)
+			return nil, errorsmod.Wrapf(types.ErrInvalidStateRoot, "expected %x or a state root in the state root history, got %x", ism.State[:32], publicValues.StateRoot)
 		}
 	}
 

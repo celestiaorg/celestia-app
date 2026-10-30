@@ -71,7 +71,7 @@ func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error
 }
 
 // Verify implements the util.InterchainSecurityModule interface. The metadata must contain a merkle proof of the
-// message id against the latest proven merkle tree root or a root in the ISM's history.
+// message id against the latest proven merkle tree root or a root in the ISM's tree state history.
 // Replay protection is provided by the Hyperlane mailbox, which rejects message ids it has already received.
 func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
 	ism, err := k.isms.Get(ctx, ismId.GetInternalId())

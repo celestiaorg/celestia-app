@@ -15,8 +15,8 @@ import (
 
 // InitGenesis initialises the module genesis state. The deprecated submissions field is ignored.
 func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
-	// Proof heights from an exported chain may be at or above this chain's first block, where they would block the
-	// first proof. Lower them to the block before.
+	// Proof heights from an exported chain may be at or above this chain's first block, where the per-block rule
+	// would reject a proof in the block with that height. Lower them to the block before.
 	lastHeight := max(sdk.UnwrapSDKContext(ctx).BlockHeight(), 1) - 1
 
 	for _, ism := range gs.Isms {
