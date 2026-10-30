@@ -148,7 +148,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.Txs {
-		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
+		_, isBlobTx := coretypes.UnwrapBlobTx(txBytes, appconsts.Version)
 		if idx < numNormalTxs {
 			require.False(t, isBlobTx)
 		} else {

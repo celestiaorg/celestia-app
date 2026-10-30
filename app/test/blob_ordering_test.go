@@ -88,11 +88,11 @@ func TestBlobOrderingWithinNamespaceByPriority(t *testing.T) {
 	// Extract the blob transactions from the response.
 	var blobTxGasPrices []float64
 	for _, txBytes := range prepareResp.Txs {
-		bTx, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
+		innerTx, isBlobTx := coretypes.UnwrapBlobTx(txBytes, appconsts.Version)
 		if !isBlobTx {
 			continue
 		}
-		gasPrice := extractGasPrice(t, encConf, bTx.Tx)
+		gasPrice := extractGasPrice(t, encConf, innerTx)
 		blobTxGasPrices = append(blobTxGasPrices, gasPrice)
 	}
 
@@ -181,7 +181,7 @@ func TestBlobReorderingWithinNamespaceRejected(t *testing.T) {
 	copy(swappedTxs, prepareResp.Txs)
 	blobIdxs := []int{}
 	for i, txBytes := range swappedTxs {
-		if _, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes)); isBlobTx {
+		if _, isBlobTx := coretypes.UnwrapBlobTx(txBytes, appconsts.Version); isBlobTx {
 			blobIdxs = append(blobIdxs, i)
 		}
 	}

@@ -186,8 +186,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "PFB without blobTx",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
-				d.Txs = append(d.Txs, btx.Tx)
+				innerTx, _ := coretypes.UnwrapBlobTx(blobTxs[3], appconsts.Version)
+				d.Txs = append(d.Txs, innerTx)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
