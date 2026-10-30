@@ -43,14 +43,37 @@ def fence(text):
 
 
 def crashing_input(pkg, log):
+    """Returns the corpus file name and full bytes of the failing input."""
     match = re.search(r"Failing input written to (\S+)", log)
     if not match:
-        return None
+        return None, None
     path = pathlib.Path(pkg) / match.group(1)
     try:
-        return path.read_text(errors="replace")[:MAX_INPUT_CHARS]
+        return path.name, path.read_bytes()
     except OSError:
-        return None
+        return None, None
+
+
+def upload(name, data):
+    """Uploads data to Linear's private file storage and returns its URL.
+
+    The issue keeps the complete corpus file, since the runner workspace is
+    discarded and no public artifact may hold it.
+    """
+    upload_file = graphql(
+        """mutation($contentType: String!, $filename: String!, $size: Int!) {
+          fileUpload(contentType: $contentType, filename: $filename, size: $size) {
+            uploadFile { uploadUrl assetUrl headers { key value } }
+          }
+        }""",
+        {"contentType": "text/plain", "filename": name, "size": len(data)},
+    )["fileUpload"]["uploadFile"]
+    headers = {"Content-Type": "text/plain", "Cache-Control": "public, max-age=31536000"}
+    headers.update({h["key"]: h["value"] for h in upload_file["headers"]})
+    request = urllib.request.Request(upload_file["uploadUrl"], data=data, headers=headers, method="PUT")
+    with urllib.request.urlopen(request, timeout=60):
+        pass
+    return upload_file["assetUrl"]
 
 
 def describe(pkg, target, log):
@@ -60,15 +83,24 @@ def describe(pkg, target, log):
         f"- Run: {os.environ['RUN_URL']}",
         f"- Commit: `{os.environ['COMMIT_SHA']}`",
         "",
-        "Reproduce by saving the crashing input below as "
+        "Reproduce by saving the complete corpus file below as "
         f"`{pkg}/testdata/fuzz/{target}/<name>` and running "
         f"`go test -run='^{target}$' {pkg}`.",
         "",
         "Keep crash details out of public PRs and issues; see docs/fuzzing.md.",
     ]
-    crash = crashing_input(pkg, log)
-    if crash:
-        lines += ["", "## Crashing input", "", fence(crash)]
+    name, crash = crashing_input(pkg, log)
+    if crash is not None:
+        lines += ["", "## Crashing input", ""]
+        try:
+            lines.append(f"Complete corpus file: [{name}]({upload(name, crash)})")
+        except Exception as err:  # Still file the issue; say what is missing.
+            lines.append(f"Uploading the corpus file failed ({err}); only the excerpt below is kept.")
+        text = crash.decode(errors="replace")
+        if len(text) > MAX_INPUT_CHARS:
+            lines.append(f"Excerpt: first {MAX_INPUT_CHARS} of {len(text)} characters, not a valid corpus file on its own.")
+            text = text[:MAX_INPUT_CHARS]
+        lines += ["", fence(text)]
     lines += ["", "## Output (tail)", "", fence(log[-MAX_LOG_CHARS:])]
     return "\n".join(lines)
 

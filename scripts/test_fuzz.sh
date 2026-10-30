@@ -27,8 +27,12 @@ targets() {
 }
 
 if [ "${1:-}" = "--check" ]; then
-	registered=$(targets | awk '{print $3}' | sort)
-	defined=$(git grep --untracked -h -E '^func Fuzz[A-Za-z0-9_]*\(' -- '*_test.go' | sed -E 's/^func (Fuzz[A-Za-z0-9_]*)\(.*/\1/' | sort)
+	# Compare "package target" pairs: a target registered under the wrong
+	# package fuzzes nothing, and go test still exits 0.
+	registered=$(targets | awk '{print $2" "$3}' | sort)
+	defined=$(git grep --untracked -E '^func Fuzz[A-Za-z0-9_]*\(' -- '*_test.go' |
+		sed -E 's/^([^:]*):func (Fuzz[A-Za-z0-9_]*)\(.*/\1 \2/' |
+		awk '{n = split($1, p, "/"); dir = "."; for (i = 1; i < n; i++) dir = dir "/" p[i]; print dir " " $2}' | sort)
 	status=0
 	if dups=$(printf '%s\n' "$registered" | uniq -d) && [ -n "$dups" ]; then
 		echo "Registered more than once in $registry:"; echo "$dups"; status=1
@@ -37,7 +41,7 @@ if [ "${1:-}" = "--check" ]; then
 		echo "Fuzz targets missing from $registry:"; echo "$missing"; status=1
 	fi
 	if stale=$(comm -23 <(printf '%s\n' "$registered" | uniq) <(printf '%s\n' "$defined" | uniq)) && [ -n "$stale" ]; then
-		echo "Registered targets with no matching func in the repository:"; echo "$stale"; status=1
+		echo "Registered targets with no matching func in that package:"; echo "$stale"; status=1
 	fi
 	exit $status
 fi
@@ -48,6 +52,9 @@ if [ -n "${FUZZ_LOG_DIR:-}" ]; then
 	mkdir -p "$FUZZ_LOG_DIR"
 	: >"$FUZZ_LOG_DIR/failed.txt"
 fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
 
 failed=0
 index=0
@@ -64,15 +71,23 @@ while read -r priority pkg target fuzztime minimizetime; do
 	fi
 
 	echo "==> $target ($pkg, priority $priority)"
-	if [ -n "${FUZZ_LOG_DIR:-}" ]; then
-		if go test "${args[@]}" "$pkg" >"$FUZZ_LOG_DIR/$target.log" 2>&1; then
-			echo "PASS $target"
-		else
-			echo "FAIL $target (output withheld; see the Linear issue)"
-			echo "$priority $pkg $target" >>"$FUZZ_LOG_DIR/failed.txt"
-			failed=1
-		fi
-	elif ! go test "${args[@]}" "$pkg"; then
+	log=${FUZZ_LOG_DIR:-$tmp}/$target.log
+	# go test exits 0 with "no fuzz tests to fuzz" when the target is missing.
+	if go test "${args[@]}" "$pkg" >"$log" 2>&1 && ! grep -q 'no fuzz tests to fuzz' "$log"; then
+		ok=1
+	else
+		ok=0
+	fi
+	if [ -z "${FUZZ_LOG_DIR:-}" ]; then
+		cat "$log"
+	fi
+	if [ "$ok" = 1 ]; then
+		echo "PASS $target"
+	elif [ -n "${FUZZ_LOG_DIR:-}" ]; then
+		echo "FAIL $target (output withheld; see the Linear issue)"
+		echo "$priority $pkg $target" >>"$FUZZ_LOG_DIR/failed.txt"
+		failed=1
+	else
 		echo "FAIL $target"
 		failed=1
 	fi
