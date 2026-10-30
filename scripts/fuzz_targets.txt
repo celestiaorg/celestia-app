@@ -33,6 +33,8 @@
 1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
 1 ./x/fibre/types       FuzzParsePayForFibreTx              5m 100x
 1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
+1 ./x/blob/ante         FuzzPFBShareAndGasValidation        2m 100x
+1 ./x/valaddr/types     FuzzValidateHost                    2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
@@ -42,6 +44,7 @@
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
 2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+2 ./app/errors          FuzzParseNodeErrors                 2m 100x
 3 ./pkg/rsema1d/merkle  FuzzRootFromProofs                  2m 100x
 3 ./pkg/rsema1d/rlc     FuzzCompute                         2m 100x
 3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
