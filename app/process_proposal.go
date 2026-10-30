@@ -19,6 +19,7 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -38,6 +39,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			resp = reject()
 		}
 	}()
+
+	// Bound the transaction count before looking up state, hashing the proposal
+	// cache key or allocating per-transaction decode caches. Core separately
+	// checks the encoded count before protobuf decoding. This binary serves v11;
+	// the multiplexer delegates earlier app versions to their embedded binaries.
+	maxTxs := coretypes.MaxBlockTxs
+	if len(req.Txs) > maxTxs {
+		logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("block exceeds max transaction count of %d", maxTxs))
+		return reject(), nil
+	}
 
 	// Create the anteHandler that is used to check the validity of
 	// transactions. All transactions need to be equally validated here
