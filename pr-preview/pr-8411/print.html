@@ -3315,7 +3315,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>TimeoutCommit</td><td>1 ns</td><td>Time to sleep after a commit before the next height starts. 1 ns rather than 0, which celestia-core reads as &quot;use the config value&quot;. See CometBFT <a href="https://github.com/celestiaorg/celestia-core/blob/v0.40.2/spec/consensus/consensus.md#precommit-step-heighthroundr">specs</a> for more details.</td><td>False</td></tr>
 <tr><td>DelayedPrecommitTimeout</td><td>0 ms</td><td>Delay of precommits after the height starts; 0 disables it.</td><td>False</td></tr>
 <tr><td>DynamicTimeoutCommit</td><td>800 ms</td><td>Floor on the block interval: a height starts no earlier than DynamicTimeoutCommit after the previous height's start deadline. Paces v11 blocks.</td><td>False</td></tr>
-<tr><td>UpgradeHeightDelay</td><td>756000 blocks</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
+<tr><td>UpgradeHeightDelay</td><td>232616 blocks</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
 <tr><td>MaxBlockSizeBytes</td><td>130857600 bytes</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
 </tbody></table>
 </div>
@@ -3333,7 +3333,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
 <tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>False</td></tr>
-<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>1,314,300</td><td>The maximum number of blocks before evidence is considered invalid. The v10 value (UnbondingTime / 3s = 404,400) x3.25 for 0.8s blocks; it stays within the unbonding period only while blocks average at most 0.923s. Set via the v11 upgrade handler.</td><td>False</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>False</td></tr>
 <tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>False</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>11</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
@@ -3343,7 +3343,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
 <tr><td>fibre.WithdrawalDelay</td><td>24h</td><td>Delay between a withdrawal request from a fibre escrow account and its payout. Bounded to [12h10m, 168h].</td><td>True</td></tr>
 <tr><td>fibre.PaymentPromiseTimeout</td><td>1h</td><td>Age at which an unsettled fibre payment promise becomes settleable via <code>MsgPaymentPromiseTimeout</code>. Bounded to [10m, 12h].</td><td>True</td></tr>
-<tr><td>fibre.PaymentPromiseHeightWindow</td><td>3250</td><td>Maximum age in blocks of the validator-set height referenced by a fibre payment promise. Set via the v11 upgrade handler (v10: 1000).</td><td>True</td></tr>
+<tr><td>fibre.PaymentPromiseHeightWindow</td><td>1000</td><td>Maximum age in blocks of the validator-set height referenced by a fibre payment promise.</td><td>True</td></tr>
 <tr><td>fibre.ShardRetention</td><td>4h</td><td>Minimum duration fibre servers keep uploaded shards before pruning. Bounded to [10m, 168h].</td><td>True</td></tr>
 <tr><td>fibre.FullStakeStorageBudget</td><td>2199023255552 (2 TiB)</td><td>Caps the fibre disk usage of a hypothetical 100%-stake validator over one shard retention window; each server derives its own stake-proportional budget from it.</td><td>True</td></tr>
 <tr><td>gov.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>
@@ -3356,7 +3356,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>gov.ExpeditedVotingPeriod</td><td>86400000000000 (1 day)</td><td>Duration of the expedited voting period in nanoseconds.</td><td>True</td></tr>
 <tr><td>gov.ExpeditedThreshold</td><td>0.667 (66.7%)</td><td>Minimum proportion of Yes votes for an expedited proposal to pass.</td><td>True</td></tr>
 <tr><td>ibc.ClientGenesis.AllowedClients</td><td>[]string{&quot;06-solomachine&quot;, &quot;07-tendermint&quot;}</td><td>List of allowed IBC light clients.</td><td>True</td></tr>
-<tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>4000000000 (4 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation. Set via the v11 upgrade handler.</td><td>True</td></tr>
+<tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>13000000000 (13 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation. Set via the v9 upgrade handler.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
 <tr><td>icahost.HostEnabled</td><td>True</td><td>Enables or disables the Inter-Chain Accounts host module.</td><td>True</td></tr>
@@ -3369,11 +3369,11 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>packetforwardmiddleware.FeePercentage</td><td>0</td><td>% of the forwarded packet amount which will be subtracted and distributed to the community pool.</td><td>True</td></tr>
 <tr><td>slashing.DowntimeJailDuration</td><td>1 min</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
 <tr><td>slashing.MinSignedPerWindow</td><td>0.75 (75%)</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
-<tr><td>slashing.SignedBlocksWindow</td><td>32500</td><td>The range of blocks used to count for downtime. Set via the v11 upgrade handler (v10: 10000).</td><td>True</td></tr>
+<tr><td>slashing.SignedBlocksWindow</td><td>10000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
 <tr><td>slashing.SlashFractionDoubleSign</td><td>0.02 (2%)</td><td>Percentage slashed after a validator is jailed for double signing.</td><td>True</td></tr>
 <tr><td>slashing.SlashFractionDowntime</td><td>0.00 (0%)</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
 <tr><td>staking.BondDenom</td><td>utia</td><td>Bondable coin denomination.</td><td>False</td></tr>
-<tr><td>staking.HistoricalEntries</td><td>32500</td><td>Number of historical entries to persist in store. Set via the v11 upgrade handler (v10: 10000).</td><td>True</td></tr>
+<tr><td>staking.HistoricalEntries</td><td>10000</td><td>Number of historical entries to persist in store.</td><td>True</td></tr>
 <tr><td>staking.MaxEntries</td><td>7</td><td>Maximum number of entries in the redelegation queue.</td><td>True</td></tr>
 <tr><td>staking.MaxValidators</td><td>100</td><td>Maximum number of validators.</td><td>True</td></tr>
 <tr><td>staking.MinCommissionRate</td><td>0.20 (20%)</td><td>Minimum commission rate used by all validators.</td><td>True</td></tr>
@@ -6015,7 +6015,7 @@ message EventProcessedPaymentPruned {
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Validation</th><th>Current use</th></tr></thead><tbody>
 <tr><td><code>withdrawal_delay</code></td><td><code>24h</code></td><td>Must be between <code>12h10m</code> and <code>168h</code></td><td>Sets withdrawal availability and the oldest accepted payment-promise creation time</td></tr>
 <tr><td><code>payment_promise_timeout</code></td><td><code>1h</code></td><td>Must be between <code>10m</code> and <code>12h</code></td><td>Defines normal promise expiration and when timeout processing becomes valid</td></tr>
-<tr><td><code>payment_promise_height_window</code></td><td><code>3250</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
+<tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
 <tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
 <tr><td><code>full_stake_storage_budget</code></td><td><code>2TiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
 </tbody></table>
