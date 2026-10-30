@@ -19,7 +19,7 @@ The initial nightly baseline was seven targets. PRs
 [#8383](https://github.com/celestiaorg/celestia-app/pull/8383) correcting the share
 proof harness. This follow-up adds two focused ante targets and registers five
 existing targets that were missing from the nightly script. All **22 targets**
-are now registered in [scripts/test_fuzz.sh](../scripts/test_fuzz.sh).
+are now registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
 
 The two additional targets prioritize nested-message restrictions, which stop
 ante bypasses, and fee/priority arithmetic, where attacker-selected gas and fees
@@ -75,14 +75,28 @@ test with the fix; do not add a broad panic recovery to a harness.
 
 ## Running and maintaining coverage
 
-`make test-fuzz` runs the registered targets nightly via
-[test-nightly.yml](../.github/workflows/test-nightly.yml). To smoke-test one target:
+`make test-fuzz` runs the targets registered in
+[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). The nightly
+[test-nightly.yml](../.github/workflows/test-nightly.yml) job splits them
+round-robin across parallel shards, so adding a target only needs a registry
+line. `scripts/test_fuzz.sh --check` fails when a `Fuzz*` function is missing
+from the registry or a registered target no longer exists; the nightly job runs
+it first. To smoke-test one target:
 
 ```sh
 go test ./app/ante -run='^$' -fuzz='^FuzzNestedMsgDecorator$' -fuzztime=60s -parallel=2 -fuzzminimizetime=100x
 ```
 
-Normal `go test ./app/ante` also runs the new targets' seed corpora. Cheap targets
+Normal `go test ./app/ante` also runs the targets' seed corpora. Cheap targets
 use a bounded minimization budget so nightly runs keep exploring inputs. Update
-this inventory and the script together when adding or renaming a target. Compare
-`rg '^func Fuzz' --glob '*.go'` with the script to find unregistered targets.
+this inventory and the registry together when adding or renaming a target.
+
+## Nightly failures
+
+A crashing input can describe an exploitable bug, so the nightly job writes each
+target's output to a file and prints only pass/fail to the public log. When a
+target fails on `main`, the job files a Linear issue in the Protocol team with
+the output tail and the minimized crashing input, or comments on the open issue
+for that target. The registry priority sets the issue priority: 1 is Urgent, 2
+is High and 3 is Medium. Triage the issue, and keep crash details out of public
+PRs and GitHub issues until a fix ships.
