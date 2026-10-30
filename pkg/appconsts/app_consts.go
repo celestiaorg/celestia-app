@@ -32,24 +32,39 @@ const (
 	GasPerBlobByte       uint32 = 8
 	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
-	// 3-5x the expected block time: 13 seconds is 5x the v10 block (~2.6s).
-	MaxExpectedTimePerBlock = 13 * time.Second
+	// 3-5x the expected block time. From v11 the dynamic timeout commit floors
+	// the block interval at 800ms, so this value is 4 seconds (5x).
+	MaxExpectedTimePerBlock = 4 * time.Second
+
+	// The block counts below are the v10 values x3.25, the ratio of the v10
+	// (~2.6s) to the v11 (0.8s) block interval, so each keeps its duration.
+
+	// SignedBlocksWindow is the x/slashing liveness window (v10: 10,000).
+	SignedBlocksWindow int64 = 32_500
+	// HistoricalEntries is the number of x/staking historical infos kept. It
+	// must cover the fibre PaymentPromiseHeightWindow (v10: 10,000).
+	HistoricalEntries uint32 = 32_500
+	// MempoolTTLNumBlocks is the minimum mempool TTL in blocks (v10: 36).
+	MempoolTTLNumBlocks int64 = 117
+	// SnapshotInterval is the default state sync snapshot interval in blocks
+	// (v10: 1,500).
+	SnapshotInterval uint64 = 4_875
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
 	// CortoUpgradeHeightDelay is the number of blocks that Corto waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 1 day.
-	CortoUpgradeHeightDelay = int64(33_231)
+	// interval of ~0.8 seconds, this is 1 day.
+	CortoUpgradeHeightDelay = int64(108_000)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 2 days.
-	MochaUpgradeHeightDelay = int64(66_462)
+	// interval of ~0.8 seconds, this is 2 days.
+	MochaUpgradeHeightDelay = int64(216_000)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 7 days.
-	MainnetUpgradeHeightDelay = int64(232_616)
+	// interval of ~0.8 seconds, this is 7 days.
+	MainnetUpgradeHeightDelay = int64(756_000)
 	// MempoolSize determines the default max mempool size.
 	MempoolSize = 400 * mebibyte // 400 MiB
 	// UnbondingTime is the time a validator must wait to unbond in a proof of

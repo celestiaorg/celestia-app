@@ -7,9 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// maxAssumedBlockTime is the slow-end block time MaxAgeNumBlocks is derived
-// against. Observed mainnet block time is ~2.85s; 3s leaves headroom.
-const maxAssumedBlockTime = 3 * time.Second
+// maxAssumedBlockTime is the slow-end block time MaxAgeNumBlocks stays within
+// the unbonding period at. The v11 0.8s floor leaves 0.123s of headroom, far
+// less than the 3s bound #7706 chose against ~2.85s observed v10 blocks.
+const maxAssumedBlockTime = 923 * time.Millisecond
 
 // TestEvidenceWindowWithinUnbonding guards that the block-based evidence window
 // does not outlive the unbonding period. Evidence expires only once both bounds

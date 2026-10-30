@@ -18,12 +18,15 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 const (
@@ -54,9 +57,15 @@ const (
 	EvidenceMaxAgeV8Blocks  = 242640
 	EvidenceMaxAgeV9Blocks  = 559940
 	EvidenceMaxAgeV10Blocks = 404400
+	EvidenceMaxAgeV11Blocks = 1314300
 
-	// CIP-048 IBC MaxExpectedTimePerBlock for v9 (in nanoseconds)
-	MaxExpectedTimePerBlockV9Ns = uint64(13 * time.Second)
+	// IBC MaxExpectedTimePerBlock for v11: 5x the 0.8s block (in nanoseconds)
+	MaxExpectedTimePerBlockV11Ns = uint64(4 * time.Second)
+
+	// Block counts the v11 upgrade rescales x3.25 for 0.8s blocks.
+	SignedBlocksWindowV11         = int64(32_500)
+	HistoricalEntriesV11          = uint32(32_500)
+	PaymentPromiseHeightWindowV11 = uint64(3_250)
 
 	// Block params for v9
 	MaxBytesV9 = 32 * 1024 * 1024 // 32 MiB
@@ -460,9 +469,10 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 
 	// v11 consensus timeouts: 800ms dynamic timeout commit paces blocks.
 	s.validateTimeoutInfo(ctx, node, cfg)
-	// Evidence params: MaxAgeNumBlocks bounded to the unbonding period.
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV10Blocks, appVersion)
-	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
+	// Block-count parameters rescaled x3.25 by the v11 upgrade handler.
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV11Blocks, appVersion)
+	s.validateBlockCountParams(ctx, node)
+	// IBC MaxExpectedTimePerBlock lowered to 4s by the v11 upgrade handler.
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB
 	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
@@ -496,7 +506,7 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and
-// validates that MaxExpectedTimePerBlock was corrected to 13s per CIP-048.
+// validates that the v11 upgrade set MaxExpectedTimePerBlock to 4s.
 func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
 	client, err := getIBCConnectionQueryClient(node)
 	s.Require().NoError(err)
@@ -504,8 +514,27 @@ func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context,
 	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
 	s.Require().NoError(err, "failed to query IBC connection params")
 
-	s.Require().Equal(MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock,
-		"v9 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock)
+	s.Require().Equal(MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v11 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock)
+}
+
+// validateBlockCountParams validates the slashing, staking and fibre block
+// counts the v11 upgrade rescales.
+func (s *CelestiaTestSuite) validateBlockCountParams(ctx context.Context, node tastoratypes.ChainNode) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok && dcNode.GrpcConn != nil, "node should be a docker chain node with a gRPC connection")
+
+	slashing, err := slashingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &slashingtypes.QueryParamsRequest{})
+	s.Require().NoError(err, "failed to query slashing params")
+	s.Require().Equal(SignedBlocksWindowV11, slashing.Params.SignedBlocksWindow, "SignedBlocksWindow mismatch")
+
+	staking, err := stakingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &stakingtypes.QueryParamsRequest{})
+	s.Require().NoError(err, "failed to query staking params")
+	s.Require().Equal(HistoricalEntriesV11, staking.Params.HistoricalEntries, "HistoricalEntries mismatch")
+
+	fibre, err := fibretypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &fibretypes.QueryParamsRequest{})
+	s.Require().NoError(err, "failed to query fibre params")
+	s.Require().Equal(PaymentPromiseHeightWindowV11, fibre.Params.PaymentPromiseHeightWindow, "PaymentPromiseHeightWindow mismatch")
 }
 
 // validateBlockParams queries consensus params and validates max_bytes.

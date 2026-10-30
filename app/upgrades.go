@@ -7,6 +7,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -73,7 +74,62 @@ func (app App) RegisterUpgradeHandlers() {
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
-			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			versionMap, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			if err != nil {
+				return nil, err
+			}
+			// After migrations, so no migration can overwrite the rescaled params.
+			if err := app.rescaleForBlockInterval(sdkCtx); err != nil {
+				return nil, fmt.Errorf("failed to rescale block-count parameters: %w", err)
+			}
+			return versionMap, nil
 		},
 	)
+}
+
+// rescaleForBlockInterval sets the parameters whose meaning depends on the
+// block time to their values for v11's 0.8s blocks.
+func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
+	consensusParams, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		return err
+	}
+	consensusParams.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, consensusParams); err != nil {
+		return err
+	}
+
+	slashingParams, err := app.SlashingKeeper.GetParams(ctx)
+	if err != nil {
+		return err
+	}
+	slashingParams.SignedBlocksWindow = appconsts.SignedBlocksWindow
+	if err := app.SlashingKeeper.SetParams(ctx, slashingParams); err != nil {
+		return err
+	}
+
+	stakingParams, err := app.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		return err
+	}
+	stakingParams.HistoricalEntries = appconsts.HistoricalEntries
+	if err := app.StakingKeeper.SetParams(ctx, stakingParams); err != nil {
+		return err
+	}
+
+	fibreParams := app.FibreKeeper.GetParams(ctx)
+	fibreParams.PaymentPromiseHeightWindow = fibretypes.DefaultPaymentPromiseHeightWindow
+	app.FibreKeeper.SetParams(ctx, fibreParams)
+
+	connectionParams := app.IBCKeeper.ConnectionKeeper.GetParams(ctx)
+	connectionParams.MaxExpectedTimePerBlock = uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds())
+	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, connectionParams)
+
+	ctx.Logger().Info("rescaled block-count parameters for 0.8s blocks",
+		"max_age_num_blocks", appconsts.MaxAgeNumBlocks,
+		"signed_blocks_window", appconsts.SignedBlocksWindow,
+		"historical_entries", appconsts.HistoricalEntries,
+		"payment_promise_height_window", fibretypes.DefaultPaymentPromiseHeightWindow,
+		"max_expected_time_per_block", appconsts.MaxExpectedTimePerBlock)
+	return nil
 }

@@ -21,8 +21,9 @@ var (
 	DefaultWithdrawalDelay = 24 * time.Hour
 	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
 	DefaultPaymentPromiseTimeout = 1 * time.Hour
-	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
-	DefaultPaymentPromiseHeightWindow uint64 = 1000
+	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window
+	// parameter: the v10 value (1,000) x3.25 so it keeps ~43 minutes at v11's 0.8s blocks.
+	DefaultPaymentPromiseHeightWindow uint64 = 3250
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
 	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
 	DefaultShardRetention = 4 * time.Hour
