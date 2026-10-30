@@ -8,9 +8,13 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Every validator MUST run a v11 binary (with its celestia-core) before the v11 activation height: v11 paces blocks with the new `TimeoutInfo.dynamic_timeout_commit`, which older celestia-core versions ignore.
 
+On startup, a v11 binary raises `ttl-num-blocks` below 117 to 117 (was 36) and `min-retain-blocks` between 1 and 9,749 to 9,750 (was 3,000). New `app.toml` files get `snapshot-interval = 4875` (was 1500). These keep their durations at 0.8s blocks; between installing the binary and the v11 activation they apply at ~2.6s blocks, so the TTL is ~5 minutes and retention ~7 hours until then.
+
 ### State Machine Changes (v11.0.0)
 
 **Block time**: the v11 consensus timeouts pace blocks with an 800 ms `dynamic_timeout_commit` floor on the block interval instead of the ~2.6s `delayed_precommit_timeout` + `timeout_commit` sleep. `timeout_commit` is 1 ns and `delayed_precommit_timeout` is 0; propose/prevote/precommit timeouts are 1500/1000/1500 ms. App versions up to 10 keep their timeouts.
+
+**Block-count parameters**: the v11 upgrade handler sets the block-count parameters to their v10 values × 3.25 (2.6s / 0.8s), replacing any value set by governance: `consensus.evidence.MaxAgeNumBlocks` 404,400 → 1,314,300, `slashing.SignedBlocksWindow` 10,000 → 32,500, `staking.HistoricalEntries` 10,000 → 32,500 and `fibre.PaymentPromiseHeightWindow` 1,000 → 3,250. It also lowers IBC `MaxExpectedTimePerBlock` from 13s to 4s. Upgrade height delays are 108,000 / 216,000 / 756,000 blocks on Corto / Mocha / Mainnet. `MaxAgeNumBlocks` stays within the 337h unbonding period only while blocks average at most 0.923s.
 
 **Throughput**: per-block limits (32 MiB `MaxBytes`, square size, PFB/PFF caps) are unchanged, so the maximum data rate rises with the block rate, up to ~40 MiB/s at 0.8s blocks (~12 MiB/s at 2.6s).
 

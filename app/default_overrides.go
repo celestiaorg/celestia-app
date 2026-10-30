@@ -99,6 +99,7 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis.Params.UnbondingTime = appconsts.UnbondingTime
 	genesis.Params.BondDenom = params.BondDenom
 	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
+	genesis.Params.HistoricalEntries = appconsts.HistoricalEntries
 
 	return cdc.MustMarshalJSON(genesis)
 }
@@ -113,7 +114,7 @@ type slashingModule struct {
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := slashingtypes.DefaultGenesisState()
 	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(1, 3) // 0.1%
-	genesis.Params.SignedBlocksWindow = 10_000
+	genesis.Params.SignedBlocksWindow = appconsts.SignedBlocksWindow
 	genesis.Params.DowntimeJailDuration = time.Minute * 1
 	genesis.Params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
 	genesis.Params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
@@ -266,7 +267,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// Used to initialise privval gRPC in core
 	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26669"
 
-	cfg.Mempool.TTLNumBlocks = 36
+	cfg.Mempool.TTLNumBlocks = appconsts.MempoolTTLNumBlocks
 	cfg.Mempool.TTLDuration = 0 * time.Second
 	cfg.Mempool.MaxTxBytes = appconsts.MaxTxSize
 	cfg.Mempool.MaxTxsBytes = appconsts.MempoolSize
@@ -302,7 +303,7 @@ func DefaultAppConfig() *serverconfig.Config {
 	// value as to not dramatically increase resource requirements while also
 	// being greater than zero so that there are more nodes that will serve
 	// snapshots to nodes that state sync
-	cfg.StateSync.SnapshotInterval = 1500
+	cfg.StateSync.SnapshotInterval = appconsts.SnapshotInterval
 	cfg.StateSync.SnapshotKeepRecent = 2
 	// this is set to an empty string. As an empty string, the binary will use
 	// the hardcoded default gas price. To override this, the user must set the
