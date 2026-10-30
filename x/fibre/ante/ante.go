@@ -4,15 +4,19 @@ import (
 	"crypto/sha256"
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 var (
 	_ sdk.AnteDecorator = FibreSignatureGasDecorator{}
 	_ sdk.AnteDecorator = FibreSignatureVerificationDecorator{}
 	_ sdk.AnteDecorator = FibreStatefulValidationDecorator{}
+	_ sdk.AnteDecorator = FibreLegacyEscrowDecorator{}
 )
 
 // FibreSignatureGasDecorator charges gas for MsgPayForFibre signature checks.
@@ -134,6 +138,48 @@ func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx,
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
+}
+
+// FibreLegacyEscrowDecorator rejects MsgDepositToEscrow with a non-canonical
+// signer or a non-utia denom in CheckTx, recheck, simulation and PrepareProposal.
+type FibreLegacyEscrowDecorator struct{}
+
+// NewFibreLegacyEscrowDecorator returns a new FibreLegacyEscrowDecorator.
+func NewFibreLegacyEscrowDecorator() FibreLegacyEscrowDecorator {
+	return FibreLegacyEscrowDecorator{}
+}
+
+func (FibreLegacyEscrowDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	switch ctx.ExecMode() {
+	case sdk.ExecModeCheck, sdk.ExecModeReCheck, sdk.ExecModeSimulate, sdk.ExecModePrepareProposal:
+	default:
+		return next(ctx, tx, simulate)
+	}
+	for _, msg := range tx.GetMsgs() {
+		deposit, ok := msg.(*fibretypes.MsgDepositToEscrow)
+		if !ok {
+			continue
+		}
+		if err := validateCanonicalDeposit(deposit); err != nil {
+			return ctx, err
+		}
+	}
+	return next(ctx, tx, simulate)
+}
+
+// validateCanonicalDeposit rejects deposits that v11 would have to migrate.
+func validateCanonicalDeposit(msg *fibretypes.MsgDepositToEscrow) error {
+	addr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
+	}
+	if msg.Signer != addr.String() {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "signer %s is not canonical, use %s", msg.Signer, addr.String())
+	}
+	if msg.Amount.Denom != appconsts.BondDenom {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidCoins, "escrow deposits must be in %s, got %s", appconsts.BondDenom, msg.Amount.Denom)
+	}
+	return nil
 }
 
 // withInfiniteGasMeter returns ctx with an unlimited gas meter so verification
