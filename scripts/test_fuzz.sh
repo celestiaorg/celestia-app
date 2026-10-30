@@ -28,7 +28,7 @@ targets() {
 
 if [ "${1:-}" = "--check" ]; then
 	registered=$(targets | awk '{print $3}' | sort)
-	defined=$(git grep -h -E '^func Fuzz[A-Za-z0-9_]*\(' -- '*_test.go' | sed -E 's/^func (Fuzz[A-Za-z0-9_]*)\(.*/\1/' | sort)
+	defined=$(git grep --untracked -h -E '^func Fuzz[A-Za-z0-9_]*\(' -- '*_test.go' | sed -E 's/^func (Fuzz[A-Za-z0-9_]*)\(.*/\1/' | sort)
 	status=0
 	if dups=$(printf '%s\n' "$registered" | uniq -d) && [ -n "$dups" ]; then
 		echo "Registered more than once in $registry:"; echo "$dups"; status=1
