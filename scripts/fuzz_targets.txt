@@ -20,6 +20,7 @@
 1 ./app/test            FuzzCheckTxPrepareProposal          5m -
 1 ./app/test            FuzzProcessProposalMutatedTxs       5m -
 1 ./app/test            FuzzCheckTxMutatedTxs               5m -
+1 ./app/test            FuzzQuerySequence                   2m 100x
 1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
