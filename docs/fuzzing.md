@@ -37,6 +37,7 @@ can cover several functions; target presence does not establish branch coverage.
 | 1 | `app.PrepareProposal`: mempool transactions | `FuzzCheckTxPrepareProposal` in [app/test](../app/test/check_tx_prepare_proposal_fuzz_test.go) | Re-signs structured messages and checks accepted transactions survive proposal construction. Arbitrary malformed mempool batches are outside this target. |
 | 1 | `app.ProcessProposal`: proposer transaction bytes | `FuzzProcessProposalMutatedTxs` in [app/test](../app/test/process_proposal_fuzz_test.go) | Mutates a prepared proposal; detects recovered panics and requires unchanged proposals to be accepted. Header root and square size remain fixed. |
 | 1 | `app/ante.NestedMsgDecorator.AnteHandle`: decoded authz/governance containers | `FuzzNestedMsgDecorator` in [app/ante](../app/ante/nested_msg_fuzz_test.go) | Varies message type, position, count, wrapper and simulation mode; forbidden messages must never reach the next handler. Exercises the guard directly, independently of signature/fee rejection earlier in the ante chain. |
+| 1 | `app/ante.ValidateTxFee`: transaction fee coins and gas limit | `FuzzValidateTxFee` in [app/ante](../app/ante/validate_tx_fee_fuzz_test.go) | Keeper-backed fee checker with a big-integer oracle for the network minimum, foreign fee denoms and CheckTx/DeliverTx modes. Fees above MaxInt64 are excluded until PROTOCO-3433 item 2 is fixed. |
 | 1 | `app/ante.verifyMinFee`, `getTxPriority`: transaction gas/fees | `FuzzAnteFeeArithmetic` in [app/ante](../app/ante/fee_fuzz_test.go) | Uses a `math/big` oracle for rounded minimum fees and overflow-safe priority, including zero gas and values above MaxInt64. Random fees and prices span uint64; keeper-backed fee deduction is outside this target. |
 | 1 | `app.pffDecodeCandidate`: raw transaction classification | `FuzzPFFDecodeCandidateParity` in [app](../app/pff_decode_candidate_fuzz_test.go) | Fast-path classification agrees with the SDK and fibre decoders. |
 | 1 | `app.countICAPacketMsgs`: IBC packet contents | `FuzzCountICAPacketMsgs` in [app](../app/msg_count_test.go) | Fuzzes ICA message counting from packet data. |
@@ -66,9 +67,10 @@ stateful or cryptographic harnesses. These are follow-up surfaces; neither the
 nested-message guard nor transaction byte mutation claims to cover them fully.
 
 Existing CheckTx/ProcessProposal harnesses exclude the known empty-message or
-nil-fee ante panic class. The share proof harness excludes a nil row proof before
+nil-fee ante panic class, and `FuzzValidateTxFee` excludes fees above MaxInt64.
+The share proof harness excludes a nil row proof before
 calling `ShareProof.Validate`. These are tracked in
-[PROTOCO-3433](https://linear.app/celestia/issue/PROTOCO-3433), items 4 and 5.
+[PROTOCO-3433](https://linear.app/celestia/issue/PROTOCO-3433), items 2, 4 and 5.
 Keep exclusions narrow and remove each with the corresponding fix and regression
 test. New crashes should receive an issue, a minimized reproducer and a regression
 test with the fix; do not add a broad panic recovery to a harness.
