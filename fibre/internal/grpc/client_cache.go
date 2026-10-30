@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel"
@@ -23,6 +24,12 @@ type ClientCache struct {
 	clients   map[string]*clientEntry   // keyed by validator address string
 	entries   map[*clientEntry]struct{} // includes retired clients with active requests
 	closed    bool
+
+	// rotateCtx is cancelled by Close to stop in-flight background rotations,
+	// and rotateWg lets Close wait for their goroutines to finish.
+	rotateCtx    context.Context
+	rotateCancel context.CancelFunc
+	rotateWg     sync.WaitGroup
 }
 
 // clientEntry holds a lazily-initialized [Client].
@@ -31,9 +38,11 @@ type clientEntry struct {
 	clientCloser Client
 	err          error
 	closed       bool
+	created      time.Time
 	// Protected by ClientCache.mu.
-	users   int
-	retired bool
+	users    int
+	retired  bool
+	rotating bool
 }
 
 // ClientCacheOption configures a [ClientCache].
@@ -60,6 +69,7 @@ func NewClientCache(newClient NewClientFn, expectedSize int, opts ...ClientCache
 		clients:   make(map[string]*clientEntry, expectedSize),
 		entries:   make(map[*clientEntry]struct{}, expectedSize),
 	}
+	cc.rotateCtx, cc.rotateCancel = context.WithCancel(context.Background())
 	for _, opt := range opts {
 		opt(cc)
 	}
@@ -92,9 +102,77 @@ func (cc *ClientCache) acquire(ctx context.Context, val *core.Validator) (*clien
 	}
 	if entry.clientCloser == nil && entry.err == nil {
 		entry.clientCloser, entry.err = cc.newClient(ctx, val)
+		entry.created = time.Now()
+	}
+	if entry.err == nil && time.Since(entry.created) > rotateAge() {
+		cc.rotate(val, entry)
 	}
 	return entry, entry.clientCloser, entry.err
 }
+
+// rotateAge is when a client is replaced: before the server's connection age
+// cap, which is jittered by ±10%, closes it.
+func rotateAge() time.Duration {
+	return keepAliveMaxConnAge * 8 / 10
+}
+
+// readyWaiter is a [Client] that can wait for its connection to be ready.
+type readyWaiter interface {
+	WaitReady(ctx context.Context) bool
+}
+
+// rotate dials a replacement for entry in the background and swaps it in once
+// connected, so requests never wait on a new connection. entry is retired and
+// closes when its requests finish.
+func (cc *ClientCache) rotate(val *core.Validator, entry *clientEntry) {
+	addr := val.Address.String()
+	cc.mu.Lock()
+	if cc.closed || entry.retired || entry.rotating || cc.clients[addr] != entry {
+		cc.mu.Unlock()
+		return
+	}
+	entry.rotating = true
+	cc.rotateWg.Add(1)
+	cc.mu.Unlock()
+
+	go func() {
+		defer cc.rotateWg.Done()
+		ctx, cancel := context.WithTimeout(cc.rotateCtx, rotateTimeout)
+		defer cancel()
+		client, err := cc.newClient(ctx, val)
+		if err == nil {
+			if w, ok := client.(readyWaiter); ok && !w.WaitReady(ctx) {
+				_ = client.Close()
+				err = errors.New("replacement not ready")
+			}
+		}
+		next := &clientEntry{clientCloser: client, created: time.Now()}
+
+		cc.mu.Lock()
+		if err != nil || cc.closed || cc.clients[addr] != entry {
+			entry.rotating = false
+			cc.mu.Unlock()
+			if err == nil {
+				_ = client.Close()
+			}
+			return
+		}
+		cc.clients[addr] = next
+		cc.entries[next] = struct{}{}
+		entry.retired = true
+		closeOld := entry.users == 0
+		cc.mu.Unlock()
+		if closeOld {
+			_ = entry.close()
+			cc.mu.Lock()
+			delete(cc.entries, entry)
+			cc.mu.Unlock()
+		}
+	}()
+}
+
+// rotateTimeout bounds how long a replacement client may take to connect.
+const rotateTimeout = 30 * time.Second
 
 func (cc *ClientCache) release(entry *clientEntry) {
 	if entry == nil {
@@ -216,6 +294,28 @@ func (cc *ClientCache) evict(val *core.Validator, entry *clientEntry) {
 	}
 }
 
+// connector is a [Client] that can connect before its first RPC.
+type connector interface {
+	Connect()
+}
+
+// Warm creates clients for vals and starts connecting them, so the first
+// requests don't pay for the dial and handshake. It returns once every client
+// is created; connections complete in the background.
+func (cc *ClientCache) Warm(ctx context.Context, vals []*core.Validator) {
+	var wg sync.WaitGroup
+	for _, val := range vals {
+		wg.Go(func() {
+			entry, client, err := cc.acquire(ctx, val)
+			if c, ok := client.(connector); ok && err == nil {
+				c.Connect()
+			}
+			cc.release(entry)
+		})
+	}
+	wg.Wait()
+}
+
 // Close closes all clients, including retired clients with active requests.
 // Concurrent Close calls wait for closure to finish. Subsequent requests return an error.
 func (cc *ClientCache) Close() (err error) {
@@ -224,6 +324,13 @@ func (cc *ClientCache) Close() (err error) {
 
 	cc.mu.Lock()
 	cc.closed = true
+	cc.mu.Unlock()
+	// Stop in-flight background rotations and wait for their goroutines to
+	// finish, so no replacement connection is dialed or left open past Close.
+	cc.rotateCancel()
+	cc.rotateWg.Wait()
+
+	cc.mu.Lock()
 	entries := cc.entries
 	cc.entries = make(map[*clientEntry]struct{})
 	cc.clients = make(map[string]*clientEntry)

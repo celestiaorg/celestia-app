@@ -1,6 +1,7 @@
 package app
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -551,4 +553,34 @@ type countingChannelKeeper struct {
 func (k *countingChannelKeeper) GetAppVersion(sdk.Context, string, string) (string, bool) {
 	k.reads++
 	return string(icatypes.ModuleCdc.MustMarshalJSON(&icatypes.Metadata{Encoding: k.encoding})), true
+}
+
+func TestFitsSDKGas(t *testing.T) {
+	require.True(t, fitsSDKGas(0, appconsts.MaxSDKGas))
+	require.False(t, fitsSDKGas(0, appconsts.MaxSDKGas+1))
+	require.True(t, fitsSDKGas(appconsts.MaxSDKGas, 0))
+	require.False(t, fitsSDKGas(appconsts.MaxSDKGas, 1))
+	// An attacker chosen gas limit must not wrap the sum back under the limit.
+	require.False(t, fitsSDKGas(1, math.MaxUint64))
+}
+
+// nonProtoTx is an sdk.Tx that is not backed by a protobuf tx.
+type nonProtoTx struct{ sdk.Tx }
+
+func TestTxGasLimit(t *testing.T) {
+	txConfig := encoding.MakeConfig().TxConfig
+	builder := txConfig.NewTxBuilder()
+	builder.SetGasLimit(123)
+	require.Equal(t, uint64(123), txGasLimit(builder.GetTx()))
+
+	// A decoded tx with no AuthInfo must report zero rather than panic.
+	body, err := (&txtypes.TxBody{Memo: "no fee"}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&txtypes.TxRaw{BodyBytes: body}).Marshal()
+	require.NoError(t, err)
+	noFee, err := txConfig.TxDecoder()(raw)
+	require.NoError(t, err)
+	require.Zero(t, txGasLimit(noFee))
+
+	require.Zero(t, txGasLimit(nonProtoTx{}))
 }

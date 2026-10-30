@@ -16,6 +16,13 @@ func DefaultTxOpts() []user.TxOption {
 	return FeeTxOpts(10_000_000_000)
 }
 
+// DefaultSDKTxOpts are tx options for non-blob txs. Their gas limits count
+// against appconsts.MaxSDKGas, so they use a gas limit that lets many fit in a
+// block.
+func DefaultSDKTxOpts() []user.TxOption {
+	return FeeTxOpts(1_000_000)
+}
+
 func FeeTxOpts(gas uint64) []user.TxOption {
 	fee := uint64(float64(gas)*appconsts.DefaultMinGasPrice) + 1
 	return []user.TxOption{
@@ -37,7 +44,7 @@ func GenerateManyRawSendTxs(signer *user.Signer, count int) []coretypes.Tx {
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
 func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
-	opts := DefaultTxOpts()
+	opts := DefaultSDKTxOpts()
 
 	amountCoin := sdk.Coin{
 		Denom:  appconsts.BondDenom,

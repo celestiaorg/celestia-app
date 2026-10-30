@@ -9,6 +9,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 )
 
 var _ sdk.AnteDecorator = NestedMsgDecorator{}
@@ -19,7 +20,8 @@ var _ sdk.AnteDecorator = NestedMsgDecorator{}
 // or the proposal-time settlement replay). ZK proof messages are rejected in
 // governance proposals, including ISM creation's verifying-key pairing work,
 // because their deferred execution would bypass the per-block proof-work budget.
-// Hyperlane MsgProcessMessage is rejected there for the same reason.
+// Hyperlane MsgProcessMessage is rejected there for the same reason, as is
+// MsgRecvPacket, whose ICA payload could carry one.
 // It also rejects a nested MsgExec or MsgSubmitProposal so
 // those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}
@@ -77,6 +79,10 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 		case *hyperlanetypes.MsgProcessMessage:
 			if container == "MsgSubmitProposal" {
 				return sdkerrors.ErrNotSupported.Wrapf("MsgProcessMessage inside %s is not supported", container)
+			}
+		case *channeltypes.MsgRecvPacket:
+			if container == "MsgSubmitProposal" {
+				return sdkerrors.ErrNotSupported.Wrapf("MsgRecvPacket inside %s is not supported", container)
 			}
 		}
 	}
