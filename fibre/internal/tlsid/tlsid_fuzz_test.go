@@ -3,6 +3,7 @@ package tlsid
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -17,6 +18,8 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 const fuzzOtherChainID = vectorChainID + "-other"
@@ -71,7 +74,9 @@ func checkAcceptedCert(t *testing.T, cert *x509.Certificate, expected crypto.Pub
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !ed25519.Verify(ed25519.PublicKey(expected.Bytes()), envelope, id.Signature) {
+	// Consensus keys verify under ZIP-215, which accepts some signatures
+	// crypto/ed25519 rejects; check with an independent ZIP-215 verifier.
+	if !voied25519.VerifyWithOptions(voied25519.PublicKey(expected.Bytes()), envelope, id.Signature, zip215Options) {
 		t.Fatal("accepted an endorsement that does not verify under the expected key")
 	}
 	for _, other := range others {
@@ -148,6 +153,42 @@ func FuzzVerifyPeerCert(f *testing.F) {
 	})
 }
 
+var zip215Options = &voied25519.Options{Verify: voied25519.VerifyOptionsZIP_215}
+
+// smallOrderPoint encodes a point of order 8, which the cofactor kills.
+var smallOrderPoint, _ = hex.DecodeString("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")
+
+// signZIP215Only signs msg with the ed25519 key from seed so that ZIP-215
+// accepts the signature and crypto/ed25519 rejects it: R is a point the
+// cofactor kills and s = k*a. Coverage-guided mutation cannot reach such a
+// signature from random bytes.
+func signZIP215Only(t *testing.T, seed, msg []byte) []byte {
+	t.Helper()
+	pub := ed25519.NewKeyFromSeed(seed).Public().(ed25519.PublicKey)
+	digest := sha512.Sum512(seed)
+	clamped := digest[:32]
+	clamped[0] &= 248
+	clamped[31] &= 127
+	clamped[31] |= 64
+	secret, err := scalar.New().SetBytesModOrder(clamped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	challenge := sha512.New()
+	challenge.Write(smallOrderPoint)
+	challenge.Write(pub)
+	challenge.Write(msg)
+	k, err := scalar.New().SetBytesModOrderWide(challenge.Sum(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := make([]byte, 32)
+	if err := scalar.New().Mul(k, secret).ToBytes(s); err != nil {
+		t.Fatal(err)
+	}
+	return append(append([]byte(nil), smallOrderPoint...), s...)
+}
+
 // Flag bits for FuzzVerifyIdentityExtension.
 const (
 	fuzzSign        = 1 << iota // endorse the payload with the consensus key
@@ -173,6 +214,7 @@ func FuzzVerifyIdentityExtension(f *testing.F) {
 	f.Add(byte(fuzzSign), int64(1), int64(0), day, day+300, []byte{}, []byte{}, int8(0))
 	f.Add(byte(fuzzSign|fuzzCertWindow), int64(1), int64(0), day, int64(10), []byte{}, []byte{}, int8(1))
 	f.Add(byte(fuzzSign|fuzzOtherTLSKey|fuzzNoServerEKU), int64(2), int64(0), day, int64(10), []byte{}, []byte{}, int8(0))
+	f.Add(byte(fuzzSign), int64(1), int64(-300), validity, int64(3600), []byte{}, []byte{1}, int8(0))
 	f.Add(byte(0), int64(1), int64(0), day, int64(10), []byte{}, bytes.Repeat([]byte{7}, 64), int8(0))
 	f.Add(byte(fuzzSign|fuzzRawPayload), int64(1), int64(0), day, int64(10), []byte{0x30, 0x03, 0x02, 0x01, 0x01}, []byte{}, int8(0))
 	f.Add(byte(fuzzRawExt), int64(1), int64(0), day, int64(10), []byte{0x30, 0x04, 0x04, 0x00, 0x04, 0x00}, []byte{}, int8(0))
@@ -212,7 +254,15 @@ func FuzzVerifyIdentityExtension(f *testing.F) {
 			}
 		}
 		if flags&fuzzSign != 0 {
-			if sig, err = signer.SignRawBytes(vectorChainID, SignUniqueID, signedBytes(payload)); err != nil {
+			// A non-empty sig input selects a ZIP-215-only endorsement, which
+			// consensus accepts and crypto/ed25519 rejects.
+			if len(sig) > 0 {
+				envelope, err := core.RawBytesMessageSignBytes(vectorChainID, SignUniqueID, signedBytes(payload))
+				if err != nil {
+					t.Fatal(err)
+				}
+				sig = signZIP215Only(t, vectorSeed(0x10), envelope)
+			} else if sig, err = signer.SignRawBytes(vectorChainID, SignUniqueID, signedBytes(payload)); err != nil {
 				t.Fatal(err)
 			}
 		}
