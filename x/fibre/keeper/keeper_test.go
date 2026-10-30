@@ -518,27 +518,39 @@ func (suite *KeeperTestSuite) TestProcessedPayment() {
 	})
 }
 
-func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
+// validatePaymentPromise runs the stateless and stateful checks a payment
+// promise faces, in the order the message server applies them.
+func (suite *KeeperTestSuite) validatePaymentPromise(promise *types.PaymentPromise) error {
+	pp := fibre.PaymentPromise{}
+	if err := pp.FromProto(promise); err != nil {
+		return err
+	}
+	if err := suite.keeper.ValidatePromiseStateless(&pp); err != nil {
+		return err
+	}
+	_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, promise)
+	return err
+}
+
+func (suite *KeeperTestSuite) TestValidatePaymentPromise() {
 	suite.T().Run("valid payment promise should pass validation", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		suite.createEscrowAccount(paymentPromise)
-		err := suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
-		suite.NoError(err)
+		suite.NoError(suite.validatePaymentPromise(&paymentPromise))
 	})
 
 	suite.T().Run("invalid payment promise format should fail", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		paymentPromise.Namespace = make([]byte, 10) // Invalid size (should be 29)
-		err := suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
-		suite.Error(err)
-		suite.Contains(err.Error(), "invalid payment promise format")
+		pp := fibre.PaymentPromise{}
+		suite.Error(pp.FromProto(&paymentPromise))
 	})
 
 	suite.T().Run("invalid payment promise should fail validation", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		paymentPromise.BlobSize = 0 // Invalid: zero blob size
 
-		err := suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
+		err := suite.validatePaymentPromise(&paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "upload size must be positive")
 	})
@@ -561,7 +573,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		suite.keeper.SetProcessedPayment(suite.ctx, processedPayment)
 
 		// Validate should fail because it's already processed
-		err = suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
+		err = suite.validatePaymentPromise(&paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "payment promise has already been processed")
 	})
@@ -570,7 +582,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		paymentPromise := suite.createPaymentPromise()
 
 		// Validate should fail because escrow account doesn't exist
-		err := suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
+		err := suite.validatePaymentPromise(&paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "escrow account not found for signer")
 	})
@@ -594,7 +606,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		suite.keeper.SetEscrowAccount(suite.ctx, escrowAccount)
 
 		// Validate should fail because of insufficient balance
-		err := suite.keeper.ValidatePaymentPromiseInternal(suite.ctx, &paymentPromise)
+		err := suite.validatePaymentPromise(&paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "insufficient balance in escrow account")
 		suite.Contains(err.Error(), fmt.Sprintf("required: %v", requiredAmount))

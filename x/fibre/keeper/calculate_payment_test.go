@@ -5,6 +5,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -54,7 +55,7 @@ func TestEstimateGasForPayForFibre(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := EstimateGasForPayForFibre(tt.blobSize)
+			got := types.EstimateGasForPayForFibre(tt.blobSize)
 			assert.Equal(t, tt.want, got)
 		})
 	}
