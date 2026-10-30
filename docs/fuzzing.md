@@ -18,8 +18,9 @@ The initial nightly baseline was seven targets. PRs
 [#8381](https://github.com/celestiaorg/celestia-app/pull/8381) added eight, with
 [#8383](https://github.com/celestiaorg/celestia-app/pull/8383) correcting the share
 proof harness. This follow-up adds two focused ante targets and registers five
-existing targets that were missing from the nightly script. All **22 targets**
-are now registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
+existing targets that were missing from the nightly script. Later additions cover
+the ZK-ISM decoders and fibre payment promises. All **29 targets** are now
+registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
 
 The two additional targets prioritize nested-message restrictions, which stop
 ante bypasses, and fee/priority arithmetic, where attacker-selected gas and fees
@@ -43,10 +44,12 @@ can cover several functions; target presence does not establish branch coverage.
 | 1 | `x/blob/types.ValidateBlobTx`, `ValidateBlobTxSkipCommitment`: blob transaction envelopes | `FuzzValidateBlobTx` in [x/blob/types](../x/blob/types/blob_tx_fuzz_test.go) | Cached validation must agree with full validation except for the skipped commitment check. |
 | 1 | `x/blob/types.MsgPayForBlobs.ValidateBasic`, gas estimation: message fields | `FuzzMsgPayForBlobsValidateBasic`, `FuzzPFBGasEstimation` in [x/blob/types](../x/blob/types) | Inconsistent vector lengths and share versions; gas helpers run after their validation preconditions. |
 | 1 | `x/fibre/types.ParsePayForFibreTx`, `TryParseFibreTx`, `ClassifyTxs`: transaction bytes | `FuzzParsePayForFibreTx` in [x/fibre/types](../x/fibre/types/classified_tx_fuzz_test.go) | Parser/classifier agreement and system blob consistency; decoded PFF basic validation, signature cache keys and gas estimates. |
+| 1 | `x/zkism` verifying keys, proofs and public values: `MsgCreateInterchainSecurityModule`, `MsgUpdateVerifyingKeys`, `MsgUpdateInterchainSecurityModule`, `MsgSubmitMessages` | `FuzzValidateGroth16Vkey`, `FuzzPublicValuesUnmarshal`, `FuzzParseMerkleProofMetadata`, `FuzzSP1Groth16VerifyProof` in [x/zkism/types](../x/zkism/types/decoders_fuzz_test.go); `FuzzUnmarshalProof` in [x/zkism/internal/groth16](../x/zkism/internal/groth16/proof_fuzz_test.go) | Accepted keys decode in gnark with bounded allocation and a canonical encoding; decoders round trip; only golden proof statements verify. The pairing runs only for proofs within a few bytes of a golden proof. Message servers and keeper state are outside these targets. |
 | 2 | `pkg/proof.ShareProof.Validate`, `RowProof.Validate`: client-supplied inclusion proofs | `FuzzShareProofValidate` in [pkg/proof](../pkg/proof/proof_fuzz_test.go) | Single-share and multi-row seeds, arbitrary proof/root bytes. `VerifyProof` is reached through `Validate`; nil row proofs are excluded as described below. |
 | 2 | `pkg/da.DataAvailabilityHeaderFromProto`: serialized row/column roots | `FuzzDataAvailabilityHeaderFromProto` in [pkg/da](../pkg/da/data_availability_header_fuzz_test.go) | Accepted headers validate, hash, respect square bounds and survive a proto round trip. |
 | 2 | `fibre/internal/grpc` scatter/view/pooled codecs: upload and download RPC bytes | `FuzzScatterMarshalParity`, `FuzzUploadViewsParity`, `FuzzDownloadViewsParity` in [fibre/internal/grpc](../fibre/internal/grpc) | Canonical protobuf parity, malformed wire inputs and contiguous/fragmented buffer decoding. |
 | 2 | `fibre` shard codec and reader: stored/transferred shard bytes | `FuzzShardCodecRoundTrip`, `FuzzShardCodecReadNoPanic`, `FuzzShardReader` in [fibre](../fibre) | Codec round trips, arbitrary read bytes and reader behavior. |
+| 2 | `fibre.PaymentPromise` decoding, `Validate`, `SignBytes`, `Hash`: client payment promises | `FuzzPaymentPromiseUnmarshal`, `FuzzPaymentPromiseSignBytes` in [fibre](../fibre/payment_promise_fuzz_test.go) | Round trips, height and timestamp extremes, `Validate` agreement with `x/fibre/types.PaymentPromise.ValidateBasic`, and sign bytes that change with every signed field. Stateful escrow checks are outside this target. |
 | 3 | `pkg/rsema1d/merkle.RootFromProofs`: decoded shard proofs | `FuzzRootFromProofs` in [pkg/rsema1d/merkle](../pkg/rsema1d/merkle/proof_test.go) | Batch verification agrees with individual proofs under mutation. |
 | 3 | `pkg/rsema1d/rlc.Compute`: validated rows and coefficients | `FuzzCompute` in [pkg/rsema1d/rlc](../pkg/rsema1d/rlc/poly_test.go) | Dispatched, pure-Go and scalar computations agree for bounded valid shapes. |
 | 3 | `pkg/rsema1d/internal/sha256x2.Sum`: hash input buffers | `FuzzSum` in [pkg/rsema1d/internal/sha256x2](../pkg/rsema1d/internal/sha256x2/sha256x2_test.go) | Two-lane hashing agrees with the standard implementation. Assembly coverage depends on the runner architecture. |
@@ -59,11 +62,11 @@ construction, validation and finalization. These need isolated committed state
 and meaningful accept/reject oracles. The current mutation harnesses do not
 provide a state-machine sequence fuzzer.
 
-Fibre upload/download codec coverage does not establish coverage of payment
-promise signature verification, shard cryptographic validation or escrow
-settlement. ZK-ISM proof/key decoders and module message servers also need dedicated
-stateful or cryptographic harnesses. These are follow-up surfaces; neither the
-nested-message guard nor transaction byte mutation claims to cover them fully.
+Fibre upload/download codec and payment promise coverage does not establish
+coverage of shard cryptographic validation or escrow settlement. ZK-ISM message
+servers and keeper state also need dedicated stateful harnesses. These are
+follow-up surfaces; neither the nested-message guard nor transaction byte
+mutation claims to cover them fully.
 
 Existing CheckTx/ProcessProposal harnesses exclude the known empty-message or
 nil-fee ante panic class. The share proof harness excludes a nil row proof before
