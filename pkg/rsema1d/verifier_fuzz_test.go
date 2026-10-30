@@ -254,10 +254,27 @@ func FuzzVerifier(f *testing.F) {
 				}
 			}
 		}
-		verifyErr := v.Verify(commitment, proofs, vec)
-		checkAccepted("Verify", verifyErr)
-		if verifyErr == nil {
-			checkAccepted("VerifyShared", v.VerifyShared(commitment, proofs))
+		checkAccepted("Verify", v.Verify(commitment, proofs, vec))
+
+		// VerifyShared reuses the RLC values the last Verify cached. Prime a
+		// second verifier with an honest batch, then hand it the mutated batch
+		// whatever Verify decided, so malformed input reaches the shared path.
+		shared, err := NewVerifier(m.coder.config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := shared.Verify(m.commitment, m.proofs(t, []int{0, fuzzK}), m.rlc); err != nil {
+			t.Fatalf("honest priming batch rejected: %v", err)
+		}
+		if shared.VerifyShared(commitment, proofs) == nil {
+			if commitment != m.commitment {
+				t.Fatal("VerifyShared accepted a mutated commitment")
+			}
+			for _, p := range proofs {
+				if !bytes.Equal(p.Row, m.honest[p.Index]) {
+					t.Fatalf("VerifyShared accepted a row at index %d that differs from the encoding", p.Index)
+				}
+			}
 		}
 
 		// The verifier is pooled across uploads: an honest batch must still pass.
