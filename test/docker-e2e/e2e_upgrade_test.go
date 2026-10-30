@@ -458,7 +458,7 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
-	// CIP-048: Consensus timeout parameters
+	// v11 consensus timeouts: 800ms dynamic timeout commit paces blocks.
 	s.validateTimeoutInfo(ctx, node, cfg)
 	// Evidence params: MaxAgeNumBlocks bounded to the unbonding period.
 	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV10Blocks, appVersion)
@@ -469,8 +469,8 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the expected v9 values per CIP-048, or the start-flag
-// overrides the test chain runs with.
+// parameters match the v11 values, or the start-flag overrides the test chain
+// runs with.
 func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, cfg *dockerchain.Config) {
 	rpcClient, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -478,19 +478,21 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
-	timeoutCommit, delayedPrecommitTimeout := dockerchain.TimeoutCommit, dockerchain.DelayedPrecommitTimeout
-	if cfg.DefaultBlockTime {
-		timeoutCommit, delayedPrecommitTimeout = appconsts.TimeoutCommit, appconsts.DelayedPrecommitTimeout
+	want := appconsts.GetConsensusTimeouts(appconsts.Version)
+	if !cfg.DefaultBlockTime {
+		want.TimeoutCommit, want.DelayedPrecommitTimeout = dockerchain.TimeoutCommit, dockerchain.DelayedPrecommitTimeout
 	}
 
 	ti := abciInfo.Response.TimeoutInfo
-	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
-	s.Require().Equal(delayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "DelayedPrecommitTimeout mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(timeoutCommit, ti.TimeoutCommit, "TimeoutCommit mismatch")
+	s.Require().Equal(want.TimeoutPropose, ti.TimeoutPropose, "TimeoutPropose mismatch")
+	s.Require().Equal(want.TimeoutProposeDelta, ti.TimeoutProposeDelta, "TimeoutProposeDelta mismatch")
+	s.Require().Equal(want.TimeoutPrevote, ti.TimeoutPrevote, "TimeoutPrevote mismatch")
+	s.Require().Equal(want.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(want.TimeoutPrecommit, ti.TimeoutPrecommit, "TimeoutPrecommit mismatch")
+	s.Require().Equal(want.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(want.TimeoutCommit, ti.TimeoutCommit, "TimeoutCommit mismatch")
+	s.Require().Equal(want.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(800*time.Millisecond, ti.DynamicTimeoutCommit, "DynamicTimeoutCommit mismatch")
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and

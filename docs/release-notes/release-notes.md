@@ -4,7 +4,15 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ## v11.0.0
 
+### Node Operators (v11.0.0)
+
+Every validator MUST run a v11 binary (with its celestia-core) before the v11 activation height: v11 paces blocks with the new `TimeoutInfo.dynamic_timeout_commit`, which older celestia-core versions ignore.
+
 ### State Machine Changes (v11.0.0)
+
+**Block time**: the v11 consensus timeouts pace blocks with an 800 ms `dynamic_timeout_commit` floor on the block interval instead of the ~2.6s `delayed_precommit_timeout` + `timeout_commit` sleep. `timeout_commit` is 1 ns and `delayed_precommit_timeout` is 0; propose/prevote/precommit timeouts are 1500/1000/1500 ms. App versions up to 10 keep their timeouts.
+
+**Throughput**: per-block limits (32 MiB `MaxBytes`, square size, PFB/PFF caps) are unchanged, so the maximum data rate rises with the block rate, up to ~40 MiB/s at 0.8s blocks (~12 MiB/s at 2.6s).
 
 **`x/zkism`**:
 

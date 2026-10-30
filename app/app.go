@@ -222,9 +222,11 @@ type App struct {
 	// fibre message server and every ABCI phase. It is in memory only.
 	sigCache *sigcache.Cache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
-	treePool                *wrapper.TreePool
+	treePool *wrapper.TreePool
+	// Test-only overrides of the app version's timeouts; 0 means unset.
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
+	dynamicTimeoutCommit    time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
@@ -236,7 +238,7 @@ type App struct {
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
 // delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
-// default value from appconsts.
+// app version's value from appconsts.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -258,14 +260,6 @@ func New(
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
-
-	if delayedPrecommitTimeout == 0 {
-		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
-	}
-
-	if timeoutCommit == 0 {
-		timeoutCommit = appconsts.TimeoutCommit
-	}
 
 	maxTxs := mempoolMaxTxs(appOpts)
 
@@ -606,7 +600,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(res.AppVersion)
 
 	return res, nil
 }
@@ -668,10 +662,11 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
+			currentVersion = signalUpgrade.AppVersion
 		}
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(currentVersion)
 
 	return res, nil
 }
@@ -693,7 +688,11 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res.TimeoutInfo = app.TimeoutInfo(appVersion)
 	return res, nil
 }
 
@@ -953,17 +952,37 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-func (app *App) TimeoutInfo() abci.TimeoutInfo {
-	return abci.TimeoutInfo{
-		TimeoutPropose:          appconsts.TimeoutPropose,
-		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           app.timeoutCommit,
-		TimeoutPrevote:          appconsts.TimeoutPrevote,
-		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
-		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
-		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
-		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
+// TimeoutInfo returns the consensus timeouts of appVersion, the version in
+// state, with the test-only overrides applied.
+func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
+	t := appconsts.GetConsensusTimeouts(appVersion)
+	if app.timeoutCommit != 0 {
+		t.TimeoutCommit = app.timeoutCommit
 	}
+	if app.delayedPrecommitTimeout != 0 {
+		t.DelayedPrecommitTimeout = app.delayedPrecommitTimeout
+	}
+	// Only override versions that pace dynamically, so <= v10 keeps the legacy path.
+	if app.dynamicTimeoutCommit != 0 && t.DynamicTimeoutCommit != 0 {
+		t.DynamicTimeoutCommit = app.dynamicTimeoutCommit
+	}
+	return abci.TimeoutInfo{
+		TimeoutPropose:          t.TimeoutPropose,
+		TimeoutProposeDelta:     t.TimeoutProposeDelta,
+		TimeoutCommit:           t.TimeoutCommit,
+		TimeoutPrevote:          t.TimeoutPrevote,
+		TimeoutPrevoteDelta:     t.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        t.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   t.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: t.DelayedPrecommitTimeout,
+		DynamicTimeoutCommit:    t.DynamicTimeoutCommit,
+	}
+}
+
+// SetDynamicTimeoutCommit overrides a non-zero DynamicTimeoutCommit of the app
+// version when d is non-zero. Only for tests; call it before the app serves ABCI.
+func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
+	app.dynamicTimeoutCommit = d
 }
 
 // Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
