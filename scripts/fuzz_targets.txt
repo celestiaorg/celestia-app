@@ -33,6 +33,7 @@
 1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
 1 ./x/fibre/types       FuzzParsePayForFibreTx              5m 100x
 1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
+1 ./x/zkism/keeper      FuzzZKISMMsgSequence                5m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
