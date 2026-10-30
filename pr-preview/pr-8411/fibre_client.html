@@ -187,7 +187,7 @@ defer client.Stop(ctx)
     Escrow EscrowConfig
 }
 </code></pre>
-<p><code>HostRefreshInterval</code> throttles how often the default state client re-queries a validator's on-chain fibre host (defaults to the expected block time). <code>Escrow</code> configures the client-side escrow auto-funding described in section 11.</p>
+<p><code>HostRefreshInterval</code> throttles how often the default state client re-queries a validator's on-chain fibre host (defaults to the minimum block interval, <code>TimeoutCommit</code>). <code>Escrow</code> configures the client-side escrow auto-funding described in section 11.</p>
 <p>Defaults come from <code>DefaultProtocolParams</code>:</p>
 <ul>
 <li><code>DefaultKeyName = &quot;default-fibre&quot;</code></li>
