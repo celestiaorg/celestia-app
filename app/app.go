@@ -985,7 +985,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 }
 
 // simulateNextSequence feeds the simulate ante decorator. nextSequence takes no
-// locks, so it is safe under the SDK lock Simulate holds.
+// app or BaseApp lock (only the CAT store's), so it is safe under Simulate's.
 func (app *App) simulateNextSequence(signer []byte) (uint64, bool) {
 	sequence, ok, err := app.nextSequence(signer)
 	return sequence, ok && err == nil
