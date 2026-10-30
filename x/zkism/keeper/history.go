@@ -82,8 +82,8 @@ func newestSequence(ctx context.Context, history rootHistory, ismID uint64) (uin
 // historyContains reports whether any history entry of an ISM satisfies match, checking the newest entries first.
 func historyContains(ctx context.Context, history rootHistory, ismID uint64, match func(types.RootHistoryEntry) bool) (bool, error) {
 	// Simulation runs under an infinite gas meter, so a simulated tx could scan the history once per message
-	// without limit. CheckTx rejects any tx whose gas limit exceeds MaxSDKGas, so a simulation past that bound
-	// can never be included and refusing it loses no valid estimate.
+	// without limit. CheckTx rejects any tx whose gas limit exceeds MaxSDKGas, so a tx that passes that bound in
+	// simulation can never be included, and refusing it loses no valid estimate.
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	if sdkCtx.ExecMode() == sdk.ExecModeSimulate && sdkCtx.GasMeter().GasConsumed() > appconsts.MaxSDKGas {
 		return false, errorsmod.Wrapf(sdkerrors.ErrOutOfGas, "simulated tx consumed %d gas, more than the %d an included tx may use", sdkCtx.GasMeter().GasConsumed(), appconsts.MaxSDKGas)

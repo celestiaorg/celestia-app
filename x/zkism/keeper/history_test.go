@@ -260,8 +260,8 @@ func (suite *KeeperTestSuite) TestVerifyAgainstTreeStateHistory() {
 	}
 }
 
-// TestVerifyHistoryScanSimulationGasBound checks that a simulated tx past the gas an included tx may use is refused
-// the history scan, while an included tx and a cheaper simulated tx are not.
+// TestVerifyHistoryScanSimulationGasBound checks that the history scan is refused only for a simulated tx over the
+// gas bound: a simulated tx under it and an included tx over it still verify.
 func (suite *KeeperTestSuite) TestVerifyHistoryScanSimulationGasBound() {
 	leaves := make([][32]byte, 4)
 	for i := range leaves {
