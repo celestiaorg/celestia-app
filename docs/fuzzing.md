@@ -35,6 +35,7 @@ can cover several functions; target presence does not establish branch coverage.
 | --- | --- | --- | --- |
 | 1 | `app.CheckTx`: RPC and peer transaction bytes | `FuzzCheckTxMutatedTxs` in [app/test](../app/test/check_tx_fuzz_test.go) | Mutations of send, PFF, single-blob and multi-blob transactions; detects recovered panics. CheckTx state is reused. |
 | 1 | `app.PrepareProposal`: mempool transactions | `FuzzCheckTxPrepareProposal` in [app/test](../app/test/check_tx_prepare_proposal_fuzz_test.go) | Re-signs structured messages and checks accepted transactions survive proposal construction. Arbitrary malformed mempool batches are outside this target. |
+| 1 | `app.PrepareProposal` then `app.ProcessProposal`: malformed mempool batches | `FuzzPrepareProposalMalformedBatch` in [app/test](../app/test/prepare_proposal_fuzz_test.go) | Up to eight mutations, duplications, reorderings and arbitrary insertions over valid send, PFF and blob txs. Fails on a panic PrepareProposal recovered, or when ProcessProposal rejects the block PrepareProposal built. |
 | 1 | `app.ProcessProposal`: proposer transaction bytes | `FuzzProcessProposalMutatedTxs` in [app/test](../app/test/process_proposal_fuzz_test.go) | Mutates a prepared proposal; detects recovered panics and requires unchanged proposals to be accepted. Header root and square size remain fixed. |
 | 1 | `app/ante.NestedMsgDecorator.AnteHandle`: decoded authz/governance containers | `FuzzNestedMsgDecorator` in [app/ante](../app/ante/nested_msg_fuzz_test.go) | Varies message type, position, count, wrapper and simulation mode; forbidden messages must never reach the next handler. Exercises the guard directly, independently of signature/fee rejection earlier in the ante chain. |
 | 1 | `app/ante.verifyMinFee`, `getTxPriority`: transaction gas/fees | `FuzzAnteFeeArithmetic` in [app/ante](../app/ante/fee_fuzz_test.go) | Uses a `math/big` oracle for rounded minimum fees and overflow-safe priority, including zero gas and values above MaxInt64. Random fees and prices span uint64; keeper-backed fee deduction is outside this target. |
@@ -53,8 +54,7 @@ can cover several functions; target presence does not establish branch coverage.
 
 ## Remaining coverage and known exclusions
 
-The next additions should extend priority 1 coverage to malformed mempool batches
-in PrepareProposal, CheckTx rechecks, and stateful sequences across proposal
+The next additions should extend priority 1 coverage to CheckTx rechecks, and stateful sequences across proposal
 construction, validation and finalization. These need isolated committed state
 and meaningful accept/reject oracles. The current mutation harnesses do not
 provide a state-machine sequence fuzzer.
