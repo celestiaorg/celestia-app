@@ -227,8 +227,8 @@ type App struct {
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
-	// checkStateMu serializes the app's CheckTx and Commit against readers of
-	// checkState (QuerySequence fallback, Simulate).
+	// checkStateMu guards checkState for CheckTx, Commit and the QuerySequence
+	// fallback. Simulate is guarded by the SDK fork's BaseApp.Simulate RLock.
 	checkStateMu *sync.RWMutex
 	// pendingSequencer is the in-process CAT mempool; unset when out of process.
 	pendingSequencer *atomic.Pointer[mempool.PendingSequencer]
@@ -984,17 +984,9 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	return res, err
 }
 
-// simulateNextSequence feeds the simulate ante decorator; nextSequence takes no
-// locks, which Simulate already holds.
+// simulateNextSequence feeds the simulate ante decorator. nextSequence takes no
+// locks, so it is safe under the SDK lock Simulate holds.
 func (app *App) simulateNextSequence(signer []byte) (uint64, bool) {
 	sequence, ok, err := app.nextSequence(signer)
 	return sequence, ok && err == nil
-}
-
-// Simulate runs BaseApp.Simulate under checkStateMu so it never overlaps the
-// app's CheckTx or Commit.
-func (app *App) Simulate(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) {
-	app.checkStateMu.RLock()
-	defer app.checkStateMu.RUnlock()
-	return app.BaseApp.Simulate(txBytes)
 }
