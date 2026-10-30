@@ -339,28 +339,6 @@ func (k Keeper) IsPaymentProcessedByHash(ctx sdk.Context, promiseHash []byte) bo
 	return store.Has(key)
 }
 
-// ValidatePaymentPromiseInternal validates a payment promise and returns an error if the promise is invalid.
-// It performs both stateless and stateful validation.
-func (k Keeper) ValidatePaymentPromiseInternal(ctx sdk.Context, promise *types.PaymentPromise) error {
-	// Perform stateless validation
-	if err := k.ValidatePaymentPromiseStateless(ctx, promise); err != nil {
-		return err
-	}
-
-	// Perform stateful validation
-	_, err := k.ValidatePaymentPromiseStateful(ctx, promise)
-	return err
-}
-
-func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.PaymentPromise) error {
-	pp := fibre.PaymentPromise{}
-	if err := pp.FromProto(promise); err != nil {
-		return fmt.Errorf("invalid payment promise format: %v", err)
-	}
-
-	return k.ValidatePromiseStateless(&pp)
-}
-
 // ValidatePromiseStateless runs pp.Validate, skipping it when an identical
 // promise was already recorded. Validate is a pure function of the promise, so
 // a hit can only skip a check that would have succeeded.
