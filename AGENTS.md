@@ -78,3 +78,4 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 - Follow [README.md#contributing](README.md#contributing) for review levels. Use the higher level when unsure and reassess if scope changes.
 - Don't repeat the review tag in the PR description; the title already carries it.
 - Keep PRs under 700 lines of code; propose independently reviewable splits for larger changes.
+- When you open a PR, assign it to the engineer you are working for (their GitHub login, e.g. from the GitHub `get_me` tool).
