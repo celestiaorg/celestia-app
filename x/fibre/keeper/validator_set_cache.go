@@ -57,9 +57,9 @@ func checkSignatureCount(converted *convertedValidatorSet, signatures [][]byte) 
 }
 
 // validatorSetCacheSize is the number of heights whose converted validator set
-// is kept. Payment promises reference recent heights, so a few hundred entries
-// cover the settleable window.
-const validatorSetCacheSize = 512
+// is kept. Payment promises reference recent heights; this is the v10 size (512)
+// x3.25, scaled with the payment promise height window for 0.8s blocks.
+const validatorSetCacheSize = 1664
 
 // convertedValidatorSet is a validator set built from staking historical info.
 // It is immutable once cached, so concurrent readers are safe.
