@@ -3,6 +3,7 @@ package ante_test
 import (
 	"testing"
 
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
@@ -15,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +36,12 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
 	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
 	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
+	proposalWithVerifyingKeyUpdate := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateVerifyingKeys{})
 	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
+	proposalWithProcessMessage := newMsgSubmitProposal(t, &hyperlanetypes.MsgProcessMessage{})
+	msgExecWithProcessMessage := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{}})
+	proposalWithRecvPacket := newMsgSubmitProposal(t, &channeltypes.MsgRecvPacket{})
+	msgExecWithRecvPacket := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&channeltypes.MsgRecvPacket{}})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -113,8 +120,31 @@ func TestNestedMsgDecorator(t *testing.T) {
 			wantErr: sdkerrors.ErrNotSupported,
 		},
 		{
+			name:    "Reject proposal with verifying-key rotation pairing work",
+			msg:     proposalWithVerifyingKeyUpdate,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
 			name: "Accept authz with budgeted verifying-key pairing work",
 			msg:  &msgExecWithISMCreation,
+		},
+		{
+			name:    "Reject proposal with Hyperlane MsgProcessMessage",
+			msg:     proposalWithProcessMessage,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted Hyperlane MsgProcessMessage",
+			msg:  &msgExecWithProcessMessage,
+		},
+		{
+			name:    "Reject proposal with MsgRecvPacket",
+			msg:     proposalWithRecvPacket,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted MsgRecvPacket",
+			msg:  &msgExecWithRecvPacket,
 		},
 		{
 			name:    "Reject proposal with MsgExec",

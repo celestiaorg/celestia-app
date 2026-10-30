@@ -1,57 +1,85 @@
 package grpc
 
 import (
+	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
-// TestListenCapsConnectionsAtConfiguredLimit checks that the listener accepts at
-// most maxConnections connections, accepts more only once a slot frees, and that
-// the cap follows the configured value.
-func TestListenCapsConnectionsAtConfiguredLimit(t *testing.T) {
-	for _, maxConns := range []int{2, 4} {
-		t.Run("", func(t *testing.T) {
-			srv, err := Listen("127.0.0.1:0", maxConns, DefaultMaxConcurrentStreams, testAdmission)
+// TestLimitedListenerFailFast: a connection over the global or per-IP cap is
+// closed at once rather than parked, and a closed connection frees its slot.
+func TestLimitedListenerFailFast(t *testing.T) {
+	for name, caps := range map[string]struct {
+		global int64
+		perIP  int
+	}{
+		"global": {global: 2},
+		"per-IP": {global: 100, perIP: 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			inner, err := net.Listen("tcp", "127.0.0.1:0")
 			require.NoError(t, err)
-			defer srv.listener.Close()
+			ln := newLimitedListener(inner, caps.global, caps.perIP)
+			t.Cleanup(func() { _ = ln.Close() })
 
-			addr := srv.ListenAddress()
-
-			accepted := make(chan net.Conn, maxConns+1)
+			accepted := make(chan net.Conn, 8)
 			go func() {
 				for {
-					c, err := srv.listener.Accept()
+					c, err := ln.Accept()
 					if err != nil {
 						return
 					}
 					accepted <- c
 				}
 			}()
+			addr := inner.Addr().String()
 
-			held := make([]net.Conn, 0, maxConns)
-			for range maxConns {
-				c, err := net.Dial("tcp", addr)
-				require.NoError(t, err)
-				defer c.Close()
-				held = append(held, mustAccept(t, accepted))
-			}
-
-			extra, err := net.Dial("tcp", addr)
-			require.NoError(t, err)
-			defer extra.Close()
-			select {
-			case <-accepted:
-				t.Fatal("listener accepted a connection beyond maxConnections")
-			case <-time.After(200 * time.Millisecond):
-			}
-
-			require.NoError(t, held[0].Close())
+			dialTCP(t, addr)
+			first := mustAccept(t, accepted)
+			dialTCP(t, addr)
 			mustAccept(t, accepted)
+
+			over := dialTCP(t, addr)
+			require.NoError(t, over.SetReadDeadline(time.Now().Add(2*time.Second)))
+			_, err = over.Read(make([]byte, 1))
+			var ne net.Error
+			require.False(t, errors.As(err, &ne) && ne.Timeout(), "over-cap connection was parked, not closed")
+
+			require.NoError(t, first.Close())
+			_ = first.Close() // a second close must not free another slot
+			dialTCP(t, addr)
+			mustAccept(t, accepted)
+			require.EqualValues(t, 2, ln.open.Load())
+			require.EqualValues(t, 1, ln.rejectedGlobal.Load()+ln.rejectedPerIP.Load())
 		})
 	}
+}
+
+// TestIdleConnectionsDoNotBlockUpload is the PROTOCO-2220 regression: more idle
+// connections than the old 16-connection cap must not block a new upload.
+func TestIdleConnectionsDoNotBlockUpload(t *testing.T) {
+	srv, conn := startServer(t, testAdmission, &fakeFibre{})
+	for range 20 {
+		dialTCP(t, srv.ListenAddress())
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := types.NewFibreClient(conn).UploadShard(ctx, &types.UploadShardRequest{}, grpc.WaitForReady(true))
+	require.NoError(t, err)
+}
+
+func dialTCP(t *testing.T, addr string) net.Conn {
+	t.Helper()
+	c, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+	return c
 }
 
 func mustAccept(t *testing.T, accepted <-chan net.Conn) net.Conn {

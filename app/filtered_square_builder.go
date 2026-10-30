@@ -121,6 +121,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	var (
 		sdkMessageCount = 0
 		zkProofMsgCount = 0
+		ismSigCount     = 0
+		sdkGas          uint64
 		pfbMessageCount = 0
 		n               = 0
 		m               = 0
@@ -152,6 +154,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if zkProofMsgCount+zkProofCount > appconsts.MaxZKProofMessages {
 			logger.Debug("skipping tx because the max ZK proof message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+		txISMSigCount := countISMSignatures(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		if ismSigCount+txISMSigCount > appconsts.MaxISMSignatures {
+			logger.Debug("skipping tx because the max ISM signature count was reached", "tx", lazyTxHash(tx))
+			continue
+		}
+		txGas := txGasLimit(sdkTx)
+		if !fitsSDKGas(sdkGas, txGas) {
+			logger.Debug("skipping tx because the max SDK gas was reached", "tx", lazyTxHash(tx))
 			continue
 		}
 
@@ -195,6 +207,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 		sdkMessageCount += execMsgCount
 		zkProofMsgCount += zkProofCount
+		ismSigCount += txISMSigCount
+		sdkGas += txGas
 		normalTxs[n] = tx
 		n++
 	}
@@ -205,7 +219,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if pfbMessageCount >= appconsts.MaxPFBMessages {
 			break
 		}
-		bTx, _, err := tx.UnmarshalBlobTx(rawTx)
+		bTx, _, err := tx.UnmarshalBlobTxNoCopy(rawTx)
 		if err != nil {
 			// Drop malformed blob txs. Matches ProcessProposalHandler. CheckTx should have
 			// rejected this; reaching here indicates a regression so log + count it.

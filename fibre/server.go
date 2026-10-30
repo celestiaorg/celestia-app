@@ -78,7 +78,10 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		health:    newHealthManager(cfg.health, cfg.Log),
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams, fibregrpc.AdmissionConfig{
+	if cfg.MaxConnections != 0 {
+		cfg.Log.Warn("max_connections is deprecated and ignored; connections are capped per IP by max_connections_per_ip", "max_connections", cfg.MaxConnections)
+	}
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnectionsPerIP, cfg.MaxConcurrentStreams, fibregrpc.AdmissionConfig{
 		Budget:     cfg.MaxRequestMemory,
 		MaxMessage: int64(cfg.MaxMessageSize),
 		OnReject: func(ctx context.Context, method, reason string) {
@@ -87,6 +90,10 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
+	}
+	if err := registerGRPCMetrics(cfg.Meter, server.grpc); err != nil {
+		server.grpc.Stop(context.Background()) // closes the listener
+		return nil, fmt.Errorf("creating metrics: %w", err)
 	}
 
 	return server, nil
@@ -138,14 +145,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	s.grpc.Register(s,
-		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
+	s.grpc.RegisterWithUploadBufferReuse(s,
+		s.Config.MaxMessageSize,
+		DefaultProtocolParams.MaxRowsPerValidator(),
+		DefaultProtocolParams.MerkleProofDepth(),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
-		// Reject too many rows or proofs before protobuf allocates for them.
-		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
-			DefaultProtocolParams.MaxRowsPerValidator(),
-			DefaultProtocolParams.MerkleProofDepth(),
-		)),
 		grpclib.Creds(creds),
 	)
 	s.health.registerGRPC(s.grpc)

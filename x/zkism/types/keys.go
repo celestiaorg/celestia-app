@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"strings"
 
 	"cosmossdk.io/collections"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 )
 
 const (
@@ -15,9 +15,6 @@ const (
 
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
-
-	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
-	MaxPaginationLimit = 100
 
 	// MinStateBytes is the minimum size of the trusted ism state (32 bytes).
 	MinStateBytes = 32
@@ -30,13 +27,20 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
-	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
-	MaxMessageIdsCount = 1_000_000
+	// StateMembershipValuesVersion is the layout version of state membership public values. The membership
+	// program commits it as the first byte so that public values produced by any other program version are
+	// rejected before the proof is verified.
+	StateMembershipValuesVersion = 1
 
-	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
+	// StateMembershipValuesBytes is the exact size of public values payloads associated
 	// with state membership proofs.
-	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
-	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
+	// Calculated as: 1 (Version) + 32 (StateRoot) + 32 (MerkleTreeAddress) + 32 (TreeRoot) + 4 (Count)
+	// This can never equal the length of a legacy message id payload, which is 72 + 32 * n bytes.
+	StateMembershipValuesBytes = 1 + 32 + 32 + 32 + 4
+
+	// MerkleProofMetadataBytes is the exact size of the metadata provided when verifying a message.
+	// Calculated as: 4 (leaf index) + TreeDepth * 32 (merkle branch)
+	MerkleProofMetadataBytes = 4 + (util.TreeDepth * 32)
 
 	// groth16VkeyCurvePointsSize is the size of the 6 curve points that
 	// precede the G1.K length prefix in a serialized BN254 verifying key.
@@ -78,9 +82,12 @@ const (
 )
 
 var (
-	IsmsKeyPrefix               = collections.NewPrefix(0)
-	MessageKeyPrefix            = collections.NewPrefix(1)
+	IsmsKeyPrefix = collections.NewPrefix(0)
+	// Prefix 1 held authorized message IDs before messages were verified against the proven merkle tree root (v11).
+	// The entries are left in place because nothing reads them and deleting an attacker-sized set in the upgrade
+	// block is unbounded work. Do not reuse prefix 1.
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
+	MerkleTreeStateKeyPrefix    = collections.NewPrefix(3)
 
 	// groth16VkeyPointOffsets are the byte offsets of the six leading curve
 	// points (G1.Alpha, G1.Beta, G2.Beta, G2.Gamma, G1.Delta, G2.Delta) in a
@@ -131,16 +138,4 @@ func ValidateGroth16Vkey(vkey []byte) error {
 // EncodeHex is a convenience function to encode byte slices as 0x prefixed hexadecimal strings.
 func EncodeHex(bz []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
-}
-
-// DecodeHex is a convenience function to decode 0x prefixed hexadecimal strings as byte slices.
-func DecodeHex(s string) ([]byte, error) {
-	s = strings.TrimPrefix(s, "0x")
-
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }

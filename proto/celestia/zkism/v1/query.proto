@@ -21,9 +21,9 @@ service Query {
     option (google.api.http).get = "/celestia/zkism/v1/isms";
   }
 
-  // Messages defines an rpc method for querying authorized Hyperlane message IDs.
-  rpc Messages(QueryMessagesRequest) returns (QueryMessagesResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/messages/{id}";
+  // MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
+  rpc MerkleTreeState(QueryMerkleTreeStateRequest) returns (QueryMerkleTreeStateResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/isms/{id}/merkle_tree_state";
   }
 }
 
@@ -53,18 +53,14 @@ message QueryIsmsResponse {
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
-// QueryMessagesRequest is the request type for the Messages rpc method.
-message QueryMessagesRequest {
+// QueryMerkleTreeStateRequest is the request type for the MerkleTreeState rpc method.
+message QueryMerkleTreeStateRequest {
   // id is the hex-encoded ISM identifier.
   string id = 1;
-  // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 
-// QueryMessagesResponse is the response type for the Messages rpc method.
-message QueryMessagesResponse {
-  // messages is a list of authorized Hyperlane message IDs.
-  repeated string messages = 1;
-  // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+// QueryMerkleTreeStateResponse is the response type for the MerkleTreeState rpc method.
+message QueryMerkleTreeStateResponse {
+  // tree_state is the latest proven source chain merkle tree state.
+  MerkleTreeState tree_state = 1 [(gogoproto.nullable) = false];
 }

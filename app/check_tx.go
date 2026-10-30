@@ -35,7 +35,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return app.BaseApp.CheckTx(req)
 	}
 
-	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
+	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
 	if isBlob && err != nil {
 		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
@@ -71,10 +71,22 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
+	if sigCount := countISMSignatures(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxISMSignatures, "tx carries %d ISM signatures, limit is %d", sigCount, appconsts.MaxISMSignatures)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
 
 	// MsgPayForFibre must be the only message in its tx.
 	if err := validatePayForFibreTxShape(sdkTx); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+	// A tx whose gas limit alone exceeds the block's SDK gas budget can never be
+	// included. PayForFibre txs are bounded by their own per-block count instead.
+	if fibretypes.PayForFibreMsg(sdkTx) == nil {
+		if gas := txGasLimit(sdkTx); !fitsSDKGas(0, gas) {
+			err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKGas, "tx gas limit is %d, limit is %d", gas, appconsts.MaxSDKGas)
+			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+		}
 	}
 
 	return app.forwardCheckTx(req, sdkTx)

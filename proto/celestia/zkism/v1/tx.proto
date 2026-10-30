@@ -21,6 +21,12 @@ service Msg {
 
   // SubmitMessages defines the rpc method for verifying state membership of messages.
   rpc SubmitMessages(MsgSubmitMessages) returns (MsgSubmitMessagesResponse);
+
+  // UpdateVerifyingKeys defines the rpc method for the ISM owner to replace the verifying keys of a zk ISM.
+  rpc UpdateVerifyingKeys(MsgUpdateVerifyingKeys) returns (MsgUpdateVerifyingKeysResponse);
+
+  // TransferOwnership defines the rpc method for the ISM owner to transfer or renounce ownership of a zk ISM.
+  rpc TransferOwnership(MsgTransferOwnership) returns (MsgTransferOwnershipResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -90,8 +96,56 @@ message MsgSubmitMessages {
 
 // MsgSubmitMessagesResponse is the response type for SubmitMessages.
 message MsgSubmitMessagesResponse {
+  reserved 2;
+  reserved "messages";
+
   // state commitment root used to verify messages (hex-encoded)
   string state_root = 1;
-  // list of authorized messages ids
-  repeated string messages = 2;
+  // source chain merkle tree root that messages are verified against (hex-encoded)
+  string tree_root = 3;
+  // number of leaves in the source chain merkle tree
+  uint32 count = 4;
 }
+
+// MsgUpdateVerifyingKeys is the request type for UpdateVerifyingKeys.
+message MsgUpdateVerifyingKeys {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // owner is the ism owner and message sender.
+  string owner = 2;
+  // the sp1 groth16 verifier key
+  bytes groth16_vkey = 3;
+  // hash-based commitment to the verifier key used for state transition
+  bytes state_transition_vkey = 4;
+  // hash-based commitment to the verifier key used for state membership
+  bytes state_membership_vkey = 5;
+}
+
+// MsgUpdateVerifyingKeysResponse is the response type for UpdateVerifyingKeys.
+message MsgUpdateVerifyingKeysResponse {}
+
+// MsgTransferOwnership is the request type for TransferOwnership. Exactly one of new_owner and renounce_ownership
+// must be set. Renouncing ownership is irreversible: no account can update the verifying keys afterwards.
+message MsgTransferOwnership {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // owner is the current ism owner and message sender.
+  string owner = 2;
+  // new_owner is the address that becomes the ism owner. Must be empty when renouncing ownership.
+  string new_owner = 3;
+  // renounce_ownership permanently removes the owner of the ism. Must be false when setting a new owner.
+  bool renounce_ownership = 4;
+}
+
+// MsgTransferOwnershipResponse is the response type for TransferOwnership.
+message MsgTransferOwnershipResponse {}

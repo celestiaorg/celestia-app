@@ -76,6 +76,14 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
+
+	// GasPerISMSignature is charged per Hyperlane ISM signature, pricing one
+	// secp256k1 recovery (~170 us pure Go at ~4.7 ns per gas).
+	GasPerISMSignature uint64 = 36_000
+
+	// MaxMultisigISMValidators bounds the validator set of a Hyperlane multisig
+	// ISM, which every verification decodes in full regardless of threshold.
+	MaxMultisigISMValidators = 100
 )
 
 // MinCommissionRate is 20%.
