@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -157,4 +158,37 @@ func (s *MempoolQuerySequenceSuite) TestQuerySequenceUnknownAccount() {
 	require.NoError(err)
 	require.NotNil(resp)
 	require.Equal(uint64(0), resp.Sequence, "unknown account should have sequence 0")
+}
+
+// QuerySequence follows the mempool, not checkState: a tx that passed CheckTx
+// but never entered the mempool does not advance it.
+func (s *MempoolQuerySequenceSuite) TestQuerySequenceIgnoresTxsOutsideMempool() {
+	t := s.T()
+	require := require.New(t)
+	ctx := context.Background()
+
+	rec, err := s.cctx.Keyring.Key(s.accounts[1])
+	require.NoError(err)
+	addr, err := rec.GetAddress()
+	require.NoError(err)
+	before, err := s.cctx.tmNode.ProxyApp().Mempool().QuerySequence(ctx, &abci.RequestQuerySequence{Signer: addr.Bytes()})
+	require.NoError(err)
+
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accNum, seq, err := user.QueryAccount(ctx, s.cctx.GRPCClient, enc.InterfaceRegistry, addr)
+	require.NoError(err)
+	signer, err := user.NewSigner(s.cctx.Keyring, enc.TxConfig, s.cctx.ChainID, user.NewAccount(s.accounts[1], accNum, seq))
+	require.NoError(err)
+	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	raw, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100_000), user.SetFee(10_000))
+	require.NoError(err)
+
+	// Bypass the mempool: checkState advances, the mempool does not.
+	rsp, err := s.cctx.tmNode.ProxyApp().Mempool().CheckTx(ctx, &abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_New})
+	require.NoError(err)
+	require.Equal(abci.CodeTypeOK, rsp.Code, rsp.Log)
+
+	after, err := s.cctx.tmNode.ProxyApp().Mempool().QuerySequence(ctx, &abci.RequestQuerySequence{Signer: addr.Bytes()})
+	require.NoError(err)
+	require.Equal(before.Sequence, after.Sequence)
 }

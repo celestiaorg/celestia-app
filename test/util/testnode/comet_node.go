@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	tmconfig "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/mempool"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
@@ -51,8 +52,19 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
 		servercmtlog.CometLoggerWrapper{Logger: logger},
 	)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return cometNode, app, err
+	// Serve QuerySequence from the mempool, as the multiplexer does.
+	if s, ok := app.(interface {
+		SetPendingSequencer(mempool.PendingSequencer)
+	}); ok {
+		if p, ok := cometNode.Mempool().(mempool.PendingSequencer); ok {
+			s.SetPendingSequencer(p)
+		}
+	}
+	return cometNode, app, nil
 }
 
 // getGenDocProvider returns a function that loads the genesis document from file.

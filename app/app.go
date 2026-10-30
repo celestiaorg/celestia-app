@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -66,6 +67,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/mempool"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -225,10 +227,13 @@ type App struct {
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
-	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
-	// This prevents data races between Commit updating checkState and QuerySequence
-	// reading it via CheckState().
+	// checkStateMu guards checkState for CheckTx, Commit and the QuerySequence
+	// fallback. Simulate is guarded by the SDK fork's BaseApp.Simulate RLock.
 	checkStateMu *sync.RWMutex
+	// pendingSequencer is the in-process CAT mempool; unset when out of process.
+	pendingSequencer *atomic.Pointer[mempool.PendingSequencer]
+	// committedCtx reads the last committed state; Commit replaces it.
+	committedCtx *atomic.Pointer[sdk.Context]
 	// stateFixes repair committed state at set heights. See state_fixes.go.
 	stateFixes []StateFix
 }
@@ -280,6 +285,8 @@ func New(
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
+		pendingSequencer:        &atomic.Pointer[mempool.PendingSequencer]{},
+		committedCtx:            &atomic.Pointer[sdk.Context]{},
 		stateFixes:              stateFixes,
 	}
 
@@ -771,6 +778,7 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.sigCache,
+		app.simulateNextSequence,
 	)
 }
 
@@ -966,11 +974,19 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 	}
 }
 
-// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
-// This prevents data races between commit updating checkState (mempool state) and
-// QuerySequence reading it via CheckState().
+// Commit serializes BaseApp's Commit with the app's checkState readers and
+// refreshes the committed context QuerySequence reads.
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
-	return app.BaseApp.Commit()
+	res, err := app.BaseApp.Commit()
+	app.storeCommittedContext()
+	return res, err
+}
+
+// simulateNextSequence feeds the simulate ante decorator. nextSequence takes no
+// app or BaseApp lock (only the CAT store's), so it is safe under Simulate's.
+func (app *App) simulateNextSequence(signer []byte) (uint64, bool) {
+	sequence, ok, err := app.nextSequence(signer)
+	return sequence, ok && err == nil
 }
