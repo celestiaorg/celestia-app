@@ -18,8 +18,7 @@ The initial nightly baseline was seven targets. PRs
 [#8381](https://github.com/celestiaorg/celestia-app/pull/8381) added eight, with
 [#8383](https://github.com/celestiaorg/celestia-app/pull/8383) correcting the share
 proof harness. This follow-up adds two focused ante targets and registers five
-existing targets that were missing from the nightly script. Later additions cover
-the ZK-ISM decoders and fibre payment promises. All **29 targets** are now
+existing targets that were missing from the nightly script. Every target is
 registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
 
 The two additional targets prioritize nested-message restrictions, which stop
