@@ -61,29 +61,6 @@ func main() {
 
 ### Proof Generation and Verification
 
-This implementation provides two verification modes with different trade-offs:
-
-- **Standalone**: Self-contained proofs for original rows, no external dependencies
-- **Batched (Verifier)**: Requires the original RLC vector, verifies many rows (original or parity) against the same commitment with a single shared-state pass
-
-#### Standalone Verification (Single Row Read)
-
-Best for reading individual original rows without additional context:
-
-```go
-// Generate a self-contained proof for an original row (index < K).
-proof, err := extended.GenerateStandaloneProof(rowIndex)
-if err != nil {
-    panic(err)
-}
-
-// Verify with no external dependencies.
-err = rsema1d.VerifyStandaloneProof(proof, extended.Commitment(), config)
-if err != nil {
-    panic(err)
-}
-```
-
 #### Batched Verification (DA Sampling)
 
 The [`Verifier`] caches RLC root and coefficients once, then verifies batches of row proofs against that cached state. Best for verifying many rows from the same encoding.
@@ -156,7 +133,7 @@ type Config struct {
 }
 ```
 
-Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneProof) reads it from the input rows or proofs, so a single Config drives blobs of varying width.
+Row size is not in Config — every operation (Encode, Verify, VerifyShared) reads it from the input rows or proofs, so a single Config drives blobs of varying width.
 
 ### Parameter Constraints
 
@@ -174,7 +151,6 @@ Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneP
 - **Coder** (`coder.go`): Producer-side encoding and reconstruction with a cached Reed-Solomon encoder
 - **Verifier** (`verifier.go`): Batched proof verification with reusable scratch and a concurrent-safe `VerifyShared` path
 - **Reconstructor** (`reconstructor.go`): Download-side row collection with RLC verification and dedup
-- **Standalone proofs** (`standalone_proof.go`): Self-contained single-row verification for callers without `rlcOrig`
 
 ### Security Properties
 
@@ -187,14 +163,12 @@ Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneP
 
 ### Proof Sizes
 
-- **Original rows (standalone)**: `rowSize + O(log(K+N) × 32) + O(log(K) × 32)` bytes
 - **Original or parity rows (batched)**: `rowSize + O(log(K+N) × 32)` bytes per proof, plus one shared `K × 16`-byte rlcOrig vector
 
 ### Memory Requirements
 
 - **Prover**: O(K × rowSize) for data storage
 - **Verifier (batched)**: O(K × 16) for the cached RLC shards + O(rowSize × batchSize) scratch
-- **Verifier (standalone)**: O(rowSize) + O(log(K+N))
 
 ## Use Cases
 
@@ -209,12 +183,6 @@ Light clients randomly sample rows to verify data availability:
 Full nodes download all original data:
 
 - Use the [`Reconstructor`] to stream proofs from peers, dedup, and rebuild K originals via Reed-Solomon once enough have arrived.
-
-### 3. Single Row Verification
-
-Applications reading specific original rows without `rlcOrig`:
-
-- Use [`StandaloneProof`] — adds an `rlcProof` linking the row's RLC value to `rlcOrigRoot`, so no external state is needed beyond the commitment.
 
 ## Testing
 
