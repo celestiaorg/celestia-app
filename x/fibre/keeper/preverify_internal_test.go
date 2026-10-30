@@ -30,6 +30,23 @@ func TestVerificationChunkSize(t *testing.T) {
 	}
 }
 
+func TestCertificateSplitSize(t *testing.T) {
+	tests := map[string]struct {
+		prefix, procs, want int
+	}{
+		"100-validator quorum, 16 procs": {prefix: 67, procs: 16, want: minSplitBatch},
+		"100-validator quorum, 88 procs": {prefix: 67, procs: 88, want: minSplitBatch},
+		"one proc keeps one batch":       {prefix: 67, procs: 1, want: 67},
+		"large quorum, few procs":        {prefix: 134, procs: 4, want: 34},
+		"never above batchSize":          {prefix: 400, procs: 2, want: batchSize},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, certificateSplitSize(tc.prefix, tc.procs))
+		})
+	}
+}
+
 // newCertificateItem returns a work item of size signatures over message, all
 // of them valid, along with the keys that signed it.
 func newCertificateItem(t testing.TB, message []byte, size int) (verification, []ed25519.PrivKey) {

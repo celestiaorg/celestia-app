@@ -392,6 +392,33 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
+// TestPreverifyPayForFibreMsgSplitCertificate covers CheckTx's pass, which
+// splits one certificate into sub-batches: any failing sub-batch records nothing.
+func TestPreverifyPayForFibreMsgSplitCertificate(t *testing.T) {
+	const validators = 100 // quorum prefix 67: several sub-batches on any proc count > 1
+	tests := map[string]struct {
+		corrupt    int // index of the validator signature to corrupt, -1 for none
+		wantCached bool
+	}{
+		"all signatures valid":           {corrupt: -1, wantCached: true},
+		"failure in the first sub-batch": {corrupt: 0, wantCached: false},
+		"failure in the last sub-batch":  {corrupt: 65, wantCached: false},
+		"failure past the quorum prefix": {corrupt: validators - 1, wantCached: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := newPreverifyFixtureWithValidators(t, validators)
+			if tc.corrupt >= 0 {
+				f.msg.ValidatorSignatures[tc.corrupt] = make([]byte, 64)
+				f.refreshCertKey(t)
+			}
+			f.keeper.PreverifyPayForFibreMsg(f.ctx, f.msg, f.certKey)
+			require.Equal(t, tc.wantCached, f.cache.Has(f.certKey))
+			require.Equal(t, tc.wantCached, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg) == nil)
+		})
+	}
+}
+
 // TestPreverifySignaturesRecordsEachTransaction covers an accepted, a forged and a
 // bailed-out message in one batch, on one worker so they share a chunk.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
