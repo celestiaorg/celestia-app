@@ -185,6 +185,8 @@ github.com/celestiaorg/go-square/v4 v4.3.0 h1:yL7LKhJQZ+AJ8ELT8JWVZ+7oCp0MPLGVPa
 github.com/celestiaorg/go-square/v4 v4.3.0/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1 h1:DOCcKV+YKQE1n1zEavjLD/+WEnqHpjDjFrpdHgI1CJQ=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
+github.com/celestiaorg/ibc-go/modules/capability v1.0.2 h1:7tT6aSuUzL/vJ/EKCT1wdfwG2VT5H+PcmSBOWPHkiQc=
+github.com/celestiaorg/ibc-go/modules/capability v1.0.2/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
@@ -282,8 +284,6 @@ github.com/cosmos/iavl v1.2.8 h1:55F96BGUJ7KT7h+Ky/cEqS+pEvhFqsU4O8Th3F0N1js=
 github.com/cosmos/iavl v1.2.8/go.mod h1:FRHN4tO+6crf0p2zsqye+nAbsMgiwdkxpWm18DyP6+Y=
 github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 h1:rM+S14DFiqmu6Rc3PuhvWqwywPsnt/CbIslSnBftPFs=
 github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0/go.mod h1:O5H9Ic3Pe6cmJn1eqlj5N48sLb8WQ1VWmDP4/11g/4E=
-github.com/cosmos/ibc-go/modules/capability v1.0.1 h1:ibwhrpJ3SftEEZRxCRkH0fQZ9svjthrX2+oXdZvzgGI=
-github.com/cosmos/ibc-go/modules/capability v1.0.1/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
 github.com/cosmos/ics23/go v0.11.0 h1:jk5skjT0TqX5e5QJbEnwXIS2yI2vnmLOgpQPeM5RtnU=
 github.com/cosmos/ics23/go v0.11.0/go.mod h1:A8OjxPE67hHST4Icw94hOxxFEJMBG031xIGF/JHNIY0=
 github.com/cosmos/ledger-cosmos-go v0.16.0 h1:YKlWPG9NnGZIEUb2bEfZ6zhON1CHlNTg0QKRRGcNEd0=
