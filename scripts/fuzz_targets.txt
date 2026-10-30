@@ -1,0 +1,47 @@
+# Registry of fuzz targets run nightly by scripts/test_fuzz.sh.
+#
+# WARNING: These fuzzers are a defense line against wire-format / codec bugs.
+# The fibre scatter codec (fibre/internal/grpc/codec_scatter.go) is a hand-rolled
+# marshaler that MUST stay byte-for-byte identical to gogoproto's canonical
+# output, and the fibre shard codec is the on-the-wire shard encoding. DO NOT
+# remove any target below without an equivalent replacement; silently dropping
+# one re-opens https://github.com/celestiaorg/celestia-app/issues/7392.
+#
+# Columns: priority package target fuzztime minimizetime
+#
+# priority follows docs/fuzzing.md and sets the Linear priority of the issue the
+# nightly job files when the target fails: 1 = Urgent, 2 = High, 3 = Medium.
+# minimizetime is passed to -fuzzminimizetime; "-" keeps Go's default. Cheap
+# targets use 100x so the workers keep fuzzing instead of minimizing.
+#
+# Every func Fuzz* in this repository must appear here exactly once;
+# `scripts/test_fuzz.sh --check` enforces this.
+
+1 ./app/test            FuzzCheckTxPrepareProposal          5m -
+1 ./app/test            FuzzProcessProposalMutatedTxs       5m -
+1 ./app/test            FuzzCheckTxMutatedTxs               5m -
+1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
+1 ./app                 FuzzCountICAPacketMsgs              5m -
+1 ./app                 FuzzCountTxMsgs                     5m 100x
+1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
+1 ./app/encoding        FuzzTxDecoderFastPath               5m 100x
+1 ./app/ante            FuzzNestedMsgDecorator              2m 100x
+1 ./app/ante            FuzzAnteFeeArithmetic               2m 100x
+1 ./app/ante            FuzzValidateTxFee                   2m 100x
+1 ./x/blob/types        FuzzPFBGasEstimation                5m -
+1 ./x/blob/types        FuzzValidateBlobTx                  5m 100x
+1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
+1 ./x/fibre/types       FuzzParsePayForFibreTx              5m 100x
+1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
+2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
+2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
+2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
+2 ./fibre               FuzzShardCodecRoundTrip             5m -
+2 ./fibre               FuzzShardCodecReadNoPanic           5m -
+2 ./fibre               FuzzShardReader                     5m -
+2 ./pkg/proof           FuzzShareProofValidate              5m 100x
+2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
+2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+3 ./pkg/rsema1d/merkle  FuzzRootFromProofs                  2m 100x
+3 ./pkg/rsema1d/rlc     FuzzCompute                         2m 100x
+3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
