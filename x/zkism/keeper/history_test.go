@@ -3,10 +3,13 @@ package keeper_test
 import (
 	"encoding/hex"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -253,6 +256,67 @@ func (suite *KeeperTestSuite) TestVerifyAgainstTreeStateHistory() {
 			authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(leaves[:tc.proofOver], tc.index), message)
 			suite.Require().NoError(err)
 			suite.Require().Equal(tc.authorized, authorized)
+		})
+	}
+}
+
+// TestVerifyHistoryScanSimulationGasBound checks that a simulated tx past the gas an included tx may use is refused
+// the history scan, while an included tx and a cheaper simulated tx are not.
+func (suite *KeeperTestSuite) TestVerifyHistoryScanSimulationGasBound() {
+	leaves := make([][32]byte, 4)
+	for i := range leaves {
+		leaves[i] = util.HyperlaneMessage{Nonce: uint32(i)}.Id()
+	}
+	tree := util.NewTree(util.ZeroHashes, 0)
+	for _, leaf := range leaves {
+		suite.Require().NoError(tree.Insert(leaf))
+	}
+	replacedRoot := tree.GetRoot()
+
+	testCases := []struct {
+		name        string
+		execMode    sdk.ExecMode
+		gasConsumed uint64
+		expError    error
+	}{
+		{
+			name:        "success: simulated tx under the bound",
+			execMode:    sdk.ExecModeSimulate,
+			gasConsumed: appconsts.MaxSDKGas / 2,
+		},
+		{
+			name:        "success: included tx over the bound",
+			execMode:    sdk.ExecModeFinalize,
+			gasConsumed: appconsts.MaxSDKGas + 1,
+		},
+		{
+			name:        "simulated tx over the bound",
+			execMode:    sdk.ExecModeSimulate,
+			gasConsumed: appconsts.MaxSDKGas + 1,
+			expError:    sdkerrors.ErrOutOfGas,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			ism := suite.CreateTestIsm(randBytes(64))
+			suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 9}))
+			replaced := types.MerkleTreeState{Root: replacedRoot[:], Count: uint32(len(leaves))}
+			suite.Require().NoError(suite.zkISMKeeper.PushTreeStateHistory(suite.ctx.WithBlockHeight(1), ism, replaced))
+
+			gasMeter := storetypes.NewInfiniteGasMeter()
+			gasMeter.ConsumeGas(tc.gasConsumed, "test")
+			ctx := suite.ctx.WithExecMode(tc.execMode).WithGasMeter(gasMeter)
+
+			authorized, err := suite.zkISMKeeper.Verify(ctx, ism.Id, merkleProofMetadata(leaves, 0), util.HyperlaneMessage{Nonce: 0})
+			if tc.expError != nil {
+				suite.Require().ErrorIs(err, tc.expError)
+				suite.Require().False(authorized)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().True(authorized)
 		})
 	}
 }
