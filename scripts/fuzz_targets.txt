@@ -35,6 +35,8 @@
 1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
 1 ./x/blob/ante         FuzzPFBShareAndGasValidation        2m 100x
 1 ./x/valaddr/types     FuzzValidateHost                    2m 100x
+1 ./x/fibre/keeper      FuzzEscrowMsgSequence               5m 100x
+1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
