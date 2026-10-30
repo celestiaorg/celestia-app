@@ -227,7 +227,7 @@ func FuzzVerifier(f *testing.F) {
 		commitment := m.commitment
 		o := fuzzOps(ops)
 		proofs := mutateProofs(&o, 16, m.proofs(t, indices), vec, &commitment)
-		// Excluded pending a fix; see the Linear issue for this target.
+		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 		if excludedNilFirstProof(proofs) {
 			return
 		}
@@ -316,7 +316,7 @@ func FuzzReconstructor(f *testing.F) {
 				vec := append(rlc.Vector(nil), m.rlc...)
 				commitment := m.commitment
 				proofs := mutateProofs(&o, int(o.next())%4, m.proofs(t, indices), vec, &commitment)
-				// Excluded pending a fix; see the Linear issue for this target.
+				// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 				if excludedNilFirstProof(proofs) {
 					continue
 				}
