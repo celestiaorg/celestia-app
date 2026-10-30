@@ -44,7 +44,7 @@ func FuzzValidateHost(f *testing.F) {
 		if h == "" {
 			t.Fatalf("accepted %q with an empty host", host)
 		}
-		// Excluded pending a fix; see the Linear issue for this target.
+		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 		if excludedHostSpelling(host, h, p) {
 			return
 		}

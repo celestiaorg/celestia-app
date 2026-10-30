@@ -35,7 +35,7 @@ func FuzzParseNodeErrors(f *testing.F) {
 			err = sdkerrors.ErrInsufficientFee.Wrap(msg)
 		}
 		price, perr := apperr.ParseInsufficientMinGasPrice(err, gasPrice, gasLimit)
-		// Excluded pending a fix; see the Linear issue for this target.
+		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 		excluded := math.IsInf(price, 1)
 		if perr == nil && !excluded && (math.IsNaN(price) || math.IsInf(price, 0) || price < 0) {
 			t.Fatalf("ParseInsufficientMinGasPrice(%q, %v, %d) = %v", msg, gasPrice, gasLimit, price)

@@ -56,7 +56,7 @@ func FuzzPFBShareAndGasValidation(f *testing.F) {
 		for range int(namespaces % 66) {
 			msg.Namespaces = append(msg.Namespaces, make([]byte, share.NamespaceSize))
 		}
-		// Excluded pending a fix; see the Linear issue for this target.
+		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 		if excludedShortShareVersions(msg) {
 			return
 		}
