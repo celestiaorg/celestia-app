@@ -8,6 +8,8 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/mempool"
+	"github.com/cometbft/cometbft/node"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -20,6 +22,16 @@ func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
 		return
 	}
 	app.pendingSequencer.Store(&p)
+}
+
+// WirePendingSequencer hands an in-process app the node's mempool before the
+// node starts; the standalone start command and testnode use it.
+func WirePendingSequencer(a servertypes.Application, n *node.Node) error {
+	app, ok := a.(*App)
+	if p, isSeq := n.Mempool().(mempool.PendingSequencer); ok && isSeq {
+		app.SetPendingSequencer(p)
+	}
+	return nil
 }
 
 // QuerySequence returns the signer's next sequence from the mempool and
