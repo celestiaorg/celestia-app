@@ -23,6 +23,7 @@ import (
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -313,4 +314,71 @@ func TestQuerySequenceConcurrentWithBlocks(t *testing.T) {
 			readers.Wait()
 		})
 	}
+}
+
+// hookSequencer runs hook once, before reading the pool, to land a Commit and
+// Update between QuerySequence's mempool and committed-state reads.
+type hookSequencer struct {
+	pool *cat.TxPool
+	hook func()
+}
+
+func (s *hookSequencer) HighestPendingSequence(signer []byte) (uint64, bool) {
+	if f := s.hook; f != nil {
+		s.hook = nil
+		f()
+	}
+	return s.pool.HighestPendingSequence(signer)
+}
+
+// QuerySequence reads the mempool before committed state, so a Commit that
+// empties the signer's pending set between the reads cannot lower the value.
+func TestQuerySequenceReadOrderAcrossCommit(t *testing.T) {
+	h := newRecheckHarness(t, 1, false)
+	hs := &hookSequencer{pool: h.pool}
+	h.app.SetPendingSequencer(hs)
+	start := testutil.DirectQueryAccount(h.app, h.addrs[0]).GetSequence()
+	txs := [][]byte{h.sendTx(0, start), h.sendTx(0, start+1)}
+	for _, tx := range txs {
+		require.NoError(t, h.addTx(tx))
+	}
+	seq, err := h.querySequence(0)
+	require.NoError(t, err)
+	require.Equal(t, start+2, seq)
+
+	hs.hook = func() { require.NoError(t, h.commit(nil, txs...)) }
+	rsp, err := h.app.QuerySequence(context.Background(), &abci.RequestQuerySequence{Signer: h.addrs[0]})
+	require.NoError(t, err)
+	require.Equal(t, start+2, rsp.Sequence)
+}
+
+// Simulate accepts only the signer's next sequence while checkState lags; a
+// used or skipped sequence still fails, so clients can resync from the error.
+func TestSimulateSequenceWhileRecheckLags(t *testing.T) {
+	h := newRecheckHarness(t, 1, true)
+	start := testutil.DirectQueryAccount(h.app, h.addrs[0]).GetSequence()
+	txs := make([][]byte, 20)
+	for i := range txs {
+		txs[i] = h.sendTx(0, start+uint64(i))
+		require.NoError(t, h.addTx(txs[i]))
+	}
+	next := start + uint64(len(txs))
+
+	// Commit without Update: checkState is back at start+5, the pool still holds all.
+	resp, err := h.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: h.app.LastBlockHeight() + 1, Time: time.Now(), Hash: h.app.LastCommitID().Hash, Txs: txs[:5],
+	})
+	require.NoError(t, err)
+	h.pool.Lock()
+	defer h.pool.Unlock()
+	_, err = h.app.Commit()
+	require.NoError(t, err)
+
+	_, _, err = h.app.Simulate(h.sendTx(0, next))
+	require.NoError(t, err)
+	for _, seq := range []uint64{start, start + 10, next + 1} {
+		_, _, err = h.app.Simulate(h.sendTx(0, seq))
+		require.ErrorIs(t, err, sdkerrors.ErrWrongSequence, "sequence %d", seq)
+	}
+	require.NoError(t, h.pool.Update(h.app.LastBlockHeight(), coretypes.CachedTxFromTxs(coretypes.ToTxs(txs[:5])), resp.TxResults, nil, nil))
 }

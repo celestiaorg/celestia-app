@@ -3,6 +3,7 @@ package abci
 import (
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/mempool"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/stretchr/testify/require"
@@ -20,15 +21,18 @@ type fakeSequencer struct{}
 func (fakeSequencer) HighestPendingSequence([]byte) (uint64, bool) { return 0, false }
 
 func TestWirePendingSequencer(t *testing.T) {
+	m := &Multiplexer{logger: log.NewNopLogger()}
 	app := &sequencerApp{}
-	wirePendingSequencer(app, nil)
-	require.Nil(t, app.got)
-	wirePendingSequencer(app, fakeSequencer{})
+	m.wirePendingSequencer(app)
+	require.Nil(t, app.got, "no mempool yet")
+
+	m.pendingSequencer = fakeSequencer{}
+	m.wirePendingSequencer(app)
 	require.Equal(t, fakeSequencer{}, app.got)
 
 	// Apps without the setter, and no app at all, are left alone.
 	require.NotPanics(t, func() {
-		wirePendingSequencer(nil, fakeSequencer{})
-		wirePendingSequencer(struct{ servertypes.Application }{}, fakeSequencer{})
+		m.wirePendingSequencer(nil)
+		m.wirePendingSequencer(struct{ servertypes.Application }{})
 	})
 }
