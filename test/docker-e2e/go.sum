@@ -161,8 +161,8 @@ github.com/btcsuite/btcd/btcutil v1.2.0/go.mod h1:/Taflm113pYjUpbWKKQEfa6XOtI/+W
 github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
 github.com/bufbuild/protocompile v0.14.1/go.mod h1:ppVdAIhbr2H8asPk6k4pY7t9zB1OU5DoEw9xY/FUi1c=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v0.42.6 h1:mgih6AyQ2CX6stfmNDCZv/U46nuSe0QPYpGj3R+pWlk=
-github.com/celestiaorg/celestia-core v0.42.6/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
+github.com/celestiaorg/celestia-core v0.42.7 h1:s1R25IrJDFrXLaXIBeXjseERuYM0RcrkztT5bak5RZ4=
+github.com/celestiaorg/celestia-core v0.42.7/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
 github.com/celestiaorg/cosmos-sdk v0.53.0 h1:ar4qdwzZzxX/jtgBl05F/KRhFJelF/GfO8Hjp8QgHnc=
 github.com/celestiaorg/cosmos-sdk v0.53.0/go.mod h1:AxPTacNgPT6jKaIV/Rl0uRMCmNMYNf1fvMndRJtBcAI=
 github.com/celestiaorg/cosmos-sdk/api v0.7.7 h1:Ns40Iu1jUWEzROcRcgjE1VoZPJsyUEdXuaCXEVOId6Q=
@@ -181,8 +181,8 @@ github.com/celestiaorg/go-square/v2 v2.3.3 h1:vhu6Lt39km19Q/Jk4nS3r2cuWJq6jFg+/1
 github.com/celestiaorg/go-square/v2 v2.3.3/go.mod h1:vY5RRv+qRmEVjPF6dAdr0dyLwKmTTDHHffENPQw8pUA=
 github.com/celestiaorg/go-square/v3 v3.0.2 h1:eSQOgNII8inK9IhiBZ+6GADQeWbRq4HYY72BOgcduA4=
 github.com/celestiaorg/go-square/v3 v3.0.2/go.mod h1:oFReMLsSDMRs82ICFEeFQFCqNvwdsbIM1BzCcb0f7dM=
-github.com/celestiaorg/go-square/v4 v4.2.2 h1:hfW3zJ9PrkLJpEfEzC8hKsPoiDUFThY2bIb8tqOzP/o=
-github.com/celestiaorg/go-square/v4 v4.2.2/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
+github.com/celestiaorg/go-square/v4 v4.3.0 h1:yL7LKhJQZ+AJ8ELT8JWVZ+7oCp0MPLGVPa0zWdAUs2c=
+github.com/celestiaorg/go-square/v4 v4.3.0/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1 h1:DOCcKV+YKQE1n1zEavjLD/+WEnqHpjDjFrpdHgI1CJQ=
 github.com/celestiaorg/hyperlane-cosmos v1.3.1/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
 github.com/celestiaorg/ibc-go/modules/capability v1.0.2 h1:7tT6aSuUzL/vJ/EKCT1wdfwG2VT5H+PcmSBOWPHkiQc=
