@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v11/pkg/secpverify"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -41,6 +42,10 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 		key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData)
 		if keyed && sigCache != nil && sigCache.Has(key) {
 			return nil
+		}
+		if _, single := sigData.(*signing.SingleSignatureData); single {
+			// Single signatures only: the SDK multisig error prints the key's Go type.
+			pubKey = secpverify.PubKey(pubKey)
 		}
 		if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, handler, txData); err != nil {
 			return err
