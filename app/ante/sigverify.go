@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v11/pkg/secpverify"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -42,7 +43,7 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 		if keyed && sigCache != nil && sigCache.Has(key) {
 			return nil
 		}
-		if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, handler, txData); err != nil {
+		if err := authsigning.VerifySignature(ctx, secpverify.PubKey(pubKey), signerData, sigData, handler, txData); err != nil {
 			return err
 		}
 		if keyed && sigCache != nil {
