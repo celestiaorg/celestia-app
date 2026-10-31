@@ -18,8 +18,7 @@ type ExtendedData struct {
 	rows     [][]byte // K+N rows of data
 	rowsTree *merkle.Tree
 
-	rlc     rlc.Vector // RLC results for the K original rows
-	rlcTree *merkle.Tree
+	rlc rlc.Vector // RLC results for the K original rows
 
 	commitment Commitment // SHA256(rowRoot || rlcOrigRoot)
 }
@@ -76,37 +75,5 @@ func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 		Index:    index,
 		Row:      ed.rows[index],
 		RowProof: rowProof,
-	}, nil
-}
-
-// StandaloneProof is the self-contained proof for an original row defined in
-// SPEC §3.4 / §3.5 case 3: a reader that doesn't have rlcOrig can verify a
-// single original row by checking it against the commitment using the
-// embedded row proof plus an RLC proof linking the row's RLC value to the
-// rlcOrigRoot.
-type StandaloneProof struct {
-	RowProof
-	RLCProof [][]byte // Merkle proof linking RLC(Row) to rlcOrigRoot
-}
-
-// GenerateStandaloneProof builds the row + RLC merkle proofs needed to verify
-// an original row in isolation. Only original rows (index < K) are supported
-// since parity rows are recovered from the K originals via Reed-Solomon and
-// don't have a slot in the rlcOrigRoot tree.
-func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, error) {
-	if index >= ed.config.K {
-		return nil, fmt.Errorf("standalone proofs only supported for original rows (index < K = %d)", ed.config.K)
-	}
-	rowProof, err := ed.GenerateRowProof(index)
-	if err != nil {
-		return nil, err
-	}
-	rlcProof, err := ed.rlcTree.Proof(index)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
-	}
-	return &StandaloneProof{
-		RowProof: *rowProof,
-		RLCProof: rlcProof,
 	}, nil
 }

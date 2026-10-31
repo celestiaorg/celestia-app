@@ -124,19 +124,6 @@ func (id BlobID) String() string {
 	return hex.EncodeToString(id)
 }
 
-// BlobIDFromString decodes a [BlobID] from a hex-encoded string.
-func BlobIDFromString(s string) (BlobID, error) {
-	data, err := hex.DecodeString(s)
-	if err != nil {
-		return nil, fmt.Errorf("decoding hex: %w", err)
-	}
-	var id BlobID
-	if err := id.UnmarshalBinary(data); err != nil {
-		return nil, err
-	}
-	return id, nil
-}
-
 // Equals returns true if the two BlobIDs are equal.
 func (id BlobID) Equals(other BlobID) bool {
 	return bytes.Equal(id, other)
