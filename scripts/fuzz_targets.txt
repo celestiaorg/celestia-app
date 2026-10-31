@@ -25,6 +25,7 @@
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
+1 ./app                 FuzzTxCacheValidation               5m 100x
 1 ./app                 FuzzFirstMsgIsPayForFibre           5m 100x
 1 ./app/encoding        FuzzTxDecoderFastPath               5m 100x
 1 ./app/ante            FuzzNestedMsgDecorator              2m 100x
@@ -36,6 +37,7 @@
 1 ./x/blob/types        FuzzValidateBlobTx                  5m 100x
 1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
 1 ./x/fibre/types       FuzzParsePayForFibreTx              5m 100x
+1 ./pkg/da              FuzzExtendSharesParity              5m 100x
 1 ./x/zkism/types       FuzzValidateGroth16Vkey             2m 100x
 1 ./x/zkism/types       FuzzPublicValuesUnmarshal           2m 100x
 1 ./x/zkism/types       FuzzParseMerkleProofMetadata        2m 100x
@@ -44,6 +46,9 @@
 1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
 1 ./x/blob/ante         FuzzPFBShareAndGasValidation        2m 100x
 1 ./x/valaddr/types     FuzzValidateHost                    2m 100x
+1 ./x/forwarding/types  FuzzDeriveForwardingAddress         2m 100x
+1 ./x/forwarding/keeper FuzzForwardingAddressQueryMsgParity 2m 100x
+1 ./x/forwarding/keeper FuzzForwardIGPFee                   2m 100x
 1 ./x/zkism/keeper      FuzzZKISMMsgSequence                5m 100x
 1 ./x/fibre/keeper      FuzzEscrowMsgSequence               5m 100x
 1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
@@ -53,6 +58,8 @@
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -
 2 ./fibre               FuzzShardReader                     5m -
+2 ./fibre/validator     FuzzQuorumPrefix                    2m 100x
+2 ./fibre/validator     FuzzAssign                          2m 100x
 2 ./fibre               FuzzPaymentPromiseUnmarshal         2m 100x
 2 ./fibre               FuzzPaymentPromiseSignBytes         2m 100x
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
