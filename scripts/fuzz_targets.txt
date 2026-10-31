@@ -56,6 +56,8 @@
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -
 2 ./fibre               FuzzShardReader                     5m -
+2 ./fibre/validator     FuzzQuorumPrefix                    2m 100x
+2 ./fibre/validator     FuzzAssign                          2m 100x
 2 ./fibre               FuzzPaymentPromiseUnmarshal         2m 100x
 2 ./fibre               FuzzPaymentPromiseSignBytes         2m 100x
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
