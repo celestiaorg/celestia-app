@@ -30,6 +30,28 @@ func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *t
 // check that would have produced the same result. Only successful
 // verifications are recorded, so a rejected signature is rejected again.
 func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
+	verify := cachedVerify(sigCache)
+	return func(
+		ctx context.Context,
+		pubKey cryptotypes.PubKey,
+		signerData txsigning.SignerData,
+		sigData signing.SignatureData,
+		handler *txsigning.HandlerMap,
+		txData txsigning.TxData,
+	) error {
+		// TxSigOverlapDecorator waits for this verdict before the tx is decided.
+		if p, ok := ctx.Value(pendingTxSigKey{}).(*pendingTxSig); ok && p.startable(sigData) {
+			gas := sdk.UnwrapSDKContext(ctx).GasMeter().GasConsumed()
+			p.start(gas, signerData.AccountNumber, signerData.ChainID, func() error {
+				return verify(ctx, pubKey, signerData, sigData, handler, txData)
+			})
+			return nil
+		}
+		return verify(ctx, pubKey, signerData, sigData, handler, txData)
+	}
+}
+
+func cachedVerify(sigCache *sigcache.Cache) ante.SignatureVerifier {
 	return func(
 		ctx context.Context,
 		pubKey cryptotypes.PubKey,
@@ -58,7 +80,7 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 	if sigCache == nil {
 		return
 	}
-	verify := cachedVerifier(sigCache)
+	verify := cachedVerify(sigCache)
 	type workItem struct {
 		pubKey     cryptotypes.PubKey
 		signerData txsigning.SignerData

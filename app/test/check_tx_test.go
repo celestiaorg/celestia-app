@@ -978,6 +978,60 @@ func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 	}
 }
 
+// TestCheckTxPayForFibreBadTxSignature covers the tx signature verifying beside
+// the certificate pass: a bad one still decides, whatever the rest found.
+func TestCheckTxPayForFibreBadTxSignature(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(4)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	// A wrong account number changes the sign bytes, so the signature fails.
+	badSigner := func(index int) *user.Signer {
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+			user.NewAccount(accounts[index], infos[index].AccountNum+1, infos[index].Sequence))
+		require.NoError(t, err)
+		return signer
+	}
+
+	tests := map[string]struct {
+		account   int
+		escrow    bool
+		validCert bool
+	}{
+		"valid certificate":   {account: 0, escrow: true, validCert: true},
+		"invalid certificate": {account: 1, escrow: true, validCert: false},
+		"no escrow account":   {account: 2, escrow: false, validCert: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tc.escrow {
+				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[tc.account]), 1_000_000)
+			}
+			txBytes := newSignedPayForFibreTx(t, badSigner(tc.account), accounts[tc.account], tc.validCert)
+			for range 2 {
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+				require.NoError(t, err)
+				require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), resp.Code, resp.Log)
+				require.Contains(t, resp.Log, "signature verification failed")
+			}
+		})
+	}
+
+	t.Run("the certificate verified alongside is cached", func(t *testing.T) {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[3]), 1_000_000)
+		txBytes := newSignedPayForFibreTx(t, badSigner(3), accounts[3], true)
+		decoded := fibrekeeper.DecodePayForFibre(txBytes)
+		require.NotNil(t, decoded)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), resp.Code, resp.Log)
+		require.True(t, testApp.HasVerifiedSignature(decoded.CertKey))
+	})
+}
+
 // TestCheckTxPayForFibreRecheck checks that a rechecked payment promise takes the
 // pay-for-fibre shortcut and bytes that are not one take the full path.
 func TestCheckTxPayForFibreRecheck(t *testing.T) {

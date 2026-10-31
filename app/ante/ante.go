@@ -62,6 +62,9 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		// In CheckTx, verify a PayForFibre tx's signature beside its certificate
+		// pre-pass instead of before it. The tx's verdict and gas are unchanged.
+		NewTxSigOverlapDecorator(),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
