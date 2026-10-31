@@ -36,7 +36,8 @@ func (TxSigOverlapDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 			panic(r)
 		}
 	}()
-	newCtx, err = next(ctx.WithValue(pendingTxSigKey{}, pending), tx, simulate)
+	nextCtx := fibretypes.WithTxSigFailed(ctx.WithValue(pendingTxSigKey{}, pending), pending.failed)
+	newCtx, err = next(nextCtx, tx, simulate)
 	if sigErr := pending.wait(); sigErr != nil {
 		return withGasConsumed(ctx, pending.gas), sigErr
 	}
@@ -84,6 +85,15 @@ func (p *pendingTxSig) start(gas, accNum uint64, chainID string, verify func() e
 				accNum, chainID, err.Error()))
 		}
 	}()
+}
+
+// failed waits for the verdict; a panic counts as failed, and wait re-raises it.
+func (p *pendingTxSig) failed() bool {
+	if p.done == nil {
+		return false
+	}
+	<-p.done
+	return p.err != nil || p.panicked != nil
 }
 
 // wait returns the signature's verdict, re-raising a panic on the caller's goroutine.

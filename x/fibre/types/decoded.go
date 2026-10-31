@@ -78,3 +78,20 @@ func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
 	}
 	return h.key, true
 }
+
+type txSigFailedKey struct{}
+
+// WithTxSigFailed attaches a wait for the tx's own signature, verifying beside
+// the certificate pass; failed reports whether it rejects the tx.
+func WithTxSigFailed(ctx sdk.Context, failed func() bool) sdk.Context {
+	return ctx.WithValue(txSigFailedKey{}, failed)
+}
+
+// TxSigFailed reports whether the tx signature attached by WithTxSigFailed failed.
+func TxSigFailed(ctx sdk.Context) bool {
+	if ctx.Context() == nil {
+		return false
+	}
+	failed, ok := ctx.Value(txSigFailedKey{}).(func() bool)
+	return ok && failed()
+}

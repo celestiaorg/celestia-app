@@ -3,10 +3,12 @@ package ante
 import (
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 var (
@@ -105,6 +107,10 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		if d.pffSigCache.Has(cacheKey) {
 			return next(ctx, tx, simulate)
 		}
+		// A failed tx signature already rejects the tx, whatever the fallback finds.
+		if fibretypes.TxSigFailed(ctx) {
+			return ctx, errTxSigFailed
+		}
 	}
 
 	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
@@ -113,6 +119,9 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 	d.pffSigCache.Add(cacheKey)
 	return next(ctx, tx, simulate)
 }
+
+// errTxSigFailed is replaced by the tx signature's own error before CheckTx returns.
+var errTxSigFailed = errorsmod.Wrap(sdkerrors.ErrUnauthorized, "tx signature failed")
 
 // skipsSignatureVerification reports whether mode never verifies PFF validator
 // signatures. See FibreSignatureVerificationDecorator for why.

@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -12,15 +13,16 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
-	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	clienttx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -33,9 +35,12 @@ type overlapFibreKeeper struct {
 	certErr      error
 	statefulErr  error
 	prepassDelay time.Duration
+	// fallbacks counts sequential certificate checks.
+	fallbacks *int
 }
 
 func (k overlapFibreKeeper) ValidatePayForFibreSignatures(sdk.Context, *fibretypes.MsgPayForFibre) error {
+	*k.fallbacks++
 	return k.certErr
 }
 
@@ -60,6 +65,8 @@ type anteOutcome struct {
 	gasLimit uint64
 	panicked string
 	sequence uint64
+	// fallbacks: a tx whose signature fails must not pay the sequential certificate check.
+	fallbacks int
 }
 
 // TestTxSigOverlapMatchesInlineVerification runs the same txs through the ante
@@ -97,23 +104,25 @@ func TestTxSigOverlapMatchesInlineVerification(t *testing.T) {
 		require.NoError(t, err)
 		return newCtx.GasMeter().GasConsumed()
 	}
-	newTx := func(t *testing.T, pff bool, accNum, gasLimit uint64) sdk.Tx {
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(accounts[0], accNum, acc.GetSequence()))
-		require.NoError(t, err)
+	newTx := func(t *testing.T, pff bool, accNum, gasLimit uint64, signMode signing.SignMode) sdk.Tx {
 		var msg sdk.Msg = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
 		if pff {
 			msg = blobfactory.NewMsgPayForFibre(t, pubKey.(*secp256k1.PubKey), testutil.ChainID)
 		}
-		txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(2_000))
-		require.NoError(t, err)
-		tx, err := enc.TxConfig.TxDecoder()(txBytes)
-		require.NoError(t, err)
-		return tx
+		builder := enc.TxConfig.NewTxBuilder()
+		require.NoError(t, builder.SetMsgs(msg))
+		builder.SetGasLimit(gasLimit)
+		builder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 2_000)))
+		txf := clienttx.Factory{}.WithKeybase(kr).WithTxConfig(enc.TxConfig).WithChainID(testutil.ChainID).
+			WithAccountNumber(accNum).WithSequence(acc.GetSequence()).WithSignMode(signMode)
+		require.NoError(t, clienttx.Sign(context.Background(), txf, accounts[0], builder, true))
+		return builder.GetTx()
 	}
 
 	run := func(overlap bool, tx sdk.Tx, k overlapFibreKeeper, ctx sdk.Context, simulate bool) (out anteOutcome) {
 		txCache := sigcache.New(16)
 		k.cache = sigcache.New(16)
+		k.fallbacks = new(int)
 		decorators := []sdk.AnteDecorator{
 			ante.NewSetUpContextDecorator(),
 			ante.NewSetPubKeyDecorator(testApp.AccountKeeper),
@@ -136,6 +145,7 @@ func TestTxSigOverlapMatchesInlineVerification(t *testing.T) {
 			if r := recover(); r != nil {
 				out.panicked = fmt.Sprint(r)
 			}
+			out.fallbacks = *k.fallbacks
 		}()
 		newCtx, err := handler(ctx, tx, simulate)
 		if err != nil {
@@ -165,37 +175,41 @@ func TestTxSigOverlapMatchesInlineVerification(t *testing.T) {
 	}
 
 	cases := 0
+	// Only SIGN_MODE_DIRECT goes off the ante goroutine; amino JSON has its own error wording.
+	signModes := []signing.SignMode{signing.SignMode_SIGN_MODE_DIRECT, signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON}
 	for modeName, mode := range modes {
-		for _, pff := range []bool{true, false} {
-			for _, badSig := range []bool{false, true} {
-				for _, gas := range []uint64{1_000_000, 0, fibreGas + 1} {
-					for _, k := range []overlapFibreKeeper{
-						{},
-						{certErr: certErr},
-						{statefulErr: statefulErr},
-						{prepassDelay: 5 * time.Millisecond},
-						{certErr: certErr, prepassDelay: 5 * time.Millisecond},
-					} {
-						accNum := acc.GetAccountNumber()
-						if badSig {
-							accNum++
-						}
-						name := fmt.Sprintf("%s/pff=%t/badSig=%t/gas=%d/cert=%v/stateful=%v/delay=%v",
-							modeName, pff, badSig, gas, k.certErr, k.statefulErr, k.prepassDelay)
-						t.Run(name, func(t *testing.T) {
-							if gas == 0 {
-								gas = gasAtFibre(t, newTx(t, pff, acc.GetAccountNumber(), 1_000_000)) + 1
+		for _, signMode := range signModes {
+			for _, pff := range []bool{true, false} {
+				for _, badSig := range []bool{false, true} {
+					for _, gas := range []uint64{1_000_000, 0, fibreGas + 1} {
+						for _, k := range []overlapFibreKeeper{
+							{},
+							{certErr: certErr},
+							{statefulErr: statefulErr},
+							{prepassDelay: 5 * time.Millisecond},
+							{certErr: certErr, prepassDelay: 5 * time.Millisecond},
+						} {
+							accNum := acc.GetAccountNumber()
+							if badSig {
+								accNum++
 							}
-							tx := newTx(t, pff, accNum, gas)
-							inline := run(false, tx, k, mode.ctx, mode.simulate)
-							overlapped := run(true, tx, k, mode.ctx, mode.simulate)
-							require.Equal(t, inline, overlapped)
-						})
-						cases++
+							name := fmt.Sprintf("%s/%s/pff=%t/badSig=%t/gas=%d/cert=%v/stateful=%v/delay=%v",
+								modeName, signMode, pff, badSig, gas, k.certErr, k.statefulErr, k.prepassDelay)
+							t.Run(name, func(t *testing.T) {
+								if gas == 0 {
+									gas = gasAtFibre(t, newTx(t, pff, acc.GetAccountNumber(), 1_000_000, signMode)) + 1
+								}
+								tx := newTx(t, pff, accNum, gas, signMode)
+								inline := run(false, tx, k, mode.ctx, mode.simulate)
+								overlapped := run(true, tx, k, mode.ctx, mode.simulate)
+								require.Equal(t, inline, overlapped)
+							})
+							cases++
+						}
 					}
 				}
 			}
 		}
 	}
-	require.Equal(t, 180, cases)
+	require.Equal(t, 360, cases)
 }
