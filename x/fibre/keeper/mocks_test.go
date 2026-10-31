@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"cosmossdk.io/math"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -15,6 +16,14 @@ type MockBankKeeper struct {
 	SendCoinsFromAccountToModuleFn func(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 	SendCoinsFromModuleToAccountFn func(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromModuleToModuleFn  func(ctx context.Context, senderModule, recipientModule string, amt sdk.Coins) error
+	GetBalanceFn                   func(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
+}
+
+func (m *MockBankKeeper) GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	if m.GetBalanceFn != nil {
+		return m.GetBalanceFn(ctx, addr, denom)
+	}
+	return sdk.Coin{Denom: denom, Amount: math.ZeroInt()}
 }
 
 func (m *MockBankKeeper) SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error {

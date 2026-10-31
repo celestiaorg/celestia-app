@@ -67,7 +67,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, nil)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, tkey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }
@@ -601,7 +601,7 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 
 	cache := newCountingSigCache()
 	// Signature verification reads only the genesis height from module state.
-	k := keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+	k := keeper.NewKeeper(suite.cdc, suite.storeKey, storetypes.NewTransientStoreKey(types.TStoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
 
 	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
 		msg := &types.MsgPayForFibre{

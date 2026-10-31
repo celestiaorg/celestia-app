@@ -20,6 +20,7 @@ import (
 type Keeper struct {
 	cdc           codec.Codec
 	storeKey      storetypes.StoreKey
+	tStoreKey     storetypes.StoreKey
 	bankKeeper    types.BankKeeper
 	stakingKeeper types.StakingKeeper
 	// authority is the address that has the authority to update module parameters.
@@ -49,10 +50,11 @@ type SigCache interface {
 // keeps the double-spend protection from silently depending on call order. The
 // cache is a non-consensus, query-path-only dependency and is never consulted from
 // the ABCI path.
-func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool, sigCache SigCache) *Keeper {
+func NewKeeper(cdc codec.Codec, storeKey, tStoreKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool, sigCache SigCache) *Keeper {
 	k := &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
+		tStoreKey:     tStoreKey,
 		bankKeeper:    bankKeeper,
 		stakingKeeper: stakingKeeper,
 		authority:     authority,

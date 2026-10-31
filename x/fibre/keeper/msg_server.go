@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -345,11 +344,7 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	// this transfer the coins would stay stranded in the module account and be
 	// paid to no one. The full payment leaves the module account regardless of
 	// how it was split between available balance and pending withdrawals.
-	if err := ms.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, authtypes.FeeCollectorName, sdk.NewCoins(paymentAmount)); err != nil {
-		return errorsmod.Wrap(err, "failed to send fibre payment to fee collector")
-	}
-
-	return nil
+	return ms.payFeeCollector(ctx, paymentAmount)
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.

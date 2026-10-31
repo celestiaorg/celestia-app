@@ -135,7 +135,7 @@ func (c hookedSigCache) Add(key sigcache.Key) {
 // useFibreSigCache rebuilds the fibre keeper around cache. The ante handler keeps
 // the app's own cache, so the walk still verifies every certificate itself.
 func useFibreSigCache(testApp *app.App, cache fibrekeeper.SigCache) {
-	*testApp.FibreKeeper = *fibrekeeper.NewKeeper(testApp.AppCodec(), testApp.GetKey(fibretypes.StoreKey),
+	*testApp.FibreKeeper = *fibrekeeper.NewKeeper(testApp.AppCodec(), testApp.GetKey(fibretypes.StoreKey), testApp.GetTKey(fibretypes.TStoreKey),
 		testApp.BankKeeper, proposalStakingKeeper{testApp.StakingKeeper, runtime.NewKVStoreService(testApp.GetKey(stakingtypes.StoreKey))},
 		testApp.FibreKeeper.GetAuthority(), false, cache)
 }

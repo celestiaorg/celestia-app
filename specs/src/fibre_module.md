@@ -318,7 +318,7 @@ Therefore the synthesized system blob includes the promise namespace, blob versi
 
 Both settlement paths (`MsgPayForFibre` and `MsgPaymentPromiseTimeout`) charge the escrow owner the gas-based payment amount. This charge is distinct from the fee paid for the settlement transaction itself: the transaction fee is paid by the broadcaster and distributed via the ante handler, whereas the escrow charge is the data-availability fee owed by the escrow owner for the Fibre blob.
 
-The charged amount is transferred from the fibre module account to the `fee_collector` module account. From there it follows the standard fee pipeline in `x/distribution`, paying validators (proportional to stake) and their delegators, with the community tax applied. This mirrors how regular blob fees (`MsgPayForBlobs`) are settled, and keeps the funds from being stranded in the fibre module account.
+The charged amount is transferred from the fibre module account to the `fee_collector` module account: per settlement up to app version 10, and from app version 11 as one transfer of the block's settled payments in the fibre `EndBlock` (a settlement still fails if the module account cannot cover it). From there it follows the standard fee pipeline in `x/distribution`, paying validators (proportional to stake) and their delegators, with the community tax applied. This mirrors how regular blob fees (`MsgPayForBlobs`) are settled, and keeps the funds from being stranded in the fibre module account.
 
 The destination is independent of which validators signed the PaymentPromise. This is required because the timeout path carries no validator signatures, so a signer-dependent destination could not settle both paths consistently.
 

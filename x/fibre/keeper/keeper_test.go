@@ -64,7 +64,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
 	suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority = storeKey, mockBankKeeper, mockStakingKeeper, authority
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false, nil)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, tkey, mockBankKeeper, mockStakingKeeper, authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 }
 
@@ -799,7 +799,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseWithoutCacheAllowsDouble
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend() {
 	// Rebuild the keeper with the promise cache enabled; it shares the same store.
-	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, storetypes.NewTransientStoreKey(types.TStoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
 
 	promise1, promise2 := suite.twoPromisesFundedForOne()
 
@@ -821,7 +821,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 // could evict the entries the transaction path relies on.
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsNothing() {
 	cache := newCountingSigCache()
-	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, cache)
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, storetypes.NewTransientStoreKey(types.TStoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, true, cache)
 
 	promise1, promise2 := suite.twoPromisesFundedForOne()
 

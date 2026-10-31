@@ -47,6 +47,7 @@ func newPromiseKeeper(sigCache keeper.SigCache) *keeper.Keeper {
 	return keeper.NewKeeper(
 		codec.NewProtoCodec(codectypes.NewInterfaceRegistry()),
 		storetypes.NewKVStoreKey(types.StoreKey),
+		storetypes.NewTransientStoreKey(types.TStoreKey),
 		&MockBankKeeper{},
 		&MockStakingKeeper{},
 		authtypes.NewModuleAddress("gov").String(),

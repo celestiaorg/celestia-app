@@ -254,7 +254,7 @@ func New(
 	baseApp.SetInterfaceRegistry(encodingConfig.InterfaceRegistry)
 
 	keys := storetypes.NewKVStoreKeys(allStoreKeys()...)
-	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey)
+	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey, fibretypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
@@ -478,6 +478,7 @@ func New(
 	app.FibreKeeper = fibrekeeper.NewKeeper(
 		encodingConfig.Codec,
 		keys[fibretypes.StoreKey],
+		tkeys[fibretypes.TStoreKey],
 		app.BankKeeper,
 		fibreStakingKeeper{app.StakingKeeper, stakingStore},
 		govModuleAddr,

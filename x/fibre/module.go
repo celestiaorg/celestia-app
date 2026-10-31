@@ -27,6 +27,7 @@ var (
 
 	_ appmodule.AppModule       = AppModule{}
 	_ appmodule.HasBeginBlocker = AppModule{}
+	_ appmodule.HasEndBlocker   = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the fibre module.
@@ -126,4 +127,9 @@ func (AppModule) ConsensusVersion() uint64 { return 2 }
 // BeginBlock executes all ABCI BeginBlock logic for the fibre module.
 func (am AppModule) BeginBlock(ctx context.Context) error {
 	return am.keeper.BeginBlocker(sdk.UnwrapSDKContext(ctx))
+}
+
+// EndBlock executes all ABCI EndBlock logic for the fibre module.
+func (am AppModule) EndBlock(ctx context.Context) error {
+	return am.keeper.EndBlocker(sdk.UnwrapSDKContext(ctx))
 }

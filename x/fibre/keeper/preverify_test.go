@@ -61,7 +61,7 @@ func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
 
 	fresh := *f
 	fresh.cache = sigcache.New(1024)
-	fresh.keeper = keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), f.storeKey,
+	fresh.keeper = keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), f.storeKey, storetypes.NewTransientStoreKey(types.TStoreKey),
 		&MockBankKeeper{}, f.stakingKeeper, authtypes.NewModuleAddress("gov").String(), false, fresh.cache)
 	return &fresh
 }
@@ -110,7 +110,7 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 	ctx := sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	cache := sigcache.New(1024)
 	stakingKeeper := &MockStakingKeeper{}
-	k := keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), storeKey,
+	k := keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), storeKey, storetypes.NewTransientStoreKey(types.TStoreKey),
 		&MockBankKeeper{}, stakingKeeper, authtypes.NewModuleAddress("gov").String(), false, cache)
 
 	valPrivKeys := make([]ed25519.PrivKey, validators)

@@ -11,6 +11,8 @@ const (
 	ModuleName = "fibre"
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
+	// TStoreKey defines the module's transient store key
+	TStoreKey = "transient_" + ModuleName
 	// RouterKey defines the module's message routing key
 	RouterKey = ModuleName
 	// ParamsKey defines the key used for storing module parameters
@@ -38,7 +40,16 @@ var (
 	// GenesisHeightKey holds the height of the first block this chain's state executed,
 	// recorded by InitGenesis. Its signing set has no historical info at the height before.
 	GenesisHeightKey = []byte{0x08}
+
+	// PendingFeeTransferKeyPrefix (transient store) holds, per denom, the payments
+	// settled this block that EndBlock moves to the fee collector.
+	PendingFeeTransferKeyPrefix = []byte{0x01}
 )
+
+// PendingFeeTransferKey returns the transient store key for the pending fee transfer of denom.
+func PendingFeeTransferKey(denom string) []byte {
+	return append(append([]byte{}, PendingFeeTransferKeyPrefix...), denom...)
+}
 
 // EscrowAccountKey returns the store key for an escrow account
 func EscrowAccountKey(signer string) []byte {
