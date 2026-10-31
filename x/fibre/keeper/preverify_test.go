@@ -661,3 +661,28 @@ func TestPreverifyCapsAtCandidateBound(t *testing.T) {
 	// accepts it, which is the only thing that decides.
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, decoded[limit].Msg))
 }
+
+// TestPreverifyPayForFibreMsgRecordsNothingAfterTxSigFails: the CheckTx pass
+// runs beside the tx signature, and a tx that signature rejects buys no entry.
+func TestPreverifyPayForFibreMsgRecordsNothingAfterTxSigFails(t *testing.T) {
+	for name, tc := range map[string]struct {
+		hook       bool
+		failed     bool
+		wantCached bool
+	}{
+		"no tx signature attached": {wantCached: true},
+		"tx signature verified":    {hook: true, wantCached: true},
+		"tx signature failed":      {hook: true, failed: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newPreverifyFixture(t).withFreshCache(t)
+			ctx := f.ctx
+			if tc.hook {
+				ctx = types.WithTxSigFailed(ctx, func() bool { return tc.failed })
+			}
+			f.keeper.PreverifyPayForFibreMsg(ctx, f.msg, f.certKey)
+			require.Equal(t, tc.wantCached, f.cache.Has(f.certKey))
+			require.Equal(t, tc.wantCached, f.cache.Has(promiseSigCacheKey(t, f.msg)))
+		})
+	}
+}

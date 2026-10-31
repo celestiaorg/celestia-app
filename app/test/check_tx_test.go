@@ -1019,7 +1019,7 @@ func TestCheckTxPayForFibreBadTxSignature(t *testing.T) {
 		})
 	}
 
-	t.Run("the certificate verified alongside is cached", func(t *testing.T) {
+	t.Run("the certificate verified alongside is not cached", func(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[3]), 1_000_000)
 		txBytes := newSignedPayForFibreTx(t, badSigner(3), accounts[3], true)
 		decoded := fibrekeeper.DecodePayForFibre(txBytes)
@@ -1028,7 +1028,8 @@ func TestCheckTxPayForFibreBadTxSignature(t *testing.T) {
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), resp.Code, resp.Log)
-		require.True(t, testApp.HasVerifiedSignature(decoded.CertKey))
+		require.False(t, testApp.HasVerifiedSignature(decoded.CertKey))
+		require.False(t, testApp.HasVerifiedSignature(decoded.PromiseKey))
 	})
 }
 

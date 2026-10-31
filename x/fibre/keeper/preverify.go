@@ -77,8 +77,22 @@ func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFib
 	if k.sigCache == nil {
 		return
 	}
+	k.sigCache = txSigGatedCache{SigCache: k.sigCache, ctx: ctx}
 	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
 		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+}
+
+// txSigGatedCache records nothing for a tx whose own signature failed, as when
+// that signature was checked before the pass.
+type txSigGatedCache struct {
+	SigCache
+	ctx sdk.Context
+}
+
+func (c txSigGatedCache) Add(key sigcache.Key) {
+	if !types.TxSigFailed(c.ctx) {
+		c.SigCache.Add(key)
+	}
 }
 
 // batchSize is how many validator signatures one work item batch-verifies: 128
