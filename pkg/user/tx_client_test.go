@@ -570,6 +570,43 @@ func TestBroadcastTx_NonSequenceGasEstimationError(t *testing.T) {
 	require.Contains(t, err.Error(), "connection refused")
 }
 
+// TestBroadcastTx_ResignKeepsTimeoutHeight verifies that the tx re-signed after
+// a sequence mismatch keeps the timeout height the caller set, so it cannot be
+// included after that height.
+func TestBroadcastTx_ResignKeepsTimeoutHeight(t *testing.T) {
+	const timeoutHeight = 1234
+	var broadcasts [][]byte
+	handler := func(_ context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		broadcasts = append(broadcasts, req.TxBytes)
+		if len(broadcasts) == 1 {
+			return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{
+				Code:   sdkerrors.ErrWrongSequence.ABCICode(),
+				RawLog: "account sequence mismatch, expected 7, got 0: incorrect account sequence",
+			}}, nil
+		}
+		return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{TxHash: "resigned", Code: abci.CodeTypeOK}}, nil
+	}
+	mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{handler}, nil)
+	defer conns[0].Close()
+
+	msg := bank.NewMsgSend(
+		mockTxClient.DefaultAddress(),
+		mockTxClient.DefaultAddress(),
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
+	)
+	_, err := mockTxClient.BroadcastTx(context.Background(), []sdk.Msg{msg},
+		user.SetGasLimit(100_000), user.SetFee(1_000), user.SetTimeoutHeight(timeoutHeight))
+	require.NoError(t, err)
+	require.Len(t, broadcasts, 2)
+
+	resigned, err := mockTxClient.Signer().DecodeTx(broadcasts[1])
+	require.NoError(t, err)
+	sigs, err := resigned.GetSignaturesV2()
+	require.NoError(t, err)
+	require.Equal(t, uint64(7), sigs[0].Sequence)
+	require.Equal(t, uint64(timeoutHeight), resigned.GetTimeoutHeight())
+}
+
 func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
