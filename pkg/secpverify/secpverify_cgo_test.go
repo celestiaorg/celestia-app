@@ -29,8 +29,6 @@ type vector struct {
 	overflow bool
 }
 
-func ptr(b bool) *bool { return &b }
-
 // requireSameVerdict checks Verify against the SDK's decred verifier, which
 // CGO=0 nodes run.
 func requireSameVerdict(t testing.TB, name string, pub, msg, sig []byte) bool {
@@ -103,7 +101,7 @@ func FuzzVerifyMatchesDecredSigned(f *testing.F) {
 			if !ok {
 				return
 			}
-			pub, sig = k, encode(r, s)
+			pub = k
 			if mode%6 == 4 {
 				sig = encode(new(big.Int).Add(r, curveN), s)
 			} else {
@@ -135,14 +133,14 @@ func testVectors(t testing.TB, rng *rand.Rand) []vector {
 		r, s := new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:])
 
 		for j, p := range formats(pub) {
-			add("valid", p, msg, sig, ptr(j != 3))
+			add("valid", p, msg, sig, new(j != 3))
 		}
-		add("wrong msg", pub, append(append([]byte{}, msg...), 0), sig, ptr(false))
-		add("high S", pub, msg, highS(sig), ptr(false))
-		add("R = 0", pub, msg, encode(big.NewInt(0), s), ptr(false))
-		add("S = 0", pub, msg, encode(r, big.NewInt(0)), ptr(false))
-		add("R = N", pub, msg, encode(curveN, s), ptr(false))
-		add("S = N", pub, msg, encode(r, curveN), ptr(false))
+		add("wrong msg", pub, append(append([]byte{}, msg...), 0), sig, new(false))
+		add("high S", pub, msg, highS(sig), new(false))
+		add("R = 0", pub, msg, encode(big.NewInt(0), s), new(false))
+		add("S = 0", pub, msg, encode(r, big.NewInt(0)), new(false))
+		add("R = N", pub, msg, encode(curveN, s), new(false))
+		add("S = N", pub, msg, encode(r, curveN), new(false))
 		add("swapped", pub, msg, encode(s, r), nil)
 		for range 8 {
 			flipped := append([]byte{}, sig...)
@@ -153,7 +151,7 @@ func testVectors(t testing.TB, rng *rand.Rand) []vector {
 			add("pub bit flip", fp, msg, sig, nil)
 		}
 		for _, n := range []int{0, 63, 65} {
-			add("sig length", pub, msg, append(append([]byte{}, sig...), make([]byte, 2)...)[:n], ptr(false))
+			add("sig length", pub, msg, append(append([]byte{}, sig...), make([]byte, 2)...)[:n], new(false))
 		}
 
 		// Keys recovered for chosen (R, S): small R or S encoded with N added,
@@ -184,26 +182,26 @@ func testVectors(t testing.TB, rng *rand.Rand) []vector {
 				es = new(big.Int).Add(es, curveN)
 			}
 			for j, p := range formats(k) {
-				vs = append(vs, vector{name: c.name, pub: p, msg: msg, sig: encode(er, es), accept: ptr(c.accept && j != 3), overflow: c.rAdd || c.sAdd})
+				vs = append(vs, vector{name: c.name, pub: p, msg: msg, sig: encode(er, es), accept: new(c.accept && j != 3), overflow: c.rAdd || c.sAdd})
 			}
-			vs = append(vs, vector{name: c.name + ", wrong msg", pub: k, msg: append([]byte{1}, msg...), sig: encode(er, es), accept: ptr(false), overflow: c.rAdd || c.sAdd})
+			vs = append(vs, vector{name: c.name + ", wrong msg", pub: k, msg: append([]byte{1}, msg...), sig: encode(er, es), accept: new(false), overflow: c.rAdd || c.sAdd})
 		}
 	}
 
 	valid := vs[0]
 	msg, sig := valid.msg, valid.sig
-	add("zero sig", valid.pub, msg, make([]byte, 64), ptr(false))
-	add("0xff sig", valid.pub, msg, fill(64, 0xff), ptr(false))
-	add("nil sig", valid.pub, msg, nil, ptr(false))
-	add("nil pub", nil, msg, sig, ptr(false))
-	add("zero pub", make([]byte, 33), msg, sig, ptr(false))
-	add("short pub", valid.pub[:32], msg, sig, ptr(false))
+	add("zero sig", valid.pub, msg, make([]byte, 64), new(false))
+	add("0xff sig", valid.pub, msg, fill(64, 0xff), new(false))
+	add("nil sig", valid.pub, msg, nil, new(false))
+	add("nil pub", nil, msg, sig, new(false))
+	add("zero pub", make([]byte, 33), msg, sig, new(false))
+	add("short pub", valid.pub[:32], msg, sig, new(false))
 	for _, prefix := range []byte{0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0xff} {
-		add("pub prefix", append([]byte{prefix}, valid.pub[1:]...), msg, sig, ptr(false))
+		add("pub prefix", append([]byte{prefix}, valid.pub[1:]...), msg, sig, new(false))
 	}
 	for _, x := range []*big.Int{curveP, new(big.Int).Add(curveP, big.NewInt(1)), new(big.Int).Lsh(big.NewInt(1), 256-1)} {
 		xb := x.FillBytes(make([]byte, 32))
-		add("pub x >= P", append([]byte{0x02}, xb...), msg, sig, ptr(false))
+		add("pub x >= P", append([]byte{0x02}, xb...), msg, sig, new(false))
 	}
 	for x := int64(1); x < 32; x++ {
 		add("pub small x", append([]byte{0x02}, big.NewInt(x).FillBytes(make([]byte, 32))...), msg, sig, nil)
@@ -211,8 +209,8 @@ func testVectors(t testing.TB, rng *rand.Rand) []vector {
 	unc := formats(valid.pub)[1]
 	notOnCurve := append([]byte{}, unc...)
 	notOnCurve[64] ^= 1
-	add("pub not on curve", notOnCurve, msg, sig, ptr(false))
-	add("pub y >= P", append(append([]byte{0x04}, unc[1:33]...), curveP.FillBytes(make([]byte, 32))...), msg, sig, ptr(false))
+	add("pub not on curve", notOnCurve, msg, sig, new(false))
+	add("pub y >= P", append(append([]byte{0x04}, unc[1:33]...), curveP.FillBytes(make([]byte, 32))...), msg, sig, new(false))
 	for range 512 {
 		pub, sig := make([]byte, []int{33, 65, rng.IntN(70)}[rng.IntN(3)]), make([]byte, 64)
 		for i := range pub {
