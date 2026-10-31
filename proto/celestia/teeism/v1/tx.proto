@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+import "celestia/teeism/v1/types.proto";
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+// Msg defines the teeism module Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // CreateInterchainSecurityModule defines the rpc method for creating a new TEE ISM.
+  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule)
+      returns (MsgCreateInterchainSecurityModuleResponse);
+
+  // SubmitAttestation advances the ism state and authorizes a batch of messages
+  // in a single step.
+  rpc SubmitAttestation(MsgSubmitAttestation) returns (MsgSubmitAttestationResponse);
+
+  // UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
+  rpc UpdateEnclaveIdentity(MsgUpdateEnclaveIdentity) returns (MsgUpdateEnclaveIdentityResponse);
+
+  // UpdateOwner transfers an ism to a new owner. Owner only.
+  rpc UpdateOwner(MsgUpdateOwner) returns (MsgUpdateOwnerResponse);
+
+  // SetVerifierOverrides sets or clears an ism's overrides of Intel's side of
+  // verification. Owner only.
+  rpc SetVerifierOverrides(MsgSetVerifierOverrides) returns (MsgSetVerifierOverridesResponse);
+}
+
+// MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModule {
+  option (cosmos.msg.v1.signer) = "creator";
+
+  // creator is the message sender.
+  string creator = 1;
+  // initial trusted state, which pins the origin light client checkpoint
+  bytes state = 2;
+  // origin merkle tree hook address in bytes32 format
+  bytes merkle_tree_address = 3;
+  // the enclave permitted to advance this ism
+  EnclaveIdentity identity = 4;
+}
+
+// MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModuleResponse {
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+}
+
+// MsgSubmitAttestation is the request type for SubmitAttestation.
+//
+// Unlike a proof-carrying ISM, one attestation authorizes both the state
+// transition and the message batch. The enclave already signs a single payload
+// covering both, so splitting them into two transactions would only re-verify the
+// same quote twice.
+message MsgSubmitAttestation {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the raw TDX quote produced by the enclave
+  bytes quote = 2;
+  // the dstack event log, as dstack returned it (JSON)
+  bytes event_log = 3;
+  // Intel PCS artifacts the quote is verified against
+  Collateral collateral = 4;
+  // the canonically encoded attested update the quote commits to
+  bytes payload = 5;
+  // the tx signer address
+  string signer = 6;
+}
+
+// MsgSubmitAttestationResponse is the response type for SubmitAttestation.
+message MsgSubmitAttestationResponse {
+  // new ism state (hex-encoded)
+  string state = 1;
+  // new origin state root (hex-encoded)
+  string state_root = 2;
+  // Field 3 listed the authorized message ids when attestations named them.
+  reserved 3;
+  reserved "messages";
+  // the attested origin merkle tree root (hex-encoded), which delivery proofs
+  // are checked against
+  string tree_root = 4;
+  // the origin tree's leaf count at that root
+  uint32 tree_count = 5;
+}
+
+// MsgUpdateEnclaveIdentity is the request type for UpdateEnclaveIdentity.
+//
+// The owner's emergency control: when the enclave's platform changes under it (a
+// new OS image, new firmware), or the enclave has to be replaced, the owner points
+// the ism at the new identity in place. The trusted state keeps its root, height
+// and light client store; only the identity digest it carries is swapped, so
+// nothing in flight is lost.
+message MsgUpdateEnclaveIdentity {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the enclave permitted to advance this ism from now on
+  EnclaveIdentity identity = 3;
+}
+
+// MsgUpdateEnclaveIdentityResponse is the response type for UpdateEnclaveIdentity.
+message MsgUpdateEnclaveIdentityResponse {}
+
+// MsgUpdateOwner is the request type for UpdateOwner.
+message MsgUpdateOwner {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner from now on
+  string new_owner = 3;
+}
+
+// MsgUpdateOwnerResponse is the response type for UpdateOwner.
+message MsgUpdateOwnerResponse {}
+
+// MsgSetVerifierOverrides is the request type for SetVerifierOverrides.
+message MsgSetVerifierOverrides {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the overrides from now on; unset or empty clears them
+  VerifierOverrides overrides = 3;
+}
+
+// MsgSetVerifierOverridesResponse is the response type for SetVerifierOverrides.
+message MsgSetVerifierOverridesResponse {}
