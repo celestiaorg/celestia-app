@@ -16,6 +16,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 		Groth16Vkey:         types.EncodeHex(ism.Groth16Vkey),
 		StateTransitionVkey: types.EncodeHex(ism.StateTransitionVkey),
 		StateMembershipVkey: types.EncodeHex(ism.StateMembershipVkey),
+		RootHistorySize:     ism.RootHistorySize,
 	})
 }
 
@@ -28,10 +29,10 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 }
 
 // EmitSubmitMessagesEvent emits a typed event to signal a newly proven source chain merkle tree state.
-func EmitSubmitMessagesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, treeState types.MerkleTreeState) error {
+func EmitSubmitMessagesEvent(ctx sdk.Context, ismId util.HexAddress, stateRoot []byte, treeState types.MerkleTreeState) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitMessages{
-		Id:        ism.Id,
-		StateRoot: types.EncodeHex(ism.State[:32]),
+		Id:        ismId,
+		StateRoot: types.EncodeHex(stateRoot),
 		TreeRoot:  types.EncodeHex(treeState.Root),
 		Count:     treeState.Count,
 	})
@@ -54,5 +55,13 @@ func EmitTransferOwnershipEvent(ctx sdk.Context, ismId util.HexAddress, msg *typ
 		Owner:             msg.Owner,
 		NewOwner:          msg.NewOwner,
 		RenounceOwnership: msg.RenounceOwnership,
+	})
+}
+
+// EmitUpdateRootHistorySizeEvent emits a typed event to signal that the root history size of an ism changed.
+func EmitUpdateRootHistorySizeEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateRootHistorySize{
+		Id:              ism.Id,
+		RootHistorySize: ism.RootHistorySize,
 	})
 }

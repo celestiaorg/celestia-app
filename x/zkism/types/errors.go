@@ -16,7 +16,10 @@ var (
 	ErrInvalidTrustedState          = errorsmod.Register(ModuleName, 7, "invalid trusted state")
 	ErrInvalidStateRoot             = errorsmod.Register(ModuleName, 8, "invalid state root")
 	ErrInvalidMerkleTreeAddress     = errorsmod.Register(ModuleName, 9, "invalid merkle tree address")
-	ErrMessageProofAlreadySubmitted = errorsmod.Register(ModuleName, 10, "message proof already submitted for current state root")
+	ErrMessageProofAlreadySubmitted = errorsmod.Register(ModuleName, 10, "message proof already submitted for current state root") // no longer returned; kept so code 10 is never reused
 	ErrInvalidPublicValuesLength    = errorsmod.Register(ModuleName, 11, "invalid public values length")
 	ErrInvalidMetadata              = errorsmod.Register(ModuleName, 12, "invalid metadata")
+	ErrStaleMerkleTreeState         = errorsmod.Register(ModuleName, 13, "merkle tree count does not exceed the latest proven count")
+	ErrInvalidRootHistorySize       = errorsmod.Register(ModuleName, 14, "invalid root history size")
+	ErrAlreadyUpdatedInBlock        = errorsmod.Register(ModuleName, 15, "a proof was already accepted for this ism in the current block")
 )

@@ -28,6 +28,10 @@ message InterchainSecurityModule {
   bytes state_transition_vkey = 6;
   // hash-based commitment to the verifier key used for state membership
   bytes state_membership_vkey = 7;
+  // number of replaced state roots and merkle tree states kept as history; 0 means DefaultRootHistorySize
+  uint32 root_history_size = 8;
+  // block height of the last accepted state transition proof; 0 if none. At most one is accepted per block.
+  int64 state_height = 9;
 }
 
 // MerkleTreeState is the source chain Hyperlane merkle tree state proven for an ISM.
@@ -36,4 +40,16 @@ message MerkleTreeState {
   bytes root = 1;
   // number of leaves inserted into the source chain merkle tree
   uint32 count = 2;
+  // block height at which the merkle tree state was proven. At most one membership proof is accepted per block.
+  int64 height = 3;
+}
+
+// RootHistoryEntry is a state root or merkle tree state that was replaced and is still accepted.
+message RootHistoryEntry {
+  // state root, or merkle tree root for merkle tree state history
+  bytes root = 1;
+  // number of leaves in the merkle tree; always 0 for state root history
+  uint32 count = 2;
+  // block height at which the entry was replaced
+  int64 height = 3;
 }
