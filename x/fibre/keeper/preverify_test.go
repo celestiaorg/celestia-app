@@ -3,7 +3,9 @@ package keeper_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha512"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"runtime"
@@ -32,6 +34,7 @@ import (
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	"github.com/stretchr/testify/require"
 )
 
@@ -397,26 +400,55 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 func TestPreverifyPayForFibreMsgSplitCertificate(t *testing.T) {
 	const validators = 100 // quorum prefix 67: several sub-batches on any proc count > 1
 	tests := map[string]struct {
-		corrupt    int // index of the validator signature to corrupt, -1 for none
+		replace    int  // index of the validator signature to replace, -1 for none
+		zip215     bool // replace it with a signature only ZIP-215 accepts, not a forgery
 		wantCached bool
 	}{
-		"all signatures valid":           {corrupt: -1, wantCached: true},
-		"failure in the first sub-batch": {corrupt: 0, wantCached: false},
-		"failure in the last sub-batch":  {corrupt: 65, wantCached: false},
-		"failure past the quorum prefix": {corrupt: validators - 1, wantCached: true},
+		"all signatures valid":                  {replace: -1, wantCached: true},
+		"failure in the first sub-batch":        {replace: 0, wantCached: false},
+		"failure in the last sub-batch":         {replace: 65, wantCached: false},
+		"failure past the quorum prefix":        {replace: validators - 1, wantCached: true},
+		"ZIP-215-only signature in a sub-batch": {replace: 33, zip215: true, wantCached: true},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			f := newPreverifyFixtureWithValidators(t, validators)
-			if tc.corrupt >= 0 {
-				f.msg.ValidatorSignatures[tc.corrupt] = make([]byte, 64)
+			if tc.replace >= 0 {
+				signature := make([]byte, 64)
+				if tc.zip215 {
+					signBytes := f.decodedMessage(t, f.msg).PromiseSignBytes
+					signature = zip215OnlySignature(t, f.valPrivKeys[tc.replace], signBytes)
+				}
+				f.msg.ValidatorSignatures[tc.replace] = signature
 				f.refreshCertKey(t)
 			}
 			f.keeper.PreverifyPayForFibreMsg(f.ctx, f.msg, f.certKey)
 			require.Equal(t, tc.wantCached, f.cache.Has(f.certKey))
+			require.Equal(t, tc.wantCached, f.cache.Has(f.promiseKey), "the promise is recorded only behind its certificate")
 			require.Equal(t, tc.wantCached, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg) == nil)
 		})
 	}
+}
+
+// zip215OnlySignature signs with R of small order and s = k*a, which ZIP-215
+// accepts and crypto/ed25519 rejects (see fibre/validator/zip215_test.go).
+func zip215OnlySignature(t *testing.T, privKey ed25519.PrivKey, message []byte) []byte {
+	t.Helper()
+
+	r, err := hex.DecodeString("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")
+	require.NoError(t, err)
+	digest := sha512.Sum512(privKey[:32])
+	digest[0] &= 248
+	digest[31] &= 127
+	digest[31] |= 64
+	secret, err := scalar.New().SetBytesModOrder(digest[:32])
+	require.NoError(t, err)
+	challenge := sha512.Sum512(append(append(append([]byte(nil), r...), privKey.PubKey().Bytes()...), message...))
+	k, err := scalar.New().SetBytesModOrderWide(challenge[:])
+	require.NoError(t, err)
+	s := make([]byte, 32)
+	require.NoError(t, scalar.New().Mul(k, secret).ToBytes(s))
+	return append(r, s...)
 }
 
 // TestPreverifySignaturesRecordsEachTransaction covers an accepted, a forged and a
@@ -503,6 +535,13 @@ func TestPreverifySignaturesRecordsNothingForRejectedMessages(t *testing.T) {
 	tests := map[string]func(f *preverifyFixture){
 		"forged signature inside the quorum prefix": func(f *preverifyFixture) {
 			f.msg.ValidatorSignatures[0] = make([]byte, 64)
+		},
+		"forged promise behind a valid certificate": func(f *preverifyFixture) {
+			signature, err := f.signerPrivKey.Sign([]byte("another promise"))
+			if err != nil {
+				panic(err)
+			}
+			f.msg.PaymentPromise.Signature = signature
 		},
 		"no validator signatures": func(f *preverifyFixture) {
 			f.msg.ValidatorSignatures = nil

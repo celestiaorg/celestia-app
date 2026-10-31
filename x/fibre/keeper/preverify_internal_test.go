@@ -2,11 +2,15 @@ package keeper
 
 import (
 	"bytes"
+	"runtime"
 	"sync/atomic"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,6 +47,62 @@ func TestCertificateSplitSize(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			require.Equal(t, tc.want, certificateSplitSize(tc.prefix, tc.procs))
+		})
+	}
+}
+
+// TestAppendCertificateItemsSplitsTheQuorumPrefix pins the partition: in order,
+// exactly the prefix's non-empty signatures, cut into split-size items only when asked.
+func TestAppendCertificateItemsSplitsTheQuorumPrefix(t *testing.T) {
+	const height = 7
+	validators := make([]*core.Validator, 100)
+	signatures := make([][]byte, len(validators))
+	for i := range validators {
+		validators[i] = core.NewValidator(ed25519.GenPrivKey().PubKey(), 10)
+		signatures[i] = bytes.Repeat([]byte{byte(i)}, ed25519.SignatureSize)
+	}
+	signatures[3], signatures[20] = nil, nil // the quorum prefix grows to 69
+	set := core.NewValidatorSet(validators)
+	set.TotalVotingPower()
+	valSets := map[int64]*convertedValidatorSet{height: {validators: validators, set: set}}
+	msg := &types.MsgPayForFibre{ValidatorSignatures: signatures}
+	msg.PaymentPromise.Height = height
+	var wantKeys []crypto.PubKey
+	var wantSignatures [][]byte
+	for i := range 69 {
+		if len(signatures[i]) > 0 {
+			wantKeys = append(wantKeys, validators[i].PubKey)
+			wantSignatures = append(wantSignatures, signatures[i])
+		}
+	}
+
+	tests := map[string]struct {
+		split bool
+		procs int
+		want  []int
+	}{
+		"block pass keeps one item":   {split: false, procs: 16, want: []int{67}},
+		"CheckTx on 16 procs":         {split: true, procs: 16, want: []int{8, 8, 8, 8, 8, 8, 8, 8, 3}},
+		"CheckTx on 2 procs":          {split: true, procs: 2, want: []int{35, 32}},
+		"CheckTx on 1 proc, one item": {split: true, procs: 1, want: []int{67}},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(tc.procs))
+			work := &preverification{}
+			require.True(t, Keeper{}.appendCertificateItems(sdk.Context{}, work, valSets, []byte("sign bytes"), msg, tc.split))
+
+			sizes := make([]int, 0, len(work.items))
+			gotKeys := make([]crypto.PubKey, 0, 67)
+			gotSignatures := make([][]byte, 0, 67)
+			for _, item := range work.items {
+				sizes = append(sizes, len(item.pubKeys))
+				gotKeys = append(gotKeys, item.pubKeys...)
+				gotSignatures = append(gotSignatures, item.signatures...)
+			}
+			require.Equal(t, tc.want, sizes)
+			require.Equal(t, wantKeys, gotKeys)
+			require.Equal(t, wantSignatures, gotSignatures)
 		})
 	}
 }
