@@ -221,6 +221,11 @@ type App struct {
 	// sigCache skips repeat signature verification across ante passes, the
 	// fibre message server and every ABCI phase. It is in memory only.
 	sigCache *sigcache.Cache
+	// txHandoff passes BaseApp the decode CheckTx already holds.
+	txHandoff *txHandoff
+	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
+	// rechecks, at most one per mempool slot.
+	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -247,8 +252,9 @@ func New(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
+	handoff := &txHandoff{}
 
-	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+	baseApp := baseapp.NewBaseApp(Name, logger, db, handoff.decoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
 	baseApp.SetInterfaceRegistry(encodingConfig.InterfaceRegistry)
@@ -277,6 +283,8 @@ func New(
 		txCache:                 NewTxCache(),
 		proposalCache:           newProposalCache(),
 		sigCache:                NewSigCache(maxTxs),
+		txHandoff:               handoff,
+		recheckTxs:              newRecheckTxCache(maxTxs),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
@@ -972,5 +980,6 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
+	app.recheckTxs.sweep()
 	return app.BaseApp.Commit()
 }
