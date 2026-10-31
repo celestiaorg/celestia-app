@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -20,7 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const zkismFuzzMaxOps = 24
+const (
+	zkismFuzzMaxOps = 24
+	zkismFuzzRecord = 6 // bytes per op: op, ism selector, id form, then up to three op-specific bytes
+)
 
 // zkismFuzzFixture is built once per fuzz worker: a test app, the golden
 // proofs under x/zkism/internal/testdata and the messages they prove. Every
@@ -102,26 +106,34 @@ type zkismModel struct {
 // under the matching state and keys, and Verify accepts a message only if it
 // was proven under that ISM.
 func FuzzZKISMMsgSequence(f *testing.F) {
-	// Layout: op, ism selector, id form, then op-specific bytes.
-	f.Add([]byte{
-		0, 0, 0, 1, // create a membership ISM owned by owner 0
-		0, 0, 0, 0, // create a transition ISM owned by owner 0
-		2, 0, 0, 0, 0, // submit the membership proof
-		5, 0, 0, 0, 0, 0, // verify message 0
-		5, 0, 0, 3, 3, 0, // verify message 3
-		5, 0, 0, 2, 3, 0, // proof for a different message
-		2, 0, 0, 0, 0, // second submission for the same root
-		1, 1, 0, 0, 0, // state transition on the second ISM
-		1, 1, 0, 0, 0, // replayed transition
-		4, 0, 0, 0, 1, // owner 0 transfers to owner 1
-		3, 0, 0, 0, 0, // former owner cannot update keys
-		3, 0, 0, 1, 0, // new owner updates keys
-		5, 0, 0, 0, 0, 0, // verification needs a new proof
-		4, 0, 0, 1, 0xff, // renounce
-		3, 0, 0, 1, 0, // nobody can update keys
-	})
+	// Each op is one zkismFuzzRecord-byte record: op, ism selector, id form,
+	// then op-specific bytes, zero-padded.
+	f.Add(fuzzutil.Records(zkismFuzzRecord,
+		[]byte{0, 0, 0, 1},       // create a membership ISM owned by owner 0
+		[]byte{0, 0, 0, 0},       // create a transition ISM owned by owner 0
+		[]byte{2, 0, 0, 0, 0},    // submit the membership proof
+		[]byte{5, 0, 0, 0, 0, 0}, // verify message 0
+		[]byte{5, 0, 0, 3, 3, 0}, // verify message 3
+		[]byte{5, 0, 0, 2, 3, 0}, // proof for a different message
+		[]byte{2, 0, 0, 0, 0},    // second submission for the same root
+		[]byte{1, 1, 0, 0, 0},    // state transition on the second ISM
+		[]byte{1, 1, 0, 0, 0},    // replayed transition
+		[]byte{4, 0, 0, 0, 1},    // owner 0 transfers to owner 1
+		[]byte{3, 0, 0, 0, 0},    // former owner cannot update keys
+		[]byte{3, 0, 0, 1, 0},    // new owner updates keys
+		[]byte{5, 0, 0, 0, 0, 0}, // verification needs a new proof
+		[]byte{4, 0, 0, 1, 0xff}, // renounce
+		[]byte{3, 0, 0, 1, 0},    // nobody can update keys
+	))
 	// Ids that differ from the ISM in module type or specifier, and an unknown id.
-	f.Add([]byte{0, 0, 0, 1, 2, 0, 1, 0, 0, 5, 0, 3, 0, 0, 0, 5, 0, 4, 0, 0, 0, 4, 0, 2, 0, 1, 3, 0, 0, 1, 0})
+	f.Add(fuzzutil.Records(zkismFuzzRecord,
+		[]byte{0, 0, 0, 1},
+		[]byte{2, 0, 1, 0, 0},
+		[]byte{5, 0, 3, 0, 0, 0},
+		[]byte{5, 0, 4, 0, 0, 0},
+		[]byte{4, 0, 2, 0, 1},
+		[]byte{3, 0, 0, 1, 0},
+	))
 	f.Fuzz(func(t *testing.T, script []byte) {
 		fx := loadZkismFuzzFixture(t)
 		fuzzZKISMMsgSequence(t, fx, script)
@@ -131,14 +143,7 @@ func FuzzZKISMMsgSequence(f *testing.F) {
 func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 	ctx, _ := fx.base.CacheContext()
 	ms := keeper.NewMsgServerImpl(fx.keeper)
-	next := func() byte {
-		if len(script) == 0 {
-			return 0
-		}
-		b := script[0]
-		script = script[1:]
-		return b
-	}
+	c := fuzzutil.New(script)
 	var isms []*zkismModel
 	byInternal := map[uint64]*zkismModel{}
 
@@ -154,7 +159,9 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 		return nil
 	}
 
-	for step := 0; step < zkismFuzzMaxOps && len(script) > 0; step++ {
+	for step := 0; step < zkismFuzzMaxOps && !c.Exhausted(); step++ {
+		r := c.Record(zkismFuzzRecord)
+		next := r.Byte
 		op, sel, form := next()%6, int(next()), next()
 		id, target, alias := zkismFuzzId(isms, sel, form)
 		if alias {

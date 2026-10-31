@@ -121,6 +121,11 @@ Normal `go test ./app/ante` also runs the targets' seed corpora. Cheap targets
 use a bounded minimization budget so nightly runs keep exploring inputs. Update
 this inventory and the registry together when adding or renaming a target.
 
+Targets that interpret a byte slice as a script of operations should read it
+with [test/util/fuzzutil](../test/util/fuzzutil). Give each operation a
+fixed-width `Consumer.Record`, so editing one operation does not shift the bytes
+of later ones, and lay out seeds with `fuzzutil.Records`.
+
 ## Nightly failures
 
 A crashing input can describe an exploitable bug, so the nightly job writes each
