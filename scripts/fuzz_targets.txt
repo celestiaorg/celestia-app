@@ -44,6 +44,8 @@
 1 ./x/zkism/types       FuzzSP1Groth16VerifyProof           5m 100x
 1 ./x/zkism/internal/groth16 FuzzUnmarshalProof             2m 100x
 1 ./x/fibre/keeper      FuzzPreverifySignatures             5m 100x
+1 ./x/blob/ante         FuzzPFBShareAndGasValidation        2m 100x
+1 ./x/valaddr/types     FuzzValidateHost                    2m 100x
 1 ./x/signal            FuzzSignalTryUpgrade                5m 100x
 1 ./x/forwarding/types  FuzzDeriveForwardingAddress         2m 100x
 1 ./x/forwarding/keeper FuzzForwardingAddressQueryMsgParity 2m 100x
@@ -65,6 +67,7 @@
 2 ./pkg/proof           FuzzProofQueries                    5m -
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
 2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+2 ./app/errors          FuzzParseNodeErrors                 2m 100x
 2 ./fibre/internal/tlsid FuzzVerifyPeerCert                 2m 100x
 2 ./fibre/internal/tlsid FuzzVerifyIdentityExtension        2m 100x
 2 ./app/grpc/tx         FuzzTxStatus                        2m 100x
