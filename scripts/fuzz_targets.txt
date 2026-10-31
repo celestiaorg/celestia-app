@@ -36,6 +36,8 @@
 1 ./x/forwarding/types  FuzzDeriveForwardingAddress         2m 100x
 1 ./x/forwarding/keeper FuzzForwardingAddressQueryMsgParity 2m 100x
 1 ./x/forwarding/keeper FuzzForwardIGPFee                   2m 100x
+1 ./x/fibre/keeper      FuzzEscrowMsgSequence               5m 100x
+1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
@@ -45,6 +47,9 @@
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
 2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+2 ./pkg/rsema1d         FuzzVerifier                        2m 100x
+2 ./pkg/rsema1d         FuzzReconstructor                   2m 100x
+2 ./pkg/rsema1d/rlc     FuzzUnmarshal                       2m 100x
 3 ./pkg/rsema1d/merkle  FuzzRootFromProofs                  2m 100x
 3 ./pkg/rsema1d/rlc     FuzzCompute                         2m 100x
 3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
