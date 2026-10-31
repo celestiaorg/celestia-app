@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/user/utils"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -41,6 +42,16 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 
 	delegatorAddress := getDelegatorAddress(t, &cctx, accounts)
 	validatorAddress := getValidatorAddress(t, &cctx)
+
+	// From v11, the validator must register a Fibre host to earn rewards.
+	registration, err := txClient.SubmitTx(cctx.GoContext(), []types.Msg{&valaddrtypes.MsgSetFibreProviderInfo{
+		Signer: validatorAddress,
+		Host:   "fibre.example.com:7980",
+	}}, user.SetGasLimit(200_000))
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, registration.Code)
+	_, err = cctx.WaitForHeight(registration.Height)
+	require.NoError(t, err)
 
 	delegationAmount := math.NewInt(1_000_000_000_000) // 1,000,000 TIA
 	amount := types.NewCoin(appconsts.BondDenom, delegationAmount)

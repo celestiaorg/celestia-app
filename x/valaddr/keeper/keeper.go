@@ -55,6 +55,12 @@ func (k Keeper) SetFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAddre
 	return store.Set(key, bz)
 }
 
+// HasFibreProviderInfo checks registration presence without treating a storage
+// error as a missing registration. Historical host values remain registered.
+func (k Keeper) HasFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAddress) (bool, error) {
+	return k.storeService.OpenKVStore(ctx).Has(types.GetFibreProviderInfoKey(consAddr))
+}
+
 // GetFibreProviderInfo retrieves the fibre provider info for a validator
 func (k Keeper) GetFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAddress) (types.FibreProviderInfo, bool) {
 	store := k.storeService.OpenKVStore(ctx)
