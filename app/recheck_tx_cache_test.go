@@ -215,6 +215,14 @@ func requireSameCheckState(t *testing.T, a, b *app.App, addrs []sdk.AccAddress, 
 
 func signedPFF(t *testing.T, signer *user.Signer, account string, created time.Time, opts ...user.TxOption) []byte {
 	t.Helper()
+	raw, _, err := signer.CreateTx([]sdk.Msg{pffMsg(t, signer, account, created)}, opts...)
+	require.NoError(t, err)
+	return raw
+}
+
+// pffMsg returns a PayForFibre whose promise account signed.
+func pffMsg(t *testing.T, signer *user.Signer, account string, created time.Time) *fibretypes.MsgPayForFibre {
+	t.Helper()
 	msg := blobfactory.NewMsgPayForFibre(t, signer.Account(account).PubKey().(*secp256k1.PubKey), testutil.ChainID)
 	msg.PaymentPromise.CreationTimestamp = created
 	pp := fibre.PaymentPromise{}
@@ -226,9 +234,7 @@ func signedPFF(t *testing.T, signer *user.Signer, account string, created time.T
 	valSig, err := testutil.GenesisValidatorPrivateKey().Sign(signBytes)
 	require.NoError(t, err)
 	msg.ValidatorSignatures = [][]byte{valSig}
-	raw, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
-	require.NoError(t, err)
-	return raw
+	return msg
 }
 
 func mutate(a *app.App, blockTime time.Time, fn func(ctx sdk.Context)) {
