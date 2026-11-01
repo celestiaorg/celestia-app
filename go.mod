@@ -28,7 +28,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/go-square/v4 v4.2.2
+	github.com/celestiaorg/go-square/v4 v4.3.0
 	github.com/celestiaorg/nmt v0.24.5
 	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cockroachdb/pebble/v2 v2.1.7
@@ -469,6 +469,7 @@ replace (
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.1
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.7
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.0
+	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453

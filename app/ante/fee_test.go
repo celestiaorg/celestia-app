@@ -236,7 +236,7 @@ func TestParseMinGasPrice(t *testing.T) {
 	require.Zero(t, oneCoin.AmountOf(appconsts.BondDenom).BigInt().Int64())
 }
 
-func setUp(t *testing.T) (paramkeeper.Keeper, *minfeekeeper.Keeper, storetypes.CommitMultiStore) {
+func setUp(t testing.TB) (paramkeeper.Keeper, *minfeekeeper.Keeper, storetypes.CommitMultiStore) {
 	storeKey := storetypes.NewKVStoreKey(paramtypes.StoreKey)
 	mfStoreKey := storetypes.NewKVStoreKey(minfeetypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
