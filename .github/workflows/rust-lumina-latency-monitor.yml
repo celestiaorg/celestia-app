@@ -3,7 +3,6 @@ on:
   pull_request:
     paths:
       - tools/lumina-latency-monitor/**
-  merge_group:
   push:
     branches:
       - "v*"
