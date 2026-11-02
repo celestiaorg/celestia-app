@@ -52,7 +52,8 @@ func loadZkismFuzzFixture(t *testing.T) *zkismFuzzFixture {
 	f := &zkismFixture
 	f.initOnce.Do(func() {
 		testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-		f.base = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
+		// Height 1 like the keeper suite: a new ISM's state height is 0, so height 0 would reject its first transition.
+		f.base = testApp.NewUncachedContext(false, cmtproto.Header{Height: 1, Version: version.Consensus{App: appconsts.Version}})
 		f.keeper = testApp.IsmKeeper
 		f.groth16Vkey = readGroth16Vkey(t)
 		var err error
@@ -83,13 +84,14 @@ func loadZkismFuzzFixture(t *testing.T) *zkismFuzzFixture {
 
 // zkismModel is the expected state of one ISM, keyed by its internal id.
 type zkismModel struct {
-	id        util.HexAddress
-	owner     string
-	state     []byte
-	stVkey    []byte
-	smVkey    []byte
-	submitted bool
-	proven    bool // tree state holds the golden membership root
+	id       util.HexAddress
+	owner    string
+	state    []byte
+	stVkey   []byte
+	smVkey   []byte
+	proven   bool     // tree state holds the golden membership root
+	roots    [][]byte // state root history, oldest first
+	histSize uint32   // configured root history size, 0 for the default
 }
 
 // FuzzZKISMMsgSequence drives a fuzz-chosen sequence of zkism messages and
@@ -98,9 +100,11 @@ type zkismModel struct {
 // module-specifier bytes), owners, public-value and proof mutations and
 // message ids. Each message passes ValidateBasic and runs on a cache context
 // kept only on success. A model predicts every outcome exactly: only the owner
-// can update keys or transfer ownership, proofs verify only unmodified and
-// under the matching state and keys, and Verify accepts a message only if it
-// was proven under that ISM.
+// can update keys, transfer ownership or resize the root history, proofs
+// verify only unmodified and under the matching state and keys, at most one
+// proof of each kind lands per block, and Verify accepts a message only if it
+// was proven under that ISM. The golden transition lands at most once per ISM,
+// so the state root history holds at most one root and never needs trimming.
 func FuzzZKISMMsgSequence(f *testing.F) {
 	// Layout: op, ism selector, id form, then op-specific bytes.
 	f.Add([]byte{
@@ -120,6 +124,10 @@ func FuzzZKISMMsgSequence(f *testing.F) {
 		4, 0, 0, 1, 0xff, // renounce
 		3, 0, 0, 1, 0, // nobody can update keys
 	})
+	// Root history sizes: the owner sets 2, a non-owner and a size above the
+	// maximum are rejected, a transition records a root, then the owner restores
+	// the default.
+	f.Add([]byte{0, 0, 0, 0, 6, 0, 0, 0, 1, 6, 0, 0, 1, 1, 6, 0, 0, 0, 0x81, 1, 0, 0, 0, 0, 6, 0, 0, 0, 0})
 	// Ids that differ from the ISM in module type or specifier, and an unknown id.
 	f.Add([]byte{0, 0, 0, 1, 2, 0, 1, 0, 0, 5, 0, 3, 0, 0, 0, 5, 0, 4, 0, 0, 0, 4, 0, 2, 0, 1, 3, 0, 0, 1, 0})
 	f.Fuzz(func(t *testing.T, script []byte) {
@@ -155,7 +163,7 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 	}
 
 	for step := 0; step < zkismFuzzMaxOps && len(script) > 0; step++ {
-		op, sel, form := next()%6, int(next()), next()
+		op, sel, form := next()%7, int(next()), next()
 		id, target, alias := zkismFuzzId(isms, sel, form)
 		if alias {
 			// Excluded pending a fix; see the Linear issue for this target.
@@ -201,7 +209,7 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 			require.Equal(t, want, err == nil, "UpdateInterchainSecurityModule: %v", err)
 			if err == nil {
 				if !bytes.Equal(target.state[:32], fx.stDecoded.NewState[:32]) {
-					target.submitted = false
+					target.roots = append(target.roots, target.state[:32])
 				}
 				target.state = fx.stDecoded.NewState
 			}
@@ -209,11 +217,13 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 			proof, values, mutated := zkismMutate(fx.smProof, fx.smValues, next(), next())
 			msg := &types.MsgSubmitMessages{Id: id, Proof: proof, PublicValues: values}
 			err := deliver(msg, func(c sdk.Context) error { _, err := ms.SubmitMessages(c, msg); return err })
-			want := target != nil && !mutated && !target.submitted && bytes.Equal(target.state[:32], fx.smDecoded.StateRoot[:]) &&
+			// Every step runs at the same height and the golden proof has a fixed
+			// count, so once an ISM is proven no further submission lands.
+			want := target != nil && !mutated && !target.proven && bytes.Equal(target.state[:32], fx.smDecoded.StateRoot[:]) &&
 				bytes.Equal(target.smVkey, fx.messageVkey)
 			require.Equal(t, want, err == nil, "SubmitMessages: %v", err)
 			if err == nil {
-				target.submitted, target.proven = true, true
+				target.proven = true
 			}
 		case 3:
 			sender := fx.owners[int(next())%len(fx.owners)]
@@ -231,7 +241,7 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 			require.Equal(t, want, err == nil, "UpdateVerifyingKeys by %s: %v", sender, err)
 			if err == nil {
 				target.stVkey, target.smVkey = stVkey, smVkey
-				target.submitted, target.proven = false, false
+				target.proven, target.roots = false, nil
 			}
 		case 4:
 			sender := fx.owners[int(next())%len(fx.owners)]
@@ -273,6 +283,16 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 			require.NoError(t, err)
 			want := target.proven && mi == pi && flip == 0 && uint32(pi) < fx.smDecoded.Count
 			require.Equal(t, want, ok, "Verify(message %d, proof %d, flip %d)", mi, pi, flip)
+		case 6:
+			sender := fx.owners[int(next())%len(fx.owners)]
+			size := uint32(next()) << 1 // 0 to 510, so sizes above MaxRootHistorySize are reachable
+			msg := &types.MsgUpdateRootHistorySize{Id: id, Owner: sender, RootHistorySize: size}
+			err := deliver(msg, func(c sdk.Context) error { _, err := ms.UpdateRootHistorySize(c, msg); return err })
+			want := target != nil && target.owner != "" && sender == target.owner && size <= types.MaxRootHistorySize
+			require.Equal(t, want, err == nil, "UpdateRootHistorySize(%d) by %s: %v", size, sender, err)
+			if err == nil {
+				target.histSize = size
+			}
 		}
 		requireZkismModel(t, fx, ctx, isms)
 	}
@@ -330,12 +350,21 @@ func requireZkismModel(t *testing.T, fx *zkismFuzzFixture, ctx sdk.Context, isms
 		exists, err := fx.keeper.Exists(ctx, m.id)
 		require.NoError(t, err)
 		require.True(t, exists)
-		submitted, _ := fx.keeper.GetMessageProofSubmitted(ctx, m.id)
-		require.Equal(t, m.submitted, submitted, "submitted flag of %s", m.id)
+		require.Equal(t, m.histSize, got.RootHistorySize, "root history size of %s", m.id)
 		tree, err := fx.keeper.GetMerkleTreeState(ctx, m.id)
 		require.Equal(t, m.proven, err == nil, "tree state of %s", m.id)
 		if err == nil {
 			require.Equal(t, fx.smDecoded.TreeRoot[:], tree.Root)
 		}
+		stateRoots, err := fx.keeper.GetStateRootHistory(ctx, m.id)
+		require.NoError(t, err)
+		require.Len(t, stateRoots, len(m.roots), "state root history of %s", m.id)
+		for i, entry := range stateRoots {
+			require.Equal(t, m.roots[i], entry.Root, "state root history entry %d of %s", i, m.id)
+		}
+		// A tree state is only replaced by a later submission, which never lands here.
+		treeRoots, err := fx.keeper.GetTreeStateHistory(ctx, m.id)
+		require.NoError(t, err)
+		require.Empty(t, treeRoots, "tree state history of %s", m.id)
 	}
 }
