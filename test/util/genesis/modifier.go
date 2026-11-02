@@ -10,6 +10,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -161,6 +162,31 @@ func StripZkismV11Fields() Modifier {
 			panic(fmt.Sprintf("marshal zkism genesis state: %v", err))
 		}
 		state[zkismtypes.ModuleName] = bz
+		return state
+	}
+}
+
+// StripMintGenesisFields removes the minter and genesis_time fields from the
+// mint genesis state, which binaries for app versions below 11 reject.
+func StripMintGenesisFields() Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		raw, ok := state[minttypes.ModuleName]
+		if !ok {
+			return state
+		}
+
+		var mintState map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &mintState); err != nil {
+			panic(fmt.Sprintf("invalid mint genesis state: %v", err))
+		}
+		delete(mintState, "minter")
+		delete(mintState, "genesis_time")
+
+		bz, err := json.Marshal(mintState)
+		if err != nil {
+			panic(fmt.Sprintf("marshal mint genesis state: %v", err))
+		}
+		state[minttypes.ModuleName] = bz
 		return state
 	}
 }
