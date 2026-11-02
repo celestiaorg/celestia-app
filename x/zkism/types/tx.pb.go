@@ -44,6 +44,8 @@ type MsgCreateInterchainSecurityModule struct {
 	StateTransitionVkey []byte `protobuf:"bytes,5,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
 	// hash-based commitment to the verifier key used for state membership
 	StateMembershipVkey []byte `protobuf:"bytes,6,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
+	// number of replaced roots kept as history; 0 means DefaultRootHistorySize
+	RootHistorySize uint32 `protobuf:"varint,7,opt,name=root_history_size,json=rootHistorySize,proto3" json:"root_history_size,omitempty"`
 }
 
 func (m *MsgCreateInterchainSecurityModule) Reset()         { *m = MsgCreateInterchainSecurityModule{} }
@@ -119,6 +121,13 @@ func (m *MsgCreateInterchainSecurityModule) GetStateMembershipVkey() []byte {
 		return m.StateMembershipVkey
 	}
 	return nil
+}
+
+func (m *MsgCreateInterchainSecurityModule) GetRootHistorySize() uint32 {
+	if m != nil {
+		return m.RootHistorySize
+	}
+	return 0
 }
 
 // MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
@@ -349,8 +358,10 @@ func (m *MsgSubmitMessages) GetSigner() string {
 type MsgSubmitMessagesResponse struct {
 	// state commitment root used to verify messages (hex-encoded)
 	StateRoot string `protobuf:"bytes,1,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// list of authorized messages ids
-	Messages []string `protobuf:"bytes,2,rep,name=messages,proto3" json:"messages,omitempty"`
+	// source chain merkle tree root that messages are verified against (hex-encoded)
+	TreeRoot string `protobuf:"bytes,3,opt,name=tree_root,json=treeRoot,proto3" json:"tree_root,omitempty"`
+	// number of leaves in the source chain merkle tree
+	Count uint32 `protobuf:"varint,4,opt,name=count,proto3" json:"count,omitempty"`
 }
 
 func (m *MsgSubmitMessagesResponse) Reset()         { *m = MsgSubmitMessagesResponse{} }
@@ -393,12 +404,329 @@ func (m *MsgSubmitMessagesResponse) GetStateRoot() string {
 	return ""
 }
 
-func (m *MsgSubmitMessagesResponse) GetMessages() []string {
+func (m *MsgSubmitMessagesResponse) GetTreeRoot() string {
 	if m != nil {
-		return m.Messages
+		return m.TreeRoot
+	}
+	return ""
+}
+
+func (m *MsgSubmitMessagesResponse) GetCount() uint32 {
+	if m != nil {
+		return m.Count
+	}
+	return 0
+}
+
+// MsgUpdateVerifyingKeys is the request type for UpdateVerifyingKeys.
+type MsgUpdateVerifyingKeys struct {
+	// ism identifier
+	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
+	// owner is the ism owner and message sender.
+	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	// the sp1 groth16 verifier key
+	Groth16Vkey []byte `protobuf:"bytes,3,opt,name=groth16_vkey,json=groth16Vkey,proto3" json:"groth16_vkey,omitempty"`
+	// hash-based commitment to the verifier key used for state transition
+	StateTransitionVkey []byte `protobuf:"bytes,4,opt,name=state_transition_vkey,json=stateTransitionVkey,proto3" json:"state_transition_vkey,omitempty"`
+	// hash-based commitment to the verifier key used for state membership
+	StateMembershipVkey []byte `protobuf:"bytes,5,opt,name=state_membership_vkey,json=stateMembershipVkey,proto3" json:"state_membership_vkey,omitempty"`
+}
+
+func (m *MsgUpdateVerifyingKeys) Reset()         { *m = MsgUpdateVerifyingKeys{} }
+func (m *MsgUpdateVerifyingKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateVerifyingKeys) ProtoMessage()    {}
+func (*MsgUpdateVerifyingKeys) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{6}
+}
+func (m *MsgUpdateVerifyingKeys) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateVerifyingKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateVerifyingKeys.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateVerifyingKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateVerifyingKeys.Merge(m, src)
+}
+func (m *MsgUpdateVerifyingKeys) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateVerifyingKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateVerifyingKeys.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateVerifyingKeys proto.InternalMessageInfo
+
+func (m *MsgUpdateVerifyingKeys) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *MsgUpdateVerifyingKeys) GetGroth16Vkey() []byte {
+	if m != nil {
+		return m.Groth16Vkey
 	}
 	return nil
 }
+
+func (m *MsgUpdateVerifyingKeys) GetStateTransitionVkey() []byte {
+	if m != nil {
+		return m.StateTransitionVkey
+	}
+	return nil
+}
+
+func (m *MsgUpdateVerifyingKeys) GetStateMembershipVkey() []byte {
+	if m != nil {
+		return m.StateMembershipVkey
+	}
+	return nil
+}
+
+// MsgUpdateVerifyingKeysResponse is the response type for UpdateVerifyingKeys.
+type MsgUpdateVerifyingKeysResponse struct {
+}
+
+func (m *MsgUpdateVerifyingKeysResponse) Reset()         { *m = MsgUpdateVerifyingKeysResponse{} }
+func (m *MsgUpdateVerifyingKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateVerifyingKeysResponse) ProtoMessage()    {}
+func (*MsgUpdateVerifyingKeysResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{7}
+}
+func (m *MsgUpdateVerifyingKeysResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateVerifyingKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateVerifyingKeysResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateVerifyingKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateVerifyingKeysResponse.Merge(m, src)
+}
+func (m *MsgUpdateVerifyingKeysResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateVerifyingKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateVerifyingKeysResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateVerifyingKeysResponse proto.InternalMessageInfo
+
+// MsgTransferOwnership is the request type for TransferOwnership. Exactly one of new_owner and renounce_ownership
+// must be set. Renouncing ownership is irreversible: no account can update the verifying keys afterwards.
+type MsgTransferOwnership struct {
+	// ism identifier
+	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
+	// owner is the current ism owner and message sender.
+	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	// new_owner is the address that becomes the ism owner. Must be empty when renouncing ownership.
+	NewOwner string `protobuf:"bytes,3,opt,name=new_owner,json=newOwner,proto3" json:"new_owner,omitempty"`
+	// renounce_ownership permanently removes the owner of the ism. Must be false when setting a new owner.
+	RenounceOwnership bool `protobuf:"varint,4,opt,name=renounce_ownership,json=renounceOwnership,proto3" json:"renounce_ownership,omitempty"`
+}
+
+func (m *MsgTransferOwnership) Reset()         { *m = MsgTransferOwnership{} }
+func (m *MsgTransferOwnership) String() string { return proto.CompactTextString(m) }
+func (*MsgTransferOwnership) ProtoMessage()    {}
+func (*MsgTransferOwnership) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{8}
+}
+func (m *MsgTransferOwnership) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgTransferOwnership) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgTransferOwnership.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgTransferOwnership) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgTransferOwnership.Merge(m, src)
+}
+func (m *MsgTransferOwnership) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgTransferOwnership) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgTransferOwnership.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgTransferOwnership proto.InternalMessageInfo
+
+func (m *MsgTransferOwnership) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *MsgTransferOwnership) GetNewOwner() string {
+	if m != nil {
+		return m.NewOwner
+	}
+	return ""
+}
+
+func (m *MsgTransferOwnership) GetRenounceOwnership() bool {
+	if m != nil {
+		return m.RenounceOwnership
+	}
+	return false
+}
+
+// MsgTransferOwnershipResponse is the response type for TransferOwnership.
+type MsgTransferOwnershipResponse struct {
+}
+
+func (m *MsgTransferOwnershipResponse) Reset()         { *m = MsgTransferOwnershipResponse{} }
+func (m *MsgTransferOwnershipResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgTransferOwnershipResponse) ProtoMessage()    {}
+func (*MsgTransferOwnershipResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{9}
+}
+func (m *MsgTransferOwnershipResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgTransferOwnershipResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgTransferOwnershipResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgTransferOwnershipResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgTransferOwnershipResponse.Merge(m, src)
+}
+func (m *MsgTransferOwnershipResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgTransferOwnershipResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgTransferOwnershipResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgTransferOwnershipResponse proto.InternalMessageInfo
+
+// MsgUpdateRootHistorySize is the request type for UpdateRootHistorySize.
+type MsgUpdateRootHistorySize struct {
+	// ism identifier
+	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
+	// owner is the ism owner and message sender.
+	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	// number of replaced roots kept as history; 0 means DefaultRootHistorySize
+	RootHistorySize uint32 `protobuf:"varint,3,opt,name=root_history_size,json=rootHistorySize,proto3" json:"root_history_size,omitempty"`
+}
+
+func (m *MsgUpdateRootHistorySize) Reset()         { *m = MsgUpdateRootHistorySize{} }
+func (m *MsgUpdateRootHistorySize) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateRootHistorySize) ProtoMessage()    {}
+func (*MsgUpdateRootHistorySize) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{10}
+}
+func (m *MsgUpdateRootHistorySize) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateRootHistorySize) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateRootHistorySize.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateRootHistorySize) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateRootHistorySize.Merge(m, src)
+}
+func (m *MsgUpdateRootHistorySize) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateRootHistorySize) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateRootHistorySize.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateRootHistorySize proto.InternalMessageInfo
+
+func (m *MsgUpdateRootHistorySize) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *MsgUpdateRootHistorySize) GetRootHistorySize() uint32 {
+	if m != nil {
+		return m.RootHistorySize
+	}
+	return 0
+}
+
+// MsgUpdateRootHistorySizeResponse is the response type for UpdateRootHistorySize.
+type MsgUpdateRootHistorySizeResponse struct {
+}
+
+func (m *MsgUpdateRootHistorySizeResponse) Reset()         { *m = MsgUpdateRootHistorySizeResponse{} }
+func (m *MsgUpdateRootHistorySizeResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateRootHistorySizeResponse) ProtoMessage()    {}
+func (*MsgUpdateRootHistorySizeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9627100907186bb5, []int{11}
+}
+func (m *MsgUpdateRootHistorySizeResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateRootHistorySizeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateRootHistorySizeResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateRootHistorySizeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateRootHistorySizeResponse.Merge(m, src)
+}
+func (m *MsgUpdateRootHistorySizeResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateRootHistorySizeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateRootHistorySizeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateRootHistorySizeResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*MsgCreateInterchainSecurityModule)(nil), "celestia.zkism.v1.MsgCreateInterchainSecurityModule")
@@ -407,52 +735,74 @@ func init() {
 	proto.RegisterType((*MsgUpdateInterchainSecurityModuleResponse)(nil), "celestia.zkism.v1.MsgUpdateInterchainSecurityModuleResponse")
 	proto.RegisterType((*MsgSubmitMessages)(nil), "celestia.zkism.v1.MsgSubmitMessages")
 	proto.RegisterType((*MsgSubmitMessagesResponse)(nil), "celestia.zkism.v1.MsgSubmitMessagesResponse")
+	proto.RegisterType((*MsgUpdateVerifyingKeys)(nil), "celestia.zkism.v1.MsgUpdateVerifyingKeys")
+	proto.RegisterType((*MsgUpdateVerifyingKeysResponse)(nil), "celestia.zkism.v1.MsgUpdateVerifyingKeysResponse")
+	proto.RegisterType((*MsgTransferOwnership)(nil), "celestia.zkism.v1.MsgTransferOwnership")
+	proto.RegisterType((*MsgTransferOwnershipResponse)(nil), "celestia.zkism.v1.MsgTransferOwnershipResponse")
+	proto.RegisterType((*MsgUpdateRootHistorySize)(nil), "celestia.zkism.v1.MsgUpdateRootHistorySize")
+	proto.RegisterType((*MsgUpdateRootHistorySizeResponse)(nil), "celestia.zkism.v1.MsgUpdateRootHistorySizeResponse")
 }
 
 func init() { proto.RegisterFile("celestia/zkism/v1/tx.proto", fileDescriptor_9627100907186bb5) }
 
 var fileDescriptor_9627100907186bb5 = []byte{
-	// 625 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x55, 0xbd, 0x6e, 0xd4, 0x4c,
-	0x14, 0xdd, 0xd9, 0xfd, 0x92, 0x8f, 0x9d, 0x2c, 0x48, 0x71, 0x02, 0x2c, 0x96, 0x70, 0x92, 0x85,
-	0x22, 0x44, 0xc4, 0xd6, 0x06, 0x44, 0x11, 0x68, 0x92, 0x34, 0x20, 0xe4, 0xc6, 0x09, 0x29, 0x68,
-	0x56, 0xfe, 0xb9, 0xcc, 0x8e, 0xd6, 0xf6, 0x58, 0x33, 0xe3, 0x55, 0x96, 0x2a, 0xe2, 0x09, 0x28,
-	0x28, 0x29, 0x78, 0x84, 0x3c, 0x46, 0xca, 0x94, 0x11, 0x45, 0x84, 0x92, 0x22, 0xaf, 0x81, 0x3c,
-	0xfe, 0x51, 0x42, 0xc8, 0x6e, 0x84, 0x44, 0x41, 0x37, 0xf7, 0xde, 0x73, 0xc7, 0xf7, 0x9e, 0x73,
-	0x6c, 0x63, 0xdd, 0x87, 0x10, 0x84, 0xa4, 0xae, 0xf5, 0x71, 0x40, 0x45, 0x64, 0x0d, 0xbb, 0x96,
-	0xdc, 0x33, 0x13, 0xce, 0x24, 0xd3, 0x66, 0xcb, 0x9a, 0xa9, 0x6a, 0xe6, 0xb0, 0xab, 0xdf, 0xf7,
-	0x99, 0x88, 0x98, 0xb0, 0x22, 0x41, 0x32, 0x68, 0x24, 0x48, 0x8e, 0xd5, 0xe7, 0x09, 0x23, 0x4c,
-	0x1d, 0xad, 0xec, 0x94, 0x67, 0x3b, 0x5f, 0xeb, 0x78, 0xc9, 0x16, 0x64, 0x8b, 0x83, 0x2b, 0xe1,
-	0x4d, 0x2c, 0x81, 0xfb, 0x7d, 0x97, 0xc6, 0xdb, 0xe0, 0xa7, 0x9c, 0xca, 0x91, 0xcd, 0x82, 0x34,
-	0x04, 0xad, 0x8d, 0xff, 0xf7, 0x33, 0x04, 0xe3, 0x6d, 0xb4, 0x88, 0x96, 0x9b, 0x4e, 0x19, 0x6a,
-	0xf3, 0x78, 0x4a, 0x48, 0x57, 0x42, 0xbb, 0xbe, 0x88, 0x96, 0x5b, 0x4e, 0x1e, 0x68, 0x26, 0x9e,
-	0x8b, 0x80, 0x0f, 0x42, 0xe8, 0x49, 0x0e, 0xd0, 0x73, 0x83, 0x80, 0x83, 0x10, 0xed, 0x86, 0xc2,
-	0xcc, 0xe6, 0xa5, 0x1d, 0x0e, 0xb0, 0x91, 0x17, 0xb4, 0x25, 0xdc, 0x22, 0x9c, 0xc9, 0x7e, 0xf7,
-	0x45, 0x6f, 0x38, 0x80, 0x51, 0xfb, 0x3f, 0x05, 0x9c, 0x29, 0x72, 0xbb, 0x03, 0x18, 0x69, 0x6b,
-	0xf8, 0xae, 0xba, 0xbb, 0x27, 0xb9, 0x1b, 0x0b, 0x2a, 0x29, 0x8b, 0x73, 0xec, 0x94, 0xc2, 0xce,
-	0xa9, 0xe2, 0x4e, 0x55, 0xbb, 0xdc, 0x13, 0x41, 0xe4, 0x01, 0x17, 0x7d, 0x9a, 0xe4, 0x3d, 0xd3,
-	0x17, 0x7a, 0xec, 0xaa, 0x96, 0xf5, 0xac, 0xb7, 0x3e, 0x9d, 0x1f, 0xac, 0x94, 0xeb, 0x75, 0xf6,
-	0x11, 0x7e, 0x32, 0x91, 0x1e, 0x07, 0x44, 0xc2, 0x62, 0x01, 0xda, 0x36, 0xae, 0xd3, 0x20, 0x67,
-	0x68, 0x73, 0xeb, 0xf0, 0x64, 0xa1, 0xf6, 0xfd, 0x64, 0xe1, 0x25, 0xa1, 0xb2, 0x9f, 0x7a, 0xa6,
-	0xcf, 0x22, 0xcb, 0xf3, 0x93, 0x55, 0x1a, 0xc7, 0x6c, 0xe8, 0x66, 0x23, 0x0a, 0xab, 0x3f, 0x4a,
-	0x80, 0x87, 0x6e, 0x0c, 0xab, 0x85, 0x68, 0xa9, 0xa4, 0xa1, 0xf9, 0x1a, 0xf6, 0x0a, 0x5e, 0x9c,
-	0x3a, 0x0d, 0x3a, 0xc7, 0x48, 0x29, 0xf4, 0x2e, 0x09, 0xc6, 0x29, 0xf4, 0x37, 0x1e, 0x9d, 0x89,
-	0x9b, 0x70, 0xc6, 0x3e, 0x94, 0xe2, 0xaa, 0x40, 0x7b, 0x84, 0x6f, 0x27, 0xa9, 0x17, 0x52, 0xbf,
-	0x37, 0x74, 0xc3, 0x14, 0x4a, 0x59, 0x5b, 0x79, 0x72, 0x57, 0xe5, 0xb4, 0x7b, 0x78, 0x5a, 0x50,
-	0x12, 0x03, 0x57, 0x5a, 0x36, 0x9d, 0x22, 0x5a, 0x9f, 0xc9, 0xe8, 0x2d, 0x82, 0xce, 0x86, 0x22,
-	0x77, 0xfc, 0x66, 0x15, 0xb9, 0x95, 0xd3, 0xd0, 0x05, 0xa7, 0x75, 0x0e, 0x11, 0x9e, 0xb5, 0x05,
-	0xd9, 0x4e, 0xbd, 0x88, 0x4a, 0x1b, 0x84, 0x70, 0x09, 0x88, 0x7f, 0x93, 0x8d, 0x5d, 0xfc, 0xe0,
-	0xca, 0x26, 0xd5, 0xf6, 0x0f, 0x31, 0xce, 0xad, 0xcc, 0x19, 0x93, 0xc5, 0x4b, 0xd8, 0x54, 0x19,
-	0x87, 0x31, 0xa9, 0xe9, 0xf8, 0x56, 0x54, 0xb4, 0xb4, 0xeb, 0x8b, 0x8d, 0xe5, 0xa6, 0x53, 0xc5,
-	0x6b, 0xdf, 0x1a, 0xb8, 0x61, 0x0b, 0xa2, 0x7d, 0x41, 0xd8, 0x98, 0xf0, 0x9e, 0x3f, 0x37, 0xaf,
-	0x7c, 0x50, 0xcc, 0x89, 0xf6, 0xd7, 0x5f, 0xfd, 0x49, 0x57, 0xb5, 0x59, 0x36, 0xd6, 0x04, 0x73,
-	0x5f, 0x33, 0xd6, 0xf8, 0xae, 0xeb, 0xc6, 0xba, 0xa1, 0xdd, 0x02, 0x7c, 0xe7, 0x17, 0x53, 0x3d,
-	0xfe, 0xfd, 0x7d, 0x97, 0x51, 0xfa, 0xd3, 0x9b, 0xa0, 0xca, 0xa7, 0xe8, 0x53, 0xfb, 0xe7, 0x07,
-	0x2b, 0x68, 0xf3, 0xed, 0xe1, 0xa9, 0x81, 0x8e, 0x4e, 0x0d, 0xf4, 0xe3, 0xd4, 0x40, 0x9f, 0xcf,
-	0x8c, 0xda, 0xd1, 0x99, 0x51, 0x3b, 0x3e, 0x33, 0x6a, 0xef, 0xbb, 0x17, 0x5c, 0x5b, 0x5e, 0xcc,
-	0x38, 0xa9, 0xce, 0xab, 0x6e, 0x92, 0x58, 0x7b, 0xc5, 0xaf, 0x41, 0x8e, 0x12, 0x10, 0xde, 0xb4,
-	0xfa, 0xb2, 0x3f, 0xfb, 0x19, 0x00, 0x00, 0xff, 0xff, 0x4b, 0x3d, 0xcb, 0x03, 0x39, 0x06, 0x00,
-	0x00,
+	// 882 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x56, 0xc1, 0x6e, 0xdb, 0x46,
+	0x10, 0x35, 0x25, 0xcb, 0xb1, 0x26, 0x76, 0x5b, 0xd1, 0x4e, 0xaa, 0x32, 0x2d, 0xa3, 0xb0, 0x05,
+	0xea, 0xb8, 0xb5, 0x08, 0x25, 0x45, 0x0f, 0x6e, 0x2f, 0x49, 0x2e, 0x69, 0x03, 0xa1, 0x00, 0x9d,
+	0xfa, 0xd0, 0x0b, 0x41, 0x51, 0x63, 0x6a, 0x61, 0x91, 0x4b, 0xec, 0x2e, 0x65, 0xd3, 0x40, 0x81,
+	0xa0, 0x5f, 0xd0, 0x43, 0x4f, 0xfd, 0x8a, 0xfc, 0x40, 0xef, 0x3e, 0xe6, 0x98, 0xf6, 0x10, 0x14,
+	0xf6, 0x21, 0x9f, 0xd1, 0x82, 0xbb, 0x24, 0x61, 0x45, 0xb4, 0xec, 0x04, 0x48, 0x80, 0xdc, 0x38,
+	0x33, 0x6f, 0x76, 0x66, 0xde, 0xcc, 0xce, 0x12, 0x0c, 0x1f, 0xc7, 0xc8, 0x05, 0xf1, 0xec, 0xa3,
+	0x7d, 0xc2, 0x43, 0x7b, 0xd2, 0xb3, 0xc5, 0x61, 0x37, 0x66, 0x54, 0x50, 0xbd, 0x55, 0xd8, 0xba,
+	0xd2, 0xd6, 0x9d, 0xf4, 0x8c, 0x8f, 0x7d, 0xca, 0x43, 0xca, 0xed, 0x90, 0x07, 0x19, 0x34, 0xe4,
+	0x81, 0xc2, 0x1a, 0xeb, 0x01, 0x0d, 0xa8, 0xfc, 0xb4, 0xb3, 0x2f, 0xa5, 0xb5, 0x8e, 0x6b, 0x70,
+	0xab, 0xcf, 0x83, 0x07, 0x0c, 0x3d, 0x81, 0x3f, 0x44, 0x02, 0x99, 0x3f, 0xf2, 0x48, 0xb4, 0x83,
+	0x7e, 0xc2, 0x88, 0x48, 0xfb, 0x74, 0x98, 0x8c, 0x51, 0x6f, 0xc3, 0x15, 0x3f, 0x43, 0x50, 0xd6,
+	0xd6, 0x3a, 0xda, 0x46, 0xd3, 0x29, 0x44, 0x7d, 0x1d, 0x1a, 0x5c, 0x78, 0x02, 0xdb, 0xb5, 0x8e,
+	0xb6, 0xb1, 0xe2, 0x28, 0x41, 0xef, 0xc2, 0x5a, 0x88, 0x6c, 0x7f, 0x8c, 0xae, 0x60, 0x88, 0xae,
+	0x37, 0x1c, 0x32, 0xe4, 0xbc, 0x5d, 0x97, 0x98, 0x96, 0x32, 0x3d, 0x66, 0x88, 0xf7, 0x94, 0x41,
+	0xbf, 0x05, 0x2b, 0x01, 0xa3, 0x62, 0xd4, 0xfb, 0xd6, 0x9d, 0xec, 0x63, 0xda, 0x5e, 0x94, 0xc0,
+	0xab, 0xb9, 0x6e, 0x77, 0x1f, 0x53, 0xfd, 0x0e, 0x5c, 0x93, 0x67, 0xbb, 0x82, 0x79, 0x11, 0x27,
+	0x82, 0xd0, 0x48, 0x61, 0x1b, 0x12, 0xbb, 0x26, 0x8d, 0x8f, 0x4b, 0xdb, 0xb4, 0x4f, 0x88, 0xe1,
+	0x00, 0x19, 0x1f, 0x91, 0x58, 0xf9, 0x2c, 0x9d, 0xf1, 0xe9, 0x97, 0x36, 0xe9, 0xb3, 0x09, 0x2d,
+	0x46, 0xa9, 0x70, 0x47, 0x84, 0x0b, 0xca, 0x52, 0x97, 0x93, 0x23, 0x6c, 0x5f, 0xe9, 0x68, 0x1b,
+	0xab, 0xce, 0x87, 0x99, 0xe1, 0xa1, 0xd2, 0xef, 0x90, 0x23, 0xdc, 0x5e, 0xf9, 0xed, 0xe5, 0xd3,
+	0xcd, 0x82, 0x0a, 0xeb, 0x89, 0x06, 0xb7, 0x2f, 0xa4, 0xd2, 0x41, 0x1e, 0xd3, 0x88, 0xa3, 0xbe,
+	0x03, 0x35, 0x32, 0x54, 0x6c, 0xde, 0x7f, 0x70, 0xfc, 0xe2, 0xe6, 0xc2, 0x3f, 0x2f, 0x6e, 0x7e,
+	0x17, 0x10, 0x31, 0x4a, 0x06, 0x5d, 0x9f, 0x86, 0xf6, 0xc0, 0x8f, 0xb7, 0x48, 0x14, 0xd1, 0x89,
+	0x97, 0x95, 0xc3, 0xed, 0x51, 0x1a, 0x23, 0x1b, 0x7b, 0x11, 0x6e, 0xe5, 0x0d, 0x4e, 0x04, 0x19,
+	0x77, 0x1f, 0xe2, 0x61, 0xce, 0xa1, 0x53, 0x23, 0x43, 0xeb, 0xb9, 0x26, 0xbb, 0xf9, 0x73, 0x3c,
+	0x9c, 0xd7, 0xcd, 0xb7, 0x11, 0x3a, 0x1b, 0x84, 0x98, 0x51, 0xba, 0x57, 0x0c, 0x82, 0x14, 0xf4,
+	0xcf, 0x61, 0x35, 0x4e, 0x06, 0x63, 0xe2, 0xbb, 0x13, 0x6f, 0x9c, 0x60, 0x31, 0x02, 0x2b, 0x4a,
+	0xb9, 0x2b, 0x75, 0xfa, 0x75, 0x58, 0xe2, 0x24, 0x88, 0x90, 0xc9, 0xbe, 0x37, 0x9d, 0x5c, 0xda,
+	0xbe, 0x9a, 0xd1, 0x9b, 0x0b, 0xd6, 0x3d, 0x49, 0xee, 0xfc, 0xca, 0x4a, 0x72, 0xcb, 0xa9, 0xd4,
+	0xce, 0x4c, 0xa5, 0x75, 0xac, 0x41, 0xab, 0xcf, 0x83, 0x9d, 0x64, 0x10, 0x12, 0xd1, 0x47, 0xce,
+	0xbd, 0x00, 0xf9, 0xfb, 0xc9, 0xc6, 0xaf, 0xf0, 0xc9, 0x4c, 0x25, 0x65, 0xf5, 0x9f, 0x01, 0xa8,
+	0xb1, 0xcf, 0xe6, 0x35, 0xbf, 0xb0, 0x4d, 0xa9, 0x71, 0x28, 0x15, 0xfa, 0x0d, 0x68, 0xca, 0x5b,
+	0x29, 0xad, 0x75, 0x69, 0x5d, 0xce, 0x14, 0xd2, 0xb8, 0x0e, 0x0d, 0x9f, 0x26, 0x91, 0x90, 0xc1,
+	0x57, 0x1d, 0x25, 0xfc, 0xb8, 0xb8, 0x5c, 0xfb, 0xa8, 0xee, 0x2c, 0x87, 0x79, 0x24, 0xeb, 0xcf,
+	0x1a, 0x5c, 0x2f, 0xbb, 0xb1, 0x8b, 0x8c, 0xec, 0xa5, 0x24, 0x0a, 0x1e, 0x61, 0xfa, 0xf6, 0xe8,
+	0xa4, 0x07, 0x19, 0x25, 0x35, 0x99, 0xae, 0x12, 0x66, 0xb6, 0x46, 0xfd, 0x35, 0xb6, 0xc6, 0xe2,
+	0x1b, 0x6c, 0x8d, 0xc6, 0xb9, 0x5b, 0x63, 0x1b, 0xb2, 0xe6, 0xa8, 0xb4, 0xac, 0x0e, 0x98, 0xd5,
+	0xdc, 0x14, 0x0d, 0xb2, 0xfe, 0xd6, 0x60, 0xbd, 0xcf, 0x03, 0x19, 0x77, 0x0f, 0xd9, 0x4f, 0x99,
+	0x5b, 0x76, 0xd4, 0xbb, 0x24, 0xef, 0x06, 0x34, 0x23, 0x3c, 0x70, 0x95, 0x25, 0x9f, 0x82, 0x08,
+	0x0f, 0x64, 0x2e, 0xfa, 0x16, 0xe8, 0x0c, 0x23, 0x9a, 0x44, 0x3e, 0x2a, 0x44, 0x96, 0x9d, 0xe4,
+	0x6c, 0xd9, 0x69, 0x15, 0x96, 0x32, 0xed, 0xa9, 0xea, 0x4d, 0xf8, 0xb4, 0xaa, 0xb4, 0xb2, 0xf6,
+	0xbf, 0x34, 0x68, 0x97, 0xf4, 0x38, 0xd3, 0x0b, 0xf5, 0x5d, 0xd6, 0x5f, 0xb9, 0xe7, 0xeb, 0xd5,
+	0x7b, 0xfe, 0x6c, 0x7d, 0x16, 0x74, 0xce, 0x4b, 0xbf, 0xa8, 0xf1, 0xce, 0x7f, 0x0d, 0xa8, 0xf7,
+	0x79, 0xa0, 0xff, 0xa1, 0x81, 0x79, 0xc1, 0xcb, 0xfa, 0x4d, 0x77, 0xe6, 0x09, 0xef, 0x5e, 0xf8,
+	0x88, 0x18, 0xdf, 0xbf, 0x89, 0x57, 0xb9, 0x1f, 0xb2, 0xb4, 0x2e, 0x78, 0x22, 0xce, 0x49, 0x6b,
+	0xbe, 0xd7, 0x79, 0x69, 0x5d, 0x72, 0x69, 0x0f, 0xe1, 0x83, 0x57, 0x56, 0xf3, 0x17, 0xd5, 0xe7,
+	0x4d, 0xa3, 0x8c, 0xaf, 0x2f, 0x83, 0x2a, 0xa3, 0x70, 0x58, 0xab, 0x5a, 0x5b, 0xb7, 0xe7, 0xa5,
+	0x3e, 0x05, 0x35, 0x7a, 0x97, 0x86, 0x96, 0x41, 0x43, 0x68, 0xcd, 0x5e, 0xf6, 0x2f, 0xab, 0xcf,
+	0x99, 0x01, 0x1a, 0xf6, 0x25, 0x81, 0x65, 0xb8, 0x14, 0xae, 0x55, 0xdf, 0xaf, 0xaf, 0xe6, 0xa5,
+	0xfe, 0x0a, 0xd8, 0xb8, 0xfb, 0x1a, 0xe0, 0x22, 0xb4, 0xd1, 0x78, 0xf2, 0xf2, 0xe9, 0xa6, 0x76,
+	0xff, 0xd1, 0xf1, 0x89, 0xa9, 0x3d, 0x3b, 0x31, 0xb5, 0x7f, 0x4f, 0x4c, 0xed, 0xf7, 0x53, 0x73,
+	0xe1, 0xd9, 0xa9, 0xb9, 0xf0, 0xfc, 0xd4, 0x5c, 0xf8, 0xa5, 0x77, 0xe6, 0x3a, 0x17, 0xe7, 0x53,
+	0x16, 0x94, 0xdf, 0x5b, 0x5e, 0x1c, 0xdb, 0x87, 0xf9, 0xbf, 0xae, 0x48, 0x63, 0xe4, 0x83, 0x25,
+	0xf9, 0xab, 0x7a, 0xf7, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x5b, 0xd0, 0xde, 0x2b, 0x0a, 0x0b,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -473,6 +823,12 @@ type MsgClient interface {
 	UpdateInterchainSecurityModule(ctx context.Context, in *MsgUpdateInterchainSecurityModule, opts ...grpc.CallOption) (*MsgUpdateInterchainSecurityModuleResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(ctx context.Context, in *MsgSubmitMessages, opts ...grpc.CallOption) (*MsgSubmitMessagesResponse, error)
+	// UpdateVerifyingKeys defines the rpc method for the ISM owner to replace the verifying keys of a zk ISM.
+	UpdateVerifyingKeys(ctx context.Context, in *MsgUpdateVerifyingKeys, opts ...grpc.CallOption) (*MsgUpdateVerifyingKeysResponse, error)
+	// TransferOwnership defines the rpc method for the ISM owner to transfer or renounce ownership of a zk ISM.
+	TransferOwnership(ctx context.Context, in *MsgTransferOwnership, opts ...grpc.CallOption) (*MsgTransferOwnershipResponse, error)
+	// UpdateRootHistorySize defines the rpc method for the ISM owner to change how many replaced roots a zk ISM keeps.
+	UpdateRootHistorySize(ctx context.Context, in *MsgUpdateRootHistorySize, opts ...grpc.CallOption) (*MsgUpdateRootHistorySizeResponse, error)
 }
 
 type msgClient struct {
@@ -510,6 +866,33 @@ func (c *msgClient) SubmitMessages(ctx context.Context, in *MsgSubmitMessages, o
 	return out, nil
 }
 
+func (c *msgClient) UpdateVerifyingKeys(ctx context.Context, in *MsgUpdateVerifyingKeys, opts ...grpc.CallOption) (*MsgUpdateVerifyingKeysResponse, error) {
+	out := new(MsgUpdateVerifyingKeysResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateVerifyingKeys", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) TransferOwnership(ctx context.Context, in *MsgTransferOwnership, opts ...grpc.CallOption) (*MsgTransferOwnershipResponse, error) {
+	out := new(MsgTransferOwnershipResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/TransferOwnership", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) UpdateRootHistorySize(ctx context.Context, in *MsgUpdateRootHistorySize, opts ...grpc.CallOption) (*MsgUpdateRootHistorySizeResponse, error) {
+	out := new(MsgUpdateRootHistorySizeResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Msg/UpdateRootHistorySize", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// CreateInterchainSecurityModule defines the rpc method for creating a new zk ISM.
@@ -518,6 +901,12 @@ type MsgServer interface {
 	UpdateInterchainSecurityModule(context.Context, *MsgUpdateInterchainSecurityModule) (*MsgUpdateInterchainSecurityModuleResponse, error)
 	// SubmitMessages defines the rpc method for verifying state membership of messages.
 	SubmitMessages(context.Context, *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error)
+	// UpdateVerifyingKeys defines the rpc method for the ISM owner to replace the verifying keys of a zk ISM.
+	UpdateVerifyingKeys(context.Context, *MsgUpdateVerifyingKeys) (*MsgUpdateVerifyingKeysResponse, error)
+	// TransferOwnership defines the rpc method for the ISM owner to transfer or renounce ownership of a zk ISM.
+	TransferOwnership(context.Context, *MsgTransferOwnership) (*MsgTransferOwnershipResponse, error)
+	// UpdateRootHistorySize defines the rpc method for the ISM owner to change how many replaced roots a zk ISM keeps.
+	UpdateRootHistorySize(context.Context, *MsgUpdateRootHistorySize) (*MsgUpdateRootHistorySizeResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -532,6 +921,15 @@ func (*UnimplementedMsgServer) UpdateInterchainSecurityModule(ctx context.Contex
 }
 func (*UnimplementedMsgServer) SubmitMessages(ctx context.Context, req *MsgSubmitMessages) (*MsgSubmitMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
+}
+func (*UnimplementedMsgServer) UpdateVerifyingKeys(ctx context.Context, req *MsgUpdateVerifyingKeys) (*MsgUpdateVerifyingKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVerifyingKeys not implemented")
+}
+func (*UnimplementedMsgServer) TransferOwnership(ctx context.Context, req *MsgTransferOwnership) (*MsgTransferOwnershipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TransferOwnership not implemented")
+}
+func (*UnimplementedMsgServer) UpdateRootHistorySize(ctx context.Context, req *MsgUpdateRootHistorySize) (*MsgUpdateRootHistorySizeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateRootHistorySize not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -592,6 +990,60 @@ func _Msg_SubmitMessages_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_UpdateVerifyingKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateVerifyingKeys)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateVerifyingKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateVerifyingKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateVerifyingKeys(ctx, req.(*MsgUpdateVerifyingKeys))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_TransferOwnership_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgTransferOwnership)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).TransferOwnership(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Msg/TransferOwnership",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).TransferOwnership(ctx, req.(*MsgTransferOwnership))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_UpdateRootHistorySize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateRootHistorySize)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateRootHistorySize(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Msg/UpdateRootHistorySize",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateRootHistorySize(ctx, req.(*MsgUpdateRootHistorySize))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Msg_serviceDesc = _Msg_serviceDesc
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.zkism.v1.Msg",
@@ -608,6 +1060,18 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitMessages",
 			Handler:    _Msg_SubmitMessages_Handler,
+		},
+		{
+			MethodName: "UpdateVerifyingKeys",
+			Handler:    _Msg_UpdateVerifyingKeys_Handler,
+		},
+		{
+			MethodName: "TransferOwnership",
+			Handler:    _Msg_TransferOwnership_Handler,
+		},
+		{
+			MethodName: "UpdateRootHistorySize",
+			Handler:    _Msg_UpdateRootHistorySize_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -634,6 +1098,11 @@ func (m *MsgCreateInterchainSecurityModule) MarshalToSizedBuffer(dAtA []byte) (i
 	_ = i
 	var l int
 	_ = l
+	if m.RootHistorySize != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.RootHistorySize))
+		i--
+		dAtA[i] = 0x38
+	}
 	if len(m.StateMembershipVkey) > 0 {
 		i -= len(m.StateMembershipVkey)
 		copy(dAtA[i:], m.StateMembershipVkey)
@@ -870,14 +1339,17 @@ func (m *MsgSubmitMessagesResponse) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	_ = i
 	var l int
 	_ = l
-	if len(m.Messages) > 0 {
-		for iNdEx := len(m.Messages) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Messages[iNdEx])
-			copy(dAtA[i:], m.Messages[iNdEx])
-			i = encodeVarintTx(dAtA, i, uint64(len(m.Messages[iNdEx])))
-			i--
-			dAtA[i] = 0x12
-		}
+	if m.Count != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.Count))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.TreeRoot) > 0 {
+		i -= len(m.TreeRoot)
+		copy(dAtA[i:], m.TreeRoot)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.TreeRoot)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.StateRoot) > 0 {
 		i -= len(m.StateRoot)
@@ -886,6 +1358,238 @@ func (m *MsgSubmitMessagesResponse) MarshalToSizedBuffer(dAtA []byte) (int, erro
 		i--
 		dAtA[i] = 0xa
 	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateVerifyingKeys) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateVerifyingKeys) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateVerifyingKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.StateMembershipVkey) > 0 {
+		i -= len(m.StateMembershipVkey)
+		copy(dAtA[i:], m.StateMembershipVkey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.StateMembershipVkey)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.StateTransitionVkey) > 0 {
+		i -= len(m.StateTransitionVkey)
+		copy(dAtA[i:], m.StateTransitionVkey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.StateTransitionVkey)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Groth16Vkey) > 0 {
+		i -= len(m.Groth16Vkey)
+		copy(dAtA[i:], m.Groth16Vkey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Groth16Vkey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Owner) > 0 {
+		i -= len(m.Owner)
+		copy(dAtA[i:], m.Owner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Owner)))
+		i--
+		dAtA[i] = 0x12
+	}
+	{
+		size := m.Id.Size()
+		i -= size
+		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateVerifyingKeysResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateVerifyingKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateVerifyingKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgTransferOwnership) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgTransferOwnership) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgTransferOwnership) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.RenounceOwnership {
+		i--
+		if m.RenounceOwnership {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.NewOwner) > 0 {
+		i -= len(m.NewOwner)
+		copy(dAtA[i:], m.NewOwner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewOwner)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Owner) > 0 {
+		i -= len(m.Owner)
+		copy(dAtA[i:], m.Owner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Owner)))
+		i--
+		dAtA[i] = 0x12
+	}
+	{
+		size := m.Id.Size()
+		i -= size
+		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgTransferOwnershipResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgTransferOwnershipResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgTransferOwnershipResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateRootHistorySize) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateRootHistorySize) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateRootHistorySize) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.RootHistorySize != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.RootHistorySize))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.Owner) > 0 {
+		i -= len(m.Owner)
+		copy(dAtA[i:], m.Owner)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Owner)))
+		i--
+		dAtA[i] = 0x12
+	}
+	{
+		size := m.Id.Size()
+		i -= size
+		if _, err := m.Id.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateRootHistorySizeResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateRootHistorySizeResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateRootHistorySizeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
 	return len(dAtA) - i, nil
 }
 
@@ -929,6 +1633,9 @@ func (m *MsgCreateInterchainSecurityModule) Size() (n int) {
 	l = len(m.StateMembershipVkey)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.RootHistorySize != 0 {
+		n += 1 + sovTx(uint64(m.RootHistorySize))
 	}
 	return n
 }
@@ -1013,12 +1720,107 @@ func (m *MsgSubmitMessagesResponse) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	if len(m.Messages) > 0 {
-		for _, s := range m.Messages {
-			l = len(s)
-			n += 1 + l + sovTx(uint64(l))
-		}
+	l = len(m.TreeRoot)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
 	}
+	if m.Count != 0 {
+		n += 1 + sovTx(uint64(m.Count))
+	}
+	return n
+}
+
+func (m *MsgUpdateVerifyingKeys) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Id.Size()
+	n += 1 + l + sovTx(uint64(l))
+	l = len(m.Owner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.Groth16Vkey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.StateTransitionVkey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.StateMembershipVkey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgUpdateVerifyingKeysResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgTransferOwnership) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Id.Size()
+	n += 1 + l + sovTx(uint64(l))
+	l = len(m.Owner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.NewOwner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.RenounceOwnership {
+		n += 2
+	}
+	return n
+}
+
+func (m *MsgTransferOwnershipResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgUpdateRootHistorySize) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Id.Size()
+	n += 1 + l + sovTx(uint64(l))
+	l = len(m.Owner)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.RootHistorySize != 0 {
+		n += 1 + sovTx(uint64(m.RootHistorySize))
+	}
+	return n
+}
+
+func (m *MsgUpdateRootHistorySizeResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	return n
 }
 
@@ -1259,6 +2061,25 @@ func (m *MsgCreateInterchainSecurityModule) Unmarshal(dAtA []byte) error {
 				m.StateMembershipVkey = []byte{}
 			}
 			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RootHistorySize", wireType)
+			}
+			m.RootHistorySize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RootHistorySize |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1877,9 +2698,9 @@ func (m *MsgSubmitMessagesResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.StateRoot = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 2:
+		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Messages", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TreeRoot", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1907,8 +2728,698 @@ func (m *MsgSubmitMessagesResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Messages = append(m.Messages, string(dAtA[iNdEx:postIndex]))
+			m.TreeRoot = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Count", wireType)
+			}
+			m.Count = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Count |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateVerifyingKeys) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateVerifyingKeys: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateVerifyingKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Owner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Groth16Vkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Groth16Vkey = append(m.Groth16Vkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.Groth16Vkey == nil {
+				m.Groth16Vkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateTransitionVkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateTransitionVkey = append(m.StateTransitionVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateTransitionVkey == nil {
+				m.StateTransitionVkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateMembershipVkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateMembershipVkey = append(m.StateMembershipVkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateMembershipVkey == nil {
+				m.StateMembershipVkey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateVerifyingKeysResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateVerifyingKeysResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateVerifyingKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgTransferOwnership) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgTransferOwnership: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgTransferOwnership: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Owner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewOwner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewOwner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RenounceOwnership", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.RenounceOwnership = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgTransferOwnershipResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgTransferOwnershipResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgTransferOwnershipResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateRootHistorySize) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateRootHistorySize: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateRootHistorySize: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Owner = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RootHistorySize", wireType)
+			}
+			m.RootHistorySize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RootHistorySize |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateRootHistorySizeResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateRootHistorySizeResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateRootHistorySizeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])

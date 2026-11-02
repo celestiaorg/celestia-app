@@ -223,26 +223,24 @@ func (m *QueryIsmsResponse) GetPagination() *query.PageResponse {
 	return nil
 }
 
-// QueryMessagesRequest is the request type for the Messages rpc method.
-type QueryMessagesRequest struct {
+// QueryMerkleTreeStateRequest is the request type for the MerkleTreeState rpc method.
+type QueryMerkleTreeStateRequest struct {
 	// id is the hex-encoded ISM identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// pagination defines an optional pagination for the request.
-	Pagination *query.PageRequest `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 }
 
-func (m *QueryMessagesRequest) Reset()         { *m = QueryMessagesRequest{} }
-func (m *QueryMessagesRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryMessagesRequest) ProtoMessage()    {}
-func (*QueryMessagesRequest) Descriptor() ([]byte, []int) {
+func (m *QueryMerkleTreeStateRequest) Reset()         { *m = QueryMerkleTreeStateRequest{} }
+func (m *QueryMerkleTreeStateRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryMerkleTreeStateRequest) ProtoMessage()    {}
+func (*QueryMerkleTreeStateRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f8d70e04d17b4c4f, []int{4}
 }
-func (m *QueryMessagesRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryMerkleTreeStateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryMessagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryMerkleTreeStateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryMessagesRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryMerkleTreeStateRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -252,52 +250,43 @@ func (m *QueryMessagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
-func (m *QueryMessagesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryMessagesRequest.Merge(m, src)
+func (m *QueryMerkleTreeStateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryMerkleTreeStateRequest.Merge(m, src)
 }
-func (m *QueryMessagesRequest) XXX_Size() int {
+func (m *QueryMerkleTreeStateRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryMessagesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryMessagesRequest.DiscardUnknown(m)
+func (m *QueryMerkleTreeStateRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryMerkleTreeStateRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryMessagesRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryMerkleTreeStateRequest proto.InternalMessageInfo
 
-func (m *QueryMessagesRequest) GetId() string {
+func (m *QueryMerkleTreeStateRequest) GetId() string {
 	if m != nil {
 		return m.Id
 	}
 	return ""
 }
 
-func (m *QueryMessagesRequest) GetPagination() *query.PageRequest {
-	if m != nil {
-		return m.Pagination
-	}
-	return nil
+// QueryMerkleTreeStateResponse is the response type for the MerkleTreeState rpc method.
+type QueryMerkleTreeStateResponse struct {
+	// tree_state is the latest proven source chain merkle tree state.
+	TreeState MerkleTreeState `protobuf:"bytes,1,opt,name=tree_state,json=treeState,proto3" json:"tree_state"`
 }
 
-// QueryMessagesResponse is the response type for the Messages rpc method.
-type QueryMessagesResponse struct {
-	// messages is a list of authorized Hyperlane message IDs.
-	Messages []string `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	// pagination defines the pagination in the response.
-	Pagination *query.PageResponse `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
-}
-
-func (m *QueryMessagesResponse) Reset()         { *m = QueryMessagesResponse{} }
-func (m *QueryMessagesResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryMessagesResponse) ProtoMessage()    {}
-func (*QueryMessagesResponse) Descriptor() ([]byte, []int) {
+func (m *QueryMerkleTreeStateResponse) Reset()         { *m = QueryMerkleTreeStateResponse{} }
+func (m *QueryMerkleTreeStateResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryMerkleTreeStateResponse) ProtoMessage()    {}
+func (*QueryMerkleTreeStateResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f8d70e04d17b4c4f, []int{5}
 }
-func (m *QueryMessagesResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryMerkleTreeStateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryMessagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryMerkleTreeStateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryMessagesResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryMerkleTreeStateResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -307,28 +296,131 @@ func (m *QueryMessagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return b[:n], nil
 	}
 }
-func (m *QueryMessagesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryMessagesResponse.Merge(m, src)
+func (m *QueryMerkleTreeStateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryMerkleTreeStateResponse.Merge(m, src)
 }
-func (m *QueryMessagesResponse) XXX_Size() int {
+func (m *QueryMerkleTreeStateResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryMessagesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryMessagesResponse.DiscardUnknown(m)
+func (m *QueryMerkleTreeStateResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryMerkleTreeStateResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryMessagesResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryMerkleTreeStateResponse proto.InternalMessageInfo
 
-func (m *QueryMessagesResponse) GetMessages() []string {
+func (m *QueryMerkleTreeStateResponse) GetTreeState() MerkleTreeState {
 	if m != nil {
-		return m.Messages
+		return m.TreeState
+	}
+	return MerkleTreeState{}
+}
+
+// QueryRootHistoryRequest is the request type for the RootHistory rpc method.
+type QueryRootHistoryRequest struct {
+	// id is the hex-encoded ISM identifier.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *QueryRootHistoryRequest) Reset()         { *m = QueryRootHistoryRequest{} }
+func (m *QueryRootHistoryRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryRootHistoryRequest) ProtoMessage()    {}
+func (*QueryRootHistoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{6}
+}
+func (m *QueryRootHistoryRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryRootHistoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryRootHistoryRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryRootHistoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryRootHistoryRequest.Merge(m, src)
+}
+func (m *QueryRootHistoryRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryRootHistoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryRootHistoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryRootHistoryRequest proto.InternalMessageInfo
+
+func (m *QueryRootHistoryRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+// QueryRootHistoryResponse is the response type for the RootHistory rpc method.
+type QueryRootHistoryResponse struct {
+	// root_history_size is the number of replaced roots the ISM keeps.
+	RootHistorySize uint32 `protobuf:"varint,1,opt,name=root_history_size,json=rootHistorySize,proto3" json:"root_history_size,omitempty"`
+	// state_roots are the replaced state roots still accepted for membership proofs, oldest first.
+	StateRoots []RootHistoryEntry `protobuf:"bytes,2,rep,name=state_roots,json=stateRoots,proto3" json:"state_roots"`
+	// tree_states are the replaced merkle tree states still accepted for message verification, oldest first.
+	TreeStates []RootHistoryEntry `protobuf:"bytes,3,rep,name=tree_states,json=treeStates,proto3" json:"tree_states"`
+}
+
+func (m *QueryRootHistoryResponse) Reset()         { *m = QueryRootHistoryResponse{} }
+func (m *QueryRootHistoryResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryRootHistoryResponse) ProtoMessage()    {}
+func (*QueryRootHistoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{7}
+}
+func (m *QueryRootHistoryResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryRootHistoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryRootHistoryResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryRootHistoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryRootHistoryResponse.Merge(m, src)
+}
+func (m *QueryRootHistoryResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryRootHistoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryRootHistoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryRootHistoryResponse proto.InternalMessageInfo
+
+func (m *QueryRootHistoryResponse) GetRootHistorySize() uint32 {
+	if m != nil {
+		return m.RootHistorySize
+	}
+	return 0
+}
+
+func (m *QueryRootHistoryResponse) GetStateRoots() []RootHistoryEntry {
+	if m != nil {
+		return m.StateRoots
 	}
 	return nil
 }
 
-func (m *QueryMessagesResponse) GetPagination() *query.PageResponse {
+func (m *QueryRootHistoryResponse) GetTreeStates() []RootHistoryEntry {
 	if m != nil {
-		return m.Pagination
+		return m.TreeStates
 	}
 	return nil
 }
@@ -338,47 +430,57 @@ func init() {
 	proto.RegisterType((*QueryIsmResponse)(nil), "celestia.zkism.v1.QueryIsmResponse")
 	proto.RegisterType((*QueryIsmsRequest)(nil), "celestia.zkism.v1.QueryIsmsRequest")
 	proto.RegisterType((*QueryIsmsResponse)(nil), "celestia.zkism.v1.QueryIsmsResponse")
-	proto.RegisterType((*QueryMessagesRequest)(nil), "celestia.zkism.v1.QueryMessagesRequest")
-	proto.RegisterType((*QueryMessagesResponse)(nil), "celestia.zkism.v1.QueryMessagesResponse")
+	proto.RegisterType((*QueryMerkleTreeStateRequest)(nil), "celestia.zkism.v1.QueryMerkleTreeStateRequest")
+	proto.RegisterType((*QueryMerkleTreeStateResponse)(nil), "celestia.zkism.v1.QueryMerkleTreeStateResponse")
+	proto.RegisterType((*QueryRootHistoryRequest)(nil), "celestia.zkism.v1.QueryRootHistoryRequest")
+	proto.RegisterType((*QueryRootHistoryResponse)(nil), "celestia.zkism.v1.QueryRootHistoryResponse")
 }
 
 func init() { proto.RegisterFile("celestia/zkism/v1/query.proto", fileDescriptor_f8d70e04d17b4c4f) }
 
 var fileDescriptor_f8d70e04d17b4c4f = []byte{
-	// 519 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x4f, 0x6f, 0xd3, 0x30,
-	0x1c, 0x6d, 0xd2, 0x82, 0x36, 0x23, 0x01, 0xb3, 0x86, 0x18, 0xd1, 0xc8, 0x4a, 0x98, 0x58, 0x05,
-	0xc2, 0x56, 0xc6, 0x37, 0x18, 0x02, 0x54, 0xa1, 0x49, 0x10, 0x0e, 0x48, 0xbb, 0xb9, 0xa9, 0x95,
-	0x59, 0x34, 0x71, 0x96, 0x9f, 0x53, 0x51, 0xfe, 0x5c, 0xb8, 0x70, 0x45, 0xe2, 0x23, 0xf0, 0x65,
-	0x76, 0x9c, 0xc4, 0x85, 0x13, 0x42, 0x2d, 0xdf, 0x82, 0x0b, 0x8a, 0xe3, 0xb4, 0x5b, 0xd7, 0x76,
-	0x52, 0xb5, 0x9b, 0x63, 0xff, 0x7e, 0xef, 0xbd, 0xdf, 0x7b, 0x8e, 0xd1, 0xdd, 0x90, 0xf7, 0x38,
-	0x28, 0xc1, 0xe8, 0x87, 0x77, 0x02, 0x62, 0xda, 0xf7, 0xe9, 0x51, 0xce, 0xb3, 0x01, 0x49, 0x33,
-	0xa9, 0x24, 0x5e, 0xab, 0x8e, 0x89, 0x3e, 0x26, 0x7d, 0xdf, 0x99, 0xd1, 0xa1, 0x06, 0x29, 0x87,
-	0xb2, 0xc3, 0x79, 0x18, 0x4a, 0x88, 0x25, 0xd0, 0x0e, 0x03, 0x5e, 0x42, 0xd1, 0xbe, 0xdf, 0xe1,
-	0x8a, 0xf9, 0x34, 0x65, 0x91, 0x48, 0x98, 0x12, 0x32, 0x31, 0xb5, 0x9b, 0x91, 0x94, 0x51, 0x8f,
-	0x53, 0x96, 0x0a, 0xca, 0x92, 0x44, 0x2a, 0x7d, 0x58, 0x21, 0xad, 0x47, 0x32, 0x92, 0x7a, 0x49,
-	0x8b, 0x55, 0xb9, 0xeb, 0xdd, 0x43, 0x37, 0x5e, 0x17, 0xa8, 0x6d, 0x88, 0x03, 0x7e, 0x94, 0x73,
-	0x50, 0xf8, 0x3a, 0xb2, 0x45, 0x77, 0xc3, 0x6a, 0x5a, 0xad, 0xd5, 0xc0, 0x16, 0x5d, 0xef, 0x2d,
-	0xba, 0x39, 0x29, 0x81, 0x54, 0x26, 0xc0, 0xf1, 0x53, 0x54, 0x17, 0x10, 0xeb, 0xa2, 0x6b, 0xbb,
-	0x8f, 0xc8, 0xb9, 0xb1, 0x48, 0x3b, 0x51, 0x3c, 0x0b, 0x0f, 0x99, 0x48, 0xde, 0xf0, 0x30, 0xcf,
-	0x84, 0x1a, 0xec, 0xcb, 0x6e, 0xde, 0xe3, 0x7b, 0x8d, 0xe3, 0xdf, 0x5b, 0xb5, 0xa0, 0xe8, 0xf6,
-	0x0e, 0x26, 0xc0, 0x50, 0x91, 0x3f, 0x47, 0x68, 0x32, 0x97, 0xc1, 0x7f, 0x40, 0x4a, 0x13, 0x48,
-	0x61, 0x02, 0x29, 0xfd, 0x34, 0x26, 0x90, 0x57, 0x2c, 0xe2, 0xa6, 0x37, 0x38, 0xd5, 0xe9, 0xfd,
-	0xb0, 0xd0, 0xda, 0x29, 0x70, 0x23, 0xfb, 0x19, 0x6a, 0x08, 0x88, 0x61, 0xc3, 0x6a, 0xd6, 0x97,
-	0xd3, 0xad, 0xdb, 0xf1, 0x8b, 0x33, 0x22, 0x6d, 0x2d, 0x72, 0xe7, 0x42, 0x91, 0xa5, 0x86, 0x33,
-	0x2a, 0x13, 0xb4, 0xae, 0x45, 0xee, 0x73, 0x00, 0x16, 0x71, 0x98, 0x13, 0xc1, 0x94, 0x2b, 0xf6,
-	0xd2, 0xae, 0x7c, 0x42, 0xb7, 0xa6, 0xf8, 0x8c, 0x31, 0x0e, 0x5a, 0x89, 0xcd, 0x9e, 0x36, 0x67,
-	0x35, 0x18, 0x7f, 0x5f, 0xda, 0xb4, 0xbb, 0xff, 0x6c, 0x74, 0x45, 0xd3, 0x63, 0x85, 0xea, 0x6d,
-	0x88, 0xb1, 0x37, 0x23, 0x80, 0xa9, 0xdb, 0xe8, 0xdc, 0x5f, 0x58, 0x53, 0xb2, 0x78, 0xdb, 0x5f,
-	0x7e, 0xfe, 0xfd, 0x6e, 0xbb, 0x78, 0x93, 0x9e, 0xff, 0x9b, 0x8a, 0xc4, 0xe8, 0x47, 0xd1, 0xfd,
-	0x8c, 0x33, 0xd4, 0x28, 0x6e, 0x03, 0x5e, 0x04, 0x59, 0x45, 0xe0, 0x6c, 0x2f, 0x2e, 0x32, 0xc4,
-	0x5b, 0x9a, 0xf8, 0x0e, 0xbe, 0x3d, 0x87, 0x18, 0x7f, 0xb5, 0xd0, 0x4a, 0xe5, 0x36, 0xde, 0x99,
-	0x87, 0x39, 0x95, 0xbf, 0xd3, 0xba, 0xb8, 0xd0, 0x08, 0x68, 0x69, 0x01, 0x1e, 0x6e, 0xce, 0x10,
-	0x50, 0x25, 0xa8, 0xa7, 0xdf, 0x7b, 0x79, 0x3c, 0x74, 0xad, 0x93, 0xa1, 0x6b, 0xfd, 0x19, 0xba,
-	0xd6, 0xb7, 0x91, 0x5b, 0x3b, 0x19, 0xb9, 0xb5, 0x5f, 0x23, 0xb7, 0x76, 0xe0, 0x47, 0x42, 0x1d,
-	0xe6, 0x1d, 0x12, 0xca, 0x78, 0x8c, 0x22, 0xb3, 0x68, 0xbc, 0x7e, 0xcc, 0xd2, 0x94, 0xbe, 0x37,
-	0xb8, 0xfa, 0x71, 0xea, 0x5c, 0xd5, 0xaf, 0xc7, 0x93, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x69,
-	0x43, 0x67, 0x9a, 0xf0, 0x04, 0x00, 0x00,
+	// 649 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x95, 0xd1, 0x6a, 0x13, 0x4d,
+	0x14, 0xc7, 0xb3, 0x49, 0xbe, 0x0f, 0x3a, 0x45, 0x6b, 0x07, 0xa1, 0x71, 0xad, 0xdb, 0xba, 0x2d,
+	0x6a, 0x5b, 0x3a, 0xe3, 0x56, 0xf0, 0x01, 0x2a, 0xb5, 0x46, 0x29, 0xe8, 0x46, 0x10, 0x7a, 0x13,
+	0x36, 0xc9, 0xb0, 0x19, 0x9a, 0xdd, 0xd9, 0xce, 0x4c, 0x82, 0x89, 0x78, 0xe3, 0x13, 0x08, 0x5e,
+	0x79, 0xed, 0x9d, 0x8f, 0xe0, 0x13, 0xf4, 0xb2, 0xe0, 0x8d, 0x57, 0x45, 0x12, 0x1f, 0x44, 0x76,
+	0x76, 0x92, 0x4d, 0x93, 0x4d, 0xac, 0xde, 0x0d, 0x73, 0xce, 0xf9, 0x9f, 0xdf, 0xf9, 0xcf, 0xc9,
+	0x06, 0xdc, 0xa9, 0x93, 0x16, 0x11, 0x92, 0x7a, 0xb8, 0x77, 0x42, 0x45, 0x80, 0x3b, 0x0e, 0x3e,
+	0x6d, 0x13, 0xde, 0x45, 0x11, 0x67, 0x92, 0xc1, 0xe5, 0x61, 0x18, 0xa9, 0x30, 0xea, 0x38, 0x66,
+	0x46, 0x85, 0xec, 0x46, 0x44, 0x24, 0x15, 0xe6, 0x76, 0x9d, 0x89, 0x80, 0x09, 0x5c, 0xf3, 0x04,
+	0x49, 0xa4, 0x70, 0xc7, 0xa9, 0x11, 0xe9, 0x39, 0x38, 0xf2, 0x7c, 0x1a, 0x7a, 0x92, 0xb2, 0x50,
+	0xe7, 0xae, 0xfa, 0x8c, 0xf9, 0x2d, 0x82, 0xbd, 0x88, 0x62, 0x2f, 0x0c, 0x99, 0x54, 0xc1, 0xa1,
+	0xd2, 0x4d, 0x9f, 0xf9, 0x4c, 0x1d, 0x71, 0x7c, 0x4a, 0x6e, 0xed, 0xbb, 0x60, 0xe9, 0x55, 0xac,
+	0x5a, 0x16, 0x81, 0x4b, 0x4e, 0xdb, 0x44, 0x48, 0x78, 0x1d, 0xe4, 0x69, 0xa3, 0x64, 0xac, 0x1b,
+	0x0f, 0x16, 0xdc, 0x3c, 0x6d, 0xd8, 0x6f, 0xc0, 0x8d, 0x34, 0x45, 0x44, 0x2c, 0x14, 0x04, 0x3e,
+	0x01, 0x05, 0x2a, 0x02, 0x95, 0xb4, 0xb8, 0xb7, 0x83, 0xa6, 0xc6, 0x42, 0xe5, 0x50, 0x12, 0x5e,
+	0x6f, 0x7a, 0x34, 0xac, 0x90, 0x7a, 0x9b, 0x53, 0xd9, 0x3d, 0x62, 0x8d, 0x76, 0x8b, 0xec, 0x17,
+	0xcf, 0x2e, 0xd6, 0x72, 0x6e, 0x5c, 0x6d, 0x1f, 0xa7, 0xc2, 0x62, 0xd8, 0xfc, 0x29, 0x00, 0xe9,
+	0x5c, 0x5a, 0xff, 0x1e, 0x4a, 0x4c, 0x40, 0xb1, 0x09, 0x28, 0xf1, 0x53, 0x9b, 0x80, 0x5e, 0x7a,
+	0x3e, 0xd1, 0xb5, 0xee, 0x58, 0xa5, 0xfd, 0xc5, 0x00, 0xcb, 0x63, 0xe2, 0x1a, 0xfb, 0x00, 0x14,
+	0xa9, 0x08, 0x44, 0xc9, 0x58, 0x2f, 0xfc, 0x1b, 0xb7, 0x2a, 0x87, 0x87, 0x97, 0x20, 0xf3, 0x0a,
+	0xf2, 0xfe, 0x1f, 0x21, 0x13, 0x86, 0x4b, 0x94, 0xbb, 0xe0, 0xb6, 0x82, 0x3c, 0x22, 0xfc, 0xa4,
+	0x45, 0x5e, 0x73, 0x42, 0x2a, 0xd2, 0x93, 0x64, 0xd6, 0x4b, 0xf8, 0x60, 0x35, 0x3b, 0x5d, 0x8f,
+	0x77, 0x08, 0x80, 0xe4, 0x84, 0x54, 0x45, 0x7c, 0xab, 0xcd, 0xb3, 0x33, 0x86, 0x9c, 0xa8, 0xd7,
+	0xb3, 0x2d, 0xc8, 0xe1, 0x85, 0xbd, 0x05, 0x56, 0x54, 0x23, 0x97, 0x31, 0xf9, 0x8c, 0x0a, 0xc9,
+	0x78, 0x77, 0x16, 0xd3, 0x85, 0x01, 0x4a, 0xd3, 0xb9, 0x1a, 0x68, 0x1b, 0x2c, 0x73, 0xc6, 0x64,
+	0xb5, 0x99, 0xdc, 0x57, 0x05, 0xed, 0x25, 0x5c, 0xd7, 0xdc, 0x25, 0x9e, 0xe6, 0x57, 0x68, 0x8f,
+	0xc0, 0xe7, 0x60, 0x51, 0x71, 0x57, 0xe3, 0x80, 0x28, 0xe5, 0xd5, 0x13, 0x6d, 0x64, 0xd0, 0x8f,
+	0x35, 0x3a, 0x08, 0x25, 0xef, 0x6a, 0x7c, 0xa0, 0xaa, 0xe3, 0xa0, 0x88, 0xb5, 0x52, 0x23, 0x44,
+	0xa9, 0xf0, 0xd7, 0x5a, 0x23, 0x2b, 0xc4, 0xde, 0xb7, 0x22, 0xf8, 0x4f, 0x0d, 0x08, 0x25, 0x28,
+	0x94, 0x45, 0x00, 0xb3, 0x1c, 0x9d, 0xf8, 0x0d, 0x99, 0x1b, 0x73, 0x73, 0x12, 0x77, 0xec, 0xcd,
+	0x0f, 0xdf, 0x7f, 0x7d, 0xca, 0x5b, 0x70, 0x15, 0x4f, 0x7f, 0x03, 0xe2, 0x3d, 0xc3, 0xef, 0x68,
+	0xe3, 0x3d, 0xe4, 0xa0, 0x18, 0xef, 0x30, 0x9c, 0x27, 0x39, 0xfc, 0xf9, 0x98, 0x9b, 0xf3, 0x93,
+	0x74, 0xe3, 0x35, 0xd5, 0xf8, 0x16, 0x5c, 0x99, 0xd1, 0x18, 0x7e, 0x35, 0xc0, 0xd2, 0xc4, 0x92,
+	0x40, 0x34, 0x4b, 0x3a, 0x7b, 0x79, 0x4d, 0x7c, 0xe5, 0x7c, 0x4d, 0xf5, 0x58, 0x51, 0x3d, 0x84,
+	0x68, 0x9e, 0x1d, 0x38, 0x50, 0xd5, 0xd5, 0xf4, 0x79, 0xe1, 0x67, 0x03, 0x2c, 0x8e, 0xbd, 0x23,
+	0xdc, 0x9e, 0xd5, 0x78, 0x7a, 0x9b, 0xcd, 0x9d, 0x2b, 0xe5, 0x6a, 0x40, 0x47, 0x01, 0xee, 0xc0,
+	0xad, 0xb9, 0x80, 0xe3, 0x0b, 0xbf, 0xff, 0xe2, 0xac, 0x6f, 0x19, 0xe7, 0x7d, 0xcb, 0xf8, 0xd9,
+	0xb7, 0x8c, 0x8f, 0x03, 0x2b, 0x77, 0x3e, 0xb0, 0x72, 0x3f, 0x06, 0x56, 0xee, 0xd8, 0xf1, 0xa9,
+	0x6c, 0xb6, 0x6b, 0xa8, 0xce, 0x82, 0x91, 0x1c, 0xe3, 0xfe, 0xe8, 0xbc, 0xeb, 0x45, 0x11, 0x7e,
+	0xab, 0x1b, 0xa8, 0x7f, 0x84, 0xda, 0xff, 0xea, 0x93, 0xfd, 0xe8, 0x77, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0x7c, 0x4c, 0x28, 0xea, 0x65, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -397,8 +499,11 @@ type QueryClient interface {
 	Ism(ctx context.Context, in *QueryIsmRequest, opts ...grpc.CallOption) (*QueryIsmResponse, error)
 	// Isms defines an rpc method for querying all ISMs.
 	Isms(ctx context.Context, in *QueryIsmsRequest, opts ...grpc.CallOption) (*QueryIsmsResponse, error)
-	// Messages defines an rpc method for querying authorized Hyperlane message IDs.
-	Messages(ctx context.Context, in *QueryMessagesRequest, opts ...grpc.CallOption) (*QueryMessagesResponse, error)
+	// MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
+	MerkleTreeState(ctx context.Context, in *QueryMerkleTreeStateRequest, opts ...grpc.CallOption) (*QueryMerkleTreeStateResponse, error)
+	// RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still
+	// accepts.
+	RootHistory(ctx context.Context, in *QueryRootHistoryRequest, opts ...grpc.CallOption) (*QueryRootHistoryResponse, error)
 }
 
 type queryClient struct {
@@ -427,9 +532,18 @@ func (c *queryClient) Isms(ctx context.Context, in *QueryIsmsRequest, opts ...gr
 	return out, nil
 }
 
-func (c *queryClient) Messages(ctx context.Context, in *QueryMessagesRequest, opts ...grpc.CallOption) (*QueryMessagesResponse, error) {
-	out := new(QueryMessagesResponse)
-	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/Messages", in, out, opts...)
+func (c *queryClient) MerkleTreeState(ctx context.Context, in *QueryMerkleTreeStateRequest, opts ...grpc.CallOption) (*QueryMerkleTreeStateResponse, error) {
+	out := new(QueryMerkleTreeStateResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/MerkleTreeState", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) RootHistory(ctx context.Context, in *QueryRootHistoryRequest, opts ...grpc.CallOption) (*QueryRootHistoryResponse, error) {
+	out := new(QueryRootHistoryResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/RootHistory", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -442,8 +556,11 @@ type QueryServer interface {
 	Ism(context.Context, *QueryIsmRequest) (*QueryIsmResponse, error)
 	// Isms defines an rpc method for querying all ISMs.
 	Isms(context.Context, *QueryIsmsRequest) (*QueryIsmsResponse, error)
-	// Messages defines an rpc method for querying authorized Hyperlane message IDs.
-	Messages(context.Context, *QueryMessagesRequest) (*QueryMessagesResponse, error)
+	// MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
+	MerkleTreeState(context.Context, *QueryMerkleTreeStateRequest) (*QueryMerkleTreeStateResponse, error)
+	// RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still
+	// accepts.
+	RootHistory(context.Context, *QueryRootHistoryRequest) (*QueryRootHistoryResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -456,8 +573,11 @@ func (*UnimplementedQueryServer) Ism(ctx context.Context, req *QueryIsmRequest) 
 func (*UnimplementedQueryServer) Isms(ctx context.Context, req *QueryIsmsRequest) (*QueryIsmsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Isms not implemented")
 }
-func (*UnimplementedQueryServer) Messages(ctx context.Context, req *QueryMessagesRequest) (*QueryMessagesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Messages not implemented")
+func (*UnimplementedQueryServer) MerkleTreeState(ctx context.Context, req *QueryMerkleTreeStateRequest) (*QueryMerkleTreeStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MerkleTreeState not implemented")
+}
+func (*UnimplementedQueryServer) RootHistory(ctx context.Context, req *QueryRootHistoryRequest) (*QueryRootHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RootHistory not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -500,20 +620,38 @@ func _Query_Isms_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_Messages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryMessagesRequest)
+func _Query_MerkleTreeState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryMerkleTreeStateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).Messages(ctx, in)
+		return srv.(QueryServer).MerkleTreeState(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.zkism.v1.Query/Messages",
+		FullMethod: "/celestia.zkism.v1.Query/MerkleTreeState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).Messages(ctx, req.(*QueryMessagesRequest))
+		return srv.(QueryServer).MerkleTreeState(ctx, req.(*QueryMerkleTreeStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_RootHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryRootHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).RootHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Query/RootHistory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).RootHistory(ctx, req.(*QueryRootHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -532,8 +670,12 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Query_Isms_Handler,
 		},
 		{
-			MethodName: "Messages",
-			Handler:    _Query_Messages_Handler,
+			MethodName: "MerkleTreeState",
+			Handler:    _Query_MerkleTreeState_Handler,
+		},
+		{
+			MethodName: "RootHistory",
+			Handler:    _Query_RootHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -687,7 +829,7 @@ func (m *QueryIsmsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryMessagesRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryMerkleTreeStateRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -697,28 +839,16 @@ func (m *QueryMessagesRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryMessagesRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryMerkleTreeStateRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryMessagesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryMerkleTreeStateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Pagination != nil {
-		{
-			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintQuery(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
 	if len(m.Id) > 0 {
 		i -= len(m.Id)
 		copy(dAtA[i:], m.Id)
@@ -729,7 +859,7 @@ func (m *QueryMessagesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryMessagesResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryMerkleTreeStateResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -739,36 +869,111 @@ func (m *QueryMessagesResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryMessagesResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryMerkleTreeStateResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryMessagesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryMerkleTreeStateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Pagination != nil {
-		{
-			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintQuery(dAtA, i, uint64(size))
+	{
+		size, err := m.TreeState.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x12
+		i -= size
+		i = encodeVarintQuery(dAtA, i, uint64(size))
 	}
-	if len(m.Messages) > 0 {
-		for iNdEx := len(m.Messages) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Messages[iNdEx])
-			copy(dAtA[i:], m.Messages[iNdEx])
-			i = encodeVarintQuery(dAtA, i, uint64(len(m.Messages[iNdEx])))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryRootHistoryRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryRootHistoryRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryRootHistoryRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Id) > 0 {
+		i -= len(m.Id)
+		copy(dAtA[i:], m.Id)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Id)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryRootHistoryResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryRootHistoryResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryRootHistoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.TreeStates) > 0 {
+		for iNdEx := len(m.TreeStates) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TreeStates[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
 			i--
-			dAtA[i] = 0xa
+			dAtA[i] = 0x1a
 		}
+	}
+	if len(m.StateRoots) > 0 {
+		for iNdEx := len(m.StateRoots) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.StateRoots[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.RootHistorySize != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.RootHistorySize))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -840,7 +1045,7 @@ func (m *QueryIsmsResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryMessagesRequest) Size() (n int) {
+func (m *QueryMerkleTreeStateRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -850,28 +1055,53 @@ func (m *QueryMessagesRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
-	if m.Pagination != nil {
-		l = m.Pagination.Size()
-		n += 1 + l + sovQuery(uint64(l))
-	}
 	return n
 }
 
-func (m *QueryMessagesResponse) Size() (n int) {
+func (m *QueryMerkleTreeStateResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Messages) > 0 {
-		for _, s := range m.Messages {
-			l = len(s)
+	l = m.TreeState.Size()
+	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryRootHistoryRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Id)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryRootHistoryResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.RootHistorySize != 0 {
+		n += 1 + sovQuery(uint64(m.RootHistorySize))
+	}
+	if len(m.StateRoots) > 0 {
+		for _, e := range m.StateRoots {
+			l = e.Size()
 			n += 1 + l + sovQuery(uint64(l))
 		}
 	}
-	if m.Pagination != nil {
-		l = m.Pagination.Size()
-		n += 1 + l + sovQuery(uint64(l))
+	if len(m.TreeStates) > 0 {
+		for _, e := range m.TreeStates {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
 	}
 	return n
 }
@@ -1253,7 +1483,7 @@ func (m *QueryIsmsResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryMessagesRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryMerkleTreeStateRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1276,10 +1506,10 @@ func (m *QueryMessagesRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryMessagesRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryMerkleTreeStateRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryMessagesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryMerkleTreeStateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1314,9 +1544,59 @@ func (m *QueryMessagesRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.Id = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 2:
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryMerkleTreeStateResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryMerkleTreeStateResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryMerkleTreeStateResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TreeState", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1343,10 +1623,7 @@ func (m *QueryMessagesRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Pagination == nil {
-				m.Pagination = &query.PageRequest{}
-			}
-			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.TreeState.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1371,7 +1648,7 @@ func (m *QueryMessagesRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryMessagesResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryRootHistoryRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1394,15 +1671,15 @@ func (m *QueryMessagesResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryMessagesResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryRootHistoryRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryMessagesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryRootHistoryRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Messages", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1430,11 +1707,80 @@ func (m *QueryMessagesResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Messages = append(m.Messages, string(dAtA[iNdEx:postIndex]))
+			m.Id = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryRootHistoryResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryRootHistoryResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryRootHistoryResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RootHistorySize", wireType)
+			}
+			m.RootHistorySize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RootHistorySize |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field StateRoots", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1461,10 +1807,42 @@ func (m *QueryMessagesResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Pagination == nil {
-				m.Pagination = &query.PageResponse{}
+			m.StateRoots = append(m.StateRoots, RootHistoryEntry{})
+			if err := m.StateRoots[len(m.StateRoots)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
-			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TreeStates", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TreeStates = append(m.TreeStates, RootHistoryEntry{})
+			if err := m.TreeStates[len(m.TreeStates)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

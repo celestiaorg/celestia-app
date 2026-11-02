@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -17,6 +18,12 @@ func (sp ShareProof) Validate(root []byte) error {
 	if sp.Data == nil {
 		return errors.New("empty share proof")
 	}
+	if sp.RowProof == nil {
+		return errors.New("nil row proof")
+	}
+	if len(sp.NamespaceId) != share.NamespaceIDSize {
+		return fmt.Errorf("namespace ID must be %d bytes, got %d", share.NamespaceIDSize, len(sp.NamespaceId))
+	}
 
 	if len(sp.ShareProofs) != len(sp.RowProof.RowRoots) {
 		return fmt.Errorf("the number of share proofs %d must equal the number of row roots %d", len(sp.ShareProofs), len(sp.RowProof.RowRoots))
@@ -27,6 +34,9 @@ func (sp ShareProof) Validate(root []byte) error {
 	// before it can poison the sum.
 	var numberOfSharesInProofs int64
 	for _, proof := range sp.ShareProofs {
+		if proof == nil {
+			return errors.New("nil share proof")
+		}
 		if proof.Start < 0 {
 			return errors.New("proof index cannot be negative")
 		}
@@ -46,6 +56,25 @@ func (sp ShareProof) Validate(root []byte) error {
 		return err
 	}
 
+	// The data root commits to 2k row roots and 2k column roots for a k-wide
+	// original square. Shares must form one contiguous range inside it.
+	width := sp.RowProof.Proofs[0].Total / 4
+	last := len(sp.ShareProofs) - 1
+	for i, proof := range sp.ShareProofs {
+		if sp.RowProof.Proofs[i].Index >= width {
+			return fmt.Errorf("row %d is outside the original data square of width %d", sp.RowProof.Proofs[i].Index, width)
+		}
+		if int64(proof.End) > width {
+			return fmt.Errorf("share proof %d ends at %d past the square width %d", i, proof.End, width)
+		}
+		if i > 0 && proof.Start != 0 {
+			return fmt.Errorf("share proof %d must start at the beginning of its row", i)
+		}
+		if i < last && int64(proof.End) != width {
+			return fmt.Errorf("share proof %d must end at the end of its row", i)
+		}
+	}
+
 	if ok := sp.VerifyProof(); !ok {
 		return errors.New("share proof failed to verify")
 	}
@@ -53,14 +82,19 @@ func (sp ShareProof) Validate(root []byte) error {
 	return nil
 }
 
+// VerifyProof checks only the NMT proofs of the shares against the row roots.
+// It does not check share positions or the row proof. Use Validate for that.
 func (sp ShareProof) VerifyProof() bool {
-	if sp.NamespaceVersion > math.MaxUint8 {
+	if sp.NamespaceVersion > math.MaxUint8 || len(sp.NamespaceId) != share.NamespaceIDSize {
+		return false
+	}
+	if sp.RowProof == nil || len(sp.RowProof.RowRoots) != len(sp.ShareProofs) {
 		return false
 	}
 	cursor := int64(0)
 	dataLen := int64(len(sp.Data))
 	for i, proof := range sp.ShareProofs {
-		if proof.Start < 0 || proof.End <= proof.Start {
+		if proof == nil || proof.Start < 0 || proof.End <= proof.Start {
 			return false
 		}
 		sharesUsed := int64(proof.End) - int64(proof.Start)
@@ -73,8 +107,6 @@ func (sp ShareProof) VerifyProof() bool {
 			proof.Nodes,
 			true,
 		)
-		// Consider extracting celestia-app's namespace package. We can't use it
-		// here because that would introduce a circular import.
 		namespace := append([]byte{uint8(sp.NamespaceVersion)}, sp.NamespaceId...)
 		valid := nmtProof.VerifyInclusion(
 			appconsts.NewBaseHashFunc(),

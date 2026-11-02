@@ -40,7 +40,7 @@ Scope: celestia-app only. Networking and consensus internals (peer channels, rea
 - Use overflow-safe arithmetic on user-controlled values.
 - Transactions entering `PrepareProposal` come from the mempool and are untrusted. Blocks entering `ProcessProposal` come from the proposer and are untrusted.
 
-**Where it bites:** `x/*/keeper` message servers, `app/ante/`, `app/process_proposal.go`, decoders in `pkg/da`, `pkg/inclusion`, `pkg/proof`.
+**Where it bites:** `x/*/keeper` message servers, `app/ante/`, `app/process_proposal.go`, decoders in `pkg/da`, `pkg/proof`.
 
 **How to verify:** For every new input field or byte slice, find the code that validates it before first use. Write tests with malformed and extreme values.
 
@@ -90,7 +90,7 @@ Scope: celestia-app only. Networking and consensus internals (peer channels, rea
 - `recover` is not a fix. Return errors.
 - Decoders and parsers must handle arbitrary bytes without crashing.
 
-**Where it bites:** `app/process_proposal.go`, `app/ante/`, `x/*/keeper`, `pkg/da`, `pkg/inclusion`, `pkg/proof`.
+**Where it bites:** `app/process_proposal.go`, `app/ante/`, `x/*/keeper`, `pkg/da`, `pkg/proof`.
 
 **How to verify:** Search the diff for `panic`, `Must`, and unchecked indexing on paths fed by input. Test with malformed bytes.
 

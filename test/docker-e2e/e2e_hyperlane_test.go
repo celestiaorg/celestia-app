@@ -465,17 +465,13 @@ func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateMembership() {
 	err = stateMembershipValues.Unmarshal(pubValues)
 	s.Require().NoError(err)
 
-	expMsgs := make([]string, 0, len(stateMembershipValues.MessageIds))
-	for _, msg := range stateMembershipValues.MessageIds {
-		expMsgs = append(expMsgs, "0x"+hex.EncodeToString(msg[:]))
-	}
-
 	txResp, err := broadcaster.BroadcastMessages(ctx, signer, &txMsg)
 	s.Require().NoError(err)
 	s.Require().Equalf(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
 
-	msgs := s.QueryZKIsmMessages(ctx, chain, ismID.String())
-	s.Require().Equal(expMsgs, msgs)
+	treeState := s.QueryZKIsmMerkleTreeState(ctx, chain, ismID.String())
+	s.Require().Equal(stateMembershipValues.TreeRoot[:], treeState.Root)
+	s.Require().Equal(stateMembershipValues.Count, treeState.Count)
 }
 
 func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
@@ -807,7 +803,7 @@ func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, ch
 
 	var (
 		stateVkeyHash     = "0x004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
-		messageVkeyHash   = "0x00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
+		messageVkeyHash   = "0x00187b5483ec55367414caf254fe354bf24046ebc62f37ef03fed60321c1d7d1"
 		merkleTreeAddress = "0000000000000000000000006007ce81d2fd7b9b7f22e71ce9896e00d6017ba8"
 	)
 
@@ -854,7 +850,7 @@ func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, ch
 	return hyputil.NewZeroAddress()
 }
 
-func (s *HyperlaneTestSuite) QueryZKIsmMessages(ctx context.Context, chain *cosmos.Chain, ismID string) []string {
+func (s *HyperlaneTestSuite) QueryZKIsmMerkleTreeState(ctx context.Context, chain *cosmos.Chain, ismID string) zkismtypes.MerkleTreeState {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -866,15 +862,15 @@ func (s *HyperlaneTestSuite) QueryZKIsmMessages(ctx context.Context, chain *cosm
 
 	defer grpcConn.Close()
 
-	req := &zkismtypes.QueryMessagesRequest{
+	req := &zkismtypes.QueryMerkleTreeStateRequest{
 		Id: ismID,
 	}
 
 	client := zkismtypes.NewQueryClient(grpcConn)
-	resp, err := client.Messages(ctx, req)
+	resp, err := client.MerkleTreeState(ctx, req)
 	s.Require().NoError(err)
 
-	return resp.Messages
+	return resp.TreeState
 }
 
 func (s *HyperlaneTestSuite) ParseUpdateISMEvent(txResp sdk.TxResponse) *zkismtypes.EventUpdateInterchainSecurityModule {

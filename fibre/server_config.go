@@ -73,10 +73,12 @@ type ServerConfig struct {
 	MinUploadSize int `toml:"min_upload_size" comment:"Minimum padded Fibre upload size in bytes, including header and excluding parity (default 262144). Restart Fibre after changing."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
-	// MaxConnections caps total concurrent gRPC connections.
-	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads."`
+	// MaxConnections is deprecated and ignored; kept so existing configs still load.
+	MaxConnections int `toml:"max_connections,omitempty" comment:"Deprecated and ignored; see max_connections_per_ip."`
+	// MaxConnectionsPerIP caps connections per source IP (IPv6 by /64); 0 disables it.
+	MaxConnectionsPerIP int `toml:"max_connections_per_ip" comment:"Max concurrent connections per source IP, IPv6 by /64 (default 16); 0 disables it."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
-	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13)."`
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 100)."`
 	// MaxRequestMemory is the budget, in bytes, for request messages buffered in memory.
 	MaxRequestMemory int64 `toml:"max_request_memory" comment:"Budget in bytes for request messages buffered in memory (default 16 GiB); not an RSS bound, decode/verify allocate on top, so leave headroom."`
 	// Health configures the readiness checks behind the gRPC health service.
@@ -187,7 +189,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
-		MaxConnections:       fibregrpc.DefaultMaxConnections,
+		MaxConnectionsPerIP:  fibregrpc.DefaultMaxConnectionsPerIP,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 		MaxRequestMemory:     DefaultMaxRequestMemory,
 	}
@@ -253,8 +255,8 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
-	if cfg.MaxConnections < 1 {
-		return fmt.Errorf("max_connections must be at least 1, got %d", cfg.MaxConnections)
+	if cfg.MaxConnectionsPerIP < 0 {
+		return fmt.Errorf("max_connections_per_ip must not be negative (0 disables it), got %d", cfg.MaxConnectionsPerIP)
 	}
 	if cfg.MaxConcurrentStreams < 1 {
 		return fmt.Errorf("max_concurrent_streams must be at least 1, got %d", cfg.MaxConcurrentStreams)

@@ -236,17 +236,45 @@ jobs:
 
   # WARNING: Required job — a defense line against codec / wire-format bugs,
   # including the fibre scatter codec. The fuzz targets live in
-  # scripts/test_fuzz.sh. Do NOT remove or disable this job; doing so re-opens
-  # https://github.com/celestiaorg/celestia-app/issues/7392.
+  # scripts/fuzz_targets.txt. Do NOT remove or disable this job; doing so
+  # re-opens https://github.com/celestiaorg/celestia-app/issues/7392.
+  #
+  # Targets are split round-robin across shards. Fuzz output can contain a
+  # crashing input for an exploitable bug, so it stays out of the public log
+  # and is sent to a Linear issue instead.
   test-fuzz:
     runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: ./.github/actions/setup-go
 
+      - name: Check fuzz target registry
+        if: ${{ matrix.shard == 0 }}
+        run: scripts/test_fuzz.sh --check
+
       - name: Run fuzz tests
+        env:
+          FUZZ_SHARD: ${{ matrix.shard }}
+          FUZZ_SHARDS: 6
+          FUZZ_LOG_DIR: ${{ runner.temp }}/fuzz
         run: make test-fuzz
+
+      - name: File Linear issues for failing targets
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_TEAM_KEY: PROTOCO
+          LINEAR_ASSIGNEE_ID: ${{ vars.FUZZ_LINEAR_ASSIGNEE_ID || 'e9929f5b-e156-4046-95df-aeea6faa9a58' }}
+          FUZZ_LOG_DIR: ${{ runner.temp }}/fuzz
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: python3 .github/scripts/report-fuzz-failures.py
 
   notify-slack-on-failure:
     name: Notify Slack on failure

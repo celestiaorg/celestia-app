@@ -2,6 +2,23 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v11.0.0
+
+### State Machine Changes (v11.0.0)
+
+**`x/zkism`**:
+
+- Messages are verified against a proven source chain merkle tree root instead of a proven list of message ids. `SubmitMessages` stores the root and leaf count from fixed 101-byte public values (`version (u8) || state_root || merkle_tree_address || tree_root || count (u32)`), and each message is delivered with merkle proof metadata (`leaf_index (u32, big-endian) || 32 x 32-byte branch`). Proofs produced by the previous membership program are rejected.
+- Existing ISMs keep working only after their owner installs the new program's verifying keys with `UpdateVerifyingKeys`. Until then no message verifies for that ISM.
+- ISM owners can replace the verifying keys (`UpdateVerifyingKeys`), and transfer or renounce ownership (`TransferOwnership`). Anyone relying on an ISM must trust its current owner; a renounced ISM (empty `owner`) is immutable. ISMs created before v11 keep their creator as owner and are mutable from the upgrade until that owner renounces. Rotating the keys discards the merkle tree state proven under the previous keys.
+- `UpdateVerifyingKeys` counts toward the per-block ZK proof message cap and, like the other proof-work messages, is rejected inside governance proposals.
+- At most one state transition proof and one membership proof are accepted per ISM per block; a second one fails with `ErrAlreadyUpdatedInBlock` (code 15). The ISM records `state_height` and the merkle tree state records `height` for this. Gas simulation skips this check.
+- Each ISM stores at most `root_history_size` replaced state roots and at most `root_history_size` replaced merkle tree states at any time (default 64, at most 256). `SubmitMessages` accepts a proof against any kept state root and `Verify` accepts a merkle proof against any kept tree root, so a root update between proving and inclusion no longer invalidates in-flight proofs. The owner sets the size at creation or with `UpdateRootHistorySize`; the `RootHistory` query lists the kept roots.
+- The genesis field `submissions` is deprecated: it is ignored on import and no longer exported. Genesis gains `state_root_history` and `tree_state_history`.
+- The zkism genesis section no longer contains `messages`. A genesis file exported by a v10 binary must have `app_state.zkism.messages` removed before a v11 binary can load it.
+
+See the [x/zkism README](../../x/zkism/README.md) for details.
+
 ## v10.0.0
 
 ### Node Operators (v10.0.0)

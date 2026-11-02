@@ -65,7 +65,7 @@ func (f *fakeFibre) DownloadShard(ctx context.Context, _ *types.DownloadShardReq
 // startServer serves svc and gRPC health with admission cfg and returns a client conn.
 func startServer(t *testing.T, cfg AdmissionConfig, svc types.FibreServer) (*Server, *grpc.ClientConn) {
 	t.Helper()
-	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, 100, cfg)
+	srv, err := Listen("127.0.0.1:0", 0, 100, cfg) // per-IP disabled
 	require.NoError(t, err)
 	srv.Register(svc)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
@@ -200,4 +200,20 @@ func TestDownloadHoldsMaxUntilReturn(t *testing.T) {
 
 	close(svc.release)
 	require.Eventually(t, func() bool { return srv.adm.reserved.Load() == 0 }, 2*time.Second, 10*time.Millisecond)
+}
+
+// TestServerStats: Stats reports live reservations and open connections.
+func TestServerStats(t *testing.T) {
+	const msg = 1 << 16
+	svc := &fakeFibre{entered: make(chan struct{}, 1), release: make(chan struct{})}
+	srv, conn := startServer(t, AdmissionConfig{Budget: msg, MaxMessage: msg}, svc)
+	go func() {
+		_, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{})
+	}()
+	<-svc.entered
+	st := srv.Stats()
+	require.EqualValues(t, msg, st.ReservedBytes)
+	require.EqualValues(t, 1, st.OpenConns)
+	close(svc.release)
+	require.Eventually(t, func() bool { return srv.Stats().ReservedBytes == 0 }, 2*time.Second, 10*time.Millisecond)
 }

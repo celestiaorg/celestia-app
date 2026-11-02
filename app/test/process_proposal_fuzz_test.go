@@ -31,6 +31,7 @@ import (
 type proposalFixture struct {
 	app       *app.App
 	logs      *lockedBuffer
+	mempool   [][]byte
 	txs       [][]byte
 	dataRoot  []byte
 	square    uint64
@@ -106,8 +107,9 @@ func newProposalFixture(t *testing.T) *proposalFixture {
 		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 
 	height := testApp.LastBlockHeight() + 1
+	mempool := [][]byte{sendTx, pffTx, blobTx, multiBlobTx}
 	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
-		Txs:        [][]byte{sendTx, pffTx, blobTx, multiBlobTx},
+		Txs:        mempool,
 		Height:     height,
 		Time:       blockTime,
 		MaxTxBytes: int64(appconsts.BlockMaxBytes),
@@ -118,6 +120,7 @@ func newProposalFixture(t *testing.T) *proposalFixture {
 	return &proposalFixture{
 		app:       testApp,
 		logs:      logs,
+		mempool:   mempool,
 		txs:       resp.Txs,
 		dataRoot:  resp.DataRootHash,
 		square:    resp.SquareSize,

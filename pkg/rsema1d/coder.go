@@ -171,7 +171,6 @@ func (c *Coder) commit(extendedRows [][]byte, buf []byte) *ExtendedData {
 		rlc:        rlcVec,
 		commitment: commitment,
 		rowsTree:   rowTree,
-		rlcTree:    rlcTree,
 	}
 }
 

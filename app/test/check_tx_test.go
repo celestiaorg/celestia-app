@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
@@ -85,6 +86,79 @@ func TestCheckTxZKProofMessageLimit(t *testing.T) {
 					})
 				}
 			}
+		}
+	}
+}
+
+// CheckTx must reject ISM signature work that cannot fit in any proposal before
+// the sender is charged, through every dispatch path. An ICA packet naming a
+// MsgProcessMessage fails closed regardless of its metadata.
+func TestCheckTxISMSignatureLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	seedICAHostChannel(t, testApp)
+
+	for _, count := range []int{appconsts.MaxISMSignatures, appconsts.MaxISMSignatures + 1} {
+		msg := &hyperlanetypes.MsgProcessMessage{Metadata: ismMetadataHex(count)}
+		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{msg})
+		for name, wrapped := range map[string][]sdk.Msg{"direct": {msg}, "authz": {&exec}} {
+			for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+				t.Run(fmt.Sprintf("%d/%s/%s", count, name, checkType), func(t *testing.T) {
+					rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, wrapped...)
+					resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+					require.NoError(t, err)
+					if count > appconsts.MaxISMSignatures {
+						require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					} else {
+						// These unsigned fixtures fail later validation, but exactly
+						// one block's work must pass the admission budget check.
+						require.NotEqual(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					}
+				})
+			}
+		}
+	}
+
+	payload, err := icatypes.SerializeCosmosTx(encodingConfig.Codec, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{Metadata: "0x"}}, icaEncoding)
+	require.NoError(t, err)
+	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+	recv := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), "signer")
+	t.Run("ICA fails closed", func(t *testing.T) {
+		rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, recv)
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+		require.NoError(t, err)
+		require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+	})
+}
+
+// CheckTx must reject a tx whose gas limit alone exceeds MaxSDKGas, since no
+// proposal can include it.
+func TestCheckTxSDKGasLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+
+	for _, gas := range []uint64{appconsts.MaxSDKGas, appconsts.MaxSDKGas + 1} {
+		for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+			t.Run(fmt.Sprintf("%d/%s", gas, checkType), func(t *testing.T) {
+				builder := encodingConfig.TxConfig.NewTxBuilder()
+				require.NoError(t, builder.SetMsgs(msg))
+				builder.SetGasLimit(gas)
+				rawTx, err := encodingConfig.TxConfig.TxEncoder()(builder.GetTx())
+				require.NoError(t, err)
+
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+				require.NoError(t, err)
+				if gas > appconsts.MaxSDKGas {
+					require.Equal(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				} else {
+					// This unsigned fixture fails later validation, but a tx
+					// declaring exactly one block's gas must pass the budget check.
+					require.NotEqual(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				}
+			})
 		}
 	}
 }

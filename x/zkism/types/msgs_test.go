@@ -6,6 +6,7 @@ import (
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +46,20 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 				msg.MerkleTreeAddress = []byte{0x01}
 			},
 			expErr: types.ErrInvalidMerkleTreeAddress,
+		},
+		{
+			name: "success: maximum root history size",
+			mallate: func() {
+				msg.RootHistorySize = types.MaxRootHistorySize
+			},
+			expErr: nil,
+		},
+		{
+			name: "root history size above the maximum",
+			mallate: func() {
+				msg.RootHistorySize = types.MaxRootHistorySize + 1
+			},
+			expErr: types.ErrInvalidRootHistorySize,
 		},
 		{
 			name: "invalid groth16 verifying key",
@@ -243,7 +258,14 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 		{
 			name: "public values too large",
 			malleate: func() {
-				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.MaxStateMembershipValuesBytes+1)
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes+1)
+			},
+			expErr: types.ErrInvalidPublicValuesLength,
+		},
+		{
+			name: "public values too small",
+			malleate: func() {
+				msg.PublicValues = bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes-1)
 			},
 			expErr: types.ErrInvalidPublicValuesLength,
 		},
@@ -254,7 +276,7 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 			msg = &types.MsgSubmitMessages{
 				Id:           util.CreateMockHexAddress("module", 1),
 				Proof:        bytes.Repeat([]byte{0x01}, types.ProofBytesLen),
-				PublicValues: []byte{0x01, 0x02},
+				PublicValues: bytes.Repeat([]byte{0x01}, types.StateMembershipValuesBytes),
 			}
 
 			tc.malleate()
@@ -262,6 +284,187 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 			err := msg.ValidateBasic()
 			if tc.expErr != nil {
 				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgUpdateVerifyingKeysValidateBasic(t *testing.T) {
+	var msg *types.MsgUpdateVerifyingKeys
+
+	groth16Vk := readGroth16Vkey(t)
+
+	tests := []struct {
+		name     string
+		malleate func()
+		expErr   error
+	}{
+		{
+			name:     "success",
+			malleate: func() {},
+			expErr:   nil,
+		},
+		{
+			name: "zero ism identifier",
+			malleate: func() {
+				msg.Id = util.NewZeroAddress()
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "invalid groth16 verifying key",
+			malleate: func() {
+				msg.Groth16Vkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
+			name: "invalid state transition verifying key length",
+			malleate: func() {
+				msg.StateTransitionVkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
+			name: "invalid state membership verifying key length",
+			malleate: func() {
+				msg.StateMembershipVkey = []byte{0x01}
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg = &types.MsgUpdateVerifyingKeys{
+				Id:                  util.CreateMockHexAddress("module", 1),
+				Owner:               "owner",
+				Groth16Vkey:         groth16Vk,
+				StateTransitionVkey: bytes.Repeat([]byte{0x01}, 32),
+				StateMembershipVkey: bytes.Repeat([]byte{0x02}, 32),
+			}
+
+			tc.malleate()
+
+			err := msg.ValidateBasic()
+			if tc.expErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgTransferOwnershipValidateBasic(t *testing.T) {
+	var msg *types.MsgTransferOwnership
+
+	tests := []struct {
+		name     string
+		malleate func()
+		expErr   error
+	}{
+		{
+			name:     "success: transfer",
+			malleate: func() {},
+			expErr:   nil,
+		},
+		{
+			name: "success: renounce",
+			malleate: func() {
+				msg.NewOwner = ""
+				msg.RenounceOwnership = true
+			},
+			expErr: nil,
+		},
+		{
+			name: "zero ism identifier",
+			malleate: func() {
+				msg.Id = util.NewZeroAddress()
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "neither new owner nor renounce",
+			malleate: func() {
+				msg.NewOwner = ""
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "new owner and renounce at the same time",
+			malleate: func() {
+				msg.RenounceOwnership = true
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "invalid new owner address",
+			malleate: func() {
+				msg.NewOwner = "not-an-address"
+			},
+			expErr: sdkerrors.ErrInvalidAddress,
+		},
+	}
+
+	// Encode the new owner with whatever bech32 prefix the sdk config currently holds.
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x02}, 20)).String()
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg = &types.MsgTransferOwnership{
+				Id:       util.CreateMockHexAddress("module", 1),
+				Owner:    "owner",
+				NewOwner: newOwner,
+			}
+
+			tc.malleate()
+
+			err := msg.ValidateBasic()
+			if tc.expErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgUpdateRootHistorySizeValidateBasic(t *testing.T) {
+	tests := []struct {
+		name   string
+		msg    types.MsgUpdateRootHistorySize
+		expErr error
+	}{
+		{
+			name: "success",
+			msg:  types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1), RootHistorySize: types.MaxRootHistorySize},
+		},
+		{
+			name: "success: zero restores the default",
+			msg:  types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1)},
+		},
+		{
+			name:   "zero ism identifier",
+			msg:    types.MsgUpdateRootHistorySize{Id: util.NewZeroAddress(), RootHistorySize: 1},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name:   "root history size above the maximum",
+			msg:    types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1), RootHistorySize: types.MaxRootHistorySize + 1},
+			expErr: types.ErrInvalidRootHistorySize,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.expErr != nil {
 				require.ErrorIs(t, err, tc.expErr)
 			} else {
 				require.NoError(t, err)

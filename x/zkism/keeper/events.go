@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -15,6 +16,7 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 		Groth16Vkey:         types.EncodeHex(ism.Groth16Vkey),
 		StateTransitionVkey: types.EncodeHex(ism.StateTransitionVkey),
 		StateMembershipVkey: types.EncodeHex(ism.StateMembershipVkey),
+		RootHistorySize:     ism.RootHistorySize,
 	})
 }
 
@@ -26,16 +28,40 @@ func EmitUpdateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 	})
 }
 
-// EmitSubmitMessagesEvent emits a typed event to signal authorization of new messages.
-func EmitSubmitMessagesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, messageIds [][32]byte) error {
-	messages := make([]string, 0, len(messageIds))
-	for _, msg := range messageIds {
-		messages = append(messages, types.EncodeHex(msg[:]))
-	}
-
+// EmitSubmitMessagesEvent emits a typed event to signal a newly proven source chain merkle tree state.
+func EmitSubmitMessagesEvent(ctx sdk.Context, ismId util.HexAddress, stateRoot []byte, treeState types.MerkleTreeState) error {
 	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitMessages{
-		Id:        ism.Id,
-		StateRoot: types.EncodeHex(ism.State[:32]),
-		Messages:  messages,
+		Id:        ismId,
+		StateRoot: types.EncodeHex(stateRoot),
+		TreeRoot:  types.EncodeHex(treeState.Root),
+		Count:     treeState.Count,
+	})
+}
+
+// EmitUpdateVerifyingKeysEvent emits a typed event to signal replacement of the verifying keys of an ism.
+func EmitUpdateVerifyingKeysEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateVerifyingKeys{
+		Id:                  ism.Id,
+		Groth16Vkey:         types.EncodeHex(ism.Groth16Vkey),
+		StateTransitionVkey: types.EncodeHex(ism.StateTransitionVkey),
+		StateMembershipVkey: types.EncodeHex(ism.StateMembershipVkey),
+	})
+}
+
+// EmitTransferOwnershipEvent emits a typed event to signal that ownership of an ism was transferred or renounced.
+func EmitTransferOwnershipEvent(ctx sdk.Context, ismId util.HexAddress, msg *types.MsgTransferOwnership) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventTransferOwnership{
+		Id:                ismId,
+		Owner:             msg.Owner,
+		NewOwner:          msg.NewOwner,
+		RenounceOwnership: msg.RenounceOwnership,
+	})
+}
+
+// EmitUpdateRootHistorySizeEvent emits a typed event to signal that the root history size of an ism changed.
+func EmitUpdateRootHistorySizeEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateRootHistorySize{
+		Id:              ism.Id,
+		RootHistorySize: ism.RootHistorySize,
 	})
 }

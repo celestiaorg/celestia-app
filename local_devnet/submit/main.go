@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -34,32 +35,32 @@ func run() error {
 	interval := flag.Duration("interval", 0, "delay between confirmed transactions")
 	timeout := flag.Duration("timeout", time.Minute, "timeout per transaction, including download")
 	verify := flag.Bool("verify", false, "download each PFF blob and compare its bytes")
+	address := flag.String("grpc", "validator-1:9090", "app gRPC address")
+	keyringDir := flag.String("keyring-dir", "/data/test", "keyring directory")
+	key := flag.String("key", "test", "funded account name")
+	validators := flag.Int("validators", 2, "maximum validator count")
+	save := flag.String("save", "", "save one PFF receipt for a later download")
+	read := flag.String("read", "", "download and verify a saved PFF receipt")
 	flag.Parse()
 	if flag.NArg() != 0 || (*kind != "pfb" && *kind != "pff") || *count < 1 || *size < 1 || *size > 2<<20 || *interval < 0 || *timeout <= 0 || (*verify && *kind != "pff") {
 		return fmt.Errorf("invalid arguments; see --help")
 	}
+	if (*save != "" || *read != "") && (*kind != "pff" || *count != 1) || (*save != "" && *read != "") || *validators < 1 {
+		return fmt.Errorf("invalid receipt or validator arguments; see --help")
+	}
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr, err := keyring.New(app.Name, keyring.BackendTest, "/data/test", nil, enc.Codec)
+	kr, err := keyring.New(app.Name, keyring.BackendTest, *keyringDir, nil, enc.Codec)
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient("validator-1:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	tx, err := user.SetupTxClient(ctx, kr, conn, enc, user.WithDefaultAccount("test"))
-	if err != nil {
-		return err
-	}
 	var client *fibre.Client
 	if *kind == "pff" {
 		params := fibre.DefaultProtocolParams
-		params.MaxValidatorCount = 2
+		params.MaxValidatorCount = *validators
 		cfg := fibre.NewClientConfigFromParams(params)
-		cfg.StateAddress, cfg.DefaultKeyName = "validator-1:9090", "test"
+		cfg.StateAddress, cfg.DefaultKeyName = *address, *key
 		client, err = fibre.NewClient(kr, cfg)
 		if err != nil {
 			return err
@@ -73,6 +74,26 @@ func run() error {
 			_ = client.Stop(stopCtx)
 		}()
 	}
+	if *read != "" {
+		data, err := os.ReadFile(*read)
+		if err != nil {
+			return err
+		}
+		var receipt receipt
+		if err := json.Unmarshal(data, &receipt); err != nil {
+			return err
+		}
+		return receipt.verify(ctx, client)
+	}
+	conn, err := grpc.NewClient(*address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	tx, err := user.SetupTxClient(ctx, kr, conn, enc, user.WithDefaultAccount(*key))
+	if err != nil {
+		return err
+	}
 	ns, err := share.NewV0Namespace([]byte("localdev"))
 	if err != nil {
 		return err
@@ -83,7 +104,7 @@ func run() error {
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-		err = submit(ctx, tx, client, ns, data, *verify)
+		err = submit(ctx, tx, client, ns, data, *verify, *save)
 		cancel()
 		if err != nil {
 			return fmt.Errorf("%s %d/%d: %w", *kind, i+1, *count, err)
@@ -95,7 +116,7 @@ func run() error {
 	return nil
 }
 
-func submit(ctx context.Context, tx *user.TxClient, client *fibre.Client, ns share.Namespace, data []byte, verify bool) error {
+func submit(ctx context.Context, tx *user.TxClient, client *fibre.Client, ns share.Namespace, data []byte, verify bool, save string) error {
 	if client == nil {
 		blob, err := blobtypes.NewV0Blob(ns, data)
 		if err != nil {
@@ -113,16 +134,37 @@ func submit(ctx context.Context, tx *user.TxClient, client *fibre.Client, ns sha
 		return err
 	}
 	fmt.Printf("PFF committed height=%d tx=%s bytes=%d blob=%s\n", result.Height, result.TxHash, len(data), result.BlobID)
-	if verify {
-		blob, err := client.Download(ctx, result.BlobID, fibre.WithHeight(result.Height))
+	receipt := receipt{BlobID: result.BlobID, Height: result.Height, Data: data}
+	if save != "" {
+		encoded, err := json.Marshal(receipt)
 		if err != nil {
 			return err
 		}
-		defer blob.Free()
-		if !bytes.Equal(data, blob.Data()) {
-			return fmt.Errorf("downloaded data does not match")
+		if err := os.WriteFile(save, encoded, 0o600); err != nil {
+			return err
 		}
-		fmt.Println("PFF download verified")
 	}
+	if verify {
+		return receipt.verify(ctx, client)
+	}
+	return nil
+}
+
+type receipt struct {
+	BlobID fibre.BlobID
+	Height uint64
+	Data   []byte
+}
+
+func (r receipt) verify(ctx context.Context, client *fibre.Client) error {
+	blob, err := client.Download(ctx, r.BlobID, fibre.WithHeight(r.Height))
+	if err != nil {
+		return err
+	}
+	defer blob.Free()
+	if !bytes.Equal(r.Data, blob.Data()) {
+		return fmt.Errorf("downloaded data does not match")
+	}
+	fmt.Println("PFF download verified")
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -380,4 +381,47 @@ func (m *serverMetrics) observePrune(ctx context.Context, start time.Time, prune
 	if pruned > 0 {
 		m.pruneEntries.Add(ctx, int64(pruned))
 	}
+}
+
+// registerGRPCMetrics registers gauges and counters over srv's admission and
+// connection limiters.
+func registerGRPCMetrics(m metric.Meter, srv *fibregrpc.Server) error {
+	reserved, err := m.Int64ObservableGauge("fibre.server.request.reserved_bytes",
+		metric.WithDescription("Request bytes reserved against the memory budget"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return fmt.Errorf("creating request reserved_bytes gauge: %w", err)
+	}
+	waiting, err := m.Int64ObservableGauge("fibre.server.request.admission.waiting",
+		metric.WithDescription("Requests waiting for memory budget"),
+	)
+	if err != nil {
+		return fmt.Errorf("creating request admission waiting gauge: %w", err)
+	}
+	open, err := m.Int64ObservableGauge("fibre.server.connections.open",
+		metric.WithDescription("Open gRPC connections"),
+	)
+	if err != nil {
+		return fmt.Errorf("creating connections open gauge: %w", err)
+	}
+	rejected, err := m.Int64ObservableCounter("fibre.server.connections.rejected",
+		metric.WithDescription("Connections rejected by the connection limits, by reason (global, per_ip)"),
+	)
+	if err != nil {
+		return fmt.Errorf("creating connections rejected counter: %w", err)
+	}
+	_, err = m.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		st := srv.Stats()
+		o.ObserveInt64(reserved, st.ReservedBytes)
+		o.ObserveInt64(waiting, st.WaitingRequests)
+		o.ObserveInt64(open, st.OpenConns)
+		o.ObserveInt64(rejected, st.RejectedGlobal, metric.WithAttributes(attribute.String("reason", "global")))
+		o.ObserveInt64(rejected, st.RejectedPerIP, metric.WithAttributes(attribute.String("reason", "per_ip")))
+		return nil
+	}, reserved, waiting, open, rejected)
+	if err != nil {
+		return fmt.Errorf("registering gRPC limiter metrics: %w", err)
+	}
+	return nil
 }

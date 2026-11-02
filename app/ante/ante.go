@@ -71,6 +71,11 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// Charge gas for the signatures a Hyperlane MsgProcessMessage carries.
+		// Side effect: consumes gas from the gas meter.
+		NewISMSignatureGasDecorator(),
+		// Reject multisig ISMs whose validator set exceeds the cap.
+		NewMultisigISMValidatorsDecorator(),
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).

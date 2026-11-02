@@ -97,7 +97,11 @@ func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vec
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
 	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
-	return v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	err = v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	// rows may alias a whole request buffer; a pooled verifier must not pin it
+	clear(v.rowsScratch)
+	clear(v.proofScratch)
+	return err
 }
 
 // VerifyShared is the concurrent-safe counterpart to [Verifier.Verify]. It performs the

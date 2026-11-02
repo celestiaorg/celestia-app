@@ -14,6 +14,7 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	grpclib "google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -36,6 +37,25 @@ type fibreClientCloser struct {
 
 func (f *fibreClientCloser) Close() error {
 	return f.conn.Close()
+}
+
+// Connect starts connecting without waiting for an RPC.
+func (f *fibreClientCloser) Connect() {
+	f.conn.Connect()
+}
+
+// WaitReady connects and waits until the connection is ready or ctx is done.
+func (f *fibreClientCloser) WaitReady(ctx context.Context) bool {
+	f.conn.Connect()
+	for {
+		s := f.conn.GetState()
+		if s == connectivity.Ready {
+			return true
+		}
+		if !f.conn.WaitForStateChange(ctx, s) {
+			return false
+		}
+	}
 }
 
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the

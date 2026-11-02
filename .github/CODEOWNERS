@@ -1,10 +1,10 @@
 # CODEOWNERS: <https://help.github.com/articles/about-codeowners/>
 
-# The review-policy status (docs/ai/review-policy.md) sets how many approvals a
-# PR needs from its [low], [medium], or [high] title tag. Because the tag is
-# chosen by the author, the files that define the policy, CI, and agent
-# behavior always need a protocol team approval. "Require review from Code
-# Owners" must stay enabled on main for this to be enforced.
+# The review policy (docs/ai/review-policy.md) auto-approves [low] and [medium]
+# PRs from trusted authors. Because the tag is chosen by the author, the files
+# that define the policy, CI, and agent behavior always need a protocol team
+# approval. "Require review from Code Owners" must stay enabled on main for
+# this to be enforced.
 
 # CI, repo automation, and the review policy itself, including this file.
 /.github/ @celestiaorg/protocol

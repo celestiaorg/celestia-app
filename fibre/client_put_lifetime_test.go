@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -25,10 +26,12 @@ import (
 	"github.com/cometbft/cometbft/rpc/core"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -106,7 +109,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 				case result := <-done:
 					require.NoError(t, result.err)
 					require.EqualValues(t, 123, result.result.Height)
-					require.Equal(t, "lifetime-test", result.result.TxHash)
+					require.Equal(t, lifetimeTxHash, result.result.TxHash)
 				case <-time.After(10 * time.Second):
 					t.Fatal("Put did not return after confirmation")
 				}
@@ -228,6 +231,9 @@ func newLifetimePutClient(t *testing.T, acquire func(context.Context) (func(), e
 	return client, txClient, settlement
 }
 
+// lifetimeTxHash is uppercase hex, as ConfirmTxSubscription reports it.
+var lifetimeTxHash = strings.Repeat("AB", 32)
+
 type lifetimeSettlementServer struct {
 	sdktx.UnimplementedServiceServer
 	tx.UnimplementedTxServer
@@ -240,7 +246,7 @@ func (s *lifetimeSettlementServer) EstimateGasPriceAndUsage(context.Context, *ga
 }
 
 func (s *lifetimeSettlementServer) BroadcastTx(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
-	return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{TxHash: "lifetime-test"}}, nil
+	return &sdktx.BroadcastTxResponse{TxResponse: &sdk.TxResponse{TxHash: lifetimeTxHash}}, nil
 }
 
 func (s *lifetimeSettlementServer) TxStatus(ctx context.Context, _ *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
@@ -249,6 +255,9 @@ func (s *lifetimeSettlementServer) TxStatus(ctx context.Context, _ *tx.TxStatusR
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-s.confirm:
+		if err := grpc.SetHeader(ctx, metadata.Pairs(grpctypes.GRPCBlockHeightHeader, "123")); err != nil {
+			return nil, err
+		}
 		return &tx.TxStatusResponse{Status: core.TxStatusCommitted, Height: 123}, nil
 	}
 }

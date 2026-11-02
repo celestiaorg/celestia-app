@@ -69,6 +69,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	var (
 		sdkMessageCount int
 		zkProofMsgCount int
+		ismSigCount     int
+		sdkGas          uint64
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -240,11 +242,22 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
 					return reject(), nil
 				}
+				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				if ismSigCount > appconsts.MaxISMSignatures {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
+					return reject(), nil
+				}
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil
 				}
+				txGas := txGasLimit(sdkTx)
+				if !fitsSDKGas(sdkGas, txGas) {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK gas of %d", appconsts.MaxSDKGas))
+					return reject(), nil
+				}
+				sdkGas += txGas
 			}
 
 			// we need to increment the sequence for every transaction so that

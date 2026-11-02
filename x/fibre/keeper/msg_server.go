@@ -357,13 +357,6 @@ func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.C
 	return types.PaymentAmount(blobSize)
 }
 
-// EstimateGasForPayForFibre estimates the gas required for a PayForFibre message.
-// It delegates to [types.EstimateGasForPayForFibre], the shared source of truth for
-// the gas formula (also used by the client-side escrow accounting).
-func EstimateGasForPayForFibre(blobSize uint32) uint64 {
-	return types.EstimateGasForPayForFibre(blobSize)
-}
-
 // ValidateValidatorSetAvailable returns an error if the validator set that signs
 // promises at promiseHeight is no longer stored, matching the error
 // ValidatePayForFibreSignatures returns.
