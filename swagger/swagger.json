@@ -1039,6 +1039,38 @@
         ]
       }
     },
+    "/celestia/zkism/v1/isms/{id}/root_history": {
+      "get": {
+        "summary": "RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still\naccepts.",
+        "operationId": "RootHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1QueryRootHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "id is the hex-encoded ISM identifier.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Query"
+        ]
+      }
+    },
     "/cosmos/auth/v1beta1/account_info/{address}": {
       "get": {
         "summary": "AccountInfo queries account info which is common to all account types.",
@@ -6281,6 +6313,16 @@
           "type": "string",
           "format": "byte",
           "title": "hash-based commitment to the verifier key used for state membership"
+        },
+        "rootHistorySize": {
+          "type": "integer",
+          "format": "int64",
+          "title": "number of replaced state roots and merkle tree states kept as history; 0 means DefaultRootHistorySize"
+        },
+        "stateHeight": {
+          "type": "string",
+          "format": "int64",
+          "description": "block height of the last accepted state transition proof; 0 if none. At most one is accepted per block."
         }
       },
       "description": "InterchainSecurityModule defines the Hyperlane interchain security module (ISM)."
@@ -6323,6 +6365,54 @@
       },
       "description": "QueryMerkleTreeStateResponse is the response type for the MerkleTreeState rpc method."
     },
+    "v1QueryRootHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "rootHistorySize": {
+          "type": "integer",
+          "format": "int64",
+          "description": "root_history_size is the number of replaced roots the ISM keeps."
+        },
+        "stateRoots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RootHistoryEntry"
+          },
+          "description": "state_roots are the replaced state roots still accepted for membership proofs, oldest first."
+        },
+        "treeStates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RootHistoryEntry"
+          },
+          "description": "tree_states are the replaced merkle tree states still accepted for message verification, oldest first."
+        }
+      },
+      "description": "QueryRootHistoryResponse is the response type for the RootHistory rpc method."
+    },
+    "v1RootHistoryEntry": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "format": "byte",
+          "title": "state root, or merkle tree root for merkle tree state history"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int64",
+          "title": "number of leaves in the merkle tree; always 0 for state root history"
+        },
+        "height": {
+          "type": "string",
+          "format": "int64",
+          "title": "block height at which the entry was replaced"
+        }
+      },
+      "description": "RootHistoryEntry is a state root or merkle tree state that was replaced and is still accepted."
+    },
     "zkismv1MerkleTreeState": {
       "type": "object",
       "properties": {
@@ -6335,6 +6425,11 @@
           "type": "integer",
           "format": "int64",
           "title": "number of leaves inserted into the source chain merkle tree"
+        },
+        "height": {
+          "type": "string",
+          "format": "int64",
+          "description": "block height at which the merkle tree state was proven. At most one membership proof is accepted per block."
         }
       },
       "description": "MerkleTreeState is the source chain Hyperlane merkle tree state proven for an ISM."
@@ -6381,6 +6476,10 @@
         }
       },
       "description": "MsgUpdateInterchainSecurityModuleResponse is the response type for UpdateInterchainSecurityModule."
+    },
+    "v1MsgUpdateRootHistorySizeResponse": {
+      "type": "object",
+      "description": "MsgUpdateRootHistorySizeResponse is the response type for UpdateRootHistorySize."
     },
     "v1MsgUpdateVerifyingKeysResponse": {
       "type": "object",
