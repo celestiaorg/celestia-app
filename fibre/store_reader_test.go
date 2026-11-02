@@ -2,12 +2,12 @@ package fibre
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 	"math"
 	"testing"
 	"testing/iotest"
 
+	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
@@ -109,11 +109,29 @@ func TestShardReaderRejectsNil(t *testing.T) {
 	require.ErrorContains(t, err, "nil row")
 }
 
+// shardReaderOp is the bytes one read or seek takes: a tag, then a
+// big-endian 16-bit argument.
+const shardReaderOp = 3
+
+// shardOps lays out one record per tag and argument pair.
+func shardOps(tagArg ...uint16) []byte {
+	records := make([][]byte, 0, len(tagArg)/2)
+	for i := 0; i+1 < len(tagArg); i += 2 {
+		records = append(records, []byte{byte(tagArg[i]), byte(tagArg[i+1] >> 8), byte(tagArg[i+1])})
+	}
+	return fuzzutil.Records(shardReaderOp, records...)
+}
+
 // FuzzShardReader compares mixed reads and seeks with bytes.Reader, including errors and EOF.
 func FuzzShardReader(f *testing.F) {
-	f.Add([]byte{}, []byte{0, 32, 0, 1, 0, 0, 0, 32, 0, 3, 0, 0, 0, 1, 0, 2, 255, 255, 4, 0, 0})
-	f.Add(bytes.Repeat([]byte{0xff}, 128), bytes.Repeat([]byte{0}, 30))
+	const minusOne = 0xffff
+	// Read, seek from the start, read, seek back from the current position,
+	// read, then seek before the end and read the rest.
+	f.Add([]byte{}, shardOps(0, 32, 1, 32, 0, 3, 2, 1, 0, 2, 3, minusOne, 0, 1024))
+	f.Add(bytes.Repeat([]byte{0xff}, 128), shardOps(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 	f.Add([]byte{0, 2}, bytes.Repeat([]byte{0xff}, 30))
+	// Invalid seeks: before the start, an unknown whence, then far past the end.
+	f.Add([]byte{1, 2, 3}, shardOps(1, minusOne, 4, 5, 1, 0x7fff, 0, 64, 3, 0x8000))
 
 	f.Fuzz(func(t *testing.T, seed, operations []byte) {
 		shard := shardFromSeed(seed)
@@ -124,12 +142,11 @@ func FuzzShardReader(f *testing.F) {
 		require.NoError(t, err)
 		var gotBuf, wantBuf [1024]byte
 
-		// Limit each input to 256 operations. Each operation uses one tag and a two-byte argument.
-		operations = operations[:min(len(operations), 256*3)]
-		for len(operations) >= 3 {
-			op := operations[0] % 5
-			arg := binary.LittleEndian.Uint16(operations[1:3])
-			operations = operations[3:]
+		// Limit each input to 256 operations.
+		ops := fuzzutil.New(operations)
+		for n := 0; n < 256 && !ops.Exhausted(); n++ {
+			r := ops.Record(shardReaderOp)
+			op, arg := r.Byte()%5, r.Uint16()
 			if op == 0 {
 				size := int(arg) % (len(gotBuf) + 1)
 				wantN, wantErr := want.Read(wantBuf[:size])

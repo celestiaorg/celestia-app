@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -25,24 +26,28 @@ const maxFuzzMsgs = 64
 
 var icaEncodings = []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON}
 
-// fuzzMsgBuilder turns a byte script into messages. Each byte picks a message
-// kind in its low three bits and a size in its high bits.
+// msgRecord is the bytes one message takes from the script: a kind byte,
+// whose high bit sends an ICA packet to another port, and a size byte.
+const msgRecord = 2
+
+// fuzzMsgBuilder turns a byte script into messages, one fixed-width record
+// per message.
 type fuzzMsgBuilder struct {
 	t       *testing.T
 	cdc     codec.Codec
-	script  []byte
+	script  *fuzzutil.Consumer
 	payload []byte
 	built   int
 }
 
-func (b *fuzzMsgBuilder) next() (byte, bool) {
-	if len(b.script) == 0 || b.built >= maxFuzzMsgs {
-		return 0, false
+// next returns the kind and size of the next message.
+func (b *fuzzMsgBuilder) next() (kind, size byte, ok bool) {
+	if b.script.Exhausted() || b.built >= maxFuzzMsgs {
+		return 0, 0, false
 	}
-	op := b.script[0]
-	b.script = b.script[1:]
+	r := b.script.Record(msgRecord)
 	b.built++
-	return op, true
+	return r.Byte(), r.Byte(), true
 }
 
 func (b *fuzzMsgBuilder) zkMsg(op byte) sdk.Msg {
@@ -58,10 +63,10 @@ func (b *fuzzMsgBuilder) zkMsg(op byte) sdk.Msg {
 	}
 }
 
-func (b *fuzzMsgBuilder) icaPacket(op byte, payload []byte) sdk.Msg {
+func (b *fuzzMsgBuilder) icaPacket(kind byte, payload []byte) sdk.Msg {
 	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
 	port := icatypes.HostPortID
-	if op&0x80 != 0 {
+	if kind&0x80 != 0 {
 		port = "transfer"
 	}
 	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", port, "channel-1", clienttypes.ZeroHeight(), 0)
@@ -70,12 +75,12 @@ func (b *fuzzMsgBuilder) icaPacket(op byte, payload []byte) sdk.Msg {
 
 // msg builds one message, recursing into MsgExec to the given depth.
 func (b *fuzzMsgBuilder) msg(depth int) (sdk.Msg, bool) {
-	op, ok := b.next()
+	kind, sizeByte, ok := b.next()
 	if !ok {
 		return nil, false
 	}
-	size := int(op >> 3)
-	switch op & 7 {
+	size := int(sizeByte)
+	switch kind & 7 {
 	case 0, 7:
 		return &banktypes.MsgSend{}, true
 	case 1:
@@ -109,14 +114,14 @@ func (b *fuzzMsgBuilder) msg(depth int) (sdk.Msg, bool) {
 		}
 		payload, err := icatypes.SerializeCosmosTx(b.cdc, msgs, icaEncodings[size%2])
 		require.NoError(b.t, err)
-		return b.icaPacket(op, payload), true
+		return b.icaPacket(kind, payload), true
 	case 4:
-		return b.zkMsg(op >> 3), true
+		return b.zkMsg(sizeByte), true
 	case 5:
 		n := min(size*8, len(b.payload))
 		payload := b.payload[:n]
 		b.payload = b.payload[n:]
-		return b.icaPacket(op, payload), true
+		return b.icaPacket(kind, payload), true
 	default:
 		return &icahosttypes.MsgModuleQuerySafe{}, true
 	}
@@ -178,11 +183,12 @@ func dispatched(cdc codec.Codec, enc string, msg sdk.Msg, nested bool) (msgs, zk
 // would dispatch. Counting more is safe; counting fewer lets a block execute
 // messages and proofs its per-block limits never accounted for.
 func FuzzCountTxMsgs(f *testing.F) {
-	f.Add([]byte{0, 1 | 3<<3, 0, 4, 2 | 5<<3}, []byte{}, false)
-	f.Add([]byte{3 | 4<<3, 3 | 7<<3, 1 | 2<<3, 3 | 3<<3, 4}, []byte{}, true)
-	f.Add([]byte{5 | 4<<3, 1 | 1<<3, 5 | 2<<3}, []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend"}]}`), true)
-	f.Add([]byte{1 | 5<<3, 1 | 5<<3, 4, 4, 4, 4, 4}, []byte{}, false)
-	f.Add([]byte{2 | 31<<3, 1 | 4<<3, 2 | 31<<3, 2 | 31<<3, 3 | 31<<3}, []byte{}, false)
+	f.Add(msgScript(0, 0, 1, 3, 0, 0, 4, 0, 2, 5), []byte{}, false)
+	f.Add(msgScript(3, 4, 3, 7, 1, 2, 3, 3, 4, 0), []byte{}, true)
+	f.Add(msgScript(5, 4, 1, 1, 5, 2), []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend"}]}`), true)
+	f.Add(msgScript(1, 5, 1, 5, 4, 0, 4, 0, 4, 0, 4, 0, 4, 0), []byte{}, false)
+	f.Add(msgScript(2, 31, 1, 4, 2, 31, 2, 31, 3, 31), []byte{}, false)
+	f.Add(msgScript(3|0x80, 4, 5|0x80, 2), []byte(`{}`), false)
 
 	config := encoding.MakeConfig(ModuleEncodingRegisters...)
 	f.Fuzz(func(t *testing.T, script, payload []byte, jsonChannel bool) {
@@ -202,7 +208,7 @@ func fuzzCountTxMsgs(t *testing.T, config encoding.Config, script, payload []byt
 	if jsonChannel {
 		enc = icaEncodings[1]
 	}
-	b := &fuzzMsgBuilder{t: t, cdc: cdc, script: script, payload: payload}
+	b := &fuzzMsgBuilder{t: t, cdc: cdc, script: fuzzutil.New(script), payload: payload}
 	var anys []*codectypes.Any
 	for {
 		m, ok := b.msg(0)
@@ -249,8 +255,17 @@ func fuzzCountTxMsgs(t *testing.T, config encoding.Config, script, payload []byt
 func TestCountTxMsgsSeeds(t *testing.T) {
 	config := encoding.MakeConfig(ModuleEncodingRegisters...)
 	// A send, a MsgExec of a send and a ZK message, and a query with five requests.
-	require.Equal(t, 1+3+6, fuzzCountTxMsgs(t, config, []byte{0, 1 | 2<<3, 0, 4, 2 | 5<<3}, nil, false))
+	require.Equal(t, 1+3+6, fuzzCountTxMsgs(t, config, msgScript(0, 0, 1, 2, 0, 0, 4, 0, 2, 5), nil, false))
 	// An ICA packet of four messages under each channel encoding.
-	require.Equal(t, 5, fuzzCountTxMsgs(t, config, []byte{3 | 4<<3}, nil, false))
-	require.Equal(t, 5, fuzzCountTxMsgs(t, config, []byte{3 | 9<<3}, nil, true))
+	require.Equal(t, 5, fuzzCountTxMsgs(t, config, msgScript(3, 4), nil, false))
+	require.Equal(t, 5, fuzzCountTxMsgs(t, config, msgScript(3, 9), nil, true))
+}
+
+// msgScript lays out one record per kind and size pair.
+func msgScript(kindSize ...byte) []byte {
+	records := make([][]byte, 0, len(kindSize)/2)
+	for i := 0; i+1 < len(kindSize); i += 2 {
+		records = append(records, kindSize[i:i+2])
+	}
+	return fuzzutil.Records(msgRecord, records...)
 }

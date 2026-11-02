@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
 )
 
 // Small shape so each fuzz iteration encodes and verifies quickly. K+N = 8
@@ -17,17 +18,14 @@ const (
 	fuzzN = 4
 )
 
-// fuzzOps consumes a fuzzer-chosen byte stream; an exhausted stream yields 0.
-type fuzzOps []byte
-
-func (o *fuzzOps) next() byte {
-	if len(*o) == 0 {
-		return 0
-	}
-	b := (*o)[0]
-	*o = (*o)[1:]
-	return b
-}
+// Record widths. A proof mutation is an op, a target entry and up to three
+// argument bytes. A reconstructor step is a kind, a batch size, eight row
+// indices, a mutation count and room for three proof mutations.
+const (
+	proofOpWidth = 5
+	maxStepOps   = 3
+	stepWidth    = 2 + fuzzK + fuzzN + 1 + maxStepOps*proofOpWidth
+)
 
 // fuzzMatrix is the committed matrix a fuzz iteration verifies against.
 // committed may differ from honest where the fuzzer poisoned rows; the RLC
@@ -121,16 +119,17 @@ func (m *fuzzMatrix) proofs(t *testing.T, indices []int) []*RowProof {
 }
 
 // mutateProofs applies up to maxOps fuzzer-chosen mutations to proofs, the RLC
-// vector and the commitment.
-func mutateProofs(ops *fuzzOps, maxOps int, proofs []*RowProof, vec rlc.Vector, commitment *Commitment) []*RowProof {
-	for n := 0; n < maxOps && len(*ops) > 0; n++ {
-		op := ops.next() % 13
+// vector and the commitment, each read from a proofOpWidth record.
+func mutateProofs(c *fuzzutil.Consumer, maxOps int, proofs []*RowProof, vec rlc.Vector, commitment *Commitment) []*RowProof {
+	for n := 0; n < maxOps && !c.Exhausted(); n++ {
+		r := c.Record(proofOpWidth)
+		op, target := r.Byte()%13, r.Intn(max(len(proofs), 1))
 		if len(proofs) == 0 && op != 12 {
 			continue
 		}
 		var p *RowProof
 		if len(proofs) > 0 {
-			p = proofs[int(ops.next())%len(proofs)]
+			p = proofs[target]
 		}
 		if p == nil && op < 6 {
 			continue
@@ -138,24 +137,24 @@ func mutateProofs(ops *fuzzOps, maxOps int, proofs []*RowProof, vec rlc.Vector, 
 		switch op {
 		case 0: // flip a row byte
 			if len(p.Row) > 0 {
-				p.Row[int(ops.next())*7%len(p.Row)] ^= ops.next() | 1
+				p.Row[int(r.Byte())*7%len(p.Row)] ^= r.Byte() | 1
 			}
 		case 1: // flip a path byte
 			if len(p.RowProof) > 0 {
-				node := p.RowProof[int(ops.next())%len(p.RowProof)]
+				node := p.RowProof[int(r.Byte())%len(p.RowProof)]
 				if len(node) > 0 {
-					node[int(ops.next())%len(node)] ^= ops.next() | 1
+					node[int(r.Byte())%len(node)] ^= r.Byte() | 1
 				}
 			}
 		case 2: // arbitrary, possibly negative or out-of-range, index
-			p.Index = int(int8(ops.next()))
+			p.Index = int(int8(r.Byte()))
 		case 3: // resize the row to an arbitrary length
-			size := int(ops.next()) * 3
+			size := int(r.Byte()) * 3
 			row := make([]byte, size)
 			copy(row, p.Row)
 			p.Row = row
 		case 4: // shrink, grow or resize a path
-			switch ops.next() % 3 {
+			switch r.Byte() % 3 {
 			case 0:
 				if len(p.RowProof) > 0 {
 					p.RowProof = p.RowProof[:len(p.RowProof)-1]
@@ -164,32 +163,32 @@ func mutateProofs(ops *fuzzOps, maxOps int, proofs []*RowProof, vec rlc.Vector, 
 				p.RowProof = append(p.RowProof, make([]byte, merkle.NodeSize))
 			default:
 				if len(p.RowProof) > 0 {
-					i := int(ops.next()) % len(p.RowProof)
-					p.RowProof[i] = make([]byte, int(ops.next())%(2*merkle.NodeSize))
+					i := int(r.Byte()) % len(p.RowProof)
+					p.RowProof[i] = make([]byte, int(r.Byte())%(2*merkle.NodeSize))
 				}
 			}
 		case 5: // row nil vs empty
 			p.Row = nil
 		case 6: // nil entry
-			proofs[int(ops.next())%len(proofs)] = nil
+			proofs[int(r.Byte())%len(proofs)] = nil
 		case 7: // duplicate an entry
-			proofs = append(proofs, proofs[int(ops.next())%len(proofs)])
+			proofs = append(proofs, proofs[int(r.Byte())%len(proofs)])
 		case 8: // drop an entry
-			i := int(ops.next()) % len(proofs)
+			i := int(r.Byte()) % len(proofs)
 			proofs = append(proofs[:i], proofs[i+1:]...)
 		case 9: // swap the rows of two entries
-			q := proofs[int(ops.next())%len(proofs)]
+			q := proofs[int(r.Byte())%len(proofs)]
 			if p != nil && q != nil {
 				p.Row, q.Row = q.Row, p.Row
 			}
 		case 10: // flip an RLC byte
 			if len(vec) > 0 {
-				vec[int(ops.next())%len(vec)][ops.next()%field.GF128Width] ^= uint16(ops.next()) | 1
+				vec[int(r.Byte())%len(vec)][r.Byte()%field.GF128Width] ^= uint16(r.Byte()) | 1
 			}
 		case 11: // flip a commitment byte
-			commitment[ops.next()%32] ^= ops.next() | 1
+			commitment[r.Byte()%32] ^= r.Byte() | 1
 		case 12: // append an entry with an arbitrary index and empty data
-			proofs = append(proofs, &RowProof{Index: int(int8(ops.next()))})
+			proofs = append(proofs, &RowProof{Index: int(int8(r.Byte()))})
 		}
 	}
 	return proofs
@@ -210,10 +209,12 @@ func FuzzVerifier(f *testing.F) {
 	f.Add([]byte("rows"), byte(0), byte(0x0f), []byte{})
 	f.Add([]byte("parity"), byte(1), byte(0xf0), []byte{})
 	f.Add([]byte{1, 2, 3}, byte(3), byte(0xff), []byte{})
-	f.Add([]byte("tamper"), byte(0), byte(0x13), []byte{0, 0, 5, 1})
-	f.Add([]byte("index"), byte(2), byte(0x81), []byte{2, 1, 0x80, 3, 0, 9})
-	f.Add([]byte("rlc"), byte(0), byte(0x0f), []byte{10, 0, 1, 2, 3, 11, 4, 5})
-	f.Add([]byte("shape"), byte(1), byte(0x33), []byte{4, 0, 0, 7, 1, 8, 0, 12, 40, 6, 2, 1})
+	ops := func(records ...[]byte) []byte { return fuzzutil.Records(proofOpWidth, records...) }
+	f.Add([]byte("tamper"), byte(0), byte(0x13), ops([]byte{0, 0, 5, 1}))
+	f.Add([]byte("index"), byte(2), byte(0x81), ops([]byte{2, 1, 0x80}, []byte{3, 0, 9}))
+	f.Add([]byte("rlc"), byte(0), byte(0x0f), ops([]byte{10, 0, 1, 2, 3}, []byte{11, 0, 4, 5}))
+	f.Add([]byte("path"), byte(3), byte(0x42), ops([]byte{1, 0, 2, 7, 1}, []byte{4, 1, 1}, []byte{4, 0, 2, 0, 9}, []byte{9, 0, 1}))
+	f.Add([]byte("shape"), byte(1), byte(0x33), ops([]byte{4, 0, 0}, []byte{7, 0, 1}, []byte{8, 0, 3}, []byte{12, 0, 40}, []byte{5, 1}, []byte{6, 0, 2}))
 
 	f.Fuzz(func(t *testing.T, data []byte, sizeSel, sel byte, ops []byte) {
 		m := newFuzzMatrix(t, data, sizeSel, 0, false)
@@ -225,8 +226,7 @@ func FuzzVerifier(f *testing.F) {
 		}
 		vec := append(rlc.Vector(nil), m.rlc...)
 		commitment := m.commitment
-		o := fuzzOps(ops)
-		proofs := mutateProofs(&o, 16, m.proofs(t, indices), vec, &commitment)
+		proofs := mutateProofs(fuzzutil.New(ops), 16, m.proofs(t, indices), vec, &commitment)
 		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 		if excludedNilFirstProof(proofs) {
 			return
@@ -291,20 +291,30 @@ func FuzzVerifier(f *testing.F) {
 // successful reconstruction must re-encode to the given commitment (or, for a
 // poisoned commitment, equal the honest originals the RLC values commit to).
 func FuzzReconstructor(f *testing.F) {
-	// add encodes an unmutated Add of indices; reconstruct encodes Reconstruct.
-	add := func(indices ...byte) []byte {
-		return append(append([]byte{0, byte(len(indices) - 1)}, indices...), 0)
+	// mutatedAdd encodes an Add of indices with up to maxStepOps proof
+	// mutations; add, reject and reconstruct encode the other steps.
+	mutatedAdd := func(indices []byte, mutations ...[]byte) []byte {
+		step := make([]byte, 2+fuzzK+fuzzN, stepWidth)
+		step[1] = byte(len(indices) - 1)
+		copy(step[2:], indices)
+		step = append(step, byte(len(mutations)))
+		for _, m := range mutations {
+			step = append(step, fuzzutil.Records(proofOpWidth, m)...)
+		}
+		return step
 	}
+	add := func(indices ...byte) []byte { return mutatedAdd(indices) }
+	reject := func(indices ...byte) []byte { return append([]byte{2, byte(len(indices) - 1)}, indices...) }
 	reconstruct := []byte{3}
-	seq := func(steps ...[]byte) []byte { return bytes.Join(steps, nil) }
-	all := seq(add(0, 1, 2, 3), add(4, 5, 6, 7), reconstruct)
-	f.Add([]byte("rows"), byte(0), byte(0), false, all)
+	seq := func(steps ...[]byte) []byte { return fuzzutil.Records(stepWidth, steps...) }
+	all := [][]byte{add(0, 1, 2, 3), add(4, 5, 6, 7), reconstruct}
+	f.Add([]byte("rows"), byte(0), byte(0), false, seq(all...))
 	f.Add([]byte("parity"), byte(1), byte(0), false, seq(add(4, 5, 6, 7), reconstruct))
 	f.Add([]byte("mixed"), byte(2), byte(0), false, seq(add(0, 6), add(2, 7, 0), reconstruct, add(5), reconstruct))
 	f.Add([]byte("poison"), byte(0), byte(0x02), false, seq(add(0, 2, 3), add(1), reconstruct, add(4), reconstruct))
 	f.Add([]byte("wide"), byte(1), byte(0x01), true, seq(add(1, 2, 3), add(0), add(4), reconstruct))
-	f.Add([]byte("reject"), byte(0), byte(0), false, seq(all, []byte{2, 0, 1}, reconstruct, add(1), reconstruct))
-	f.Add([]byte("mutate"), byte(3), byte(0), false, seq([]byte{0, 3, 0, 1, 2, 3, 2, 0, 1, 0, 7, 1, 4}, add(1, 4), reconstruct))
+	f.Add([]byte("reject"), byte(0), byte(0), false, seq(append(all, reject(1), reconstruct, add(1), reconstruct)...))
+	f.Add([]byte("mutate"), byte(3), byte(0), false, seq(mutatedAdd([]byte{0, 1, 2, 3}, []byte{0, 1, 0, 7}, []byte{1, 0, 1, 0, 1}), add(1, 4), add(0, 2), reconstruct))
 
 	f.Fuzz(func(t *testing.T, data []byte, sizeSel, poison byte, wideGarbage bool, ops []byte) {
 		m := newFuzzMatrix(t, data, sizeSel, poison, wideGarbage)
@@ -312,7 +322,7 @@ func FuzzReconstructor(f *testing.F) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		o := fuzzOps(ops)
+		steps := fuzzutil.New(ops)
 		rows := make([][]byte, fuzzK+fuzzN)
 		clearSlots := func(indices []int) {
 			for _, idx := range indices {
@@ -322,17 +332,19 @@ func FuzzReconstructor(f *testing.F) {
 			}
 		}
 
-		for step := 0; step < 24 && len(o) > 0; step++ {
-			switch o.next() % 4 {
+		for step := 0; step < 24 && !steps.Exhausted(); step++ {
+			o := steps.Record(stepWidth)
+			switch o.Byte() % 4 {
 			case 0, 1: // Add a batch, possibly mutated
-				n := int(o.next())%(fuzzK+fuzzN) + 1
+				n := o.Intn(fuzzK+fuzzN) + 1
+				slots := o.Record(fuzzK + fuzzN)
 				indices := make([]int, n)
 				for i := range indices {
-					indices[i] = int(o.next()) % (fuzzK + fuzzN)
+					indices[i] = slots.Intn(fuzzK + fuzzN)
 				}
 				vec := append(rlc.Vector(nil), m.rlc...)
 				commitment := m.commitment
-				proofs := mutateProofs(&o, int(o.next())%4, m.proofs(t, indices), vec, &commitment)
+				proofs := mutateProofs(o, o.Intn(maxStepOps+1), m.proofs(t, indices), vec, &commitment)
 				// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
 				if excludedNilFirstProof(proofs) {
 					continue
@@ -351,9 +363,9 @@ func FuzzReconstructor(f *testing.F) {
 					rows[p.Index] = p.Row
 				}
 			case 2: // Reject arbitrary indices
-				indices := make([]int, int(o.next())%3+1)
+				indices := make([]int, o.Intn(3)+1)
 				for i := range indices {
-					indices[i] = int(int8(o.next()))
+					indices[i] = int(int8(o.Byte()))
 				}
 				r.Reject(indices)
 				clearSlots(indices)
