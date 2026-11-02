@@ -14,6 +14,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -25,6 +26,7 @@ import (
 
 const (
 	escrowFuzzMaxOps      = 32
+	escrowFuzzRecord      = 12 // bytes per op: op, signer, then op-specific bytes
 	escrowFuzzSigners     = 3
 	escrowFuzzUserBalance = 1_000_000_000
 )
@@ -67,31 +69,15 @@ func (l *escrowLedger) snapshot() escrowLedger {
 	return escrowLedger{balances: maps.Clone(l.balances), failNext: l.failNext}
 }
 
-// escrowFuzzReader hands out fuzz bytes, returning zeros once exhausted.
-type escrowFuzzReader struct{ b []byte }
-
-func (r *escrowFuzzReader) byte() byte {
-	if len(r.b) == 0 {
-		return 0
-	}
-	v := r.b[0]
-	r.b = r.b[1:]
-	return v
-}
-
-func (r *escrowFuzzReader) u16() uint16 { return uint16(r.byte())<<8 | uint16(r.byte()) }
-
-func (r *escrowFuzzReader) u32() uint32 { return uint32(r.u16())<<16 | uint32(r.u16()) }
-
-// amount is usually small enough to succeed and occasionally huge.
-func (r *escrowFuzzReader) amount() math.Int {
-	switch r.byte() % 8 {
+// escrowFuzzAmount is usually small enough to succeed and occasionally huge.
+func escrowFuzzAmount(r *fuzzutil.Consumer) math.Int {
+	switch r.Byte() % 8 {
 	case 0:
-		return math.NewIntFromUint64(uint64(r.u32())<<32 | uint64(r.u32()))
+		return math.NewIntFromUint64(r.Uint64())
 	case 1:
-		return math.NewInt(int64(r.byte()))
+		return math.NewInt(int64(r.Byte()))
 	default:
-		return math.NewInt(int64(r.u16()) * 100)
+		return math.NewInt(int64(r.Uint16()) * 100)
 	}
 }
 
@@ -103,48 +89,49 @@ func (r *escrowFuzzReader) amount() math.Int {
 // consistent with their pending withdrawals and with the module's bank
 // balance, and no promise may ever settle twice.
 func FuzzEscrowMsgSequence(f *testing.F) {
-	// Script layout: op, signer, then op-specific bytes (see the switch below).
+	// Each op is one escrowFuzzRecord-byte record: op, signer, then
+	// op-specific bytes (see the switch below), zero-padded.
 	// Deposits, a withdrawal request, a payment and its replay, an immediate
 	// timeout settlement, then time advances that mature the withdrawal and
 	// prune the processed payments before the pooled promises are replayed.
-	f.Add([]byte{
-		0, 0, 2, 0x10, 0x00, // deposit 409600 for signer 0
-		0, 1, 2, 0x10, 0x00, // deposit 409600 for signer 1
-		1, 0, 2, 0x01, 0x00, // request withdrawal of 25600 for signer 0
-		2, 0, 0, 0, 0, 0x10, 0, 0, 0, 0, 0, 0, // pay a fresh 4096-byte promise of signer 0
-		2, 1, 0xc0, // replay it
-		3, 1, 1, 0, 0, 0x10, 0, 0xff, 0x88, 0, 1, 0, // time out a promise of signer 1 created 2h ago
-		2, 1, 1, 0, 0, 0x20, 0, 0xff, 0xe2, 0, 2, 0, // pay a promise of signer 1 created 30m ago
-		4, 0, 0, 30, 1, // advance 30m
-		3, 0, 0xc2, // time out the promise just paid
-		4, 0, 0x05, 0xdc, 1, // advance 25h: withdrawal matures, payments are pruned
-		2, 0, 0xc0, // replay the first promise
-		3, 0, 0xc1, // replay the timed-out promise
-	})
+	f.Add(fuzzutil.Records(escrowFuzzRecord,
+		[]byte{0, 0, 2, 0x10, 0x00},                         // deposit 409600 for signer 0
+		[]byte{0, 1, 2, 0x10, 0x00},                         // deposit 409600 for signer 1
+		[]byte{1, 0, 2, 0x01, 0x00},                         // request withdrawal of 25600 for signer 0
+		[]byte{2, 0, 0, 0, 0, 0x10, 0},                      // pay a fresh 4096-byte promise of signer 0
+		[]byte{2, 1, 0xc0},                                  // replay it
+		[]byte{3, 1, 1, 0, 0, 0x10, 0, 0xff, 0x88, 0, 1, 0}, // time out a promise of signer 1 created 2h ago
+		[]byte{2, 1, 1, 0, 0, 0x20, 0, 0xff, 0xe2, 0, 2, 0}, // pay a promise of signer 1 created 30m ago
+		[]byte{4, 0, 0, 30, 1},                              // advance 30m
+		[]byte{3, 0, 0xc2},                                  // time out the promise just paid
+		[]byte{4, 0, 0x05, 0xdc, 1},                         // advance 25h: withdrawal matures, payments are pruned
+		[]byte{2, 0, 0xc0},                                  // replay the first promise
+		[]byte{3, 0, 0xc1},                                  // replay the timed-out promise
+	))
 	// A withdrawal locks the whole balance, then a payment is taken from it.
-	f.Add([]byte{
-		0, 2, 2, 0x00, 0x30,
-		1, 2, 2, 0x00, 0x30,
-		2, 2, 2, 0, 0, 0x10, 0, 0, 0, 0, 0, 0,
-		4, 0, 0x05, 0xa0, 1,
-	})
+	f.Add(fuzzutil.Records(escrowFuzzRecord,
+		[]byte{0, 2, 2, 0x00, 0x30},
+		[]byte{1, 2, 2, 0x00, 0x30},
+		[]byte{2, 2, 2, 0, 0, 0x10, 0},
+		[]byte{4, 0, 0x05, 0xa0, 1},
+	))
 	// Settle, let the record be pruned, raise WithdrawalDelay, then replay.
-	f.Add([]byte{
-		0, 0, 2, 0x10, 0x00,
-		2, 0, 0, 0, 0, 0x10, 0, 0, 0, 0, 0, 0,
-		4, 0, 0x05, 0xb4, 1,
-		5, 0, 0x27, 0x60, 0, 0x3c,
-		2, 1, 0xc0,
-		3, 1, 0xc0,
-	})
+	f.Add(fuzzutil.Records(escrowFuzzRecord,
+		[]byte{0, 0, 2, 0x10, 0x00},
+		[]byte{2, 0, 0, 0, 0, 0x10, 0},
+		[]byte{4, 0, 0x05, 0xb4, 1},
+		[]byte{5, 0, 0x27, 0x60, 0, 0x3c},
+		[]byte{2, 1, 0xc0},
+		[]byte{3, 1, 0xc0},
+	))
 	// A bank failure while a withdrawal matures; it must be retried later.
-	f.Add([]byte{
-		0, 3, 2, 0x10, 0x00,
-		1, 0, 2, 0x01, 0x00,
-		6, 0, 1,
-		4, 0, 0x05, 0xdc, 1,
-		4, 0, 0, 1, 1,
-	})
+	f.Add(fuzzutil.Records(escrowFuzzRecord,
+		[]byte{0, 3, 2, 0x10, 0x00},
+		[]byte{1, 0, 2, 0x01, 0x00},
+		[]byte{6, 0, 1},
+		[]byte{4, 0, 0x05, 0xdc, 1},
+		[]byte{4, 0, 0, 1, 1},
+	))
 	f.Fuzz(func(t *testing.T, script []byte) {
 		fuzzEscrowMsgSequence(t, script)
 	})
@@ -175,7 +162,7 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 
 	var pool []types.PaymentPromise
 	settled := make(map[string]bool)
-	r := &escrowFuzzReader{b: script}
+	c := fuzzutil.New(script)
 
 	// deliver runs one message like DeliverTx: ValidateBasic, then the handler
 	// on a cache context whose writes and bank moves are kept only on success.
@@ -193,9 +180,10 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 		return nil
 	}
 
-	for step := 0; step < escrowFuzzMaxOps && len(r.b) > 0; step++ {
-		op := r.byte() % 7
-		who := int(r.byte()) % (escrowFuzzSigners + 1)
+	for step := 0; step < escrowFuzzMaxOps && !c.Exhausted(); step++ {
+		r := c.Record(escrowFuzzRecord)
+		op := r.Byte() % 7
+		who := r.Intn(escrowFuzzSigners + 1)
 		signer := signers[who%escrowFuzzSigners]
 		if who == escrowFuzzSigners {
 			signer = strings.ToUpper(signers[0]) // same account, non-canonical case
@@ -205,7 +193,7 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 
 		switch op {
 		case 0:
-			amt := sdk.NewCoin(appconsts.BondDenom, r.amount())
+			amt := sdk.NewCoin(appconsts.BondDenom, escrowFuzzAmount(r))
 			msg := &types.MsgDepositToEscrow{Signer: signer, Amount: amt}
 			if deliver(msg, func(ctx sdk.Context) error { _, err := s.msgServer.DepositToEscrow(ctx, msg); return err }) == nil {
 				after, _ := s.keeper.GetEscrowAccount(s.ctx, canonical)
@@ -213,7 +201,7 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 				require.True(t, after.AvailableBalance.Amount.Sub(amt.Amount).Equal(balanceOrZero(before.AvailableBalance)))
 			}
 		case 1:
-			amt := sdk.NewCoin(appconsts.BondDenom, r.amount())
+			amt := sdk.NewCoin(appconsts.BondDenom, escrowFuzzAmount(r))
 			msg := &types.MsgRequestWithdrawal{Signer: signer, Amount: amt}
 			if deliver(msg, func(ctx sdk.Context) error { _, err := s.msgServer.RequestWithdrawal(ctx, msg); return err }) == nil {
 				after, _ := s.keeper.GetEscrowAccount(s.ctx, canonical)
@@ -252,8 +240,8 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 				require.True(t, ledger.balances[authtypes.FeeCollectorName].Sub(feeBefore).Equal(charge.Amount))
 			}
 		case 4:
-			dt := time.Duration(r.u16()) * time.Minute
-			s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(dt)).WithBlockHeight(s.ctx.BlockHeight() + 1 + int64(r.byte()%4))
+			dt := time.Duration(r.Uint16()) * time.Minute
+			s.ctx = s.ctx.WithBlockTime(s.ctx.BlockTime().Add(dt)).WithBlockHeight(s.ctx.BlockHeight() + 1 + int64(r.Byte()%4))
 			injected := ledger.failNext
 			require.NoError(t, s.keeper.BeginBlocker(s.ctx))
 			// A withdrawal whose bank transfer failed stays pending for a retry.
@@ -262,12 +250,12 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 			}
 		case 5:
 			params := s.keeper.GetParams(s.ctx)
-			params.WithdrawalDelay = time.Duration(r.u16()) * time.Minute
-			params.PaymentPromiseTimeout = time.Duration(r.u16()%1024) * time.Minute
+			params.WithdrawalDelay = time.Duration(r.Uint16()) * time.Minute
+			params.PaymentPromiseTimeout = time.Duration(r.Uint16()%1024) * time.Minute
 			msg := &types.MsgUpdateFibreParams{Authority: s.authority, Params: params}
 			_ = deliver(msg, func(ctx sdk.Context) error { _, err := s.msgServer.UpdateFibreParams(ctx, msg); return err })
 		case 6:
-			ledger.failNext = int(r.byte() % 3)
+			ledger.failNext = int(r.Byte() % 3)
 		}
 		requireEscrowInvariants(t, s, ledger, total)
 	}
@@ -283,29 +271,29 @@ func balanceOrZero(c sdk.Coin) math.Int {
 // escrowFuzzPromise reuses a pooled promise or signs a new one with
 // fuzz-chosen signer, blob size, creation time and height. A flag corrupts the
 // signature, which must keep the promise from settling.
-func escrowFuzzPromise(t *testing.T, s *MsgServerTestSuite, r *escrowFuzzReader, pool []types.PaymentPromise) types.PaymentPromise {
-	sel := r.byte()
+func escrowFuzzPromise(t *testing.T, s *MsgServerTestSuite, r *fuzzutil.Consumer, pool []types.PaymentPromise) types.PaymentPromise {
+	sel := r.Byte()
 	if sel >= 0xc0 && len(pool) > 0 {
 		return pool[int(sel)%len(pool)]
 	}
 	key := escrowFuzzKeys[int(sel)%escrowFuzzSigners]
 	pub := *key.PubKey().(*secp256k1.PubKey)
-	blobSize := r.u32()
+	blobSize := r.Uint32()
 	if blobSize == 0 {
 		blobSize = 1000
 	}
-	created := s.ctx.BlockTime().Add(time.Duration(int16(r.u16())) * time.Minute)
+	created := s.ctx.BlockTime().Add(time.Duration(int16(r.Uint16())) * time.Minute)
 	promise := s.createPaymentPromiseWithTime(pub, key, created)
 	promise.BlobSize = blobSize
-	promise.Height = s.ctx.BlockHeight() + int64(int8(r.byte()))
-	promise.Commitment = bytes.Repeat([]byte{r.byte()}, 32)
+	promise.Height = s.ctx.BlockHeight() + int64(int8(r.Byte()))
+	promise.Commitment = bytes.Repeat([]byte{r.Byte()}, 32)
 	pp := fibre.PaymentPromise{}
 	require.NoError(t, pp.FromProto(&promise))
 	signBytes, err := pp.SignBytes()
 	require.NoError(t, err)
 	promise.Signature, err = key.Sign(signBytes)
 	require.NoError(t, err)
-	if flip := r.byte(); flip&0x80 != 0 {
+	if flip := r.Byte(); flip&0x80 != 0 {
 		promise.Signature = bytes.Clone(promise.Signature)
 		promise.Signature[int(flip)%len(promise.Signature)] ^= 1
 	}
