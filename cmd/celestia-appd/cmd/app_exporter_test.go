@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -27,6 +28,27 @@ func TestAppExporterHeight(t *testing.T) {
 
 	_, err = exportFrom(db, 10, false)
 	require.Error(t, err)
+}
+
+func TestAppExporterRefusesMissingCommitTimestamp(t *testing.T) {
+	db := newExportDB(t, 3)
+
+	// Snapshot restore writes commit info without a timestamp.
+	key := []byte("s/3")
+	bz, err := db.Get(key)
+	require.NoError(t, err)
+	var info storetypes.CommitInfo
+	require.NoError(t, info.Unmarshal(bz))
+	info.Timestamp = time.Time{}
+	bz, err = info.Marshal()
+	require.NoError(t, err)
+	require.NoError(t, db.Set(key, bz))
+
+	_, err = exportFrom(db, -1, false)
+	require.ErrorContains(t, err, "no commit timestamp for height 3: export from a node that executed this height")
+
+	_, err = exportFrom(db, 2, false)
+	require.NoError(t, err)
 }
 
 // newExportDB returns a database with blocks committed up to height.

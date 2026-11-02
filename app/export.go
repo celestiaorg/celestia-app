@@ -3,9 +3,15 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"time"
 
+	"cosmossdk.io/core/header"
+	"cosmossdk.io/store/rootmulti"
 	storetypes "cosmossdk.io/store/types"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,10 +23,19 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a genesis
 // file.
 func (app *App) ExportAppStateAndValidators(
-	forZeroHeight bool, jailAllowedAddrs []string, _ []string,
+	forZeroHeight bool, jailAllowedAddrs []string, modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
 	// The context must carry the last committed height so that slashing events are accounted for.
 	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
+
+	if err := app.checkExportable(ctx, modulesToExport); err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+	blockTime, err := app.lastCommitTime()
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+	ctx = ctx.WithBlockTime(blockTime).WithHeaderInfo(header.Info{Time: blockTime})
 
 	// We export at last height + 1, because that's the height at which
 	// Tendermint will start InitChain.
@@ -46,6 +61,53 @@ func (app *App) ExportAppStateAndValidators(
 		Height:          height,
 		ConsensusParams: app.GetConsensusParams(ctx),
 	}, err
+}
+
+// checkExportable refuses state that this binary cannot export into a usable
+// genesis.
+func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error {
+	plan, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
+	switch {
+	case errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
+	case err != nil:
+		return err
+	case plan.Height <= app.LastBlockHeight()+1:
+		return fmt.Errorf("upgrade %q is scheduled for height %d: export with --height %d instead",
+			plan.Name, plan.Height, app.LastBlockHeight()-1)
+	}
+
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return err
+	}
+	if appVersion != appconsts.Version {
+		return fmt.Errorf("state is at app version %d but this binary exports app version %d: "+
+			"use a binary for app version %d (`celestia-appd passthrough v%d export` in the multiplexer build)",
+			appVersion, appconsts.Version, appVersion, appVersion)
+	}
+
+	if len(modulesToExport) > 0 {
+		return errors.New("exporting a subset of modules is not supported: unset --modules-to-export")
+	}
+	return nil
+}
+
+// lastCommitTime returns the timestamp of the last commit. It is missing when
+// this node did not write it, e.g. after a snapshot restore.
+func (app *App) lastCommitTime() (time.Time, error) {
+	height := app.LastBlockHeight()
+	rms, ok := app.CommitMultiStore().(*rootmulti.Store)
+	if !ok {
+		return time.Time{}, errors.New("export requires a rootmulti store")
+	}
+	info, err := rms.GetCommitInfo(height)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("no commit info for height %d (%w): export from a node that executed this height", height, err)
+	}
+	if ts := info.Timestamp; ts.IsZero() || ts.Unix() <= 0 {
+		return time.Time{}, fmt.Errorf("no commit timestamp for height %d: export from a node that executed this height", height)
+	}
+	return info.Timestamp, nil
 }
 
 // prepare for fresh start at zero height
