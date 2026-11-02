@@ -282,7 +282,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			// Older embedded binaries parse this genesis and reject fields
 			// their zkism module does not know. Apply the strip last so it
 			// also covers zkism state set by earlier modifiers.
-			mods = append(append([]Modifier{}, mods...), StripZkismTreeStates())
+			mods = append(append([]Modifier{}, mods...), StripZkismV11Fields())
 		}
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),

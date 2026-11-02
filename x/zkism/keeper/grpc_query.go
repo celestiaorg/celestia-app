@@ -88,3 +88,36 @@ func (q queryServer) MerkleTreeState(ctx context.Context, req *types.QueryMerkle
 		TreeState: treeState,
 	}, nil
 }
+
+// RootHistory implements types.QueryServer.
+func (q queryServer) RootHistory(ctx context.Context, req *types.QueryRootHistoryRequest) (*types.QueryRootHistoryResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be empty")
+	}
+
+	ismId, err := util.DecodeHexAddress(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
+	}
+
+	ism, err := q.k.isms.Get(ctx, ismId.GetInternalId())
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "ism not found: %s", req.Id)
+	}
+
+	stateRoots, err := historyEntries(ctx, q.k.stateRootHistory, ismId.GetInternalId())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	treeStates, err := historyEntries(ctx, q.k.treeStateHistory, ismId.GetInternalId())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &types.QueryRootHistoryResponse{
+		RootHistorySize: types.EffectiveRootHistorySize(ism.RootHistorySize),
+		StateRoots:      stateRoots,
+		TreeStates:      treeStates,
+	}, nil
+}

@@ -116,3 +116,32 @@ func NewQueryMerkleTreeStateCmd() *cobra.Command {
 	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
+
+// NewQueryRootHistoryCmd creates and returns the query cmd for the root history of an ism.
+func NewQueryRootHistoryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "root-history [ism-id]",
+		Short:   "Query the replaced state roots and merkle tree states an ISM still accepts",
+		Long:    "Query the root history size of a given ISM and the replaced state roots and merkle tree states it keeps, oldest first. Membership proofs may target any kept state root and messages may be relayed with merkle proofs against any kept tree root.",
+		Example: fmt.Sprintf("%s query %s root-history 0x726f757465725f69736d000000000000000000000000002a0000000000000000", version.AppName, types.ModuleName),
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			res, err := queryClient.RootHistory(cmd.Context(), &types.QueryRootHistoryRequest{Id: args[0]})
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}

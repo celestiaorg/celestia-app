@@ -12,6 +12,7 @@ var (
 	_ sdk.HasValidateBasic = (*MsgSubmitMessages)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateVerifyingKeys)(nil)
 	_ sdk.HasValidateBasic = (*MsgTransferOwnership)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateRootHistorySize)(nil)
 )
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
@@ -26,6 +27,10 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 
 	if len(msg.MerkleTreeAddress) != 32 {
 		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
+	}
+
+	if err := ValidateRootHistorySize(msg.RootHistorySize); err != nil {
+		return errorsmod.Wrap(ErrInvalidRootHistorySize, err.Error())
 	}
 
 	return validateVerifyingKeys(msg.Groth16Vkey, msg.StateTransitionVkey, msg.StateMembershipVkey)
@@ -112,6 +117,19 @@ func (msg *MsgTransferOwnership) ValidateBasic() error {
 
 	if _, err := sdk.AccAddressFromBech32(msg.NewOwner); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid new owner: %s", err)
+	}
+
+	return nil
+}
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgUpdateRootHistorySize) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+
+	if err := ValidateRootHistorySize(msg.RootHistorySize); err != nil {
+		return errorsmod.Wrap(ErrInvalidRootHistorySize, err.Error())
 	}
 
 	return nil

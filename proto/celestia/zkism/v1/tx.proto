@@ -27,6 +27,9 @@ service Msg {
 
   // TransferOwnership defines the rpc method for the ISM owner to transfer or renounce ownership of a zk ISM.
   rpc TransferOwnership(MsgTransferOwnership) returns (MsgTransferOwnershipResponse);
+
+  // UpdateRootHistorySize defines the rpc method for the ISM owner to change how many replaced roots a zk ISM keeps.
+  rpc UpdateRootHistorySize(MsgUpdateRootHistorySize) returns (MsgUpdateRootHistorySizeResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -44,6 +47,8 @@ message MsgCreateInterchainSecurityModule {
   bytes state_transition_vkey = 5;
   // hash-based commitment to the verifier key used for state membership
   bytes state_membership_vkey = 6;
+  // number of replaced roots kept as history; 0 means DefaultRootHistorySize
+  uint32 root_history_size = 7;
 }
 
 // MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
@@ -149,3 +154,21 @@ message MsgTransferOwnership {
 
 // MsgTransferOwnershipResponse is the response type for TransferOwnership.
 message MsgTransferOwnershipResponse {}
+
+// MsgUpdateRootHistorySize is the request type for UpdateRootHistorySize.
+message MsgUpdateRootHistorySize {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // owner is the ism owner and message sender.
+  string owner = 2;
+  // number of replaced roots kept as history; 0 means DefaultRootHistorySize
+  uint32 root_history_size = 3;
+}
+
+// MsgUpdateRootHistorySizeResponse is the response type for UpdateRootHistorySize.
+message MsgUpdateRootHistorySizeResponse {}

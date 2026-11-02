@@ -12,22 +12,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesZkismTreeStates checks that genesis documents for app
-// versions below 11 omit the zkism tree_states field, which the embedded v10
-// binary rejects as unknown, while the latest version keeps it.
-func TestExportBytesZkismTreeStates(t *testing.T) {
+// TestExportBytesZkismV11Fields checks that the v11 zkism genesis fields are
+// only exported for app version 11 and above.
+func TestExportBytesZkismV11Fields(t *testing.T) {
 	tests := []struct {
-		appVersion     uint64
-		wantTreeStates bool
+		appVersion    uint64
+		wantV11Fields bool
 	}{
-		{appVersion: 10, wantTreeStates: false},
-		{appVersion: appconsts.Version, wantTreeStates: true},
+		{appVersion: 10, wantV11Fields: false},
+		{appVersion: appconsts.Version, wantV11Fields: true},
 	}
 
 	for _, tc := range tests {
 		g := genesis.NewDefaultGenesis().
 			WithAppVersion(tc.appVersion).
-			WithValidators(genesis.NewDefaultValidator("validator-0"))
+			WithValidators(genesis.NewDefaultValidator("validator-0")).
+			WithModifiers(seedZkism)
 
 		bz, err := g.ExportBytes()
 		require.NoError(t, err)
@@ -41,9 +41,34 @@ func TestExportBytesZkismTreeStates(t *testing.T) {
 		var zkismState map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(appState[zkismtypes.ModuleName], &zkismState))
 
-		_, hasTreeStates := zkismState["tree_states"]
-		require.Equal(t, tc.wantTreeStates, hasTreeStates, "app version %d", tc.appVersion)
+		for _, field := range []string{"tree_states", "state_root_history", "tree_state_history"} {
+			_, has := zkismState[field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, field %s", tc.appVersion, field)
+		}
 		require.Contains(t, zkismState, "isms", "app version %d", tc.appVersion)
+
+		var isms []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(zkismState["isms"], &isms))
+		require.Len(t, isms, 1, "app version %d", tc.appVersion)
+		for _, field := range []string{"root_history_size", "state_height"} {
+			_, has := isms[0][field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, ism field %s", tc.appVersion, field)
+		}
 		require.Contains(t, zkismState, "submissions", "app version %d", tc.appVersion)
 	}
+}
+
+// seedZkism adds one ISM to the zkism genesis state so the export covers the per-ISM fields.
+func seedZkism(state map[string]json.RawMessage) map[string]json.RawMessage {
+	var zkismState map[string]json.RawMessage
+	if err := json.Unmarshal(state[zkismtypes.ModuleName], &zkismState); err != nil {
+		panic(err)
+	}
+	zkismState["isms"] = json.RawMessage(`[{"id":"0x726f757465725f69736d000000000000000000000000002a0000000000000001","owner":"","state":"AA==","merkle_tree_address":"AA==","groth16_vkey":"AA==","state_transition_vkey":"AA==","state_membership_vkey":"AA==","root_history_size":64,"state_height":"7"}]`)
+	bz, err := json.Marshal(zkismState)
+	if err != nil {
+		panic(err)
+	}
+	state[zkismtypes.ModuleName] = bz
+	return state
 }
