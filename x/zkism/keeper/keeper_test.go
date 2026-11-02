@@ -43,7 +43,8 @@ func TestKeeperTestSuite(t *testing.T) {
 
 func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
+	// Block heights start at 1, so height 0 keeps its meaning of "no proof accepted yet".
+	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Height: 1, Version: version.Consensus{App: appconsts.Version}})
 	suite.zkISMKeeper = testApp.IsmKeeper
 }
 

@@ -18,25 +18,36 @@ The `Verify` method checks a merkle proof of the message ID against the stored m
 - SP1 Groth16 Proofs: Proofs are verified against the SP1 Groth16 verifier key, providing an SP1 program verifier key commitment and public values as public witness.
 - Merkle Tree State: The source chain merkle tree root and leaf count most recently proven for an ISM. Relayers prove inclusion of each message against it when delivering.
 
-Users can define any state and write circuits that encapsulate a transition from State -> New State. The circuit must output the raw bytes of `state_length_u64_as_little_endian_bytes || state || new_state`. The first 32 bytes of `state` are assumed to be the state root used when checking Hyperlane membership proofs; the module does not interpret or persist any additional fields such as heights.
+Users can define any state and write circuits that encapsulate a transition from State -> New State. The circuit must output the raw bytes of `state_length_u64_as_little_endian_bytes || state || new_state`. The first 32 bytes of `state` are assumed to be the state root used when checking Hyperlane membership proofs; the module does not interpret any further fields of `state` (such as source chain heights). It does record the Celestia block height of the last accepted proof per ISM, see Root History.
 
 ## Module State
 
 The `x/zkism` module defines the following collections used for storage of on-chain state.
 
-- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address` and the SP1 Groth16 verifying key configurations. `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
-- `submissions`: Whether a membership proof has been submitted for the current state root. `(collections.Map[uint64, bool], types.MessageProofSubmittedPrefix)`.
-- `merkle_tree_states`: The proven source chain merkle tree root and leaf count per ISM, overwritten by each `SubmitMessages`. `(collections.Map[uint64, MerkleTreeState], types.MerkleTreeStateKeyPrefix)`.
+- `isms`: Stores per-ISM records. Each record contains `id`, `owner`, `state` (opaque bytes, first 32 bytes used as the trusted root), `merkle_tree_address`, the SP1 Groth16 verifying key configurations, `root_history_size` and `state_height` (block of the last accepted transition proof). `(collections.Map[uint64, InterchainSecurityModule], types.IsmsKeyPrefix)`.
+- `merkle_tree_states`: The latest proven source chain merkle tree root, leaf count and proof block height per ISM. `(collections.Map[uint64, MerkleTreeState], types.MerkleTreeStateKeyPrefix)`.
+- `state_root_history`: Replaced state roots per ISM that membership proofs may still target. `(collections.Map[Pair[uint64, uint64], RootHistoryEntry], types.StateRootHistoryPrefix)`.
+- `tree_state_history`: Replaced merkle tree states per ISM that relayed messages may still be proven against. `(collections.Map[Pair[uint64, uint64], RootHistoryEntry], types.TreeStateHistoryPrefix)`.
+
+### Root History
+
+A membership proof is generated against the state root the ISM holds when proving starts, and a relayed message carries a merkle proof against the tree root proven when relaying starts. If the ISM moves on in the meantime, both would be rejected. Each ISM therefore keeps the last `root_history_size` replaced state roots and replaced merkle tree states (default 64, at most 256; 0 means the default) as two bounded FIFOs keyed by `(ism id, sequence)`:
+
+- At most one state transition proof and one membership proof are accepted per ISM per block (`ErrAlreadyUpdatedInBlock`). A proven root is deterministic and final, so a second proof in the same block adds nothing and would only replace a root other relayers are about to prove against. The one exception is a key rotation: `UpdateVerifyingKeys` drops the tree state and its proof height, so the new membership program may submit in the same block. Gas simulation skips this check.
+- When more than `root_history_size` entries exist, the oldest are removed.
+- The source chain merkle tree is append-only, so an older proven root never authorizes a message that a newer one does not.
+- `UpdateVerifyingKeys` clears both histories. `UpdateRootHistorySize` trims them to the new size.
 
 ## Messages (Tx RPCs)
 
 Protobuf definitions: [`proto/celestia/zkism/v1/tx.proto`](../../proto/celestia/zkism/v1/tx.proto)
 
-- `CreateInterchainSecurityModule`: Creates an ISM with initial trusted state bytes and verifier configuration.
-- `UpdateInterchainSecurityModule`: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes; no height is stored.
-- `UpdateVerifyingKeys`: Replaces the Groth16 verifying key and both program verifying key commitments of an ISM. Only the ISM owner can submit it. Drops the proven merkle tree state, so nothing proven under the replaced keys is honored and no message verifies until the new membership program submits, and resets the submission flag so that submission is allowed for the current state root.
+- `CreateInterchainSecurityModule`: Creates an ISM with initial trusted state bytes, verifier configuration and an optional `root_history_size` (at most 256; 0 means 64).
+- `UpdateInterchainSecurityModule`: Verifies a state transition proof against the stored state and replaces `state` with the provided `new_state` (opaque bytes). Both states must be at least 32 bytes. At most one transition proof is accepted per ISM per block; `state_height` records the block of the last one. If the state root (`state[:32]`) changes, the replaced root is recorded in the state root history.
+- `UpdateVerifyingKeys`: Replaces the Groth16 verifying key and both program verifying key commitments of an ISM. Only the ISM owner can submit it. Drops the proven merkle tree state and both root histories, so nothing proven or trusted under the replaced keys is honored and no message verifies until the new membership program submits against the current state root.
 - `TransferOwnership`: Transfers ownership of an ISM to another address or, with `renounce_ownership`, removes the owner permanently. Only the ISM owner can submit it. Renouncing is irreversible: an ISM without an owner can never have its verifying keys updated again, so maintainers who want an immutable ISM renounce, and those who want to follow breaking changes of the proving system keep (or hand over) ownership.
-- `SubmitMessages`: Verifies a state membership proof and stores the proven source chain merkle tree root and leaf count. The proof must bind to the stored state root (`state[:32]`). The public values are a fixed 101 bytes: `version (u8) || state_root (32) || merkle_tree_address (32) || tree_root (32) || count (u32, little-endian)`. The version is currently `1`; payloads with any other version or length are rejected before proof verification, so public values committed by an older membership program (which proved a list of message ids and are `72 + 32 * n` bytes long) can never be accepted even while an ISM still stores the older program's verifying key.
+- `UpdateRootHistorySize`: Sets the `root_history_size` of an ISM (at most 256; 0 means 64). Only the ISM owner can submit it. Shrinking drops the oldest history entries.
+- `SubmitMessages`: Verifies a state membership proof and stores the proven source chain merkle tree root and leaf count. The proof must bind to the stored state root (`state[:32]`) or to a state root in the state root history, and its leaf count must exceed the latest proven count, so duplicate or stale proofs are rejected and the latest tree state never regresses. At most one membership proof is accepted per ISM per block. The replaced tree state is recorded in the tree state history. The public values are a fixed 101 bytes: `version (u8) || state_root (32) || merkle_tree_address (32) || tree_root (32) || count (u32, little-endian)`. The version is currently `1`; payloads with any other version or length are rejected before proof verification, so public values committed by an older membership program (which proved a list of message ids and are `72 + 32 * n` bytes long) can never be accepted even while an ISM still stores the older program's verifying key.
 
 ## SP1 Groth16 Verifier
 
@@ -97,14 +108,14 @@ Reusability across SP1 programs:
 
 - Hyperlane core calls `Verify(ism_id, metadata, message)`.
 - The metadata must be exactly 1028 bytes: `leaf_index (u32, big-endian) || branch (32 × 32 bytes)`. Malformed metadata returns an error.
-- The method returns `true` if `leaf_index` is below the stored leaf count and the branch proves `message.Id()` at `leaf_index` against the stored merkle tree root. Otherwise it returns `false` and Hyperlane core must not process the message.
+- The method returns `true` if the branch proves `message.Id()` at `leaf_index` against the latest merkle tree root or a root in the merkle tree history, and `leaf_index` is below that root's leaf count. Otherwise it returns `false` and Hyperlane core must not process the message. The history lookup scans at most `root_history_size` entries.
 - Replay protection is enforced by the Hyperlane mailbox, which rejects message IDs it has already received. The ISM itself keeps no record of delivered messages; see the replay note under Security Considerations.
 
 Thus, the expected flow is:
 
 1) Off-chain prover generates a state transition proof; submit via `UpdateInterchainSecurityModule`.
 2) Off-chain prover generates a membership proof of the source chain merkle tree root; submit via `SubmitMessages`.
-3) Relayers deliver each message with a merkle proof against the latest proven root; Hyperlane core invokes `Verify` per message.
+3) Relayers deliver each message with a merkle proof against the latest proven root or a root still in the tree state history; Hyperlane core invokes `Verify` per message.
 
 ## Queries (gRPC/REST)
 
@@ -113,6 +124,7 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 - `Ism(id) -> InterchainSecurityModule` — `GET /celestia/zkism/v1/isms/{id}`
 - `Isms(pagination) -> [InterchainSecurityModule]` — `GET /celestia/zkism/v1/isms`
 - `MerkleTreeState(id) -> MerkleTreeState` — `GET /celestia/zkism/v1/isms/{id}/merkle_tree_state`
+- `RootHistory(id) -> (root_history_size, state_roots, tree_states)` — `GET /celestia/zkism/v1/isms/{id}/root_history`. Entries are ordered oldest first.
 
 ## Events
 
@@ -120,6 +132,7 @@ Protobuf definitions: [`proto/celestia/zkism/v1/query.proto`](../../proto/celest
 - `EventUpdateInterchainSecurityModule` emitted when the stored state is replaced via a transition proof.
 - `EventUpdateVerifyingKeys` emitted when the owner replaces the verifying keys.
 - `EventTransferOwnership` emitted when the owner transfers or renounces ownership.
+- `EventUpdateRootHistorySize` emitted when the owner changes the root history size.
 - `EventSubmitMessages` emitted when a membership proof is accepted (includes the state root, merkle tree root and leaf count).
 
 ## Security Considerations
@@ -158,7 +171,10 @@ The module enforces the following invariants:
 - Proof prefix must match the expected verifying key hash prefix.
 - Proof length must be exactly 256 bytes + the 4-byte prefix, equalling a total of 260 bytes.
 - State transition proofs must include the currently stored state (minimum 32 bytes) and replace it entirely with `new_state` (minimum 32 bytes).
-- Membership proofs must bind to the trusted root stored in `ism.State[:32]` and to the ISM's `merkle_tree_address`.
+- Membership proofs must bind to the trusted root stored in `ism.State[:32]` or a state root in the state root history, and to the ISM's `merkle_tree_address`.
+- Each accepted membership proof strictly increases the proven leaf count.
+- Each root history holds at most `root_history_size` (≤ 256) entries per ISM.
+- At most one transition proof and one membership proof are accepted per ISM per block.
 - Submitting a membership proof costs a constant amount of state and event data, independent of the number of messages it covers.
 - Replay protection is enforced by the [Hyperlane Mailbox](https://docs.hyperlane.xyz/docs/protocol/core/mailbox), not by the ISM. Hyperlane core records delivered messages per `(mailbox_id, message_id)`, and mailboxes can be created permissionlessly. A valid merkle proof therefore passes `Verify` once per mailbox, so a message can be delivered again through a second mailbox with the same local domain that is configured with the same ISM. Recipients must pin the mailbox they accept deliveries from (warp tokens do: `Handle` rejects a delivery whose mailbox differs from the token's origin mailbox) or keep their own delivered-message set.
 

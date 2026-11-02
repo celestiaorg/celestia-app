@@ -75,6 +75,12 @@ const (
 	// PublicAndCommitmentCommitted length prefix in a serialized BN254 verifying key.
 	groth16VkeyPubCommittedOffset = groth16VkeyCommitmentKeysOffset + 4
 
+	// DefaultRootHistorySize is used when an ISM's root history size is 0.
+	DefaultRootHistorySize = 64
+
+	// MaxRootHistorySize bounds the history scanned by Verify and SubmitMessages.
+	MaxRootHistorySize = 256
+
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
 	// See internal/groth16/bench_test.go
@@ -86,8 +92,10 @@ var (
 	// Prefix 1 held authorized message IDs before messages were verified against the proven merkle tree root (v11).
 	// The entries are left in place because nothing reads them and deleting an attacker-sized set in the upgrade
 	// block is unbounded work. Do not reuse prefix 1.
-	MessageProofSubmittedPrefix = collections.NewPrefix(2)
-	MerkleTreeStateKeyPrefix    = collections.NewPrefix(3)
+	// Prefix 2 held the legacy per-state-root submission flag; entries are left in place. Do not reuse prefix 2.
+	MerkleTreeStateKeyPrefix = collections.NewPrefix(3)
+	StateRootHistoryPrefix   = collections.NewPrefix(4)
+	TreeStateHistoryPrefix   = collections.NewPrefix(5)
 
 	// groth16VkeyPointOffsets are the byte offsets of the six leading curve
 	// points (G1.Alpha, G1.Beta, G2.Beta, G2.Gamma, G1.Delta, G2.Delta) in a
@@ -132,6 +140,22 @@ func ValidateGroth16Vkey(vkey []byte) error {
 		return fmt.Errorf("groth16 vkey PublicAndCommitmentCommitted length must be 0, got %d", pubCommittedLen)
 	}
 
+	return nil
+}
+
+// EffectiveRootHistorySize returns the number of replaced roots an ISM with the given configured size keeps.
+func EffectiveRootHistorySize(size uint32) uint32 {
+	if size == 0 {
+		return DefaultRootHistorySize
+	}
+	return size
+}
+
+// ValidateRootHistorySize checks that a configured root history size does not exceed MaxRootHistorySize.
+func ValidateRootHistorySize(size uint32) error {
+	if size > MaxRootHistorySize {
+		return fmt.Errorf("root history size must not exceed %d, got %d", MaxRootHistorySize, size)
+	}
 	return nil
 }
 

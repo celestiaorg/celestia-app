@@ -48,6 +48,20 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidMerkleTreeAddress,
 		},
 		{
+			name: "success: maximum root history size",
+			mallate: func() {
+				msg.RootHistorySize = types.MaxRootHistorySize
+			},
+			expErr: nil,
+		},
+		{
+			name: "root history size above the maximum",
+			mallate: func() {
+				msg.RootHistorySize = types.MaxRootHistorySize + 1
+			},
+			expErr: types.ErrInvalidRootHistorySize,
+		},
+		{
 			name: "invalid groth16 verifying key",
 			mallate: func() {
 				msg.Groth16Vkey = []byte{0x01}
@@ -413,6 +427,44 @@ func TestMsgTransferOwnershipValidateBasic(t *testing.T) {
 			err := msg.ValidateBasic()
 			if tc.expErr != nil {
 				require.Error(t, err)
+				require.ErrorIs(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgUpdateRootHistorySizeValidateBasic(t *testing.T) {
+	tests := []struct {
+		name   string
+		msg    types.MsgUpdateRootHistorySize
+		expErr error
+	}{
+		{
+			name: "success",
+			msg:  types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1), RootHistorySize: types.MaxRootHistorySize},
+		},
+		{
+			name: "success: zero restores the default",
+			msg:  types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1)},
+		},
+		{
+			name:   "zero ism identifier",
+			msg:    types.MsgUpdateRootHistorySize{Id: util.NewZeroAddress(), RootHistorySize: 1},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name:   "root history size above the maximum",
+			msg:    types.MsgUpdateRootHistorySize{Id: util.CreateMockHexAddress("module", 1), RootHistorySize: types.MaxRootHistorySize + 1},
+			expErr: types.ErrInvalidRootHistorySize,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.msg.ValidateBasic()
+			if tc.expErr != nil {
 				require.ErrorIs(t, err, tc.expErr)
 			} else {
 				require.NoError(t, err)

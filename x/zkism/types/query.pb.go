@@ -315,6 +315,116 @@ func (m *QueryMerkleTreeStateResponse) GetTreeState() MerkleTreeState {
 	return MerkleTreeState{}
 }
 
+// QueryRootHistoryRequest is the request type for the RootHistory rpc method.
+type QueryRootHistoryRequest struct {
+	// id is the hex-encoded ISM identifier.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *QueryRootHistoryRequest) Reset()         { *m = QueryRootHistoryRequest{} }
+func (m *QueryRootHistoryRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryRootHistoryRequest) ProtoMessage()    {}
+func (*QueryRootHistoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{6}
+}
+func (m *QueryRootHistoryRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryRootHistoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryRootHistoryRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryRootHistoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryRootHistoryRequest.Merge(m, src)
+}
+func (m *QueryRootHistoryRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryRootHistoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryRootHistoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryRootHistoryRequest proto.InternalMessageInfo
+
+func (m *QueryRootHistoryRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+// QueryRootHistoryResponse is the response type for the RootHistory rpc method.
+type QueryRootHistoryResponse struct {
+	// root_history_size is the number of replaced roots the ISM keeps.
+	RootHistorySize uint32 `protobuf:"varint,1,opt,name=root_history_size,json=rootHistorySize,proto3" json:"root_history_size,omitempty"`
+	// state_roots are the replaced state roots still accepted for membership proofs, oldest first.
+	StateRoots []RootHistoryEntry `protobuf:"bytes,2,rep,name=state_roots,json=stateRoots,proto3" json:"state_roots"`
+	// tree_states are the replaced merkle tree states still accepted for message verification, oldest first.
+	TreeStates []RootHistoryEntry `protobuf:"bytes,3,rep,name=tree_states,json=treeStates,proto3" json:"tree_states"`
+}
+
+func (m *QueryRootHistoryResponse) Reset()         { *m = QueryRootHistoryResponse{} }
+func (m *QueryRootHistoryResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryRootHistoryResponse) ProtoMessage()    {}
+func (*QueryRootHistoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f8d70e04d17b4c4f, []int{7}
+}
+func (m *QueryRootHistoryResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryRootHistoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryRootHistoryResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryRootHistoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryRootHistoryResponse.Merge(m, src)
+}
+func (m *QueryRootHistoryResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryRootHistoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryRootHistoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryRootHistoryResponse proto.InternalMessageInfo
+
+func (m *QueryRootHistoryResponse) GetRootHistorySize() uint32 {
+	if m != nil {
+		return m.RootHistorySize
+	}
+	return 0
+}
+
+func (m *QueryRootHistoryResponse) GetStateRoots() []RootHistoryEntry {
+	if m != nil {
+		return m.StateRoots
+	}
+	return nil
+}
+
+func (m *QueryRootHistoryResponse) GetTreeStates() []RootHistoryEntry {
+	if m != nil {
+		return m.TreeStates
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueryIsmRequest)(nil), "celestia.zkism.v1.QueryIsmRequest")
 	proto.RegisterType((*QueryIsmResponse)(nil), "celestia.zkism.v1.QueryIsmResponse")
@@ -322,45 +432,55 @@ func init() {
 	proto.RegisterType((*QueryIsmsResponse)(nil), "celestia.zkism.v1.QueryIsmsResponse")
 	proto.RegisterType((*QueryMerkleTreeStateRequest)(nil), "celestia.zkism.v1.QueryMerkleTreeStateRequest")
 	proto.RegisterType((*QueryMerkleTreeStateResponse)(nil), "celestia.zkism.v1.QueryMerkleTreeStateResponse")
+	proto.RegisterType((*QueryRootHistoryRequest)(nil), "celestia.zkism.v1.QueryRootHistoryRequest")
+	proto.RegisterType((*QueryRootHistoryResponse)(nil), "celestia.zkism.v1.QueryRootHistoryResponse")
 }
 
 func init() { proto.RegisterFile("celestia/zkism/v1/query.proto", fileDescriptor_f8d70e04d17b4c4f) }
 
 var fileDescriptor_f8d70e04d17b4c4f = []byte{
-	// 527 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0x41, 0x6b, 0x13, 0x41,
-	0x14, 0xce, 0x26, 0x51, 0xe8, 0x08, 0xd6, 0x0e, 0x82, 0x75, 0x8d, 0xdb, 0xba, 0x16, 0x15, 0xa5,
-	0x33, 0x6e, 0x05, 0x7f, 0x40, 0x45, 0x4b, 0x90, 0x82, 0xa6, 0x82, 0xd0, 0x4b, 0x99, 0x6c, 0x1e,
-	0xdb, 0xa1, 0xd9, 0x9d, 0xed, 0xcc, 0x6c, 0x30, 0x8a, 0x17, 0x7f, 0x81, 0xe0, 0xdd, 0x8b, 0x37,
-	0x7f, 0x49, 0x8f, 0x05, 0x2f, 0x9e, 0x44, 0x12, 0x7f, 0x88, 0xec, 0xec, 0x6c, 0xd3, 0xa6, 0x9b,
-	0x28, 0xbd, 0x0d, 0x33, 0xdf, 0xf7, 0xbd, 0xef, 0x7d, 0xef, 0x31, 0xe8, 0x76, 0x08, 0x7d, 0x50,
-	0x9a, 0x33, 0xfa, 0xfe, 0x80, 0xab, 0x98, 0x0e, 0x02, 0x7a, 0x98, 0x81, 0x1c, 0x92, 0x54, 0x0a,
-	0x2d, 0xf0, 0x52, 0xf9, 0x4c, 0xcc, 0x33, 0x19, 0x04, 0x6e, 0x05, 0x43, 0x0f, 0x53, 0x50, 0x05,
-	0xc3, 0x7d, 0x18, 0x0a, 0x15, 0x0b, 0x45, 0xbb, 0x4c, 0x41, 0x21, 0x45, 0x07, 0x41, 0x17, 0x34,
-	0x0b, 0x68, 0xca, 0x22, 0x9e, 0x30, 0xcd, 0x45, 0x62, 0xb1, 0xad, 0x48, 0x88, 0xa8, 0x0f, 0x94,
-	0xa5, 0x9c, 0xb2, 0x24, 0x11, 0xda, 0x3c, 0x96, 0x4a, 0xd7, 0x23, 0x11, 0x09, 0x73, 0xa4, 0xf9,
-	0xa9, 0xb8, 0xf5, 0xef, 0xa0, 0xc5, 0xd7, 0xb9, 0x6a, 0x5b, 0xc5, 0x1d, 0x38, 0xcc, 0x40, 0x69,
-	0x7c, 0x15, 0xd5, 0x79, 0x6f, 0xd9, 0x59, 0x75, 0x1e, 0x2c, 0x74, 0xea, 0xbc, 0xe7, 0xbf, 0x45,
-	0xd7, 0x26, 0x10, 0x95, 0x8a, 0x44, 0x01, 0x7e, 0x86, 0x1a, 0x5c, 0xc5, 0x06, 0x74, 0x65, 0xe3,
-	0x11, 0x39, 0xd7, 0x16, 0x69, 0x27, 0x1a, 0x64, 0xb8, 0xcf, 0x78, 0xb2, 0x03, 0x61, 0x26, 0xb9,
-	0x1e, 0x6e, 0x8b, 0x5e, 0xd6, 0x87, 0xcd, 0xe6, 0xd1, 0xaf, 0x95, 0x5a, 0x27, 0x67, 0xfb, 0xbb,
-	0x13, 0x61, 0x55, 0x16, 0x7f, 0x81, 0xd0, 0xa4, 0x2f, 0xab, 0x7f, 0x8f, 0x14, 0x21, 0x90, 0x3c,
-	0x04, 0x52, 0xe4, 0x69, 0x43, 0x20, 0xaf, 0x58, 0x04, 0x96, 0xdb, 0x39, 0xc5, 0xf4, 0xbf, 0x39,
-	0x68, 0xe9, 0x94, 0xb8, 0xb5, 0xfd, 0x1c, 0x35, 0xb9, 0x8a, 0xd5, 0xb2, 0xb3, 0xda, 0xb8, 0x98,
-	0x6f, 0x43, 0xc7, 0x5b, 0x67, 0x4c, 0xd6, 0x8d, 0xc9, 0xfb, 0xff, 0x34, 0x59, 0x78, 0x38, 0xe3,
-	0x72, 0x1d, 0xdd, 0x32, 0x26, 0xb7, 0x41, 0x1e, 0xf4, 0xe1, 0x8d, 0x04, 0xd8, 0xd1, 0x4c, 0xc3,
-	0xac, 0x49, 0x44, 0xa8, 0x55, 0x0d, 0xb7, 0xed, 0x6d, 0x21, 0xa4, 0x25, 0xc0, 0x9e, 0xca, 0x6f,
-	0x6d, 0x78, 0x7e, 0x45, 0x93, 0x53, 0x7c, 0xdb, 0xdb, 0x82, 0x2e, 0x2f, 0x36, 0xbe, 0x36, 0xd0,
-	0x25, 0x53, 0x09, 0x6b, 0xd4, 0x68, 0xab, 0x18, 0x57, 0xa9, 0x4c, 0xed, 0x8d, 0x7b, 0x77, 0x2e,
-	0xa6, 0xb0, 0xe8, 0xaf, 0x7d, 0xfa, 0xf1, 0xe7, 0x4b, 0xdd, 0xc3, 0x2d, 0x7a, 0x7e, 0xef, 0xf3,
-	0x6c, 0xe9, 0x07, 0xde, 0xfb, 0x88, 0x25, 0x6a, 0xe6, 0x73, 0xc3, 0xf3, 0x24, 0xcb, 0x95, 0x71,
-	0xd7, 0xe6, 0x83, 0x6c, 0xe1, 0x15, 0x53, 0xf8, 0x26, 0xbe, 0x31, 0xa3, 0x30, 0xfe, 0xee, 0xa0,
-	0xc5, 0xa9, 0x60, 0x30, 0x99, 0x25, 0x5d, 0x3d, 0x30, 0x97, 0xfe, 0x37, 0xde, 0xba, 0x7a, 0x6a,
-	0x5c, 0x3d, 0xc6, 0x64, 0x5e, 0x1c, 0x34, 0x36, 0xec, 0xbd, 0xc9, 0x6c, 0x37, 0x5f, 0x1e, 0x8d,
-	0x3c, 0xe7, 0x78, 0xe4, 0x39, 0xbf, 0x47, 0x9e, 0xf3, 0x79, 0xec, 0xd5, 0x8e, 0xc7, 0x5e, 0xed,
-	0xe7, 0xd8, 0xab, 0xed, 0x06, 0x11, 0xd7, 0xfb, 0x59, 0x97, 0x84, 0x22, 0x3e, 0xd1, 0x14, 0x32,
-	0x3a, 0x39, 0xaf, 0xb3, 0x34, 0xa5, 0xef, 0x6c, 0x15, 0xf3, 0xd3, 0x74, 0x2f, 0x9b, 0xaf, 0xe0,
-	0xc9, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xdd, 0x3d, 0x04, 0x4e, 0xbd, 0x04, 0x00, 0x00,
+	// 649 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x95, 0xd1, 0x6a, 0x13, 0x4d,
+	0x14, 0xc7, 0xb3, 0x49, 0xbe, 0x0f, 0x3a, 0x45, 0x6b, 0x07, 0xa1, 0x71, 0xad, 0xdb, 0xba, 0x2d,
+	0x6a, 0x5b, 0x3a, 0xe3, 0x56, 0xf0, 0x01, 0x2a, 0xb5, 0x46, 0x29, 0xe8, 0x46, 0x10, 0x7a, 0x13,
+	0x36, 0xc9, 0xb0, 0x19, 0x9a, 0xdd, 0xd9, 0xce, 0x4c, 0x82, 0x89, 0x78, 0xe3, 0x13, 0x08, 0x5e,
+	0x79, 0xed, 0x9d, 0x8f, 0xe0, 0x13, 0xf4, 0xb2, 0xe0, 0x8d, 0x57, 0x45, 0x12, 0x1f, 0x44, 0x76,
+	0x76, 0x92, 0x4d, 0x93, 0x4d, 0xac, 0xde, 0x0d, 0x73, 0xce, 0xf9, 0x9f, 0xdf, 0xf9, 0xcf, 0xc9,
+	0x06, 0xdc, 0xa9, 0x93, 0x16, 0x11, 0x92, 0x7a, 0xb8, 0x77, 0x42, 0x45, 0x80, 0x3b, 0x0e, 0x3e,
+	0x6d, 0x13, 0xde, 0x45, 0x11, 0x67, 0x92, 0xc1, 0xe5, 0x61, 0x18, 0xa9, 0x30, 0xea, 0x38, 0x66,
+	0x46, 0x85, 0xec, 0x46, 0x44, 0x24, 0x15, 0xe6, 0x76, 0x9d, 0x89, 0x80, 0x09, 0x5c, 0xf3, 0x04,
+	0x49, 0xa4, 0x70, 0xc7, 0xa9, 0x11, 0xe9, 0x39, 0x38, 0xf2, 0x7c, 0x1a, 0x7a, 0x92, 0xb2, 0x50,
+	0xe7, 0xae, 0xfa, 0x8c, 0xf9, 0x2d, 0x82, 0xbd, 0x88, 0x62, 0x2f, 0x0c, 0x99, 0x54, 0xc1, 0xa1,
+	0xd2, 0x4d, 0x9f, 0xf9, 0x4c, 0x1d, 0x71, 0x7c, 0x4a, 0x6e, 0xed, 0xbb, 0x60, 0xe9, 0x55, 0xac,
+	0x5a, 0x16, 0x81, 0x4b, 0x4e, 0xdb, 0x44, 0x48, 0x78, 0x1d, 0xe4, 0x69, 0xa3, 0x64, 0xac, 0x1b,
+	0x0f, 0x16, 0xdc, 0x3c, 0x6d, 0xd8, 0x6f, 0xc0, 0x8d, 0x34, 0x45, 0x44, 0x2c, 0x14, 0x04, 0x3e,
+	0x01, 0x05, 0x2a, 0x02, 0x95, 0xb4, 0xb8, 0xb7, 0x83, 0xa6, 0xc6, 0x42, 0xe5, 0x50, 0x12, 0x5e,
+	0x6f, 0x7a, 0x34, 0xac, 0x90, 0x7a, 0x9b, 0x53, 0xd9, 0x3d, 0x62, 0x8d, 0x76, 0x8b, 0xec, 0x17,
+	0xcf, 0x2e, 0xd6, 0x72, 0x6e, 0x5c, 0x6d, 0x1f, 0xa7, 0xc2, 0x62, 0xd8, 0xfc, 0x29, 0x00, 0xe9,
+	0x5c, 0x5a, 0xff, 0x1e, 0x4a, 0x4c, 0x40, 0xb1, 0x09, 0x28, 0xf1, 0x53, 0x9b, 0x80, 0x5e, 0x7a,
+	0x3e, 0xd1, 0xb5, 0xee, 0x58, 0xa5, 0xfd, 0xc5, 0x00, 0xcb, 0x63, 0xe2, 0x1a, 0xfb, 0x00, 0x14,
+	0xa9, 0x08, 0x44, 0xc9, 0x58, 0x2f, 0xfc, 0x1b, 0xb7, 0x2a, 0x87, 0x87, 0x97, 0x20, 0xf3, 0x0a,
+	0xf2, 0xfe, 0x1f, 0x21, 0x13, 0x86, 0x4b, 0x94, 0xbb, 0xe0, 0xb6, 0x82, 0x3c, 0x22, 0xfc, 0xa4,
+	0x45, 0x5e, 0x73, 0x42, 0x2a, 0xd2, 0x93, 0x64, 0xd6, 0x4b, 0xf8, 0x60, 0x35, 0x3b, 0x5d, 0x8f,
+	0x77, 0x08, 0x80, 0xe4, 0x84, 0x54, 0x45, 0x7c, 0xab, 0xcd, 0xb3, 0x33, 0x86, 0x9c, 0xa8, 0xd7,
+	0xb3, 0x2d, 0xc8, 0xe1, 0x85, 0xbd, 0x05, 0x56, 0x54, 0x23, 0x97, 0x31, 0xf9, 0x8c, 0x0a, 0xc9,
+	0x78, 0x77, 0x16, 0xd3, 0x85, 0x01, 0x4a, 0xd3, 0xb9, 0x1a, 0x68, 0x1b, 0x2c, 0x73, 0xc6, 0x64,
+	0xb5, 0x99, 0xdc, 0x57, 0x05, 0xed, 0x25, 0x5c, 0xd7, 0xdc, 0x25, 0x9e, 0xe6, 0x57, 0x68, 0x8f,
+	0xc0, 0xe7, 0x60, 0x51, 0x71, 0x57, 0xe3, 0x80, 0x28, 0xe5, 0xd5, 0x13, 0x6d, 0x64, 0xd0, 0x8f,
+	0x35, 0x3a, 0x08, 0x25, 0xef, 0x6a, 0x7c, 0xa0, 0xaa, 0xe3, 0xa0, 0x88, 0xb5, 0x52, 0x23, 0x44,
+	0xa9, 0xf0, 0xd7, 0x5a, 0x23, 0x2b, 0xc4, 0xde, 0xb7, 0x22, 0xf8, 0x4f, 0x0d, 0x08, 0x25, 0x28,
+	0x94, 0x45, 0x00, 0xb3, 0x1c, 0x9d, 0xf8, 0x0d, 0x99, 0x1b, 0x73, 0x73, 0x12, 0x77, 0xec, 0xcd,
+	0x0f, 0xdf, 0x7f, 0x7d, 0xca, 0x5b, 0x70, 0x15, 0x4f, 0x7f, 0x03, 0xe2, 0x3d, 0xc3, 0xef, 0x68,
+	0xe3, 0x3d, 0xe4, 0xa0, 0x18, 0xef, 0x30, 0x9c, 0x27, 0x39, 0xfc, 0xf9, 0x98, 0x9b, 0xf3, 0x93,
+	0x74, 0xe3, 0x35, 0xd5, 0xf8, 0x16, 0x5c, 0x99, 0xd1, 0x18, 0x7e, 0x35, 0xc0, 0xd2, 0xc4, 0x92,
+	0x40, 0x34, 0x4b, 0x3a, 0x7b, 0x79, 0x4d, 0x7c, 0xe5, 0x7c, 0x4d, 0xf5, 0x58, 0x51, 0x3d, 0x84,
+	0x68, 0x9e, 0x1d, 0x38, 0x50, 0xd5, 0xd5, 0xf4, 0x79, 0xe1, 0x67, 0x03, 0x2c, 0x8e, 0xbd, 0x23,
+	0xdc, 0x9e, 0xd5, 0x78, 0x7a, 0x9b, 0xcd, 0x9d, 0x2b, 0xe5, 0x6a, 0x40, 0x47, 0x01, 0xee, 0xc0,
+	0xad, 0xb9, 0x80, 0xe3, 0x0b, 0xbf, 0xff, 0xe2, 0xac, 0x6f, 0x19, 0xe7, 0x7d, 0xcb, 0xf8, 0xd9,
+	0xb7, 0x8c, 0x8f, 0x03, 0x2b, 0x77, 0x3e, 0xb0, 0x72, 0x3f, 0x06, 0x56, 0xee, 0xd8, 0xf1, 0xa9,
+	0x6c, 0xb6, 0x6b, 0xa8, 0xce, 0x82, 0x91, 0x1c, 0xe3, 0xfe, 0xe8, 0xbc, 0xeb, 0x45, 0x11, 0x7e,
+	0xab, 0x1b, 0xa8, 0x7f, 0x84, 0xda, 0xff, 0xea, 0x93, 0xfd, 0xe8, 0x77, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0x7c, 0x4c, 0x28, 0xea, 0x65, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -381,6 +501,9 @@ type QueryClient interface {
 	Isms(ctx context.Context, in *QueryIsmsRequest, opts ...grpc.CallOption) (*QueryIsmsResponse, error)
 	// MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
 	MerkleTreeState(ctx context.Context, in *QueryMerkleTreeStateRequest, opts ...grpc.CallOption) (*QueryMerkleTreeStateResponse, error)
+	// RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still
+	// accepts.
+	RootHistory(ctx context.Context, in *QueryRootHistoryRequest, opts ...grpc.CallOption) (*QueryRootHistoryResponse, error)
 }
 
 type queryClient struct {
@@ -418,6 +541,15 @@ func (c *queryClient) MerkleTreeState(ctx context.Context, in *QueryMerkleTreeSt
 	return out, nil
 }
 
+func (c *queryClient) RootHistory(ctx context.Context, in *QueryRootHistoryRequest, opts ...grpc.CallOption) (*QueryRootHistoryResponse, error) {
+	out := new(QueryRootHistoryResponse)
+	err := c.cc.Invoke(ctx, "/celestia.zkism.v1.Query/RootHistory", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Ism defines an rpc method for querying an ISM by ID.
@@ -426,6 +558,9 @@ type QueryServer interface {
 	Isms(context.Context, *QueryIsmsRequest) (*QueryIsmsResponse, error)
 	// MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
 	MerkleTreeState(context.Context, *QueryMerkleTreeStateRequest) (*QueryMerkleTreeStateResponse, error)
+	// RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still
+	// accepts.
+	RootHistory(context.Context, *QueryRootHistoryRequest) (*QueryRootHistoryResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -440,6 +575,9 @@ func (*UnimplementedQueryServer) Isms(ctx context.Context, req *QueryIsmsRequest
 }
 func (*UnimplementedQueryServer) MerkleTreeState(ctx context.Context, req *QueryMerkleTreeStateRequest) (*QueryMerkleTreeStateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MerkleTreeState not implemented")
+}
+func (*UnimplementedQueryServer) RootHistory(ctx context.Context, req *QueryRootHistoryRequest) (*QueryRootHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RootHistory not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -500,6 +638,24 @@ func _Query_MerkleTreeState_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_RootHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryRootHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).RootHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.zkism.v1.Query/RootHistory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).RootHistory(ctx, req.(*QueryRootHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.zkism.v1.Query",
@@ -516,6 +672,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MerkleTreeState",
 			Handler:    _Query_MerkleTreeState_Handler,
+		},
+		{
+			MethodName: "RootHistory",
+			Handler:    _Query_RootHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -732,6 +892,92 @@ func (m *QueryMerkleTreeStateResponse) MarshalToSizedBuffer(dAtA []byte) (int, e
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryRootHistoryRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryRootHistoryRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryRootHistoryRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Id) > 0 {
+		i -= len(m.Id)
+		copy(dAtA[i:], m.Id)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Id)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryRootHistoryResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryRootHistoryResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryRootHistoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.TreeStates) > 0 {
+		for iNdEx := len(m.TreeStates) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TreeStates[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.StateRoots) > 0 {
+		for iNdEx := len(m.StateRoots) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.StateRoots[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.RootHistorySize != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.RootHistorySize))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -820,6 +1066,43 @@ func (m *QueryMerkleTreeStateResponse) Size() (n int) {
 	_ = l
 	l = m.TreeState.Size()
 	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryRootHistoryRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Id)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryRootHistoryResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.RootHistorySize != 0 {
+		n += 1 + sovQuery(uint64(m.RootHistorySize))
+	}
+	if len(m.StateRoots) > 0 {
+		for _, e := range m.StateRoots {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if len(m.TreeStates) > 0 {
+		for _, e := range m.TreeStates {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -1341,6 +1624,225 @@ func (m *QueryMerkleTreeStateResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.TreeState.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryRootHistoryRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryRootHistoryRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryRootHistoryRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Id = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryRootHistoryResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryRootHistoryResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryRootHistoryResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RootHistorySize", wireType)
+			}
+			m.RootHistorySize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RootHistorySize |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateRoots", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateRoots = append(m.StateRoots, RootHistoryEntry{})
+			if err := m.StateRoots[len(m.StateRoots)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TreeStates", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TreeStates = append(m.TreeStates, RootHistoryEntry{})
+			if err := m.TreeStates[len(m.TreeStates)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
