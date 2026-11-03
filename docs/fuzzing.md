@@ -34,6 +34,7 @@ can cover several functions; target presence does not establish branch coverage.
 | Priority | Entry point / input source | Fuzz target(s) | Scope and limits |
 | --- | --- | --- | --- |
 | 1 | `app.CheckTx`: RPC and peer transaction bytes | `FuzzCheckTxMutatedTxs` in [app/test](../app/test/check_tx_fuzz_test.go) | Mutations of send, PFF, single-blob and multi-blob transactions; detects recovered panics. CheckTx state is reused. |
+| 1 | `app.CheckTx` recheck path (pay-for-fibre fast path, blob recheck): mempool txs rechecked after every commit | `FuzzRecheckMutatedTxs` in [app/test](../app/test/recheck_fuzz_test.go) | Applies the CheckTx mutations, admits what a new CheckTx accepts, and rechecks the admitted txs on the same check state and after an empty block. Rechecks must not recover a panic, and after a block that changed nothing they must keep every admitted tx. Only admitted txs are rechecked, as in the mempool. |
 | 1 | `app.PrepareProposal`: mempool transactions | `FuzzCheckTxPrepareProposal` in [app/test](../app/test/check_tx_prepare_proposal_fuzz_test.go) | Re-signs structured messages and checks accepted transactions survive proposal construction. Arbitrary malformed mempool batches are outside this target. |
 | 1 | `app.PrepareProposal` then `app.ProcessProposal`: malformed mempool batches | `FuzzPrepareProposalMalformedBatch` in [app/test](../app/test/prepare_proposal_fuzz_test.go) | Up to eight mutations, duplications, reorderings and arbitrary insertions over valid send, PFF and blob txs. Fails on a panic PrepareProposal recovered, or when ProcessProposal rejects the block PrepareProposal built. |
 | 1 | `app.ProcessProposal`: proposer transaction bytes | `FuzzProcessProposalMutatedTxs` in [app/test](../app/test/process_proposal_fuzz_test.go) | Mutates a prepared proposal; detects recovered panics and requires unchanged proposals to be accepted. Header root and square size remain fixed. |
@@ -85,8 +86,8 @@ can cover several functions; target presence does not establish branch coverage.
 
 ## Remaining coverage and known exclusions
 
-The next additions should extend priority 1 coverage to CheckTx rechecks, and stateful sequences across proposal
-construction, validation and finalization. These need isolated committed state
+The next additions should extend priority 1 coverage to stateful sequences across proposal
+construction, validation and finalization over several blocks. These need isolated committed state
 and meaningful accept/reject oracles. The current mutation harnesses do not
 provide a state-machine sequence fuzzer.
 
