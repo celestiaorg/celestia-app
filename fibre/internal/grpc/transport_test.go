@@ -142,7 +142,9 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 	require.NoError(t, err)
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}
+	// Advertise h2 so gRPC accepts the ALPN and proceeds into HTTP/2 setup
+	// rather than closing the connection itself for a missing protocol.
+	serverTLS := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13, NextProtos: []string{"h2"}}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -173,6 +175,15 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 				// connection down.
 				tlsConn := tls.Server(&prefixConn{Conn: c, prefix: first[:]}, serverTLS)
 				if err := tlsConn.Handshake(); err != nil {
+					_ = c.Close()
+					return
+				}
+				// Read the client's HTTP/2 preface so we know gRPC accepted the
+				// ALPN and is now inside HTTP/2 setup, waiting for our SETTINGS,
+				// which we withhold. Only then is closing the ClientConn what
+				// tears the connection down.
+				pref := make([]byte, len(http2Preface))
+				if _, err := io.ReadFull(tlsConn, pref); err != nil {
 					_ = c.Close()
 					return
 				}
@@ -216,31 +227,50 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 	}
 }
 
-// TestTransportCancelledProbeDoesNotCacheTLS checks that a dial cancelled during
-// the plaintext probe fails as cancelled and does not mark the host TLS-only,
-// since cancellation is no evidence about the server's protocol.
-func TestTransportCancelledProbeDoesNotCacheTLS(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer ln.Close()
-	go func() {
-		c, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		_, _ = io.Copy(io.Discard, c) // read the preface, never send SETTINGS
-		_ = c.Close()
-	}()
+// TestTransportInterruptedProbeDoesNotCacheTLS checks that a probe ended by the
+// dial context being cancelled or its deadline elapsing fails as such and does
+// not mark the host TLS-only, since neither is evidence about the server's
+// protocol. A probe that fails while the context is still live does cache.
+func TestTransportInterruptedProbeDoesNotCacheTLS(t *testing.T) {
+	// stallingServer accepts and reads the preface but never answers, so the
+	// probe blocks until its deadline/cancellation.
+	stallingServer := func(t *testing.T) string {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = ln.Close() })
+		go func() {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				go func(c net.Conn) { _, _ = io.Copy(io.Discard, c); _ = c.Close() }(c)
+			}
+		}()
+		return ln.Addr().String()
+	}
 
-	addr := ln.Addr().String()
-	modes := newTransportModes()
-	transport := &autoTransport{modes: modes, host: addr}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() { time.Sleep(100 * time.Millisecond); cancel() }()
+	t.Run("cancelled", func(t *testing.T) {
+		addr := stallingServer(t)
+		modes := newTransportModes()
+		transport := &autoTransport{modes: modes, host: addr}
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() { time.Sleep(100 * time.Millisecond); cancel() }()
+		_, err := transport.dial(ctx, addr)
+		require.ErrorIs(t, err, context.Canceled)
+		require.False(t, modes.useTLS(addr), "a cancelled probe must not cache TLS-only")
+	})
 
-	_, err = transport.dial(ctx, addr)
-	require.ErrorIs(t, err, context.Canceled)
-	require.False(t, modes.useTLS(addr), "a cancelled probe must not cache TLS-only")
+	t.Run("deadline", func(t *testing.T) {
+		addr := stallingServer(t)
+		modes := newTransportModes()
+		transport := &autoTransport{modes: modes, host: addr}
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		defer cancel()
+		_, err := transport.dial(ctx, addr)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.False(t, modes.useTLS(addr), "a deadline-expired probe must not cache TLS-only")
+	})
 }
 
 func TestTransportModesRetryPlaintext(t *testing.T) {
