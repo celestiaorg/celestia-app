@@ -28,7 +28,24 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 
 // makeTestServerWithConfig is makeTestServer with an optional hook to tweak the
 // ServerConfig before construction (e.g. to set FullStakeStorageBudgetFn).
-func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
+func makeTestServerWithConfig(t testing.TB, modify func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
+	t.Helper()
+	cfg, valSet, serverValidator := makeTestServerConfig(t, modify)
+	server, err := fibre.NewServer(cfg)
+	require.NoError(t, err)
+
+	require.NoError(t, server.Start(t.Context()))
+	t.Cleanup(func() {
+		require.NoError(t, server.Stop(context.Background()))
+	})
+
+	return server, valSet, serverValidator
+}
+
+// makeTestServerConfig returns the ServerConfig makeTestServerWithConfig
+// builds a server from, with the validator set and the server's validator.
+// Every server built from it has the same identity and a fresh store.
+func makeTestServerConfig(t testing.TB, modify func(*fibre.ServerConfig)) (fibre.ServerConfig, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)
@@ -74,15 +91,7 @@ func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*
 	if modify != nil {
 		modify(&cfg)
 	}
-	server, err := fibre.NewServer(cfg)
-	require.NoError(t, err)
-
-	require.NoError(t, server.Start(t.Context()))
-	t.Cleanup(func() {
-		require.NoError(t, server.Stop(context.Background()))
-	})
-
-	return server, valSet, serverValidator
+	return cfg, valSet, serverValidator
 }
 
 // mockStateClient implements state.Client for testing.
