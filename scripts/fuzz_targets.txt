@@ -60,6 +60,7 @@
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
+2 ./fibre               FuzzDownload                        2m 100x
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -
 2 ./fibre               FuzzShardReader                     5m -
