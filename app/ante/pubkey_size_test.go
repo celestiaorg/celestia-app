@@ -34,6 +34,10 @@ func TestPubKeySizeDecorator(t *testing.T) {
 	require.NoError(t, err)
 	r1 := r1Priv.PubKey()
 	emptyMember := &multisig.LegacyAminoPubKey{Threshold: 1, PubKeys: []*codectypes.Any{{}}}
+	// The multisig's Address amino-encodes its members, and amino cannot
+	// encode a secp256r1 key.
+	r1Member := multisig.NewLegacyAminoPubKey(1, []cryptotypes.PubKey{secp, r1})
+	nestedMultisig := multisig.NewLegacyAminoPubKey(1, []cryptotypes.PubKey{validMultisig, ed})
 
 	testCases := []struct {
 		name    string
@@ -54,6 +58,8 @@ func TestPubKeySizeDecorator(t *testing.T) {
 		{"multisig member wrong", []cryptotypes.PubKey{badMultisig}, true},
 		{"multisig nil member", []cryptotypes.PubKey{nilMember}, true},
 		{"multisig member not a key", []cryptotypes.PubKey{emptyMember}, true},
+		{"multisig secp256r1 member", []cryptotypes.PubKey{r1Member}, true},
+		{"nested multisig", []cryptotypes.PubKey{nestedMultisig}, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -73,6 +79,12 @@ func TestPubKeySizeDecorator(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.True(t, called)
+			// SetPubKeyDecorator calls Address on every accepted key next.
+			for _, pk := range tc.pubKeys {
+				if pk != nil {
+					require.NotPanics(t, func() { pk.Address() })
+				}
+			}
 		})
 	}
 }

@@ -15,8 +15,9 @@ import (
 var _ sdk.AnteDecorator = PubKeySizeDecorator{}
 
 // PubKeySizeDecorator rejects a tx whose signer infos carry a secp256k1 or
-// ed25519 public key of the wrong length or an empty secp256r1 public key,
-// including keys inside a multisig.
+// ed25519 public key of the wrong length, an empty secp256r1 public key, or a
+// multisig with a member of the wrong length or of a type the multisig cannot
+// encode.
 // The SDK's SetPubKeyDecorator calls PubKey.Address, which panics on such a
 // key, so this decorator must run before it.
 type PubKeySizeDecorator struct{}
@@ -44,9 +45,8 @@ func (PubKeySizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool,
 
 // validatePubKeySize returns an error if pk, or any key nested in a multisig
 // pk, is a secp256k1 or ed25519 key of the wrong length or an empty secp256r1
-// key, or if a multisig
-// member is not a public key. A nil pk (omitted because the account already
-// has one) is valid.
+// key, or if a multisig member is not a secp256k1, ed25519 or multisig key.
+// A nil pk (omitted because the account already has one) is valid.
 func validatePubKeySize(pk cryptotypes.PubKey) error {
 	switch k := pk.(type) {
 	case nil:
@@ -79,10 +79,23 @@ func validatePubKeySize(pk cryptotypes.PubKey) error {
 			if !ok {
 				return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "multisig member is not a public key")
 			}
-			if err := validatePubKeySize(memberKey); err != nil {
+			if err := validateMultisigMember(memberKey); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// validateMultisigMember returns an error if pk cannot be a member of a
+// multisig. The multisig's Address amino-encodes every member, and that codec
+// only encodes secp256k1, ed25519 and multisig keys: any other member, such as
+// a secp256r1 key, makes Address panic.
+func validateMultisigMember(pk cryptotypes.PubKey) error {
+	switch pk.(type) {
+	case *secp256k1.PubKey, *ed25519.PubKey, *multisig.LegacyAminoPubKey:
+		return validatePubKeySize(pk)
+	default:
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "unsupported multisig member type %T", pk)
+	}
 }
