@@ -151,9 +151,11 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 			forceTLS: dialCfg.forceTLS,
 			observe:  dialCfg.observe,
 		}
-		opts := []grpclib.DialOption{
+		transportOpts := transport.dialOptions(batchingCreds{credentials.NewTLS(tlsCfg)})
+		opts := make([]grpclib.DialOption, 0, 5+len(transportOpts))
+		opts = append(opts,
 			grpclib.WithLocalDNSResolution(),
-			grpclib.WithIdleTimeout(20 * time.Second),
+			grpclib.WithIdleTimeout(20*time.Second),
 			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
@@ -162,8 +164,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 				// Pooled + scatter-gather codec; see codec.go.
 				grpclib.CallContentSubtype(codecName),
 			),
-		}
-		opts = append(opts, transport.dialOptions(batchingCreds{credentials.NewTLS(tlsCfg)})...)
+		)
+		opts = append(opts, transportOpts...)
 
 		conn, err := grpclib.NewClient(dialTarget(host), opts...)
 		if err != nil {

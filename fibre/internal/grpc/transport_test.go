@@ -209,7 +209,9 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 
 	// Drive connection setup (probe fails, then fallback TLS) in the background;
 	// it blocks because SETTINGS never arrive.
-	go func() { _, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{}) }()
+	go func() {
+		_, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{})
+	}()
 
 	select {
 	case <-handshook:
