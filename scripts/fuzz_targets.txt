@@ -98,3 +98,4 @@
 3 ./x/blob/keeper       FuzzUpdateBlobParams                2m 100x
 1 ./x/blob/keeper       FuzzPayForBlobsHandler              5m 100x
 3 ./fibre               FuzzShardMarkerDecode               2m 100x
+1 ./app                 FuzzBuildProposalSquareParity       5m -
