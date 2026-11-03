@@ -2,6 +2,7 @@ package fibre_test
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -18,6 +19,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/stretchr/testify/require"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -54,6 +57,7 @@ const (
 // uploadFixture holds a valid upload for the server's validator, built once per
 // fuzz worker.
 type uploadFixture struct {
+	cfg      fibre.ServerConfig
 	server   *fibre.Server
 	valSet   validator.Set
 	us       *core.Validator
@@ -70,9 +74,13 @@ type uploadFixture struct {
 }
 
 func newUploadFixture(tb testing.TB) *uploadFixture {
-	// Discard logs: the server logs every rejected upload.
-	server, valSet, us := makeTestServerWithConfig(tb, func(cfg *fibre.ServerConfig) {
+	// Discard logs: the server logs every rejected upload. Use no-op telemetry:
+	// the global OpenTelemetry meter keeps every registered callback, which would
+	// keep each restarted server and its store alive.
+	serverCfg, valSet, us := makeTestServerConfig(tb, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.DiscardHandler)
+		cfg.Meter = metricnoop.NewMeterProvider().Meter("fuzz")
+		cfg.Tracer = tracenoop.NewTracerProvider().Tracer("fuzz")
 	})
 	blob := makeTestBlobV0(tb, 256*1024)
 	kr := makeTestKeyring(tb)
@@ -92,7 +100,7 @@ func newUploadFixture(tb testing.TB) *uploadFixture {
 		return rows
 	}
 	f := &uploadFixture{
-		server:   server,
+		cfg:      serverCfg,
 		valSet:   valSet,
 		us:       us,
 		usPubKey: us.PubKey,
@@ -125,8 +133,26 @@ func newUploadFixture(tb testing.TB) *uploadFixture {
 	require.NotEmpty(tb, f.foreign)
 	f.verifier, err = rsema1d.NewVerifier(&rsema1d.Config{K: blobCfg.OriginalRows, N: blobCfg.ParityRows, WorkerCount: 1})
 	require.NoError(tb, err)
+	f.restart(tb)
+	tb.Cleanup(func() { require.NoError(tb, f.server.Stop(context.Background())) })
 	return f
 }
+
+// restart replaces the server with a fresh one with the same identity, so the
+// shards earlier inputs stored are dropped and memory stays bounded.
+func (f *uploadFixture) restart(tb testing.TB) {
+	if f.server != nil {
+		require.NoError(tb, f.server.Stop(context.Background()))
+	}
+	server, err := fibre.NewServer(f.cfg)
+	require.NoError(tb, err)
+	require.NoError(tb, server.Start(context.Background()))
+	f.server = server
+}
+
+// uploadInputsPerServer bounds how many inputs one server serves. Every input
+// has its own promise, so each accepted upload stores another shard.
+const uploadInputsPerServer = 256
 
 // sign sets the client signature over the promise's sign bytes. It leaves the
 // promise unsigned when the promise cannot be converted, which the server must
@@ -360,7 +386,11 @@ func FuzzServerUploadShard(f *testing.F) {
 	f.Add(fuzzutil.Records(uploadOpWidth, op(opPreUpload, 0, 0, 0), op(opDropField, 0, 1, 0)))
 
 	fx := newUploadFixture(f)
+	inputs := 0
 	f.Fuzz(func(t *testing.T, ops []byte) {
+		if inputs++; inputs%uploadInputsPerServer == 0 {
+			fx.restart(t)
+		}
 		// A fresh creation time per input gives each input its own promise
 		// hash, so earlier inputs' stored shards cannot change this outcome.
 		ts := time.Now()
