@@ -98,15 +98,15 @@ func TestSystemSink(t *testing.T) {
 			creds = fibregrpc.NewDetectingServerCreds(creds)
 		}
 		sinks[i] = &sysSink{pv: pv}
-		var winOpts []grpclib.ServerOption
-		if w := sysEnvInt("SYS_SINK_WINDOW", 0); w > 0 {
-			winOpts = append(winOpts, grpclib.InitialWindowSize(int32(w)), grpclib.InitialConnWindowSize(int32(sysEnvInt("SYS_SINK_CONN_WINDOW", w))))
-		}
-		srv.Register(sinks[i], append(winOpts,
+		// Register exactly as production does, so the benchmark exercises the
+		// merged upload-buffer pool rather than fresh per-request allocations.
+		srv.RegisterWithUploadBufferReuse(sinks[i],
+			params.MaxMessageSize(),
+			params.MaxRowsPerValidator(),
+			params.MerkleProofDepth(),
+			grpclib.MaxSendMsgSize(params.MaxMessageSize()),
 			grpclib.Creds(creds),
-			grpclib.MaxRecvMsgSize(params.MaxMessageSize()),
-			grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(params.MaxRowsPerValidator(), params.MerkleProofDepth())),
-		)...)
+		)
 		srv.Serve()
 	}
 	t.Logf("sink: %d validators on ports %d..", n, base)
