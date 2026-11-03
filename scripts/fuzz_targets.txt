@@ -20,6 +20,7 @@
 1 ./app/test            FuzzCheckTxPrepareProposal          5m -
 1 ./app/test            FuzzProcessProposalMutatedTxs       5m -
 1 ./app/test            FuzzCheckTxMutatedTxs               5m -
+1 ./app/test            FuzzRecheckMutatedTxs               5m -
 1 ./app/test            FuzzQuerySequence                   2m 100x
 1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
 1 ./app/test            FuzzFinalizeBlockMutatedProposal    5m -
@@ -34,6 +35,7 @@
 1 ./app/ante            FuzzCachedSigVerification           5m 100x
 1 ./app/ante            FuzzValidateTxFee                   2m 100x
 1 ./app/ante            FuzzISMSignatureWeight              2m 100x
+1 ./app/ante            FuzzMultisigISMNestedLimit          2m 100x
 1 ./x/blob/types        FuzzPFBGasEstimation                5m -
 1 ./x/blob/types        FuzzValidateBlobTx                  5m 100x
 1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
