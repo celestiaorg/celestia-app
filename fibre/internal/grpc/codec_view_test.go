@@ -327,3 +327,21 @@ func TestDownloadCodecRecyclesBuffers(t *testing.T) {
 		require.Equal(t, 10, cap(p.get(10)))
 	})
 }
+
+// Shard buffers of at least largeDownloadThreshold live off the Go heap until
+// Release, and decode the same as a plain unmarshal.
+func TestDownloadCodecLargeBuffersOffHeap(t *testing.T) {
+	resp := makeDownloadShard(2, 2)
+	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, largeDownloadThreshold)
+	wire := marshalDownloadShard(t, resp)
+	var want types.DownloadShardResponse
+	require.NoError(t, want.Unmarshal(wire))
+
+	codec := NewDownloadCodec(4, 2)
+	var got types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire[:len(wire)/2]), mem.SliceBuffer(wire[len(wire)/2:])}, &got))
+	require.Equal(t, want, got)
+	require.True(t, codec.large)
+	codec.Release()
+	codec.Release() // the row pool panics on a double free
+}

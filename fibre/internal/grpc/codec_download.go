@@ -3,6 +3,7 @@ package grpc
 import (
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/mem"
@@ -14,7 +15,8 @@ import (
 // It bounds rows and proof segments per shard like [NewServerCodec].
 type DownloadCodec struct {
 	pooledCodec
-	buf []byte
+	buf   []byte
+	large bool // buf came from largeDownloadBuffers
 }
 
 func NewDownloadCodec(maxShardRows, maxProofSegments int) *DownloadCodec {
@@ -28,14 +30,14 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if !ok || data.Len() == 0 || grpc.EnableTracing {
 		return c.pooledCodec.Unmarshal(data, v)
 	}
-	buf := downloadBuffers.get(data.Len())
+	buf, large := getDownloadBuffer(data.Len())
 	data.CopyTo(buf) // Overwrite every visible byte before parsing.
 	aliased, err := c.unmarshalDownload(buf, resp)
 	if aliased {
-		c.buf = buf
+		c.buf, c.large = buf, large
 		return nil
 	}
-	downloadBuffers.put(buf)
+	putDownloadBuffer(buf, large)
 	return err
 }
 
@@ -43,14 +45,41 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 // afterwards. Safe to call more than once and before any response arrived.
 func (c *DownloadCodec) Release() {
 	if c.buf != nil {
-		downloadBuffers.put(c.buf)
+		putDownloadBuffer(c.buf, c.large)
 		c.buf = nil
 	}
 }
 
-// downloadBuffers recycles response buffers through the GC-managed sync.Pool,
-// which keeps their zeroing and collection off the download path.
+// largeDownloadThreshold routes shard buffers of at least this size off the
+// Go heap.
+const largeDownloadThreshold = 1 << 20
+
+// largeDownloadBuffers holds shard response buffers (~50 MiB each for a
+// 128 MiB blob over 10 validators) off the Go heap. Their lifetime is
+// explicit — [DownloadCodec.Release] — so they need no garbage collection:
+// in a sync.Pool they counted as live heap, raised the GC goal by as much
+// again, and stayed resident for two GC cycles after their last use. The
+// row pool keeps a freed buffer for reuse only while it is reused soon.
+var largeDownloadBuffers = row.NewPool(1<<31, 1)
+
+// downloadBuffers recycles small response buffers through the GC-managed
+// sync.Pool, which keeps their zeroing and collection off the download path.
 var downloadBuffers bufferPool
+
+func getDownloadBuffer(n int) (buf []byte, large bool) {
+	if n < largeDownloadThreshold {
+		return downloadBuffers.get(n), false
+	}
+	return largeDownloadBuffers.GetRegion(1, (n+63)&^63)[:n], true
+}
+
+func putDownloadBuffer(buf []byte, large bool) {
+	if large {
+		largeDownloadBuffers.PutRegion(buf)
+		return
+	}
+	downloadBuffers.put(buf)
+}
 
 type bufferPool struct {
 	pool sync.Pool
