@@ -223,7 +223,9 @@ The handler reconstructs the canonical lease sign-bytes from the **tx-signer's o
 resolved consensus address** and stores the binding under that `ConsAddress`, so a
 lease naming another validator's `validator_cons_addr` cannot be stored under the
 wrong key, and verifies `consensus_sig` against that validator's current consensus
-pubkey. `nonce` must exceed the stored `nonce_high_water`.
+pubkey. `nonce` must exceed the stored `nonce_high_water`. `MsgRevokeFibreDelegation`
+likewise resolves its target validator from the tx-signer's own consensus address, so a
+revoke can only touch that signer's own binding, never another validator's.
 
 Requiring the consensus-key signature on the lease protects specifically against
 **operator-account-key compromise** redirecting Fibre signing authority. The
@@ -287,10 +289,13 @@ height, both:
   `(promise_sign_bytes, validator_cons_addr)` for a non-identity delegate slot, or
   **legacy** promise bytes for a consensus slot (see The lease).
 
-The resolved `(verifyKey, signMode)` arrays are a pure function of the promise height
-and the state committed at or before it, so they live in the existing per-height LRU
-(`validator_set_cache.go`). The LRU holds **only keys and modes, never the actual
-sign-bytes**: those depend on the specific promise (commitment, signer, timestamp) and
+The resolved `(verifyKey, signMode)` arrays are a pure function of the **promise
+height** and the state committed at or before it, so they can share the per-height LRU
+machinery (`validator_set_cache.go`) — but keyed by the promise height, not by the
+`certificateHistoricalHeight` (`promiseHeight-1`) the existing converted-set cache uses,
+which folds `G` and `G+1` onto the same entry at genesis. (Harmless today, since v12
+activates far above genesis; a genesis-boundary test records that.) The cache holds
+**only keys and modes, never the actual sign-bytes**: those depend on the specific promise (commitment, signer, timestamp) and
 are constructed per promise, in both verification paths, from the promise bytes plus —
 for an address-bound slot — the consensus address. Address, ordering, and power are
 untouched. Delegate-key reuse across validators is then harmless: distinct consensus
@@ -339,7 +344,8 @@ Three correctness requirements:
   could settle without re-asserting the binding. Because retention differs per binding,
   this must re-resolve **each signing slot's** binding at `H` (state reads, no crypto)
   and error if any is below `history_floor`; the fast path saves the signature crypto,
-  not the state reads.
+  not the state reads. `ValidateValidatorSetAvailable` therefore gains the signed-slot
+  set as an argument (the ante already has `msg` in scope at the call site).
 - **Warm-cache predicate == cold predicate under delegation** is the tested invariant.
   Extend the existing preverify fuzz cross-check (preverify vs
   `ValidatePayForFibreSignatures`) to cover active delegations, rotation, and
