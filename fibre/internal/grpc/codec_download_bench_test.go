@@ -11,9 +11,9 @@ import (
 // RLC block of rowBytes.
 func benchDownloadResponse(rows, rowBytes, proofDepth int) *types.DownloadShardResponse {
 	shard := &types.BlobShard{Rlcs: make([]byte, rowBytes)}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, rowBytes)}
-		for j := 0; j < proofDepth; j++ {
+		for range proofDepth {
 			row.Proof = append(row.Proof, make([]byte, 32))
 		}
 		shard.Rows = append(shard.Rows, row)

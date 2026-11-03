@@ -459,7 +459,7 @@ func sysBlobs(t *testing.T, dataSize int) ([]*fibre.Blob, [][]byte) {
 	datas := make([][]byte, n)
 	for i := range n {
 		datas[i] = make([]byte, dataSize)
-		mrand.NewChaCha8([32]byte{byte(i), 's', 'y', 's'}).Read(datas[i])
+		_, _ = mrand.NewChaCha8([32]byte{byte(i), 's', 'y', 's'}).Read(datas[i])
 		var err error
 		blobs[i], err = fibre.NewBlob(datas[i], fibre.DefaultBlobConfigV0())
 		require.NoError(t, err)
@@ -542,7 +542,7 @@ func TestSystemServe(t *testing.T) {
 		if tlsOnly {
 			cfg.ServerListenAddress = "127.0.0.1:0"
 		}
-		cfg.StoreConfig.Path = filepath.Join(dir, strconv.Itoa(i))
+		cfg.Path = filepath.Join(dir, strconv.Itoa(i))
 		cfg.Log = log
 		// Uploads only seed the stores; 100 verifiers per server would not fit.
 		cfg.UploadVerifyWorkers = 1
