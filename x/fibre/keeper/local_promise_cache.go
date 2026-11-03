@@ -64,6 +64,9 @@ type signerBudget struct {
 	// remaining is the AvailableBalance from the last sweep minus the sum of
 	// amounts reserved for pending promises.
 	remaining math.Int
+	// sweptAvailable is the AvailableBalance read by the last sweep. A fresh read
+	// below it forces a sweep; see Reserve.
+	sweptAvailable math.Int
 	// lastSweep is when this budget was last reconciled against chain state.
 	lastSweep time.Time
 	// lastActivity is when this entry was last touched; drives eviction.
@@ -119,11 +122,15 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 		return nil // idempotent: already reserved
 	}
 
+	// Read AvailableBalance fresh on every reservation and re-sweep if it dropped
+	// since the last sweep (a withdrawal request or a settlement), so the cached
+	// budget never exceeds what is currently available on-chain. An increase
+	// (deposit) needs no sweep: the cached budget is then only stricter than the
+	// chain.
+	available := c.availableBalance(ctx, signer)
 	b, ok := c.budgets[signer]
-	if !ok {
-		b = c.sweep(ctx, signer)
-	} else if isStale(b) {
-		c.sweep(ctx, signer)
+	if !ok || isStale(b) || available.LT(b.sweptAvailable) {
+		b = c.sweep(ctx, signer, available)
 	}
 
 	if b.remaining.GTE(required) {
@@ -135,7 +142,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	// reconcile with any settlements, then retry. This bounds state reads under
 	// repeated failing submissions.
 	if b.lastFailSweepH < ctx.BlockHeight() {
-		c.sweep(ctx, signer)
+		c.sweep(ctx, signer, available)
 		b.lastFailSweepH = ctx.BlockHeight()
 		if b.remaining.GTE(required) {
 			c.reserve(b, key, blobSize, required, creationTimestamp)
@@ -156,11 +163,12 @@ func (c *LocalPromiseCache) reserve(b *signerBudget, key string, blobSize uint32
 }
 
 // sweep reconciles a signer's cached budget against committed chain state: it
-// re-reads AvailableBalance, drops any locally pending promise that has already
+// resets the budget to the given AvailableBalance (read by the caller from
+// committed state), drops any locally pending promise that has already
 // settled on-chain or that can no longer settle (past its freshness window), and
 // recomputes the remaining budget. It creates the entry if absent and returns it.
 // Callers must hold c.mu.
-func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget {
+func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string, available math.Int) *signerBudget {
 	b, ok := c.budgets[signer]
 	if !ok {
 		b = &signerBudget{hashes: make(map[string]struct{})}
@@ -173,10 +181,7 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget 
 	// than the chain: it can never admit more promises than can settle, keeping the
 	// double-spend window closed. The accepted cost is that a signer withdrawing most
 	// of its balance may be rejected here even though on-chain settlement would succeed.
-	available := math.ZeroInt()
-	if acc, found := c.reader.GetEscrowAccount(ctx, signer); found {
-		available = acc.AvailableBalance.Amount
-	}
+	b.sweptAvailable = available
 
 	// A promise stops being settleable on-chain once its creation_timestamp falls
 	// before current_time - WithdrawalDelay (see validatePaymentPromiseStatefulInternal).
@@ -205,6 +210,15 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget 
 	b.lastActivity = time.Now()
 	b.opsSinceSweep = 0
 	return b
+}
+
+// availableBalance reads the signer's escrow AvailableBalance from committed
+// state, or zero if the signer has no escrow account.
+func (c *LocalPromiseCache) availableBalance(ctx sdk.Context, signer string) math.Int {
+	if acc, found := c.reader.GetEscrowAccount(ctx, signer); found {
+		return acc.AvailableBalance.Amount
+	}
+	return math.ZeroInt()
 }
 
 // evictIdleLocked removes signer entries with no activity for longer than the
