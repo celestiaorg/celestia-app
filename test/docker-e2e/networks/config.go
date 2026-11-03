@@ -35,9 +35,16 @@ type Config struct {
 // serves — a node can expose the full history over RPC and still run in seed
 // mode, which disconnects before sending a block.
 var mochaPeers = strings.Join([]string{
-	"daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:26656",
+	// itrocket listens for p2p on 11656 (its RPC /status reports
+	// 65.109.124.134:11656); port 26656 on that host does not answer.
+	"daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656",
 	// Celestia's own archival consensus node, which also serves rpc.celestia-mocha.com.
 	"ed8359cd707c622b0a9250824e311ee1fdb65ba0@consensus.celestia-mocha.com:26656",
+	// Celestia DA-proxy archival consensus backend (earliest_block_height = 1,
+	// not a seed). It runs on separate hardware from consensus.celestia-mocha.com,
+	// so the test still has an archive peer when both of the above have their
+	// inbound slots full.
+	"0b6bb5c485d071cc1b9f826edf89e4726849f139@da-proxy-consensus-01.celestia-mocha.com:26656",
 }, ",")
 
 // NewMochaConfig returns a Config for the mocha testnet

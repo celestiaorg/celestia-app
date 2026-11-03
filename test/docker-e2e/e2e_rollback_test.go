@@ -212,6 +212,13 @@ func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.C
 		fullNodeHeight, err := fullNode.Height(ctx)
 		return err == nil && fullNodeHeight >= height, nil
 	})
+	if err != nil {
+		nodes := make([]tastoratypes.ChainNode, 0, len(validators)+1)
+		for _, v := range validators {
+			nodes = append(nodes, v)
+		}
+		s.logNodeDiagnostics(ctx, append(nodes, fullNode))
+	}
 	s.Require().NoError(err, "validators did not halt at height %d", height)
 
 	fullNodeHeight, err := fullNode.Height(ctx)
