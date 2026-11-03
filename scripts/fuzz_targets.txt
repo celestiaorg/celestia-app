@@ -22,6 +22,7 @@
 1 ./app/test            FuzzCheckTxMutatedTxs               5m -
 1 ./app/test            FuzzQuerySequence                   2m 100x
 1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
+1 ./app/test            FuzzFinalizeBlockMutatedProposal    5m -
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
@@ -55,9 +56,11 @@
 1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
 1 ./fibre               FuzzServerUploadShard               5m 100x
 1 ./fibre               FuzzServerDownloadShard             2m 100x
+1 ./fibre/internal/grpc FuzzAdmissionSequence              2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
+2 ./fibre               FuzzDownload                        2m 100x
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -
 2 ./fibre               FuzzShardReader                     5m -
@@ -69,6 +72,7 @@
 2 ./pkg/proof           FuzzProofQueries                    5m -
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
 2 ./app/grpc/gasestimation FuzzEstimateGasPrice              2m 100x
+2 ./app                 FuzzParamFilterDecorator            2m 100x
 2 ./app/errors          FuzzParseNodeErrors                 2m 100x
 2 ./fibre/internal/tlsid FuzzVerifyPeerCert                 2m 100x
 2 ./fibre/internal/tlsid FuzzVerifyIdentityExtension        2m 100x
