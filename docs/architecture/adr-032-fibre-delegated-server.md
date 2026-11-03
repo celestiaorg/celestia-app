@@ -6,6 +6,9 @@
 - 2026-11-03: Decouple the delegate key from validator identity; separate delegation
   state from the host record; tighten rotation, retention, and download freshness
   (review round 1)
+- 2026-11-03: Bind delegate endorsements to the validator's consensus address; thread
+  the verify key and sign-bytes through the pre-verification batch path; require fresh
+  authenticated state for download revocation; bounded history-floor rule (review round 2)
 
 ## Status
 
@@ -113,6 +116,22 @@ valid_until, nonce)` via `core.RawBytesMessageSignBytes` with a new unique-ID ta
 a lease being replayed onto another chain or validator; the nonce stops a
 superseded lease being re-submitted as current.
 
+**Delegate endorsements are bound to the validator's consensus address.** Today a
+Fibre endorsement's sign-bytes are the canonical promise bytes alone, carrying no
+endorsing-validator identity (`fibre/payment_promise.go`
+`RawBytesMessageSignBytes`); identity comes only from the fact that each validator
+holds a unique consensus key. Under delegation that is no longer enough: if two
+validators share a delegate key, one honest server's signature could be copied into
+both of their positional slots, because the bytes verify under either slot's key and
+quorum counts distinct consensus addresses (`fibre/validator/signature_set.go`) —
+yielding quorum without the data being stored. So a **delegate-signed** endorsement
+is domain-separated by the signing validator's consensus address: its sign-bytes are
+`(promise_sign_bytes, validator_cons_addr)` under a distinct tag. A given signature
+is then valid for exactly one slot even when the key is shared. Consensus-key
+endorsements are unchanged (the unique key already binds identity), so this is purely
+additive at v12. The sign-bytes for a slot are therefore resolved **per slot** from
+the active binding, alongside the verify key (see On-chain verification).
+
 **ed25519 only in v1 (constraint K).** The delegate key must be ed25519 because
 the server-side signature length is checked against `ed25519.SignatureSize`
 (`fibre/payment_promise.go`), on-chain verification uses the ed25519 batch verifier
@@ -141,12 +160,19 @@ height, so two bindings that activate at the same height stay distinct. Delegati
 state has its **own lifecycle**, keyed to the settleable window (below), independent
 of whether the validator currently has a host record or is bonded.
 
-**Identity binding.** A validator that has set no delegation is treated as having
-an implicit identity binding (`delegate_pubkey = consensus pubkey`, nonce 0).
-Migration and un-upgraded clients rely on this. To keep "never delegated" distinct
-from "history pruned," an explicit identity binding is written at the delegation
-epoch boundary, so a present entry means "consensus key" and an absent entry means
-"pruned/unknown."
+**Never-delegated vs pruned (bounded history-floor rule).** A validator that has set
+no delegation is treated as having an implicit identity binding (`delegate_pubkey =
+consensus pubkey`). Migration and un-upgraded clients rely on this. The hazard is
+telling "never delegated" (safe to fall back to the consensus key) apart from
+"history was pruned" (must error, since the real signer may have been a delegate).
+Rather than write an identity binding every epoch — unbounded churn across the whole
+set — the `0x03` state records, per validator that has **ever** delegated, a single
+`history_floor` height (the lowest height still retained). Resolution at promise
+height `H` then: if the validator has no `0x03` state at all, it never delegated →
+consensus-key fallback; if it has state and `H ≥ history_floor`, resolve from `0x02`
+(a gap within the retained range is an explicit identity interval); if it has state
+and `H < history_floor`, the history was pruned → **error**, never fall back. This is
+one bounded field per delegating validator, not a recurring write.
 
 **Pruning.** A binding is retained until **no settleable PFF promise can still
 reference it** — that is its immutable effective end `min(valid_until, revoke_at)`
@@ -186,6 +212,12 @@ message MsgRevokeFibreDelegation {
   uint64 nonce  = 2;               // the lease being revoked
 }
 ```
+
+The handler reconstructs the canonical lease sign-bytes from the **tx-signer's own
+resolved consensus address** and stores the binding under that `ConsAddress`, so a
+lease naming another validator's `validator_cons_addr` cannot be stored under the
+wrong key, and verifies `consensus_sig` against that validator's current consensus
+pubkey. `nonce` must exceed the stored `nonce_high_water`.
 
 Requiring the consensus-key signature on the lease protects specifically against
 **operator-account-key compromise** redirecting Fibre signing authority. The
@@ -236,47 +268,80 @@ validators case produces naturally — would collide on `Address`, causing eithe
 **silent quorum under-count** via `SignatureSet.Add`'s Address-keyed dedup.
 
 Instead, keep the converted set exactly as today (identity and power from the
-consensus key) and carry the delegate as a **separate per-slot verification key**:
+consensus key) and resolve, **per slot**, from the active binding at the promise
+height, both:
 
-- `certificateValidatorSet` / `validatorSetAtHeight`
-  (`x/fibre/keeper/validator_set_cache.go`) additionally produces a parallel array
-  `verifyKey[i]` = the ed25519 pubkey that slot *i*'s signature must verify under:
-  the delegate active at the promise height if one exists, else the consensus
-  pubkey. Address, ordering, power, and the per-height LRU / `preverify.go` caches
-  are untouched.
-- `validateValidatorSignatures` and `SignatureSet.Add` take `verifyKey[i]` as the
-  key to check the signature against, while still keying dedup and quorum by the
-  consensus `Address`. This is a real, if contained, signature-path change — **not**
-  a drop-in substitution, and the implementation plan budgets for it.
+- `verifyKey[i]` — the ed25519 pubkey slot *i*'s signature must verify under: the
+  delegate active at the promise height if one exists, else the consensus pubkey; and
+- `signBytes[i]` — the expected sign-bytes: for a non-identity delegate slot, the
+  address-bound bytes `(promise_sign_bytes, validator_cons_addr)`; for a consensus
+  slot, the legacy promise bytes (see The lease).
 
-Delegate-key reuse across validators is then harmless: each slot is a distinct
-consensus identity. #8330/#8342 stay intact — the consensus set is resolved at
-`H`/`H-1`, and the `verifyKey` array is layered on top of that exact set.
+Address, ordering, power, and the per-height LRU are untouched. Delegate-key reuse
+across validators is then harmless: distinct consensus identities, and the address
+binding makes each signature valid for exactly one slot.
 
-Two correctness requirements:
+**Both verification paths must consume the same per-slot `(verifyKey, signBytes)`.**
+There are two consensus-critical verifiers and they must implement an identical
+acceptance predicate, or settlement becomes non-deterministic:
 
-- **Pruned history must not silently fall back to the consensus key.** That would
-  accept a consensus-key signature for a promise whose real authorized signer was a
-  delegate. A delegation-history existence check (analogous to the `HasHistoricalInfo`
-  fast path, #8292, `app/fibre_staking.go`) surfaces the same "set no longer stored"
-  error as a pruned validator set.
-- **Cache correctness is a tested invariant, not an assumption.** A delegation
-  change committed at `B` must never alter the resolved set or `verifyKey` array for
-  any height `≤ B`.
+- the sequential verifier `validateValidatorSignatures` / `SignatureSet.Add`
+  (`fibre/validator/signature_set.go`) — checks each signature against
+  `verifyKey[i]` over `signBytes[i]`, while keying dedup and quorum by the consensus
+  `Address`; and
+- the **pre-verification batch path** `appendCertificateItems`
+  (`x/fibre/keeper/preverify.go`), which today batch-verifies against
+  `converted.validators[i].PubKey` (the consensus key) and a single message, warming
+  the shared `pffSigCache`. The ante cache-hit branch (`x/fibre/ante/ante.go`) then
+  skips full re-verification. If only the sequential path were delegate-aware, a
+  warm cache and a cold cache would accept different certificates for the same input,
+  splitting ProcessProposal votes. So the batch path is a **mandatory** third
+  consumer of `verifyKey[i]` / `signBytes[i]` (per-slot keys and per-slot messages).
+
+This is a real, contained signature-path change across both paths — **not** a drop-in
+substitution, and the implementation plan budgets for it. #8330/#8342 stay intact: the
+consensus set is resolved at `H`/`H-1`, and the per-slot arrays are layered on top.
+
+Three correctness requirements:
+
+- **Pruned history must not silently fall back to the consensus key** (history-floor
+  rule above). The check applies on both the derive/verify path and the **cache-hit
+  fast path**: `ValidateValidatorSetAvailable` (`x/fibre/keeper/msg_server.go`
+  `checkHistoricalInfo`) today asserts only staking historical info; it must also
+  assert delegation-history availability for a non-identity binding, since delegation
+  retention and staking `HistoricalEntries` have different windows. Otherwise a cached
+  certificate at a height with pruned delegation history but surviving staking info
+  could settle without re-asserting the binding.
+- **Warm-cache predicate == cold predicate under delegation** is the tested invariant.
+  Extend the existing preverify fuzz cross-check (preverify vs
+  `ValidatePayForFibreSignatures`) to cover active delegations, rotation, and
+  revocation.
+- **Cache correctness.** A delegation change committed at `B` must never alter the
+  resolved arrays for any height `≤ B` (guaranteed by prospective activation).
 
 ### Server and operator identity
 
 The delegated server signs with the delegate key, but its **identity on the network
-stays the validator's consensus address.** Today the server derives both its
-shard-assignment check and its object-storage namespace from the signing key —
-`fibre/server_upload.go` `verifyAssignment` looks the validator up by
-`s.signer.GetPubKey().Address()` in the height's set, and `fibre/server.go` sets
-`ObjectStorage.ValidatorAddress = ConsAddress(pubKey.Address())`. If the signer were
-the delegate key, assignment would fail ("validator not in set") and the storage
-namespace would change on every rotation. So the server must be configured with the
-validator's **consensus address** as a stable identity, verify the delegate↔
-validator relationship on-chain at startup, and use the consensus address for
-assignment, storage, and health — the delegate key is used only to sign.
+stays the validator's consensus address.** Today the server derives its identity from
+the signing key in several places: shard assignment (`fibre/server_upload.go`
+`verifyAssignment` looks the validator up by `s.signer.GetPubKey().Address()`), the
+object-storage namespace (`fibre/server.go`
+`ObjectStorage.ValidatorAddress = ConsAddress(pubKey.Address())`), the budget
+recompute (`recomputeBudget` → `valSet.GetByAddress(key.Address())`), and the health
+dependencies. If the signer were the delegate key, assignment would fail ("validator
+not in set"), the storage namespace would change on every rotation, and the budget
+would stay zero. So the server must be configured with the validator's **consensus
+address** as a stable identity, verify the delegate↔validator relationship on-chain
+at startup, and use the consensus address **everywhere identity is derived** —
+assignment, storage, budget, health; the delegate key is used only to sign.
+
+**Signing key is selected by promise height.** The server signs each endorsement with
+the delegate key that was active at the **promise's height**, not merely its current
+key. This matters at a rotation cutover `C`: an in-flight promise with height `< C`
+reaching the new operator after `C` must be signed with the old key (or rejected if
+the new operator does not hold it). A cutover therefore drains or rejects
+pre-cutover promises rather than signing them with a key that on-chain verification
+will reject for that height.
 
 ### Client discovery and verification
 
@@ -294,11 +359,15 @@ assignment, storage, and health — the delegate key is used only to sign.
   identity, exactly as on-chain, so it does not break host lookup. The server's TLS
   identity extension is signed by the delegate key instead of the consensus key.
 - **A wrong delegate pubkey defeats TLS auth** — unlike a wrong `host`, which only
-  redirects traffic that TLS still authenticates against an independently known
-  key. So the client must either read the binding from **authenticated chain
-  state**, or obtain the `consensus_sig` lease and **verify it itself** against the
-  validator's consensus pubkey (which it already trusts from the validator set)
-  before accepting the delegate key.
+  redirects traffic that TLS still authenticates against an independently known key.
+  Verifying the `consensus_sig` lease against the validator's consensus pubkey (which
+  the client already trusts from the validator set) proves the key *was authorized for
+  its window* — but **not** that it is still current. Rotation and revocation shorten
+  authorization through a superseding binding and `revoke_at`, which live outside the
+  signed lease, so a malicious registry plus a compromised former delegate could
+  replay the authentic old lease until its original `valid_until`. Current-time
+  download auth therefore requires **fresh authenticated chain state** for the active
+  binding and its effective end; a self-verified lease alone is not sufficient.
 - **Revocation must fail closed.** A registry change does not tear down existing or
   pooled TLS connections, and both `HostRegistry` and the client connection cache
   keep stale data when a refresh or replacement fails. Authorization must not
@@ -328,12 +397,14 @@ assignment, storage, and health — the delegate key is used only to sign.
   double-sign or slashing exposure from delegation — the central improvement over
   the status quo.
 - **This is not a drop-in change.** Keeping identity separate from the verification
-  key means a parallel `verifyKey` array through `certificateValidatorSet`, a
-  signature-path change in `SignatureSet.Add` / `validateValidatorSignatures`, a
-  stable-identity config for the server, and a client that splits host lookup
-  (consensus address) from the TLS/endorsement verify key (delegate). The "fold into
-  the existing converted set" idea is rejected precisely because it corrupts
-  identity.
+  key means per-slot `verifyKey` / `signBytes` arrays through `certificateValidatorSet`
+  consumed by **both** the sequential verifier (`SignatureSet.Add` /
+  `validateValidatorSignatures`) **and** the pre-verification batch path
+  (`appendCertificateItems`), a delegation-aware availability check on the ante
+  cache-hit path, a stable-identity config for the server, and a client that splits
+  host lookup (consensus address) from the verify key (delegate). The "fold into the
+  existing converted set, nothing else changes" idea is rejected precisely because it
+  corrupts identity and because the two verification paths must stay predicate-identical.
 - **Residual exposure after revocation.** A promise's height does not prove when the
   endorsement was produced, so a compromised delegate can keep minting endorsements
   **after** revocation for any promise whose height still falls inside its former
@@ -345,6 +416,12 @@ assignment, storage, and health — the delegate key is used only to sign.
 - Promises authorized while the delegate was active still settle after revocation.
   This is intended: the user already signed them and a 2/3 quorum already endorsed
   them; there is no retroactive invalidation, by design.
+- **Operator-key-alone revoke is a kill switch.** Letting the operator account key
+  revoke without the consensus key means a compromised hot operator key can revoke the
+  live delegation and re-point the `host`, disabling the validator's Fibre server
+  (future-height authority plus the download-TLS flip). This is a griefing/DoS surface,
+  not a signing-theft one — the attacker cannot forge endorsements or redirect signing
+  authority — and is the accepted cost of fast revocation without the consensus key.
 - **Operator concentration is a storage-guarantee risk the chain cannot measure.**
   One operator holding delegate keys for ≥ 1/3 of voting power can withhold data;
   ≥ 2/3 can supply a full quorum of endorsements without storing the data. This is
@@ -381,7 +458,14 @@ assignment, storage, and health — the delegate key is used only to sign.
   leads because the binding must live in the registry anyway for discovery and
   download auth, so putting the authoritative lease there avoids duplicating it into
   every settlement; a reasonable hybrid uses the registry for discovery/downloads and
-  either resolution method for on-chain upload verification.
+  lease-in-PFF for on-chain upload verification. **Two review rounds weighted this
+  toward the hybrid:** the pre-verification threading, history pruning, pruned-vs-never
+  rule, and cache-availability divergence — the most error-prone new consensus-critical
+  surface — exist *only* in registry-with-history; A′ removes all of it while still
+  needing the same identity decoupling and per-slot verify-key/sign-bytes threading.
+  Registry-with-history is kept as the recommendation mainly because it generalizes
+  cleanly to M4 (multiple active bindings); if M4 is deferred, the hybrid is likely the
+  better M2 choice. This is the first open question.
 - **B. Reuse the consensus key on the operator host (status quo).** Point the
   server's remote signer at the operator. Zero protocol change, but the operator
   gains consensus-key signing: a compromise double-signs blocks → slashing, and the
