@@ -35,7 +35,7 @@ Two consequences follow. The availability argument assumes signers hold their ro
 
 ### What each validator must carry
 
-The mainnet target is 2.2 GiB/s of uploads. Reads come on top of that at twice the rate, about 4.4 GiB/s (hardware requirements: PROTOCO-3592). A validator with stake fraction `s` is assigned `min(1, 3s)` of every blob's original rows (`Set.AssignedRows`, `fibre/validator/set.go:108`, liveness threshold 1/3), subject to the `MinRowsPerValidator` floor. Its upload ingress is that fraction of the write rate, plus row proofs: 14 sibling hashes of 32 bytes per row, about 1.4% overhead at 128 MiB blobs and 5.5% at 32 MiB.
+The mainnet target is 2.2 GiB/s of uploads. Reads come on top of that at twice the rate, about 4.4 GiB/s. A validator with stake fraction `s` is assigned `min(1, 3s)` of every blob's original rows (`Set.AssignedRows`, `fibre/validator/set.go:108`, liveness threshold 1/3), subject to the `MinRowsPerValidator` floor. Its upload ingress is that fraction of the write rate, plus row proofs: 14 sibling hashes of 32 bytes per row, about 1.4% overhead at 128 MiB blobs and 5.5% at 32 MiB.
 
 | Stake | Share of rows | Ingress at 2.2 GiB/s    |
 |-------|---------------|-------------------------|
@@ -52,7 +52,7 @@ At the current charge of 0.004 utia per gas, uploads pay about 0.76 TIA per GiB.
 
 ### Why outside probes are not enough
 
-The first plan was a team-run prober (PROTOCO-3594, PROTOCO-3596). A validator can recognise a probe by its key, account, IP or timing. It can then serve probes first, or scale up only while probed, and still fail real users. Even a probe it cannot recognise only measures signatures, which, as shown above, prove nothing. The full comparison is under [Alternatives considered](#alternatives-considered).
+The obvious alternative is a team-run prober that periodically sends authenticated test uploads to each validator. A validator can recognise a probe by its key, account, IP or timing. It can then serve probes first, or scale up only while probed, and still fail real users. Even a probe it cannot recognise only measures signatures, which, as shown above, prove nothing. The full comparison is under [Alternatives considered](#alternatives-considered).
 
 ## Decision
 
@@ -79,13 +79,13 @@ custody_root = RFC 6962 Merkle root over leaves (salt || u32be(j) || row[j])
                for the validator's assigned rows j, in Assign order
 ```
 
-- The server computes the root after `verifyShard` and before signing (`fibre/server_upload.go:112`). This adds one SHA-256 pass over bytes it has just hashed to check the row proofs. The arm64 two-lane SHA-256 path (PROTOCO-3408) applies.
+- The server computes the root after `verifyShard` and before signing (`fibre/server_upload.go:112`). This adds one SHA-256 pass over bytes it has just hashed to check the row proofs.
 - `MsgPayForFibre` and `MsgEndorse` carry one `custody_root` per signature position, and the chain rebuilds `SignBytes_v1` from it.
 - Clients hold every row, so they can check roots and drop bad endorsements early. Safety does not depend on this, because the challenges in Decision 3 catch bad roots.
 
 **Why the salt is needed.** The rsema1d row tree hashes each leaf as `SHA256(0x00 || row)` (`pkg/rsema1d/SPEC.md`, Merkle section), and each row's proof contains its sibling's leaf hash. The commitment shuffles rows across validators (`Set.Assign`, `fibre/validator/set.go:65`), so one validator's leaf hashes sit inside other validators' proofs. `DownloadShard` serves those proofs to anyone, and peers can forward a leaf hash in 32 bytes instead of a 32 KiB row. A root over unsalted row hashes could therefore be built without ever holding the rows. Salting with the promise hash and validator address makes every leaf unique to one (promise, validator) pair, so the only way to compute it is to hash the row bytes.
 
-**What the root proves.** Whoever computed it had the bytes of the validator's rows at signing time. It does not prove those bytes sit on the validator's own hardware. A third-party Fibre server (milestone 2, PROTOCO-3341) is allowed, and it has to receive and keep the data like any other.
+**What the root proves.** Whoever computed it had the bytes of the validator's rows at signing time. It does not prove those bytes sit on the validator's own hardware. A validator may delegate its Fibre server to a third party, and that server has to receive and keep the data like any other.
 
 ### 3. Custody challenges
 
@@ -133,7 +133,7 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 
 - Fibre revenue follows service. At the upload target that is about 144,000 TIA a day, paid only to validators that took their rows in time.
 - A signature becomes evidence. A validator that signs without data is jailed within minutes, and one that signs a false root is slashed.
-- Each validator's delivered throughput is an on-chain number, which the capacity dashboard (PROTOCO-3597) can read without probes.
+- Each validator's delivered throughput is an on-chain number, so anyone can build a public capacity dashboard from chain data without running probes. Under-provisioned validators become visible to delegators and the community, not just paid less.
 - With Decision 4, clients cannot steer payments or grief a validator by leaving it out.
 - Self-dealing does not pay. A validator that uploads its own blobs pays the full charge and gets back only its stake share.
 
@@ -148,7 +148,7 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 
 - **Colluding uploader.** The salt is public, so an uploader that colludes with a validator can compute that validator's root and send it no rows. The validator then fetches only the rows it is challenged on, and this design cannot detect it. A secret salt (open question 4) closes this gap.
 - **Retention.** A validator that received its rows and later deleted them can rebuild a challenged row from peers within `N` blocks. Challenges prove receipt strongly but retention only weakly.
-- **Outsourcing.** A custody proof shows possession by someone acting for the validator, not by the validator's own machine. This is intended (milestone 2).
+- **Outsourcing.** A custody proof shows possession by someone acting for the validator, not by the validator's own machine. This is intended, since a validator may delegate its Fibre server to a third party.
 
 ## Open questions
 
@@ -178,6 +178,4 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 - cosmos-sdk `x/distribution/keeper/allocation.go`: `AllocateTokens`, `AllocateTokensToValidator`.
 - `specs/src/fibre.md`, `specs/src/fibre_server.md`, `specs/src/fibre_module.md`, `x/fibre/README.md`.
 - ADR-029: stake-derived storage budgets.
-- PROTOCO-3599: this ADR.
-- PROTOCO-3592 (hardware requirements), PROTOCO-3594 (capacity verification design), PROTOCO-3596 (external prober), PROTOCO-3597 (capacity dashboard), PROTOCO-3341 (delegated Fibre server).
 - Ethereum proof of custody (consensus-specs custody game); FlashFlow (Tor relay bandwidth measurement).
