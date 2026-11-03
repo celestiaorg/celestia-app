@@ -64,7 +64,8 @@ type pffServerFixture struct {
 // newPFFServerFixture builds a fibre keeper with a signature cache, a staking
 // mock that stores only the validator set signing pffServerHeight, and a bank
 // ledger. Each payer deposits a fuzz-chosen amount, optionally locking part of
-// it in a pending withdrawal.
+// it in a pending withdrawal. Deliveries then run at a fuzz-chosen height
+// around pffServerHeight or at the edges of the promise height window.
 func newPFFServerFixture(t *testing.T, header *fuzzutil.Consumer) *pffServerFixture {
 	s := new(MsgServerTestSuite)
 	s.SetT(t)
@@ -117,11 +118,16 @@ func newPFFServerFixture(t *testing.T, header *fuzzutil.Consumer) *pffServerFixt
 			require.NoError(t, err)
 		}
 	}
+	// Promises are always made at pffServerHeight, so a delivery height
+	// before or after it reaches the settlement height window's bounds.
+	window := int64(s.keeper.GetParams(s.ctx).PaymentPromiseHeightWindow)
+	offsets := []int64{0, 1, -1, -2, window, window + 1}
+	s.ctx = s.ctx.WithBlockHeight(pffServerHeight + offsets[int(header.Byte())%len(offsets)])
 	return f
 }
 
 // freshTx signs a new promise of payer with a full certificate and wraps it
-// in a signed tx.
+// in a tx whose envelope payer signs, as the auth ante handler requires.
 func (f *pffServerFixture) freshTx(t *testing.T, payer int, blobSize uint32, nonce uint64) []byte {
 	key := pffServerPayers[payer]
 	promise := types.PaymentPromise{
@@ -146,7 +152,7 @@ func (f *pffServerFixture) freshTx(t *testing.T, payer int, blobSize uint32, non
 		require.NoError(t, err)
 	}
 	msg := &types.MsgPayForFibre{Signer: sdk.AccAddress(key.PubKey().Address()).String(), PaymentPromise: promise, ValidatorSignatures: sigs}
-	return f.m.signedTx(t, msg)
+	return f.m.signedTxBy(t, msg, payer)
 }
 
 // requireDecodeConsistent checks DecodePayForFibre and DerivePayForFibre
@@ -268,6 +274,11 @@ func FuzzPayForFibreMsgServer(f *testing.F) {
 	f.Add(seed([]byte{0, 0, 1, 0, 5, pffReplace, 3, 3, 1}, []byte{2, 0, 1, 0, 5, pffReplace, 3, 2, 1}))
 	// An overdrawn payer with a pending withdrawal, then a time advance past expiry.
 	f.Add(append([]byte{0, 1, 0xff, 0, 1, 0x80, 0, 0}, fuzzutil.Records(pffServerRecord, []byte{0, 0}, []byte{1, 0}, []byte{2, 61})...))
+	// Each delivery height: at, after and before the promise height, and at
+	// and past the end of the window.
+	for h := range byte(6) {
+		f.Add(append([]byte{0x10, 0, 0, 0x10, 0, 0, h, 0}, fuzzutil.Records(pffServerRecord, []byte{0, 0}, []byte{1, 0})...))
+	}
 	f.Fuzz(func(t *testing.T, script []byte) {
 		if len(script) > pffServerHeader+pffServerDeliveries*pffServerRecord {
 			return
@@ -391,4 +402,11 @@ func TestPayForFibreMsgServerFuzzSeeds(t *testing.T) {
 	require.Equal(t, 2, fuzzPayForFibreMsgServer(t, script), "two fresh promises settle, the replay does not")
 	unfunded := append(make([]byte, pffServerHeader), fuzzutil.Records(pffServerRecord, []byte{0, 0})...)
 	require.Equal(t, 0, fuzzPayForFibreMsgServer(t, unfunded))
+
+	// The delivery height picks the settlement height window's edges.
+	for h, want := range []int{2, 2, 2, 0, 2, 0} {
+		header[6] = byte(h)
+		script := append(bytes.Clone(header), fuzzutil.Records(pffServerRecord, []byte{0, 0}, []byte{1, 0})...)
+		require.Equal(t, want, fuzzPayForFibreMsgServer(t, script), "height offset %d", h)
+	}
 }
