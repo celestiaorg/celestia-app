@@ -36,6 +36,12 @@ func (PubKeySizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool,
 		return ctx, err
 	}
 	for i, pk := range pubKeys {
+		// Simulations built without a keybase carry an empty secp256k1 key
+		// (client/tx Factory.getSimPK). SetPubKeyDecorator never calls
+		// Address on it when simulating, so let it through.
+		if simulate && isEmptySecp256k1(pk) {
+			continue
+		}
 		if err := validatePubKeySize(pk); err != nil {
 			return ctx, errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "signer index %d: %s", i, err)
 		}
@@ -98,4 +104,9 @@ func validateMultisigMember(pk cryptotypes.PubKey) error {
 	default:
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "unsupported multisig member type %T", pk)
 	}
+}
+
+func isEmptySecp256k1(pk cryptotypes.PubKey) bool {
+	k, ok := pk.(*secp256k1.PubKey)
+	return ok && k != nil && len(k.Key) == 0
 }

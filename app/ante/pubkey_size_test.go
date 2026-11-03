@@ -88,3 +88,17 @@ func TestPubKeySizeDecorator(t *testing.T) {
 		})
 	}
 }
+
+// TestPubKeySizeDecoratorSimulate checks that a simulation may carry the empty
+// secp256k1 key the client puts in when it has no keybase, and nothing else.
+func TestPubKeySizeDecoratorSimulate(t *testing.T) {
+	next := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
+	run := func(pk cryptotypes.PubKey, simulate bool) error {
+		_, err := NewPubKeySizeDecorator().AnteHandle(sdk.Context{}, pubKeyTx{pubKeys: []cryptotypes.PubKey{pk}}, simulate, next)
+		return err
+	}
+	require.NoError(t, run(&secp256k1.PubKey{}, true))
+	require.ErrorIs(t, run(&secp256k1.PubKey{}, false), sdkerrors.ErrInvalidPubKey)
+	require.ErrorIs(t, run(&secp256k1.PubKey{Key: []byte("0")}, true), sdkerrors.ErrInvalidPubKey)
+	require.ErrorIs(t, run(&ed25519.PubKey{}, true), sdkerrors.ErrInvalidPubKey)
+}
