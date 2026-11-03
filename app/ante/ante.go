@@ -54,6 +54,10 @@ func NewAnteHandler(
 		// Ensure that the tx's gas price is >= the network minimum gas price.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
+		// Ensure that every signer public key has the length of its type.
+		// Contract: must be called before SetPubKeyDecorator, which panics on
+		// a wrong-length key.
+		NewPubKeySizeDecorator(),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
