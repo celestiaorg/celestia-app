@@ -60,9 +60,12 @@
 1 ./fibre               FuzzServerUploadShard               5m 100x
 1 ./fibre               FuzzServerDownloadShard             2m 100x
 1 ./fibre/internal/grpc FuzzAdmissionSequence              2m 100x
+1 ./fibre/internal/grpc FuzzLimitedListenerSequence        2m 100x
+1 ./fibre/internal/grpc FuzzUploadBufferReuse              2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
+2 ./fibre/internal/grpc FuzzHostRegistry                   2m 100x
 2 ./fibre               FuzzDownload                        2m 100x
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -

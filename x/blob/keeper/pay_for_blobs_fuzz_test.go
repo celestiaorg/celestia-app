@@ -164,7 +164,7 @@ func FuzzPayForBlobsHandler(f *testing.F) {
 	f.Add(uint64(0), []byte{})
 	for field := range byte(6) {
 		f.Add(uint64(0), fuzzutil.Records(pfbHandlerRecord, []byte{field, 1, 1, 0, 0x40, 0, 0}))
-		f.Add(uint64(500_000), fuzzutil.Records(pfbHandlerRecord, []byte{field, 2, 3, 0xff, 0xff, 0xff, 0xff}))
+		f.Add(uint64(500_000), fuzzutil.Records(pfbHandlerRecord, []byte{field, 2, 0xff, 0xff, 0xff, 0xff, 3}))
 	}
 	f.Add(uint64(30_000), fuzzutil.Records(pfbHandlerRecord, []byte{2, 0, 0, 0x10, 0, 0}))
 	f.Fuzz(func(t *testing.T, gasLimit uint64, script []byte) {
@@ -242,7 +242,7 @@ func fuzzPayForBlobsHandler(t *testing.T, gasLimit uint64, script []byte) bool {
 // ValidateBasic and a tight gas limit runs out.
 func TestPayForBlobsHandlerFuzzSeeds(t *testing.T) {
 	require.True(t, fuzzPayForBlobsHandler(t, 0, nil), "the unedited message must be handled")
-	require.True(t, fuzzPayForBlobsHandler(t, 0, fuzzutil.Records(pfbHandlerRecord, []byte{2, 0, 0, 0xff, 0xff, 0xff, 0xff})), "a MaxUint32 blob size is still handled")
+	require.True(t, fuzzPayForBlobsHandler(t, 0, fuzzutil.Records(pfbHandlerRecord, []byte{2, 0, 0xff, 0xff, 0xff, 0xff})), "a MaxUint32 blob size is still handled")
 	require.True(t, fuzzPayForBlobsHandler(t, 0, fuzzutil.Records(pfbHandlerRecord, []byte{0, 0, 1})), "an upper-case signer is valid")
 	require.False(t, fuzzPayForBlobsHandler(t, 0, fuzzutil.Records(pfbHandlerRecord, []byte{1, 1, 1})), "a reserved namespace fails ValidateBasic")
 	require.False(t, fuzzPayForBlobsHandler(t, 1000, nil), "1000 gas cannot pay for three blobs")
