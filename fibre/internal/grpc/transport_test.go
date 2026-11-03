@@ -57,7 +57,7 @@ func startTransportServer(t *testing.T, tlsOnly bool) (addr string, rec *authRec
 	if !tlsOnly {
 		creds = NewDetectingServerCreds(creds)
 	}
-	srv, err := Listen("127.0.0.1:0", 16, 16)
+	srv, err := Listen("127.0.0.1:0", 16, 16, testAdmission)
 	require.NoError(t, err)
 	rec = &authRecorder{}
 	srv.Register(rec, grpclib.Creds(creds))
@@ -315,7 +315,7 @@ func TestDetectingCredsAcceptObserved(t *testing.T) {
 			mu.Unlock()
 		}),
 	)
-	srv, err := Listen("127.0.0.1:0", 16, 16)
+	srv, err := Listen("127.0.0.1:0", 16, 16, testAdmission)
 	require.NoError(t, err)
 	rec := &authRecorder{}
 	srv.Register(rec, grpclib.Creds(creds))
