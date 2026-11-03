@@ -37,7 +37,9 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 	ctx := context.TODO()
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).Build(ctx)
+	// Write the validators' files before they start: WriteFile chowns the whole
+	// volume, which fails if a running node deletes a file mid-walk.
+	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).WithPostInit(prepareRollbackValidator).Build(ctx)
 	s.Require().NoError(err, "failed to get chain")
 
 	err = celestia.Start(ctx)
@@ -68,19 +70,6 @@ func (s *CelestiaTestSuite) TestRollback() {
 	// Restarted validators get new IPs, so they must dial the full node themselves.
 	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
 	s.Require().NoError(err, "failed to get the full node peer address")
-
-	// Operators may only have the image, so take the script from the binary.
-	script, _, err := validators[0].Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
-	s.Require().NoError(err, "failed to print the recovery script from the image")
-	s.Require().Contains(string(script), "Usage: recovery.sh", "unexpected recovery-script output")
-	for _, v := range validators {
-		s.Require().NoError(v.WriteFile(ctx, "recovery.sh", script), "failed to write the recovery script to %s", v.Name())
-		// A snapshot every 2 heights leaves one above the phase 2 target for the script to delete.
-		err := config.Modify(ctx, v, "config/app.toml", func(cfg *servercfg.Config) {
-			cfg.StateSync.SnapshotInterval = 2
-		})
-		s.Require().NoError(err, "failed to enable snapshots on %s", v.Name())
-	}
 
 	err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
 		return !info.CatchingUp && info.LatestBlockHeight > 0
@@ -161,6 +150,25 @@ func (s *CelestiaTestSuite) TestRollback() {
 	for h := startHeight; h <= endHeight; h++ {
 		s.Require().Empty(s.block(ctx, fullNode, h).Block.Evidence.Evidence, "unexpected evidence at height %d", h)
 	}
+}
+
+// prepareRollbackValidator writes recovery.sh to a validator and enables snapshots.
+func prepareRollbackValidator(ctx context.Context, node *cosmos.ChainNode) error {
+	// Operators may only have the image, so take the script from the binary.
+	script, _, err := node.Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to print the recovery script from the image: %w", err)
+	}
+	if !strings.Contains(string(script), "Usage: recovery.sh") {
+		return fmt.Errorf("unexpected recovery-script output: %s", script)
+	}
+	if err := node.WriteFile(ctx, "recovery.sh", script); err != nil {
+		return fmt.Errorf("failed to write the recovery script to %s: %w", node.Name(), err)
+	}
+	// A snapshot every 2 heights leaves one above the phase 2 target for the script to delete.
+	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		cfg.StateSync.SnapshotInterval = 2
+	})
 }
 
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
