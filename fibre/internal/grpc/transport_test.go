@@ -129,10 +129,13 @@ func TestTransportFallsBackToTLS(t *testing.T) {
 }
 
 // TestTransportFallbackCancelTearsDownConn is the regression test for the
-// fallback owning the connection gRPC cancels. The server fails the plaintext
-// probe, completes the TLS handshake, then withholds HTTP/2 SETTINGS. Cancelling
-// the dial must tear down the fallback connection in use (the server observes it
-// close), not a replaced one, and leave no connection hanging.
+// fallback owning the connection gRPC tears down. The server fails the plaintext
+// probe, completes the TLS handshake on the fallback connection, then withholds
+// HTTP/2 SETTINGS so connection setup is stuck. Closing the ClientConn must tear
+// down that fallback connection (the server observes it close) — which only
+// holds because the dialer, not the credentials, produced the connection gRPC
+// owns. Closing the ClientConn (not an RPC context) is what cancels an
+// in-progress connection setup.
 func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 	pv := core.NewMockPV()
 	cert, err := tlsid.BuildServerCert(pv, transportTestChainID)
@@ -145,7 +148,8 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 	require.NoError(t, err)
 	defer ln.Close()
 
-	closed := make(chan struct{}, 1) // the stalled TLS conn observed closing
+	handshook := make(chan struct{}, 1) // fallback TLS handshake completed
+	closed := make(chan struct{}, 1)    // the stalled TLS conn observed closing
 	go func() {
 		for {
 			raw, err := ln.Accept()
@@ -153,6 +157,7 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 				return
 			}
 			go func(c net.Conn) {
+				_ = c.SetDeadline(time.Now().Add(10 * time.Second))
 				var first [1]byte
 				if _, err := io.ReadFull(c, first[:]); err != nil {
 					_ = c.Close()
@@ -163,12 +168,18 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 					_ = c.Close()
 					return
 				}
-				// Fallback TLS: complete the handshake, then withhold SETTINGS
-				// and block until the client tears the connection down.
+				// Fallback TLS: complete the handshake, announce it, then
+				// withhold SETTINGS and block until the client tears the
+				// connection down.
 				tlsConn := tls.Server(&prefixConn{Conn: c, prefix: first[:]}, serverTLS)
 				if err := tlsConn.Handshake(); err != nil {
 					_ = c.Close()
 					return
+				}
+				_ = c.SetDeadline(time.Time{})
+				select {
+				case handshook <- struct{}{}:
+				default:
 				}
 				_, _ = io.Copy(io.Discard, tlsConn) // returns when the client closes it
 				_ = tlsConn.Close()
@@ -184,19 +195,52 @@ func TestTransportFallbackCancelTearsDownConn(t *testing.T) {
 	transport := &autoTransport{modes: newTransportModes(), host: addr}
 	conn, err := grpclib.NewClient(addr, transport.dialOptions(clientTLS(pub))...)
 	require.NoError(t, err)
-	defer conn.Close()
 
-	ctx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
-	defer cancel()
-	// The RPC cannot complete (SETTINGS never arrive); it must fail by ctx.
-	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{})
-	require.Error(t, err)
+	// Drive connection setup (probe fails, then fallback TLS) in the background;
+	// it blocks because SETTINGS never arrive.
+	go func() { _, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{}) }()
 
+	select {
+	case <-handshook:
+	case <-time.After(10 * time.Second):
+		t.Fatal("fallback TLS handshake never completed")
+	}
+
+	// Closing the ClientConn cancels the stuck setup; gRPC must close the
+	// fallback connection it owns.
+	require.NoError(t, conn.Close())
 	select {
 	case <-closed:
 	case <-time.After(5 * time.Second):
-		t.Fatal("fallback TLS connection was not torn down after the dial was cancelled")
+		t.Fatal("fallback TLS connection was not torn down when the ClientConn closed")
 	}
+}
+
+// TestTransportCancelledProbeDoesNotCacheTLS checks that a dial cancelled during
+// the plaintext probe fails as cancelled and does not mark the host TLS-only,
+// since cancellation is no evidence about the server's protocol.
+func TestTransportCancelledProbeDoesNotCacheTLS(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, c) // read the preface, never send SETTINGS
+		_ = c.Close()
+	}()
+
+	addr := ln.Addr().String()
+	modes := newTransportModes()
+	transport := &autoTransport{modes: modes, host: addr}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { time.Sleep(100 * time.Millisecond); cancel() }()
+
+	_, err = transport.dial(ctx, addr)
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, modes.useTLS(addr), "a cancelled probe must not cache TLS-only")
 }
 
 func TestTransportModesRetryPlaintext(t *testing.T) {

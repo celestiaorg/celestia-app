@@ -249,6 +249,12 @@ func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error)
 		t.observeDial(transportModePlaintext, false)
 		return pc, nil
 	}
+	if ctx.Err() != nil {
+		// The dial was cancelled, which says nothing about the server's
+		// protocol; fail without caching TLS-only or redialing.
+		_ = tcp.Close()
+		return nil, ctx.Err()
+	}
 	// The server most likely speaks only TLS. Redial from the same local IP and
 	// hand the connection back for the TLS handshake. gRPC owns this connection,
 	// so a cancel during the TLS or HTTP/2 setup tears down the connection in

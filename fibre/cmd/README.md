@@ -360,7 +360,7 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 ## Transport security (TLS)
 
-Shards move over plaintext HTTP/2 by default, falling back to TLS automatically. Shard data is public and integrity comes from the payment-promise receipts (ed25519 signatures checked against the validator set) and from row proofs against the commitment, so plaintext only drops the TLS CPU cost. TLS stays fully automatic: there are no certificates to obtain, configure, or renew.
+Shards move over plaintext HTTP/2 by default, falling back to TLS automatically. Shard data is public and integrity comes from the payment-promise receipts (ed25519 signatures checked against the validator set) and from row proofs against the commitment, so plaintext keeps integrity while trading away transport confidentiality and server authentication for the TLS CPU cost. Operators who need to close that gap set `force_tls` (see below). TLS stays fully automatic: there are no certificates to obtain, configure, or renew.
 
 - Servers accept both plaintext and TLS on the same port, chosen by the first bytes of each connection. Clients try plaintext per validator and fall back to TLS for servers that only speak TLS, re-probing after 10 minutes. Old and new nodes interoperate with no configuration.
 - On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set on the TLS path, so the connection proves it belongs to your validator — no certificate authority involved.
