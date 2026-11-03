@@ -88,3 +88,6 @@
 3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
 1 ./x/fibre/keeper      FuzzPayForFibreMsgServer            5m 100x
 1 ./app                 FuzzExecuteTxMsgs                   2m 100x
+2 ./x/mint/types       FuzzMinterBlockProvision            2m 100x
+3 ./app/ante            FuzzNetworkMinGasPrice              2m 100x
+3 ./x/blob/keeper       FuzzUpdateBlobParams                2m 100x
