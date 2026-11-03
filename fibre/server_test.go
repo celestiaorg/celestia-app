@@ -28,7 +28,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 
 // makeTestServerWithConfig is makeTestServer with an optional hook to tweak the
 // ServerConfig before construction (e.g. to set FullStakeStorageBudgetFn).
-func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
+func makeTestServerWithConfig(t testing.TB, modify func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)

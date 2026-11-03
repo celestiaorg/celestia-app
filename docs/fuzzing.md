@@ -61,6 +61,7 @@ can cover several functions; target presence does not establish branch coverage.
 | 1 | `x/forwarding` `MsgForward`, `DeriveForwardingAddress` and `QuoteForwardingFee` queries: forward destinations, hook bindings and IGP fees | `FuzzDeriveForwardingAddress` in [x/forwarding/types](../x/forwarding/types/address_fuzz_test.go); `FuzzForwardingAddressQueryMsgParity`, `FuzzForwardIGPFee` in [x/forwarding/keeper](../x/forwarding/keeper/forward_fuzz_test.go) | Address derivation is injective up to equivalent hook bindings, and the query and message server agree on fuzzed hex inputs. Mocked bank, warp and hook keepers with amounts below 2^248; forwards succeed exactly when their preconditions hold, and the relayer's net cost is the fee the hook consumed. |
 | 1 | `x/zkism/keeper` msg server `Create`, `Update`, `SubmitMessages`, `UpdateVerifyingKeys`, `TransferOwnership` and `Keeper.Verify`: DeliverTx ISM messages and Hyperlane message metadata | `FuzzZKISMMsgSequence` in [x/zkism/keeper](../x/zkism/keeper/msg_sequence_fuzz_test.go) | Up to 24 operations with golden SP1 proofs from `x/zkism/internal/testdata`, single-byte proof or public value mutations, fuzz-chosen owners, verifying keys, messages and ids, each message on a cache context. A model predicts every outcome: owner-only key updates and transfers, proofs accepted only unmodified under the matching state and keys, and `Verify` only for proven messages. Ids differing only in module type or specifier are mapped to the ISM, pending a fix. |
 | 1 | `x/fibre/keeper` msg server `DepositToEscrow`, `RequestWithdrawal`, `PayForFibre`, `PaymentPromiseTimeout`, `UpdateFibreParams` and `BeginBlocker`: DeliverTx escrow messages and signed payment promises | `FuzzEscrowMsgSequence`, `FuzzFibreStoreKeyRoundTrip` in [x/fibre/keeper](../x/fibre/keeper/escrow_fuzz_test.go) | Up to 32 messages, time advances and injected bank failures over three fixed signers, each message after `ValidateBasic` on a cache context. Escrow balances must match pending withdrawals and a balance-tracking bank mock, coins are conserved and no promise settles twice. Validator certificates are outside this target. Index keys must round-trip; parsing short keys is excluded pending a fix. |
+| 1 | `fibre.Server.UploadShard` (`verifyPromise`, `verifyAssignment`, `verifyShard`, `parseRow`) and `DownloadShard`: fibre client upload and download RPCs | `FuzzServerUploadShard`, `FuzzServerDownloadShard` in [fibre](../fibre/server_upload_fuzz_test.go) | Up to 32 typed edits to a valid upload (row indices, foreign rows, row data, proof segments, RLCs, promise fields and signature), re-signed unless the signature is the target, sent through the wire encoding. Rejections must be `InvalidArgument`. An accepted upload must carry a valid client signature, rows assigned to the server that verify against the commitment (unless the identical promise was already stored), and a valid validator signature, and the stored shard must verify. Downloads take arbitrary blob IDs and may only return the stored shard for its own ID. The state client is a mock; escrow checks are outside this target. |
 | 2 | `pkg/proof.ShareProof.Validate`, `RowProof.Validate`: client-supplied inclusion proofs | `FuzzShareProofValidate` in [pkg/proof](../pkg/proof/proof_fuzz_test.go) | Single-share and multi-row seeds, arbitrary proof/root bytes. `VerifyProof` is reached through `Validate`; nil row proofs are excluded as described below. |
 | 2 | `pkg/proof.QueryTxInclusionProof`, `QueryShareInclusionProof`, `ParseNamespace`, `NewTxInclusionProof`: `abci_query` block bytes and path indices | `FuzzProofQueries` in [pkg/proof](../pkg/proof/querier_fuzz_test.go) | Arbitrary paths and request bytes must not panic. For blocks of up to 16 pool txs, returned proofs must validate against an independently computed data root and cover exactly the requested tx or share range. One input class is excluded pending a fix tracked in Linear. |
 | 2 | `pkg/da.DataAvailabilityHeaderFromProto`: serialized row/column roots | `FuzzDataAvailabilityHeaderFromProto` in [pkg/da](../pkg/da/data_availability_header_fuzz_test.go) | Accepted headers validate, hash, respect square bounds and survive a proto round trip. |
@@ -84,18 +85,12 @@ construction, validation and finalization. These need isolated committed state
 and meaningful accept/reject oracles. The current mutation harnesses do not
 provide a state-machine sequence fuzzer.
 
-Fibre upload/download codec and payment promise coverage does not establish
-coverage of shard cryptographic validation or escrow settlement. ZK-ISM message
-servers and keeper state also need dedicated stateful harnesses. These are
+Fibre upload and download handlers are fuzzed against a mock state client, so
+they do not establish coverage of escrow settlement or the admission and
+connection limiter. ZK-ISM message servers, proof/key decoders and keeper state
+have dedicated targets but no end-to-end Hyperlane relay harness. These are
 follow-up surfaces; neither the nested-message guard nor transaction byte
 mutation claims to cover them fully.
-Fibre upload/download codec coverage does not establish coverage of payment
-promise signature verification, shard cryptographic validation or escrow
-settlement. ZK-ISM proof/key decoders also need dedicated cryptographic
-harnesses. These are follow-up surfaces; neither the
-promise signature verification or shard cryptographic validation. ZK-ISM proof/key decoders and module message servers also need dedicated
-stateful or cryptographic harnesses. These are follow-up surfaces; neither the
-nested-message guard nor transaction byte mutation claims to cover them fully.
 
 Existing CheckTx/ProcessProposal harnesses exclude the known empty-message or
 nil-fee ante panic class, and `FuzzValidateTxFee` excludes fees above MaxInt64.
