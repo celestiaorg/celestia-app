@@ -23,7 +23,9 @@ const (
 	genesisSyncTimeout = 15 * time.Minute
 	// Start the shorter peer deadline only once RPC responds, allowing genesis
 	// initialization to finish before diagnosing external peer availability.
-	archivePeerTimeout = 3 * time.Minute
+	// Public archive peers often have every inbound slot taken, and CometBFT
+	// backs off between redials, so allow several redial rounds.
+	archivePeerTimeout = 5 * time.Minute
 	// mainnetV2UpgradeHeight is the height at which Mainnet Beta upgraded from
 	// app version 1 to 2. The embedded v3 binary needs it to replay v1 blocks.
 	mainnetV2UpgradeHeight = 2371495

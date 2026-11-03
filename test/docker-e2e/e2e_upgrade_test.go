@@ -385,6 +385,9 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
+	// The upgrade height follows from the height MsgTryUpgrade landed at.
+	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID)
+
 	// ABCIInfo fails or blocks while the multiplexer swaps binaries at the
 	// upgrade height. Bound each call so one blocked request cannot use up the
 	// whole poll budget, and allow enough time for a slow binary switch.
@@ -392,6 +395,29 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		abciInfoTimeout     = 5 * time.Second
 		appSwitchPollBudget = 2 * time.Minute
 	)
+
+	// Do not send ABCIInfo until this node has committed a block above the
+	// upgrade height. Info reaches the freshly started embedded binary, and
+	// older released binaries (celestia-app v4) panic on an Info request that
+	// arrives before their stores are loaded. That kills the polled validator,
+	// leaves the network with exactly 2/3 of the voting power and halts it.
+	// Status is answered by CometBFT without calling the app, so it is safe to
+	// poll while the binaries are swapped.
+	err = wait.ForCondition(ctx, appSwitchPollBudget, time.Second, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, abciInfoTimeout)
+		defer cancel()
+		status, err := rpcClient.Status(callCtx)
+		if err != nil {
+			s.T().Logf("Status failed while waiting for upgrade height %d: %v", upgradeHeight, err)
+			return false, nil
+		}
+		return status.SyncInfo.LatestBlockHeight > upgradeHeight, nil
+	})
+	if err != nil {
+		s.logNodeDiagnostics(ctx, chain.GetNodes())
+	}
+	s.Require().NoError(err, "node did not commit a block above upgrade height %d", upgradeHeight)
+
 	var currentAppVersion uint64
 	err = wait.ForCondition(ctx, appSwitchPollBudget, time.Second, func() (bool, error) {
 		callCtx, cancel := context.WithTimeout(ctx, abciInfoTimeout)
@@ -412,9 +438,6 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	}
 	s.Require().NoError(err, "upgrade not pending and app version %d does not match target %d", currentAppVersion, targetAppVersion)
 
-	// The upgrade was already applied. Compute the expected upgrade height
-	// from the height at which MsgTryUpgrade was included.
-	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID)
 	s.T().Logf("Upgrade already applied: app_version=%d, computed upgrade height=%d", currentAppVersion, upgradeHeight)
 	return upgradeHeight
 }

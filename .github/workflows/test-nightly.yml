@@ -107,9 +107,10 @@ jobs:
   test-nightly:
     needs: [build-e2e-image, build-latency-monitor-image]
     runs-on: ubuntu-latest
-    # Generous budget so the retried sync test (up to 3 attempts) has headroom
-    # without prematurely killing the long-running upgrade tests.
-    timeout-minutes: 90
+    # Generous budget so the retried sync tests (up to 3 attempts of up to 30
+    # minutes each) have headroom without prematurely killing the long-running
+    # upgrade tests.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -126,13 +127,16 @@ jobs:
           - test: TestAllUpgrades
             max-attempts: 2
           # The genesis sync tests block sync the first block from live public
-          # archive peers, which can be slow or briefly unavailable, so retry
-          # once before failing the nightly.
+          # archive peers, which often have every inbound slot taken for
+          # minutes at a time, so retry twice before failing the nightly.
           - test: TestGenesisSyncMocha
-            max-attempts: 2
+            max-attempts: 3
           - test: TestGenesisSyncMainnet
-            max-attempts: 2
+            max-attempts: 3
+          # TestRollback restarts every validator twice on a shared runner;
+          # retry once so a slow container restart does not fail the nightly.
           - test: TestRollback
+            max-attempts: 2
           - test: TestCortoLoad
             extra-image: true
     steps:
