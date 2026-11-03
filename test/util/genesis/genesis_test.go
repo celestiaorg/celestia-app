@@ -6,15 +6,17 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesZkismV11Fields checks that the v11 zkism genesis fields are
-// only exported for app version 11 and above.
-func TestExportBytesZkismV11Fields(t *testing.T) {
+// TestExportBytesV11Fields checks that the v11 zkism and mint genesis
+// fields are only exported for app version 11 and above, since the embedded
+// v10 binary rejects them as unknown.
+func TestExportBytesV11Fields(t *testing.T) {
 	tests := []struct {
 		appVersion    uint64
 		wantV11Fields bool
@@ -55,6 +57,15 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 			require.Equal(t, tc.wantV11Fields, has, "app version %d, ism field %s", tc.appVersion, field)
 		}
 		require.Contains(t, zkismState, "submissions", "app version %d", tc.appVersion)
+
+		var mintState map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(appState[minttypes.ModuleName], &mintState))
+
+		_, hasMinter := mintState["minter"]
+		_, hasGenesisTime := mintState["genesis_time"]
+		require.Equal(t, tc.wantV11Fields, hasMinter, "app version %d", tc.appVersion)
+		require.Equal(t, tc.wantV11Fields, hasGenesisTime, "app version %d", tc.appVersion)
+		require.Contains(t, mintState, "bond_denom", "app version %d", tc.appVersion)
 	}
 }
 

@@ -3,10 +3,20 @@ package celestia.mint.v1;
 
 option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "celestia/mint/v1/mint.proto";
+
 // GenesisState defines the mint module's genesis state.
 message GenesisState {
   reserved 1; // 1 was previously used for the `Minter` field.
 
   // BondDenom is the denomination of the token that should be minted.
   string bond_denom = 2;
+
+  // Minter is the exported minter.
+  Minter minter = 3;
+
+  // GenesisTime is the exported mint genesis time.
+  google.protobuf.Timestamp genesis_time = 4 [(gogoproto.stdtime) = true];
 }
