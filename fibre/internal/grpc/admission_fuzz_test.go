@@ -39,7 +39,7 @@ func FuzzAdmissionSequence(f *testing.F) {
 	f.Add(uint8(4), uint8(3), fuzzutil.Records(admissionOpWidth,
 		op(0, 1, 0, 0), op(0, 1, 0, 0), op(1, 0, 0, 2), op(0, 2, 0, 0), op(0, 2, 0, 0), op(2, 0, 1, 0), op(2, 0, 1, 0)))
 	// Nine requests from one IP: the ninth hits the per-IP cap until one is received.
-	var perIP [][]byte
+	perIP := make([][]byte, 0, 11)
 	for range 9 {
 		perIP = append(perIP, op(0, 5, 0, 0))
 	}
@@ -62,7 +62,7 @@ func FuzzAdmissionSequence(f *testing.F) {
 		})
 		require.NoError(t, err)
 
-		ips := []string{""}
+		ips := make([]string, 1, 10) // ips[0] is the unkeyed source
 		for i := range 9 {
 			ips = append(ips, fmt.Sprintf("10.0.0.%d", i))
 		}
