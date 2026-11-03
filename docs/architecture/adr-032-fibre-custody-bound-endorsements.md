@@ -63,7 +63,7 @@ The obvious alternative is a team-run prober that periodically sends authenticat
 - When the window closes, the BeginBlocker (`x/fibre/keeper/abci.go:9`) takes the community tax and splits the rest among credited validators, pro rata by voting power at `promise.height`. It pays them through `AllocateTokensToValidator`, so commission and delegator rewards work as they do today. A validator that wasn't credited gets nothing for that blob, and its share goes to the validators that did the work. If the PFF itself lands after `promise.height + K`, nobody is credited and the charge goes to `fee_collector` as it does today.
 - Payouts are aggregated per block. Each pending promise is stored as `{amount, promise.height, credited bitmap}` and indexed by the height at which its window closes. The BeginBlocker reads only the promises whose window closes in that block, sums each validator's share in memory, and calls `AllocateTokensToValidator` once per credited validator. That is at most one call per bonded validator per block, which is what `x/distribution` already does today, however many PFFs settled. Paying promise by promise would cost about 4,500 calls per block at target (45 PFFs × ~100 validators), each with several state writes, and must be avoided.
 - Every non-empty signature position must verify. Today `validateValidatorSignatures` returns as soon as quorum is reached (`msg_server.go:413`), and CheckTx/ProcessProposal only verify the `QuorumPrefix` (`x/fibre/keeper/preverify.go:283`, `fibre/validator/signature_set.go:50`). FinalizeBlock does not re-verify. Under this ADR an unverified position later in the list would still be paid, so ProcessProposal must reject any PFF that contains an invalid signature.
-- **Verification budget.** Full verification raises the cost per PFF from the quorum prefix to every signer, about 100 ed25519 checks. At target with 128 MiB blobs that is about 4,500 checks per block, or about 300 ms on one core. ProcessProposal must use batch verification and check PFFs in parallel, which brings this down to tens of milliseconds on a typical validator machine, well under the 2.6 s block time. Signatures already verified in CheckTx can be cached by transaction hash so ProcessProposal does not repeat them. With 32 MiB blobs it is about 18,000 checks per block, and that is where BLS aggregation (open question 3) stops being optional.
+- **Verification budget.** Full verification raises the cost per PFF from the quorum prefix to every signer, about 100 ed25519 checks, or 2–3 times today's signature work. At target with 128 MiB blobs that is about 4,500 checks per block. The existing pipeline already absorbs most of this off the critical path (see [Block production cost](#block-production-cost)). With 32 MiB blobs it is about 18,000 checks per block, and that is where BLS aggregation (open question 3) stops being optional.
 
 `K` is what makes bandwidth measurable. A validator that falls more than `K` blocks behind loses the payment for every blob in its backlog, so it can't hide a backlog or get paid for buffered work. A validator's delivered throughput at real load is its credited bytes over its expected bytes for each epoch, computed from chain state alone. Blocks are about 2.6 s (`DelayedPrecommitTimeout` + `TimeoutCommit` in `pkg/appconsts/app_consts.go`).
 
@@ -106,7 +106,21 @@ A cheater facing a challenge will choose not to answer rather than answer wrongl
 - `MsgEndorse { promise_hash, entries: [{validator_index, signature, custody_root}] }` adds endorsements to a promise a PFF has already settled, provided it lands by `promise.height + K`. Anyone can submit it, and validators batch their own entries once per block.
 - The client still returns at 2/3 (`specs/src/fibre_client.md`), so users wait no longer than today. A slower validator that finishes in time is still paid. The client no longer decides who gets paid, so leaving a validator out of the PFF, or selling a place in it, changes nothing.
 - One gap remains: a client that never sends a validator its rows. The validator can rebuild them from peers through `DownloadShard` and still endorse, at the cost of fetching the blob. A client that withholds rows systematically shows up on chain.
-- An endorsement is about 100 bytes. If the slowest third of validators endorse late, that is about 1,500 entries (~150 KB) per block with 128 MiB blobs, and four times that with 32 MiB blobs. Their signatures count towards the verification budget in Decision 1.
+- An endorsement is about 100 bytes. If the slowest third of validators endorse late, that is about 1,500 entries (~150 KB) per block with 128 MiB blobs, and four times that with 32 MiB blobs. Their signatures count towards the verification budget in Decision 1, and `MsgEndorse` must go through the same CheckTx preverification and signature cache as `MsgPayForFibre`, so ProcessProposal sees cache hits.
+
+## Block production cost
+
+Block time does not change. The interval is set by timeouts (`DelayedPrecommitTimeout` 2.1 s + `TimeoutCommit` 0.5 s, `pkg/appconsts/app_consts.go`), not by processing time, so the extra work only matters if ProcessProposal and FinalizeBlock run past that window. The design keeps the new work off that path:
+
+| Work | Where it runs | On the critical path? |
+|------|---------------|-----------------------|
+| Full signature verification | CheckTx, in 128-signature ed25519 batches across all CPUs, cached in `sigcache` (`x/fibre/ante/ante.go:104`, `x/fibre/keeper/preverify.go`). About 150 ms of CPU per 2.6 s at target. | No. ProcessProposal hits the cache. A PFF it has not seen is verified in parallel with the sequential walk (`app/process_proposal.go:142`), about 20 ms for a fully cold block. |
+| `MsgEndorse` | Must use the same CheckTx preverification and cache as `MsgPayForFibre`. | Only if this requirement is broken. |
+| Payouts | BeginBlocker, aggregated per block: at most one `AllocateTokensToValidator` per validator. | Yes, but bounded at roughly double today's distribution work, a few milliseconds. |
+| Custody challenges | One ~33 KiB response and one Merkle check per block (`C` = 1). | Negligible. |
+| Block size | Full signature sets plus a 32-byte custody root per signature, and late endorsements: roughly +300 KB per block at target. | Affects propagation only, small next to the maximum block size. |
+
+These are estimates. Before mainnet, ProcessProposal, FinalizeBlock and CheckTx throughput must be benchmarked at target load (2.2 GiB/s of uploads, 128 MiB and 32 MiB blobs, ~100 validators), with warm and cold signature caches, using the Fibre benchmark configuration (`pkg/appconsts/fibre_consts_bench.go`). The acceptance bar is no measurable change in block interval and no more than a few percent added to ProcessProposal and FinalizeBlock time.
 
 ## Enforcement
 
@@ -142,7 +156,7 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 ### Negative
 
 - It breaks consensus. It adds a new sign domain, new messages (`MsgEndorse`, `MsgCustodyResponse`, slashing evidence), state for pending payments and challenges, and new parameters `K`, `N`, `C` and the fault fee. Servers and clients must upgrade together.
-- It adds chain load: full signature verification, endorsements and ~33 KiB challenge responses. Signature verification is the main new cost (see the verification budget in Decision 1). Payout cost stays flat because payments are aggregated per block.
+- It adds chain load: full signature verification, endorsements and ~33 KiB challenge responses. Most of it runs in CheckTx rather than on the block path (see [Block production cost](#block-production-cost)), and payout cost stays bounded because payments are aggregated per block.
 - Validators far from the main clients sign later and will lose more blobs. `K` must be generous enough that distance alone does not cost a validator its share.
 - The incentive is only as large as demand. At today's volume, fee routing barely matters, though custody challenges bite at any volume.
 
