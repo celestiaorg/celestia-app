@@ -29,9 +29,10 @@ rotate, and revoke the lease. The consensus key never leaves the validator.
 
 ## Context
 
-Everything a validator does in Fibre is today rooted in its **consensus key**:
+Everything a validator does in Fibre today is rooted in its **consensus key**:
 
-- the Fibre server signs each `PaymentPromise` endorsement with the consensus key
+- the Fibre server signs each `PaymentPromise` endorsement — a validator's attestation
+  that it stored a user's data — with the consensus key
   (`fibre/server_upload.go` → `SignPaymentPromiseValidator`,
   `fibre/payment_promise.go`);
 - the server's TLS identity is an ephemeral TLS key bound to the consensus key by
@@ -62,10 +63,10 @@ active delegate key at height H" answerable historically for every settleable
 height.
 
 **Identity is derived from the signing key — the central design hazard.** In
-CometBFT a validator's `Address` is derived from its pubkey. `core.NewValidator`
-sets `Address = pubKey.Address()`, `core.NewValidatorSet` **panics on a duplicate
-Address**, and `SignatureSet.Add` both verifies the signature against `val.PubKey`
-*and* dedups and accounts quorum by `val.Address`
+CometBFT a validator's `Address` is derived from its pubkey. Three places depend on
+this: `core.NewValidator` sets `Address = pubKey.Address()`; `core.NewValidatorSet`
+**panics on a duplicate Address**; and `SignatureSet.Add` both verifies the signature
+against `val.PubKey` *and* dedups and accounts quorum by `val.Address`
 (`x/fibre/keeper/validator_set_cache.go`, `fibre/validator/signature_set.go`). So a
 delegate key cannot simply be swapped in for the consensus key: that would change
 the validator's identity, not just the key its signature verifies under. The design
@@ -122,9 +123,10 @@ endorsing-validator identity (`fibre/payment_promise.go`
 `RawBytesMessageSignBytes`); identity comes only from the fact that each validator
 holds a unique consensus key. Under delegation that is no longer enough: if two
 validators share a delegate key, one honest server's signature could be copied into
-both of their positional slots, because the bytes verify under either slot's key and
-quorum counts distinct consensus addresses (`fibre/validator/signature_set.go`) —
-yielding quorum without the data being stored. So a **delegate-signed** endorsement
+both of their positional slots (each validator's fixed position in the ordered
+certificate), because the bytes verify under either slot's key and quorum counts
+distinct consensus addresses (`fibre/validator/signature_set.go`). The result is
+quorum without the data being stored. So a **delegate-signed** endorsement
 is domain-separated by the signing validator's consensus address: its sign-bytes are
 `(promise_sign_bytes, validator_cons_addr)` under a distinct tag. A given signature
 is then valid for exactly one slot even when the key is shared. Consensus-key
@@ -135,7 +137,8 @@ the active binding, alongside the verify key (see On-chain verification).
 **ed25519 only in v1 (constraint K).** The delegate key must be ed25519 because
 the server-side signature length is checked against `ed25519.SignatureSize`
 (`fibre/payment_promise.go`), on-chain verification uses the ed25519 batch verifier
-(`x/fibre/keeper/preverify.go`), and the converted set is built as `ed25519.PubKey`
+(`x/fibre/keeper/preverify.go`), and the converted set (the CometBFT validator set
+rebuilt for signature verification) is built as `ed25519.PubKey`
 (`x/fibre/keeper/validator_set_cache.go`). `key_type` is reserved for later but
 validation rejects anything other than ED25519 now.
 
@@ -144,8 +147,9 @@ validation rejects anything other than ED25519 now.
 Delegation state is kept **separate from the host record**, because the host record
 (`FibreProviderInfo`, prefix `0x01`) is overwritten in place by
 `MsgSetFibreProviderInfo` and deleted by the EndBlock stale-provider sweep; storing
-delegations inside it would let a routine routing update or a brief unbonding wipe a
-validator's bindings and nonce high-water. `FibreProviderInfo.host` is unchanged.
+delegations inside it would let a routine routing update, or a brief unbonding, wipe a
+validator's bindings and nonce high-water (the highest nonce ever accepted).
+`FibreProviderInfo.host` is unchanged.
 Two new stores:
 
 ```
@@ -270,12 +274,11 @@ end of a binding is its single `effective_end` field (above).
 
 ### On-chain verification: identity stays with the consensus key
 
-**The delegate key must not replace the validator's identity.** Validator Address,
-ordering, voting power, and quorum dedup are all derived from the consensus key, and
-rebuilding the converted set with delegate pubkeys would be unsafe: two validators
-that share a delegate key — which a Byzantine validator can force by naming another
-validator's public pubkey as its delegate, and which the one-operator-one-key-many-
-validators case produces naturally — would collide on `Address`, causing either a
+Validator Address, ordering, voting power, and quorum dedup are all derived from the
+consensus key, so rebuilding the converted set with delegate pubkeys would be unsafe.
+Two validators can share a delegate key: a Byzantine validator can force this by naming
+another validator's pubkey as its delegate, and the one-operator-one-key-many-validators
+case produces it naturally. Shared keys would then collide on `Address`, causing either a
 **panic in CheckTx / ProcessProposal (chain halt)** via `core.NewValidatorSet` or a
 **silent quorum under-count** via `SignatureSet.Add`'s Address-keyed dedup.
 
