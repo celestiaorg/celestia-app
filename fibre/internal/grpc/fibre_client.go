@@ -145,16 +145,15 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 			MinVersion: tls.VersionTLS13,
 		}
 
-		conn, err := grpclib.NewClient(dialTarget(host),
+		transport := &autoTransport{
+			modes:    modes,
+			host:     host.String(),
+			forceTLS: dialCfg.forceTLS,
+			observe:  dialCfg.observe,
+		}
+		opts := []grpclib.DialOption{
 			grpclib.WithLocalDNSResolution(),
-			grpclib.WithIdleTimeout(20*time.Second),
-			grpclib.WithTransportCredentials(autoCreds{
-				TransportCredentials: batchingCreds{credentials.NewTLS(tlsCfg)},
-				modes:                modes,
-				host:                 host.String(),
-				forceTLS:             dialCfg.forceTLS,
-				observe:              dialCfg.observe,
-			}),
+			grpclib.WithIdleTimeout(20 * time.Second),
 			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
@@ -163,7 +162,10 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 				// Pooled + scatter-gather codec; see codec.go.
 				grpclib.CallContentSubtype(codecName),
 			),
-		)
+		}
+		opts = append(opts, transport.dialOptions(batchingCreds{credentials.NewTLS(tlsCfg)})...)
+
+		conn, err := grpclib.NewClient(dialTarget(host), opts...)
 		if err != nil {
 			return nil, err
 		}

@@ -282,8 +282,8 @@ func registerStoreBackendMetric(m metric.Meter, backend string, objectConfigured
 }
 
 // observeAccept records an accepted connection by transport mode. Call it from
-// the grpc server credentials via [fibregrpc.WithAcceptObserver]. It is not
-// reported when the server forces TLS, since every accept is then TLS.
+// the grpc server credentials via [fibregrpc.WithAcceptObserver]. Under
+// force-TLS every accept is reported as TLS.
 func (m *serverMetrics) observeAccept(mode string) {
 	m.acceptTotal.Add(context.Background(), 1, metric.WithAttributes(attribute.String("mode", mode)))
 }
