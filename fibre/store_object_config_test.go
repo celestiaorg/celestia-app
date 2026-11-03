@@ -131,6 +131,7 @@ func TestObjectStorageEndpointHost(t *testing.T) {
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
 	cfg := testObjectStorageConfig()
 	want := cfg
+	want.ShardsPerObject = defaultShardsPerObject // Validate defaults the unset knob.
 	cfg.Region = " \tauto\n"
 	cfg.Bucket = " fibre-shards "
 	cfg.Prefix = " fibre "

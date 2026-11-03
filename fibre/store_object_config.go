@@ -18,6 +18,24 @@ import (
 
 const defaultObjectRequestTimeout = 30 * time.Second
 
+const (
+	// defaultShardsPerObject keeps one shard per S3 object, which is the plain
+	// object path with no packing.
+	defaultShardsPerObject = 1
+	// maxShardsPerObject bounds how many shards one packed object may hold.
+	maxShardsPerObject = 1024
+	// maxPackedObjectBytes caps a single packed object; a batch flushes before
+	// it would exceed this.
+	maxPackedObjectBytes int64 = 4 << 30
+	// packedFlushDelay bounds the extra latency packing adds: a partial batch
+	// that never fills uploads after this long. It is an internal constant, not
+	// a knob, so packing stays a single setting.
+	packedFlushDelay = 250 * time.Millisecond
+	// packsSubdir is the key segment under which packed objects are stored,
+	// parallel to shardsSubdir for one-object-per-shard writes.
+	packsSubdir = "packs"
+)
+
 type objectStorageCredentialsError struct {
 	cause error
 }
@@ -37,6 +55,8 @@ type ObjectStorageConfig struct {
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
+	// ShardsPerObject batches several shards into one S3 PUT. See the comment below.
+	ShardsPerObject int `toml:"shards_per_object" comment:"Shards packed into one S3 object (default 1 = one object per shard, same as before).\nRaise it only on a high-throughput server that S3 rate-limits (HTTP 503 SlowDown, per-prefix PUT/s caps): N shards become one PUT, cutting request rate ~Nx.\nTrade-offs: up to a few hundred ms more upload latency while a batch fills, larger objects, and coarser deletion (a packed object is freed only once its last shard expires). Default 1 is right for most validators."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -68,6 +88,12 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	if cfg.RequestTimeout == 0 {
 		cfg.RequestTimeout = defaultObjectRequestTimeout
 	}
+	if cfg.ShardsPerObject < 0 || cfg.ShardsPerObject > maxShardsPerObject {
+		return fmt.Errorf("object_storage.shards_per_object must be between 1 and %d", maxShardsPerObject)
+	}
+	if cfg.ShardsPerObject == 0 {
+		cfg.ShardsPerObject = defaultShardsPerObject
+	}
 	return nil
 }
 
@@ -94,14 +120,22 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	if err != nil {
 		return nil, false, err
 	}
+	// Packed shards also live in object storage, so their markers require the
+	// backend to be attached for reads and pruning even after a switch to
+	// local mode, exactly like plain object markers.
+	hasPacked, err := hasBackendMarkers(ctx, db, packedObjectBackendTag)
+	if err != nil {
+		return nil, false, err
+	}
+	hasStored := hasObjects || hasPacked
 	saved, recorded, err := readObjectNamespace(db)
 	if err != nil {
 		return nil, false, err
 	}
-	if hasObjects && !recorded {
+	if hasStored && !recorded {
 		return nil, false, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
 	}
-	if !hasObjects && cfg.StorageBackend != storageBackendObject {
+	if !hasStored && cfg.StorageBackend != storageBackendObject {
 		return nil, false, nil
 	}
 	cfg.Log.Warn("Changing storage_backend only affects new shards. Keep object storage configured and accessible until all object shards are pruned.",
@@ -113,7 +147,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 		return nil, false, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
 	namespace := cfg.ObjectStorage.canonical()
-	mismatch := hasObjects && saved != namespace
+	mismatch := hasStored && saved != namespace
 	if mismatch {
 		cfg.Log.Warn("Object storage namespace changed", "old", saved, "new", namespace,
 			"override", cfg.ObjectStorage.OverrideNamespace)
@@ -175,6 +209,11 @@ func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, aws.
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
 func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (bool, error) {
+	return hasBackendMarkers(ctx, db, objectBackendTag)
+}
+
+// hasBackendMarkers stops at the first valid marker for tag without reading payloads.
+func hasBackendMarkers(ctx context.Context, db *pebbledb.DB, tag shardBackendTag) (bool, error) {
 	prefix := []byte(shardKeyPrefix)
 	iter, err := db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -190,7 +229,7 @@ func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (bool, error) {
 			return false, err
 		}
 		backend, _, err := decodeShardMarkerBackend(iter.Value())
-		if err == nil && backend == objectBackendTag {
+		if err == nil && backend == tag {
 			return true, nil
 		}
 	}
