@@ -56,6 +56,7 @@
 1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
 1 ./fibre               FuzzServerUploadShard               5m 100x
 1 ./fibre               FuzzServerDownloadShard             2m 100x
+1 ./fibre/internal/grpc FuzzAdmissionSequence              2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
