@@ -145,7 +145,7 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 		opts := make([]grpclib.DialOption, 0, 4+len(transportOpts))
 		opts = append(opts,
 			grpclib.WithIdleTimeout(20*time.Second),
-			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
+			grpclib.WithWriteBufferSize(writeBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
