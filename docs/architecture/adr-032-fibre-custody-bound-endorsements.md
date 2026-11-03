@@ -35,20 +35,20 @@ Two consequences follow. The availability argument assumes signers hold their ro
 
 ### What each validator must carry
 
-The mainnet target is 2.2 GiB/s at a 1:2 write/read ratio: about 0.73 GiB/s of uploads and 1.47 GiB/s of reads (PROTOCO-3592). A validator with stake fraction `s` is assigned `min(1, 3s)` of every blob's original rows (`Set.AssignedRows`, `fibre/validator/set.go:108`, liveness threshold 1/3), subject to the `MinRowsPerValidator` floor. Its upload ingress is that fraction of the write rate, plus row proofs: 14 sibling hashes of 32 bytes per row, about 1.4% overhead at 128 MiB blobs and 5.5% at 32 MiB.
+The mainnet target is 2.2 GiB/s of uploads. Reads come on top of that at twice the rate, about 4.4 GiB/s (hardware requirements: PROTOCO-3592). A validator with stake fraction `s` is assigned `min(1, 3s)` of every blob's original rows (`Set.AssignedRows`, `fibre/validator/set.go:108`, liveness threshold 1/3), subject to the `MinRowsPerValidator` floor. Its upload ingress is that fraction of the write rate, plus row proofs: 14 sibling hashes of 32 bytes per row, about 1.4% overhead at 128 MiB blobs and 5.5% at 32 MiB.
 
-| Stake | Share of rows | Ingress at 0.73 GiB/s |
-|-------|---------------|-----------------------|
-| 0.5%  | 1.5%          | 11 MiB/s (95 Mbit/s)  |
-| 1%    | 3%            | 23 MiB/s (189 Mbit/s) |
-| 2%    | 6%            | 45 MiB/s (378 Mbit/s) |
-| 5%    | 15%           | 113 MiB/s (945 Mbit/s) |
-| 10%   | 30%           | 225 MiB/s (1.9 Gbit/s) |
-| ≥ 1/3 | 100%          | 751 MiB/s (6.3 Gbit/s) |
+| Stake | Share of rows | Ingress at 2.2 GiB/s    |
+|-------|---------------|-------------------------|
+| 0.5%  | 1.5%          | 34 MiB/s (283 Mbit/s)   |
+| 1%    | 3%            | 68 MiB/s (567 Mbit/s)   |
+| 2%    | 6%            | 135 MiB/s (1.1 Gbit/s)  |
+| 5%    | 15%           | 338 MiB/s (2.8 Gbit/s)  |
+| 10%   | 30%           | 676 MiB/s (5.7 Gbit/s)  |
+| ≥ 1/3 | 100%          | 2.2 GiB/s (18.9 Gbit/s) |
 
-These are sustained averages, and peaks are higher. Across the whole set, validators ingest about 3 × 0.73 ≈ 2.2 GiB/s. Reads add egress of roughly `s × 1.47 GiB/s` on average. Large validators serve more than that, because readers try them first (`Set.Select`). Storage requirements follow ADR-029.
+These are sustained averages, and peaks are higher. Across the whole set, validators ingest about 3 × 2.2 ≈ 6.6 GiB/s. Reads add egress of roughly `s × 4.4 GiB/s` on average, about 45 MiB/s (378 Mbit/s) for a 1% validator. Large validators serve more than that, because readers try them first (`Set.Select`). Storage requirements follow ADR-029.
 
-At the current charge of 0.004 utia per gas, uploads pay about 0.76 TIA per GiB. At 0.73 GiB/s that is roughly 48,000 TIA a day. This ADR redirects that flow, and it grows with demand.
+At the current charge of 0.004 utia per gas, uploads pay about 0.76 TIA per GiB. At 2.2 GiB/s that is roughly 144,000 TIA a day. This ADR redirects that flow, and it grows with demand.
 
 ### Why outside probes are not enough
 
@@ -95,7 +95,7 @@ custody_root = RFC 6962 Merkle root over leaves (salt || u32be(j) || row[j])
   - **Valid opening:** nothing happens.
   - **Wrong opening:** the path verifies against the signed root, but the row is not in the commitment. The consensus key has signed a root over data that is not the blob. That is objective evidence, so the validator is slashed, as for double signing.
   - **No valid opening within `N` blocks:** the validator is jailed and pays a fault fee. A miss can be an outage, so it is not treated as fraud.
-- At 0.73 GiB/s and 128 MiB blobs there are about 15 PFFs per block, so up to 1,500 endorsements. With `C = 1`, each validator is challenged about every 100 blocks (about 4 minutes). A server that signs without data cannot open anything, so it is jailed at its first challenge.
+- At 2.2 GiB/s and 128 MiB blobs there are about 45 PFFs per block, so up to 4,500 endorsements. With `C = 1`, each validator is challenged about every 100 blocks (about 4 minutes). A server that signs without data cannot open anything, so it is jailed at its first challenge.
 
 A cheater facing a challenge will choose not to answer rather than answer wrongly, so the miss path is the real deterrent. The fault fee must exceed what a lazy signer collects between challenges (open question 6).
 
@@ -104,7 +104,7 @@ A cheater facing a challenge will choose not to answer rather than answer wrongl
 - `MsgEndorse { promise_hash, entries: [{validator_index, signature, custody_root}] }` adds endorsements to a promise a PFF has already settled, provided it lands by `promise.height + K`. Anyone can submit it, and validators batch their own entries once per block.
 - The client still returns at 2/3 (`specs/src/fibre_client.md`), so users wait no longer than today. A slower validator that finishes in time is still paid. The client no longer decides who gets paid, so leaving a validator out of the PFF, or selling a place in it, changes nothing.
 - One gap remains: a client that never sends a validator its rows. The validator can rebuild them from peers through `DownloadShard` and still endorse, at the cost of fetching the blob. A client that withholds rows systematically shows up on chain.
-- An endorsement is about 100 bytes. If the slowest third of validators endorse late, that is about 500 entries (~50 KB) per block with 128 MiB blobs, and four times that with 32 MiB blobs. Verifying every signature means about 1,500 ed25519 checks per block, which is about 100 ms on one core and can be batched or parallelised.
+- An endorsement is about 100 bytes. If the slowest third of validators endorse late, that is about 1,500 entries (~150 KB) per block with 128 MiB blobs, and four times that with 32 MiB blobs. Verifying every signature means about 4,500 ed25519 checks per block, which is about 300 ms on one core and must be batched or parallelised; with 32 MiB blobs it is about 18,000 checks.
 
 ## Enforcement
 
@@ -131,7 +131,7 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 
 ### Positive
 
-- Fibre revenue follows service. At the write target that is about 48,000 TIA a day, paid only to validators that took their rows in time.
+- Fibre revenue follows service. At the upload target that is about 144,000 TIA a day, paid only to validators that took their rows in time.
 - A signature becomes evidence. A validator that signs without data is jailed within minutes, and one that signs a false root is slashed.
 - Each validator's delivered throughput is an on-chain number, which the capacity dashboard (PROTOCO-3597) can read without probes.
 - With Decision 4, clients cannot steer payments or grief a validator by leaving it out.
@@ -154,10 +154,10 @@ The rule is: **never slash for bandwidth.** A slow upload can always be blamed o
 
 1. **Values of `K`, `N` and `C`.** Start with `K` ≈ 8 blocks (~21 s, above the client's 15 s `RPCTimeout`), `N` at 20–50 blocks and `C` = 1. Tune them on a testnet at target load.
 2. **Who receives the fee on `MsgPaymentPromiseTimeout`** (`msg_server.go:222`). Timeout settles without signatures, so nobody is credited. The options are `fee_collector` (today's behaviour), burning it, or allowing `MsgEndorse` before settlement so validators that stored the shard are paid. Leaning towards `fee_collector`, since a timed-out promise usually means the upload failed.
-3. **BLS aggregation.** A PFF carries about 100 ed25519 signatures, plus late endorsements. A BLS key registered in `x/valaddr` would shrink that to one aggregate signature and a bitmap, at the cost of a second validator key and pairing checks. It is worth it if 32 MiB blobs dominate.
+3. **BLS aggregation.** A PFF carries about 100 ed25519 signatures, plus late endorsements. A BLS key registered in `x/valaddr` would shrink that to one aggregate signature and a bitmap, at the cost of a second validator key and pairing checks. At target load it is likely worth it, and it becomes necessary if 32 MiB blobs dominate (about 18,000 ed25519 checks per block).
 4. **Secret salt, as in Ethereum's proof of custody.** Derive the salt from a secret only the validator knows, reveal it in challenge responses, and make early disclosure slashable. Then no uploader can compute a validator's root for it. The cost is a second signer call per upload and more evidence logic.
 5. **Credit by stake or by assigned rows.** Small validators at the min-rows floor carry more than their stake share.
-6. **Fault fee and jail length.** The fee must exceed what a lazy signer collects between challenges: about 1.4 TIA for a 1% validator over 100 blocks at target. Jail length should mirror downtime jailing.
+6. **Fault fee and jail length.** The fee must exceed what a lazy signer collects between challenges: about 4 TIA for a 1% validator over 100 blocks at target. Jail length should mirror downtime jailing.
 7. **Rollout and upgrade path.**
    1. Ship everything in one app version. Promises whose `height` is before the upgrade settle under v0 rules and pay `fee_collector`. Servers sign v1 from the upgrade height, and clients accept both versions during the transition.
    2. Start in shadow mode for a period set by governance: compute credit and run challenges, emit events, but keep paying `fee_collector` and do not jail. Operators see their scores before any money moves.
