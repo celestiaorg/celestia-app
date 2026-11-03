@@ -56,6 +56,26 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
+# only_fuzztime_expired reports whether the sole failure in a go test log is
+# the fuzz coordinator reporting its own -fuzztime deadline. When -fuzztime
+# expires, the coordinator can read the expired context before the workers'
+# child context is cancelled, so it fails to recognise the deadline as its own
+# and prints "--- FAIL: <target>" followed only by "context deadline exceeded",
+# without writing a failing input. That is a clean finish, not a crash: a real
+# crash always writes a failing input or prints more than the bare error.
+only_fuzztime_expired() {
+	local log=$1 target=$2
+	! grep -q 'Failing input written' "$log" || return 1
+	awk -v target="$target" '
+		$0 ~ "^--- FAIL: " target " \\(" { failing = 1; fails++; next }
+		failing && /^(FAIL|exit status|ok)([[:space:]]|$)/ { failing = 0 }
+		failing && NF {
+			if ($0 ~ /^[[:space:]]+context deadline exceeded$/) { deadline++ } else { other++ }
+		}
+		END { exit !(fails == 1 && deadline == 1 && other == 0) }
+	' "$log"
+}
+
 failed=0
 index=0
 while read -r priority pkg target fuzztime minimizetime; do
@@ -74,6 +94,9 @@ while read -r priority pkg target fuzztime minimizetime; do
 	log=${FUZZ_LOG_DIR:-$tmp}/$target.log
 	# go test exits 0 with "no fuzz tests to fuzz" when the target is missing.
 	if go test "${args[@]}" "$pkg" >"$log" 2>&1 && ! grep -q 'no fuzz tests to fuzz' "$log"; then
+		ok=1
+	elif only_fuzztime_expired "$log" "$target"; then
+		echo "NOTE $target: go test reported its own -fuzztime deadline as a failure; no failing input was found"
 		ok=1
 	else
 		ok=0
