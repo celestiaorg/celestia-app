@@ -90,7 +90,20 @@ func (r *escrowReservation) abort() {
 // Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
 // And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
 func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
+	return PutOwned(ctx, c, txClient, ns, data, nil)
+}
+
+// PutOwned is [Put] for a caller that recycles data itself, for example an
+// off-heap buffer. Put keeps referencing data after it returns, until every
+// validator upload, including those still running after quorum, has finished.
+// PutOwned calls release exactly once when that reference ends, which may be
+// before or after PutOwned returns; the caller must not modify or free data
+// until then. A nil release behaves like Put.
+func PutOwned(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, release func()) (result PutResult, err error) {
 	if c.keyring == nil {
+		if release != nil {
+			release()
+		}
 		return result, ErrNoKeyring
 	}
 
@@ -102,7 +115,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	)
 	defer span.End()
 
-	blobID, signedPromise, err := uploadPut(ctx, c, txClient, ns, data)
+	blobID, signedPromise, err := uploadPut(ctx, c, txClient, ns, data, release)
 	if err != nil {
 		return result, err
 	}
@@ -154,18 +167,25 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 }
 
 // uploadPut releases its blob ownership before transaction settlement.
-func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, SignedPaymentPromise, error) {
+// dataRelease, if not nil, runs once the blob no longer references data.
+func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, dataRelease func()) (BlobID, SignedPaymentPromise, error) {
 	span := trace.SpanFromContext(ctx)
+	if dataRelease == nil {
+		dataRelease = func() {}
+	}
 	// Check lifecycle before admission so an unusable client fails fast instead
 	// of waiting for capacity.
 	if !c.started.Load() {
+		dataRelease()
 		return nil, SignedPaymentPromise{}, errClientNotStarted
 	}
 	if c.closed.Load() {
+		dataRelease()
 		return nil, SignedPaymentPromise{}, ErrClientClosed
 	}
 	release, err := c.acquirePutMemory(ctx)
 	if err != nil {
+		dataRelease()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Put memory admission failed")
 		return nil, SignedPaymentPromise{}, err
@@ -175,6 +195,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
 		release()
+		dataRelease()
 		return nil, SignedPaymentPromise{}, err
 	}
 	// Release admission with the encoded storage, after the last upload reader.
@@ -182,6 +203,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	blob.releaseFn = func() {
 		free()
 		release()
+		dataRelease()
 	}
 	defer blob.Free()
 
