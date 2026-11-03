@@ -17,7 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -391,10 +390,10 @@ func FuzzServerUploadShard(f *testing.F) {
 
 		// Send the request through the wire encoding, so the handler only sees
 		// requests a peer can produce.
-		wire, err := proto.Marshal(req)
+		wire, err := req.Marshal()
 		require.NoError(t, err)
 		var decoded types.UploadShardRequest
-		require.NoError(t, proto.Unmarshal(wire, &decoded))
+		require.NoError(t, decoded.Unmarshal(wire))
 
 		resp, err := fx.server.UploadShard(t.Context(), &decoded)
 		if len(ops) == 0 {
