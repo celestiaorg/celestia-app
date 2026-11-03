@@ -82,13 +82,12 @@ none. The realistic harm from a compromised delegate is endorsing promises for
 data that was not actually stored, which is the same harm a malicious validator
 could already do with its consensus key, now reachable with a scoped key instead.
 
-**Interaction with milestone 4 (multiple Fibre servers per validator,
-PROTOCO-2997).** M4 wants several servers — and so several active delegate keys —
-per validator at once, each counting once toward that validator's single
-voting-power slot. To avoid a second state break, the M2 schema models a
-validator's delegation as a **list of bindings**, even though M2 activates only
-one at a time. Verification that accepts "any active binding, count power once" is
-M4 work and is deferred (see Alternatives).
+**Interaction with multiple Fibre servers per validator (PROTOCO-2997).** That
+work wants several servers — and so several active delegate keys — per validator
+at once, each counting once toward that validator's single voting-power slot. To
+avoid a second state break, this ADR's schema models a validator's delegation as a
+**list of bindings**, even though it activates only one at a time. Verification that accepts "any active binding, count power once" is
+multi-server work and is deferred (see Alternatives).
 
 ## Decision
 
@@ -157,7 +156,7 @@ Two new stores:
 0x03 | ConsAddress -> FibreDelegationState { repeated FibreDelegation active; uint64 nonce_high_water }
 ```
 
-The `0x03` state holds the active binding(s) (one in M2, a list for M4) and a
+The `0x03` state holds the active binding(s) (one now, a list for multiple servers) and a
 monotonic `nonce_high_water` that routing updates and the stale-provider sweep must
 never touch. The `0x02` history key includes the nonce, not just the activation
 height, so two bindings that activate at the same height stay distinct. Delegation
@@ -516,8 +515,8 @@ coordinated restart and endpoint switch with a readiness check before cutover.
   surface — exist *only* in registry-with-history; A′ removes all of it while still
   needing the same identity decoupling and per-slot verify-key/sign-bytes threading.
   Registry-with-history is kept as the recommendation mainly because it generalizes
-  cleanly to M4 (multiple active bindings); if M4 is deferred, the hybrid is likely the
-  better M2 choice. This is the first open question.
+  cleanly to multiple servers per validator (multiple active bindings); if that is
+  deferred, the hybrid is likely the better choice here. This is the first open question.
 - **B. Reuse the consensus key on the operator host (status quo).** Point the
   server's remote signer at the operator. Zero protocol change, but the operator
   gains consensus-key signing: a compromise double-signs blocks → slashing, and the
@@ -529,8 +528,8 @@ coordinated restart and endpoint switch with a readiness check before cutover.
 - **Concurrent two-key overlap for rotation.** Making both the old and new key valid
   for a validator's single slot over an overlap band is "accept any of N active keys,
   count power once" — it cannot be done with a single per-slot verify key and needs
-  multi-candidate batch verification. That is the M4 shape. M2 ships the scheduled
-  single-key cutover above: old `valid_until = C`, new `valid_from = C`, and the
+  multi-candidate batch verification, which is the multi-server shape. This ADR ships
+  the scheduled single-key cutover above: old `valid_until = C`, new `valid_from = C`, and the
   half-open interval `valid_from ≤ H < …` resolves `H = C` cleanly to the new key, so
   exactly one key is active at every height with no gap.
 
@@ -541,7 +540,7 @@ coordinated restart and endpoint switch with a readiness check before cutover.
    the same identity decoupling. Decide before building the verification PRs.
 2. **Lease authority:** confirm the consensus-key-signed lease (recommended) over
    operator-account-key authorization, and confirm the operator account key alone may
-   revoke. (The design doc's revoke message additionally carries a `consensus_sig`;
+   revoke. (An earlier draft's revoke message also carried a `consensus_sig`;
    this ADR drops it — confirm.)
 3. **Is a separate revoke message worth it?** Given that revocation only stops
    future-height authority and flips download TLS, and cannot contain a leaked key
@@ -551,9 +550,9 @@ coordinated restart and endpoint switch with a readiness check before cutover.
    *freshness* stays time-based — acceptable, or express the lease in time too for
    operator ergonomics? Confirm retention bounded by `PaymentPromiseHeightWindow`,
    and pick the maximum lease length and scheduling horizon.
-5. **M4 now or later:** build the repeated-binding schema and any-active-key
-   verification now to avoid a second state break, or ship a single binding and break
-   again at M4?
+5. **Multiple servers now or later:** build the repeated-binding schema and
+   any-active-key verification now to avoid a second state break, or ship a single
+   binding and break state again when multiple servers per validator land?
 6. **Operator switch:** require a verified shard handoff before cutover, or mandate a
    shared object-storage backend (ADR-030) for delegated servers?
 
@@ -561,8 +560,7 @@ coordinated restart and endpoint switch with a readiness check before cutover.
 
 - PROTOCO-3341: Design — validators delegate running the Fibre server (KR1
   milestone 2).
-- PROTOCO-2997: Multiple Fibre servers per validator (milestone 4).
-- Design doc: `docs/plans/q4-okr/delegated-fibre-server.md`.
+- PROTOCO-2997: Multiple Fibre servers per validator (KR1 milestone 6).
 - `x/valaddr/types/keys.go`, `x/valaddr/keeper/keeper.go`,
   `x/valaddr/keeper/msg_server.go` — registry state and lifecycle.
 - `x/fibre/keeper/validator_set_cache.go`, `x/fibre/keeper/preverify.go`,
