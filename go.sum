@@ -275,8 +275,8 @@ github.com/celestiaorg/go-square/v3 v3.0.2 h1:eSQOgNII8inK9IhiBZ+6GADQeWbRq4HYY7
 github.com/celestiaorg/go-square/v3 v3.0.2/go.mod h1:oFReMLsSDMRs82ICFEeFQFCqNvwdsbIM1BzCcb0f7dM=
 github.com/celestiaorg/go-square/v4 v4.0.1 h1:A8QsdpTg2nP9wIxUzfuSXdl8tOgfPqj0yd+OWjkWTkQ=
 github.com/celestiaorg/go-square/v4 v4.0.1/go.mod h1:0LR/CELY5qMv6kq+GyhUq0j2rW5wfAAxkljl4O43ceg=
-github.com/celestiaorg/hyperlane-cosmos v1.3.1 h1:DOCcKV+YKQE1n1zEavjLD/+WEnqHpjDjFrpdHgI1CJQ=
-github.com/celestiaorg/hyperlane-cosmos v1.3.1/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
+github.com/celestiaorg/hyperlane-cosmos v1.3.3 h1:een4j9mMYv8qkQIt3yvSpbaqPm5jJ4HV+CdicDcxRZ4=
+github.com/celestiaorg/hyperlane-cosmos v1.3.3/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
 github.com/celestiaorg/ibc-go/modules/capability v1.0.2 h1:7tT6aSuUzL/vJ/EKCT1wdfwG2VT5H+PcmSBOWPHkiQc=
 github.com/celestiaorg/ibc-go/modules/capability v1.0.2/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
