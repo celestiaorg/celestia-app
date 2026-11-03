@@ -165,6 +165,56 @@ func (g *putMemoryGate) acquire(ctx context.Context) (func(), error) {
 	return func() { g.active.Add(-1) }, nil
 }
 
+// TestPutOwnedReleasesDataAfterLastReader checks that PutOwned hands data back
+// exactly once, only after the last validator upload stopped reading it.
+func TestPutOwnedReleasesDataAfterLastReader(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	checked := make(chan error, 1)
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	var clients atomic.Int64
+	client, txClient, settlement := newLifetimePutClient(t, (&putMemoryGate{}).acquire, func(next fibregrpc.NewClientFn) fibregrpc.NewClientFn {
+		return func(ctx context.Context, val *coretypes.Validator) (fibregrpc.Client, error) {
+			c, err := next(ctx, val)
+			if err != nil || clients.Add(1) != 1 {
+				return c, err
+			}
+			return &delayedUploadReader{Client: c, entered: entered, release: release, checked: checked}, nil
+		}
+	})
+	t.Cleanup(unblock)
+	var released atomic.Int64
+	done := make(chan error, 1)
+	go func() {
+		_, err := fibre.PutOwned(t.Context(), client, txClient, testNamespace, bytes.Repeat([]byte{0x47}, 256<<10), func() { released.Add(1) })
+		done <- err
+	}()
+	awaitLifetimeSignal(t, entered)
+	awaitLifetimeSignal(t, settlement.entered)
+	require.Zero(t, released.Load(), "data released while an upload still reads it")
+	unblock()
+	require.NoError(t, <-checked)
+	client.Await()
+	require.EqualValues(t, 1, released.Load())
+	close(settlement.confirm)
+	require.NoError(t, <-done)
+	require.EqualValues(t, 1, released.Load())
+}
+
+func TestPutOwnedReleasesDataOnAdmissionFailure(t *testing.T) {
+	client, txClient, _ := newLifetimePutClient(t, (&putMemoryGate{}).acquire, nil)
+	var released atomic.Int64
+	_, err := fibre.PutOwned(t.Context(), client, txClient, testNamespace, nil, func() { released.Add(1) })
+	require.Error(t, err)
+	require.EqualValues(t, 1, released.Load())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = fibre.PutOwned(ctx, client, txClient, testNamespace, []byte("canceled"), func() { released.Add(1) })
+	require.ErrorIs(t, err, context.Canceled)
+	require.EqualValues(t, 2, released.Load())
+}
+
 type delayedUploadReader struct {
 	fibregrpc.Client
 	entered, release chan struct{}
