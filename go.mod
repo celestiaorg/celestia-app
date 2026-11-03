@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-app/v11
 
 go 1.26.10
 
+godebug multipathtcp=0
+
 require (
 	cloud.google.com/go/compute v1.73.0
 	cosmossdk.io/api v1.0.0
