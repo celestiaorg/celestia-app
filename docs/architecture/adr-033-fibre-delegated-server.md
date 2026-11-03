@@ -1,4 +1,4 @@
-# ADR 032: Fibre Delegated Server
+# ADR 033: Fibre Delegated Server
 
 ## Changelog
 
