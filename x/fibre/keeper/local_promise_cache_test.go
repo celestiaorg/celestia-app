@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/hex"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,12 +18,12 @@ import (
 type fakeStateReader struct {
 	available       map[string]math.Int // signer -> AvailableBalance amount
 	processed       map[string]bool     // hex(hash) -> processed on-chain
-	escrowGets      int                 // counts GetEscrowAccount calls
+	escrowGets      atomic.Int64        // counts GetEscrowAccount calls
 	withdrawalDelay time.Duration       // params.WithdrawalDelay; defaults if zero
 }
 
 func (f *fakeStateReader) GetEscrowAccount(_ sdk.Context, signer string) (types.EscrowAccount, bool) {
-	f.escrowGets++
+	f.escrowGets.Add(1)
 	amt, ok := f.available[signer]
 	if !ok {
 		return types.EscrowAccount{}, false
@@ -109,18 +110,18 @@ func TestFailingSweepsRateLimited(t *testing.T) {
 	// Each reservation reads the escrow account exactly once; the retry sweep
 	// reuses that read.
 	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
-	require.Equal(t, 1, r.escrowGets)
+	require.Equal(t, int64(1), r.escrowGets.Load())
 	require.Equal(t, int64(1), c.budgets["a"].lastFailSweepH)
 
 	// Second failing reservation in the same block: no retry sweep.
 	before := c.budgets["a"].lastSweep
 	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0, promiseTS))
-	require.Equal(t, 2, r.escrowGets)
+	require.Equal(t, int64(2), r.escrowGets.Load())
 	require.Equal(t, before, c.budgets["a"].lastSweep)
 
 	// New block: one more retry sweep is allowed.
 	require.Error(t, c.Reserve(ctxAtHeight(2), "a", []byte{0x03}, 0, promiseTS))
-	require.Equal(t, 3, r.escrowGets)
+	require.Equal(t, int64(3), r.escrowGets.Load())
 	require.Equal(t, int64(2), c.budgets["a"].lastFailSweepH)
 }
 

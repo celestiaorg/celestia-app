@@ -109,6 +109,11 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	key := hex.EncodeToString(promiseHash)
 	required := requiredAmount(blobSize)
 
+	// Read AvailableBalance fresh on every reservation, before taking the
+	// cache-wide lock so the store read does not serialize other signers. ctx is a
+	// fixed committed-state snapshot, so the value is the same inside the lock.
+	available := c.availableBalance(ctx, signer)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -122,12 +127,10 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 		return nil // idempotent: already reserved
 	}
 
-	// Read AvailableBalance fresh on every reservation and re-sweep if it dropped
-	// since the last sweep (a withdrawal request or a settlement), so the cached
-	// budget never exceeds what is currently available on-chain. An increase
-	// (deposit) needs no sweep: the cached budget is then only stricter than the
-	// chain.
-	available := c.availableBalance(ctx, signer)
+	// Re-sweep if AvailableBalance dropped since the last sweep (a withdrawal
+	// request or a settlement), so the cached budget never exceeds what is
+	// currently available on-chain. An increase (deposit) needs no sweep: the
+	// cached budget is then only stricter than the chain.
 	b, ok := c.budgets[signer]
 	if !ok || isStale(b) || available.LT(b.sweptAvailable) {
 		b = c.sweep(ctx, signer, available)
