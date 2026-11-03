@@ -88,7 +88,7 @@ func TestSystemSink(t *testing.T) {
 	sinks := make([]*sysSink, n)
 	for i := range vals {
 		pv := newTestPrivValidator(keys[i])
-		srv, err := fibregrpc.Listen(fmt.Sprintf("127.0.0.1:%d", base+i), 64, 64)
+		srv, err := fibregrpc.Listen(fmt.Sprintf("127.0.0.1:%d", base+i), 64, 64, fibregrpc.AdmissionConfig{Budget: int64(params.MaxMessageSize()) * 8, MaxMessage: int64(params.MaxMessageSize())})
 		require.NoError(t, err)
 		cert, err := tlsid.BuildServerCert(pv, sysChainID)
 		require.NoError(t, err)
