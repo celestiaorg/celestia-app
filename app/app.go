@@ -246,6 +246,33 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	return newApp(logger, db, traceStore, delayedPrecommitTimeout, timeoutCommit, appOpts, true, baseAppOptions...)
+}
+
+// NewForExport returns an app that has not loaded any version, so the caller
+// can load a specific height.
+func NewForExport(
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
+	appOpts servertypes.AppOptions,
+	baseAppOptions ...func(*baseapp.BaseApp),
+) *App {
+	return newApp(logger, db, traceStore, delayedPrecommitTimeout, timeoutCommit, appOpts, false, baseAppOptions...)
+}
+
+func newApp(
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
+	appOpts servertypes.AppOptions,
+	loadLatest bool,
+	baseAppOptions ...func(*baseapp.BaseApp),
+) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
@@ -588,6 +615,9 @@ func New(
 	}
 
 	app.encodingConfig = encodingConfig
+	if !loadLatest {
+		return app
+	}
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(err)
 	}
