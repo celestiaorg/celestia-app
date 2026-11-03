@@ -228,6 +228,19 @@ func (t *autoTransport) dialOptions(tls credentials.TransportCredentials) []grpc
 	}
 }
 
+// ctxEnded reports ctx's cancellation error, treating an elapsed deadline as
+// DeadlineExceeded even when the context's own timer has not fired yet — a
+// socket deadline derived from it can wake a probe a hair earlier.
+func ctxEnded(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if d, ok := ctx.Deadline(); ok && !time.Now().Before(d) {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
 func (t *autoTransport) observeDial(mode string, fallback bool) {
 	if t.observe != nil {
 		t.observe(mode, fallback)
@@ -249,11 +262,12 @@ func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error)
 		t.observeDial(transportModePlaintext, false)
 		return pc, nil
 	}
-	if ctx.Err() != nil {
-		// The dial was cancelled, which says nothing about the server's
-		// protocol; fail without caching TLS-only or redialing.
+	if cerr := ctxEnded(ctx); cerr != nil {
+		// The dial was cancelled or its deadline elapsed, which says nothing
+		// about the server's protocol; fail without caching TLS-only or
+		// redialing.
 		_ = tcp.Close()
-		return nil, ctx.Err()
+		return nil, cerr
 	}
 	// The server most likely speaks only TLS. Redial from the same local IP and
 	// hand the connection back for the TLS handshake. gRPC owns this connection,
