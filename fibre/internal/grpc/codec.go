@@ -64,7 +64,11 @@ func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
-		return marshalUploadShardRequestScatter(req)
+		bs, err := marshalUploadShardRequestScatter(req)
+		if err != nil {
+			return nil, err
+		}
+		return ownedViews(req, bs)
 	}
 
 	msg, ok := v.(sizedBufferMarshaler)

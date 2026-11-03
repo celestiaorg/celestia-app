@@ -333,6 +333,11 @@ func (c *Client) uploadTo(
 		return nil
 	}
 
+	// gRPC may still write this request's rows after the RPC returns (on
+	// cancellation the transport drains queued frames asynchronously), so
+	// every marshal holds its own blob reference until gRPC frees the views.
+	defer fibregrpc.TrackUpload(req, blob.retain, blob.release)()
+
 	var resp *types.UploadShardResponse
 	for attempt := 0; ; attempt++ {
 		err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
