@@ -3,6 +3,8 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -22,7 +24,7 @@ import (
 )
 
 const (
-	rollbackHaltOffset = 30 // blocks from arming a halt height to the halt; covers the last validator's restart
+	rollbackHaltOffset = 60 // blocks from arming a halt height to the halt; covers the rolling validator restarts
 	rollbackDepth      = 3  // executed heights rolled back in phase 2
 	rollbackTimeout    = 5 * time.Minute
 	// haltStallTimeout is how long the chain must stay one height below the
@@ -41,9 +43,10 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 	ctx := context.TODO()
 	// A retry runs in a new process with the same container and volume names, and
-	// a failed run can leave its volumes behind (tastora keeps or fails to
-	// remove them), so the new full node would find the old keyring.
-	s.removeLeftovers(ctx, strings.ReplaceAll(t.Name(), "/", "_")+"-")
+	// a failed run can leave its volumes and host keyring copies behind, so the
+	// new full node would find the old keyring.
+	suiteName := strings.ReplaceAll(t.Name(), "/", "_")
+	s.removeLeftovers(ctx, suiteName+"-", "-"+suiteName)
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	// Write the validators' files before they start: WriteFile chowns the whole
 	// volume, which fails if a running node deletes a file mid-walk.
@@ -202,14 +205,24 @@ func prepareRollbackValidator(ctx context.Context, node *cosmos.ChainNode) error
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
 // It stops every validator first so the chain cannot advance while the others are restarted.
 func (s *CelestiaTestSuite) armHaltHeight(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, peer string) int64 {
-	for _, v := range validators {
-		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
-	}
 	height, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 	haltHeight := height + rollbackHaltOffset
+	// Restart one validator at a time and wait for the chain to move on before
+	// the next. Stopping all of them at once can leave every validator with a
+	// signed vote for a block that none of them still holds after the restart,
+	// so none can vote again in that round and the chain stalls for good.
 	for _, v := range validators {
+		before, err := fullNode.Height(ctx)
+		s.Require().NoError(err)
+		// Stop it before writing its config: WriteFile chowns the whole volume,
+		// which fails if the running node deletes a file mid-walk.
+		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
 		s.restartWithHaltHeight(ctx, v, haltHeight, peer)
+		err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
+			return info.LatestBlockHeight > before
+		})
+		s.Require().NoError(err, "chain did not advance after restarting %s", v.Name())
 	}
 	height, err = fullNode.Height(ctx)
 	s.Require().NoError(err)
@@ -325,8 +338,11 @@ func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.C
 	return res
 }
 
-// removeLeftovers force-removes volumes whose names start with prefix.
-func (s *CelestiaTestSuite) removeLeftovers(ctx context.Context, prefix string) {
+// removeLeftovers force-removes volumes whose names start with prefix, and the
+// host copies of node keyrings whose container names end with suffix. Tastora
+// caches each keyring in os.TempDir() under the container name and never
+// removes it, so a retry would find the faucet key already imported.
+func (s *CelestiaTestSuite) removeLeftovers(ctx context.Context, prefix, suffix string) {
 	volumes, err := s.client.VolumeList(ctx, mobyclient.VolumeListOptions{
 		Filters: make(mobyclient.Filters).Add("name", prefix),
 	})
@@ -338,6 +354,12 @@ func (s *CelestiaTestSuite) removeLeftovers(ctx context.Context, prefix string) 
 		s.T().Logf("removing leftover volume %s", v.Name)
 		_, err := s.client.VolumeRemove(ctx, v.Name, mobyclient.VolumeRemoveOptions{Force: true})
 		s.Require().NoError(err, "failed to remove leftover volume %s", v.Name)
+	}
+	keyrings, err := filepath.Glob(filepath.Join(os.TempDir(), "docker-keyring-*"+suffix))
+	s.Require().NoError(err)
+	for _, dir := range keyrings {
+		s.T().Logf("removing leftover keyring %s", dir)
+		s.Require().NoError(os.RemoveAll(dir), "failed to remove leftover keyring %s", dir)
 	}
 }
 
