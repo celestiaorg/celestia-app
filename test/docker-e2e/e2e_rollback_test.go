@@ -25,6 +25,10 @@ const (
 	rollbackHaltOffset = 30 // blocks from arming a halt height to the halt; covers the last validator's restart
 	rollbackDepth      = 3  // executed heights rolled back in phase 2
 	rollbackTimeout    = 5 * time.Minute
+	// haltStallTimeout is how long the chain must stay one height below the
+	// halt height, with a validator already halted, before waitForHalt treats
+	// the remaining validators as stalled.
+	haltStallTimeout = 30 * time.Second
 )
 
 // TestRollback halts the validators with halt-height, rolls them back with
@@ -36,6 +40,10 @@ func (s *CelestiaTestSuite) TestRollback() {
 	}
 
 	ctx := context.TODO()
+	// A retry runs in a new process with the same container and volume names, and
+	// a failed run can leave its volumes behind (tastora keeps or fails to
+	// remove them), so the new full node would find the old keyring.
+	s.removeLeftovers(ctx, strings.ReplaceAll(t.Name(), "/", "_")+"-")
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
 	// Write the validators' files before they start: WriteFile chowns the whole
 	// volume, which fails if a running node deletes a file mid-walk.
@@ -80,9 +88,14 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 	haltHeight := s.armHaltHeight(ctx, validators, fullNode, fullNodePeer)
 	t.Logf("Phase 1: halt at height %d", haltHeight)
-	s.waitForHalt(ctx, validators, fullNode, haltHeight)
+	halt := s.waitForHalt(ctx, validators, fullNode, haltHeight)
 	s.requireHalted(ctx, fullNode, haltHeight)
-	haltBlockHash := s.block(ctx, fullNode, haltHeight).BlockID.Hash.String()
+	// When a validator halted before its peers saw its precommit, no other node
+	// committed the halt height and there is no canonical block for it yet.
+	haltBlockHash := ""
+	if halt.fullNodeHeight == haltHeight {
+		haltBlockHash = s.block(ctx, fullNode, haltHeight).BlockID.Hash.String()
+	}
 
 	notExecuted := 0
 	for _, v := range validators {
@@ -96,33 +109,42 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 		s.recoveryRollback(ctx, v, haltHeight-1)
 	}
-	s.Require().GreaterOrEqual(notExecuted, 2, "expected the block-not-executed error on at least 2 validators")
+	// At least one validator committed the halt-height block before halting; a
+	// validator that stalled below it was rolled back above like a lagging one.
+	s.Require().GreaterOrEqual(notExecuted, 1, "expected the block-not-executed error on a halted validator")
 
 	for _, v := range validators {
 		s.restartWithHaltHeight(ctx, v, 0, fullNodePeer)
 	}
 	s.waitForHeight(ctx, allNodes, haltHeight+5)
 
-	s.requireBlockHash(ctx, allNodes, haltHeight, haltBlockHash)
+	if haltBlockHash != "" {
+		s.requireBlockHash(ctx, allNodes, haltHeight, haltBlockHash)
+	}
 	s.requireBlockHash(ctx, allNodes, haltHeight+3, s.block(ctx, fullNode, haltHeight+3).BlockID.Hash.String())
 	s.verifyAppHash(ctx, validators, fullNode, haltHeight+1)
 	s.Require().NoError(s.CheckLiveness(ctx, celestia), "validator liveness check failed after phase 1")
 
 	phase2HaltHeight := s.armHaltHeight(ctx, validators, fullNode, fullNodePeer)
 	t.Logf("Phase 2: halt at height %d and roll back %d heights", phase2HaltHeight, rollbackDepth)
-	s.waitForHalt(ctx, validators, fullNode, phase2HaltHeight)
+	halt = s.waitForHalt(ctx, validators, fullNode, phase2HaltHeight)
 	s.requireHalted(ctx, fullNode, phase2HaltHeight)
 
 	target := phase2HaltHeight - 1 - rollbackDepth
 	canonical := make(map[int64]string)
-	for h := target + 1; h <= phase2HaltHeight; h++ {
+	for h := target + 1; h <= halt.fullNodeHeight; h++ {
 		canonical[h] = s.block(ctx, fullNode, h).BlockID.Hash.String()
 	}
 
 	for _, v := range validators {
 		s.Require().NotEmpty(s.snapshotsAbove(ctx, v, target), "no snapshot above height %d on %s", target, v.Name())
 		out := s.recoveryRollback(ctx, v, target)
-		s.Require().Contains(out, fmt.Sprintf("rollback: height %d -> %d, blocks to delete: %d", phase2HaltHeight-1, target, rollbackDepth))
+		// A stalled validator never saved the halt-height block, so it has one fewer to delete.
+		toDelete := rollbackDepth
+		if !halt.halted[v.Name()] {
+			toDelete--
+		}
+		s.Require().Contains(out, fmt.Sprintf("rollback: height %d -> %d, blocks to delete: %d", phase2HaltHeight-1, target, toDelete))
 		s.Require().Contains(out, fmt.Sprintf("warning: app.toml sets halt-height = %d", phase2HaltHeight))
 		s.Require().Empty(s.snapshotsAbove(ctx, v, target), "snapshot above height %d left on %s", target, v.Name())
 
@@ -205,20 +227,73 @@ func (s *CelestiaTestSuite) restartWithHaltHeight(ctx context.Context, node *cos
 	s.Require().NoError(node.Restart(ctx), "failed to restart %s", node.Name())
 }
 
-// waitForHalt waits until every validator container has exited and the full node is at height.
-func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, height int64) {
+// haltResult describes how the chain stopped at a halt height.
+type haltResult struct {
+	// halted holds the validators that saved the halt-height block and exited
+	// when executing it.
+	halted map[string]bool
+	// fullNodeHeight is the full node's height once the chain stopped: the halt
+	// height, or one below it when no node but a halted validator committed it.
+	fullNodeHeight int64
+}
+
+// waitForHalt waits until the chain has stopped at height and every validator is stopped.
+//
+// The validators exit while executing the halt-height block. With three
+// validators every precommit is needed, so the first validator to commit that
+// block can exit before its own precommit reaches the others. They then stay
+// one height below, waiting for a vote that never comes, and do not exit. Once
+// that has lasted haltStallTimeout, waitForHalt stops them itself.
+func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, height int64) haltResult {
+	res := haltResult{halted: make(map[string]bool)}
+	var stalled []*cosmos.ChainNode
+	var lastProgress time.Time
+	lastHeights := ""
 	err := wait.ForCondition(ctx, rollbackTimeout, 2*time.Second, func() (bool, error) {
+		var running []*cosmos.ChainNode
 		for _, v := range validators {
-			res, err := s.client.ContainerInspect(ctx, v.ContainerLifecycle.ContainerName(), mobyclient.ContainerInspectOptions{})
+			inspect, err := s.client.ContainerInspect(ctx, v.ContainerLifecycle.ContainerName(), mobyclient.ContainerInspectOptions{})
 			if err != nil {
 				return false, err
 			}
-			if res.Container.State.Running {
-				return false, nil
+			if inspect.Container.State.Running {
+				running = append(running, v)
+			} else {
+				res.halted[v.Name()] = true
 			}
 		}
 		fullNodeHeight, err := fullNode.Height(ctx)
-		return err == nil && fullNodeHeight >= height, nil
+		if err != nil {
+			return false, nil
+		}
+		res.fullNodeHeight = fullNodeHeight
+		if len(running) == 0 {
+			return fullNodeHeight >= height, nil
+		}
+		if len(res.halted) == 0 {
+			return false, nil
+		}
+		// A validator has halted. The rest are stalled if they and the full node
+		// stay one height below the halt height.
+		heights := fmt.Sprint(fullNodeHeight)
+		stuck := fullNodeHeight == height-1
+		for _, v := range running {
+			h, err := v.Height(ctx)
+			if err != nil {
+				return false, nil
+			}
+			heights += fmt.Sprintf(",%d", h)
+			stuck = stuck && h == height-1
+		}
+		if !stuck || heights != lastHeights {
+			lastHeights, lastProgress = heights, time.Now()
+			return false, nil
+		}
+		if time.Since(lastProgress) < haltStallTimeout {
+			return false, nil
+		}
+		stalled = running
+		return true, nil
 	})
 	if err != nil {
 		nodes := make([]tastoratypes.ChainNode, 0, len(validators)+1)
@@ -229,9 +304,35 @@ func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.C
 	}
 	s.Require().NoError(err, "validators did not halt at height %d", height)
 
+	for _, v := range stalled {
+		s.T().Logf("%s stalled one height below the halt height %d; stopping it", v.Name(), height)
+		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
+	}
 	fullNodeHeight, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
-	s.Require().Equal(height, fullNodeHeight, "chain did not stop at the halt height")
+	if len(stalled) == 0 {
+		s.Require().Equal(height, fullNodeHeight, "chain did not stop at the halt height")
+	} else {
+		s.Require().Equal(height-1, fullNodeHeight, "chain did not stop one height below the halt height")
+	}
+	res.fullNodeHeight = fullNodeHeight
+	return res
+}
+
+// removeLeftovers force-removes volumes whose names start with prefix.
+func (s *CelestiaTestSuite) removeLeftovers(ctx context.Context, prefix string) {
+	volumes, err := s.client.VolumeList(ctx, mobyclient.VolumeListOptions{
+		Filters: make(mobyclient.Filters).Add("name", prefix),
+	})
+	s.Require().NoError(err, "failed to list leftover volumes")
+	for _, v := range volumes.Items {
+		if !strings.HasPrefix(v.Name, prefix) {
+			continue
+		}
+		s.T().Logf("removing leftover volume %s", v.Name)
+		_, err := s.client.VolumeRemove(ctx, v.Name, mobyclient.VolumeRemoveOptions{Force: true})
+		s.Require().NoError(err, "failed to remove leftover volume %s", v.Name)
+	}
 }
 
 // requireHalted checks that the full node stays at or below height for 12 seconds.
