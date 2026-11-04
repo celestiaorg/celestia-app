@@ -48,6 +48,13 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidMerkleTreeAddress,
 		},
 		{
+			name: "legacy SP1 v5 groth16 verifying key",
+			mallate: func() {
+				msg.Groth16Vkey = readLegacyGroth16Vkey(t)
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "success: maximum root history size",
 			mallate: func() {
 				msg.RootHistorySize = types.MaxRootHistorySize
@@ -104,11 +111,11 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "492-byte vkey with inflated CommitmentKeys length is rejected",
+			name: "492-byte vkey with inflated PublicAndCommitmentCommitted length is rejected",
 			mallate: func() {
 				malicious := make([]byte, types.Groth16VkeySize)
 				copy(malicious, groth16Vk)
-				// Set CommitmentKeys length at offset 484 to 0xFFFFFFFF.
+				// Set PublicAndCommitmentCommitted length at offset 484 to 0xFFFFFFFF.
 				// Passes size and G1.K checks but would OOM gnark.
 				malicious[484] = 0xFF
 				malicious[485] = 0xFF
@@ -119,11 +126,11 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "492-byte vkey with inflated PublicAndCommitmentCommitted length is rejected",
+			name: "492-byte vkey with inflated CommitmentKeys length is rejected",
 			mallate: func() {
 				malicious := make([]byte, types.Groth16VkeySize)
 				copy(malicious, groth16Vk)
-				// Set PublicAndCommitmentCommitted length at offset 488 to 0xFFFFFFFF.
+				// Set CommitmentKeys length at offset 488 to 0xFFFFFFFF.
 				malicious[488] = 0xFF
 				malicious[489] = 0xFF
 				malicious[490] = 0xFF
