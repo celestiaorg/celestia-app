@@ -215,6 +215,9 @@ func (s *CelestiaTestSuite) armHaltHeight(ctx context.Context, validators cosmos
 	for _, v := range validators {
 		before, err := fullNode.Height(ctx)
 		s.Require().NoError(err)
+		// Stop it before writing its config: WriteFile chowns the whole volume,
+		// which fails if the running node deletes a file mid-walk.
+		s.Require().NoError(v.Stop(ctx), "failed to stop %s", v.Name())
 		s.restartWithHaltHeight(ctx, v, haltHeight, peer)
 		err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
 			return info.LatestBlockHeight > before
