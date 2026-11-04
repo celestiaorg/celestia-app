@@ -27,7 +27,7 @@ const (
 // call answers with the outcome the harness set for it and counts queries.
 type fuzzHostChain struct {
 	hosts    map[string]string // consensus address -> registered host
-	outcome  byte              // next FibreProviderInfo: 0 found, 1 not found, 2 error
+	outcome  byte              // next FibreProviderInfo: 0 found, 1 not found, 2 error, 3 found without info
 	failAll  bool
 	bulk     []types.FibreProvider
 	queries  map[string]int
@@ -41,6 +41,8 @@ func (q *fuzzHostChain) FibreProviderInfo(_ context.Context, in *types.QueryFibr
 		return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: q.hosts[in.ValidatorConsensusAddress]}}, nil
 	case 1:
 		return &types.QueryFibreProviderInfoResponse{}, nil
+	case 3:
+		return &types.QueryFibreProviderInfoResponse{Found: true}, nil
 	default:
 		return nil, errors.New("state node unavailable")
 	}
@@ -55,8 +57,8 @@ func (q *fuzzHostChain) AllBondedFibreProviders(context.Context, *types.QueryAll
 }
 
 // FuzzHostRegistry drives host resolution and bulk pulls for four validators
-// against a scripted query client and a mock clock, with found, not-found and
-// failing answers, host rotations and clock advances across the refresh
+// against a scripted query client and a mock clock, with found, not-found,
+// failing and found-without-info answers, host rotations and clock advances across the refresh
 // window. A model of the last resolution time and last known host per
 // validator predicts every answer: a validator is queried at most once per
 // window, a failed query serves the last known host, and no host is returned
@@ -70,7 +72,7 @@ func FuzzHostRegistry(f *testing.F) {
 	// Resolve, hit the window, rotate, re-query after the window and fail over.
 	f.Add(uint8(5), fuzzutil.Records(hostOpWidth,
 		resolve(0, 0), resolve(0, 0), rotate(0), advance(15), resolve(0, 0), advance(1), resolve(0, 0),
-		advance(16), resolve(0, 2), resolve(1, 2), resolve(1, 0), advance(16), resolve(1, 1)))
+		advance(16), resolve(0, 2), resolve(1, 2), resolve(1, 0), advance(16), resolve(1, 1), advance(16), resolve(1, 3), resolve(2, 3)))
 	// A bulk pull warms some validators; a failed pull changes nothing.
 	f.Add(uint8(0), fuzzutil.Records(hostOpWidth,
 		pull(0b0101, 0), resolve(0, 2), resolve(1, 2), rotate(2), advance(32), resolve(2, 2), pull(0b1111, 1), resolve(3, 1), pull(0b11000, 0), resolve(3, 0)))
@@ -107,7 +109,7 @@ func FuzzHostRegistry(f *testing.F) {
 			case 0:
 				v := int(r.Byte()) % hostFuzzValidators
 				addr := addrs[v]
-				chain.outcome = r.Byte() % 3
+				chain.outcome = r.Byte() % 4
 				before := chain.queries[addr]
 				last, resolved := lastRefresh[addr]
 				fallback, hasFallback := lastHost[addr]

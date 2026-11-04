@@ -129,6 +129,15 @@ func TestGetHost(t *testing.T) {
 			wantErr:  "host not found",
 		},
 		{
+			name: "found without info",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true}, nil
+				},
+			},
+			wantErr: "without provider info",
+		},
+		{
 			name: "garbage host",
 			mock: &mockQueryClient{
 				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
