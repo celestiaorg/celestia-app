@@ -161,7 +161,13 @@ func (s *CelestiaTestSuite) TestRollback() {
 	s.waitForHeight(ctx, allNodes, phase2HaltHeight+10)
 
 	for h := target + 1; h <= phase2HaltHeight; h++ {
-		s.requireBlockHash(ctx, validators, h, canonical[h])
+		want, ok := canonical[h]
+		if !ok {
+			// The chain stalled below this height before the rollback, so no
+			// node had committed it; the full node's block is canonical now.
+			want = s.block(ctx, fullNode, h).BlockID.Hash.String()
+		}
+		s.requireBlockHash(ctx, validators, h, want)
 	}
 	s.requireBlockHash(ctx, allNodes, phase2HaltHeight+5, s.block(ctx, fullNode, phase2HaltHeight+5).BlockID.Hash.String())
 	s.verifyAppHash(ctx, validators, fullNode, target+2)
