@@ -194,9 +194,9 @@ func bufferSpan(buf []byte) (uintptr, uintptr) {
 }
 
 // FuzzUploadBufferReuse decodes uploads of at least minUploadBufferSize bytes
-// through the reusing server codec, interleaved with malformed uploads and
-// repeated releases. No two live requests and no live request and idle buffer
-// may share backing memory, every live request must still decode to the bytes
+// through the reusing server codec, interleaved with malformed and oversized
+// uploads and repeated releases. No two live requests and no live request and
+// idle buffer may share backing memory, every live request must still decode to the bytes
 // it was sent, idle memory stays within the limit, and releasing everything
 // leaves no active buffer.
 func FuzzUploadBufferReuse(f *testing.F) {
@@ -206,12 +206,20 @@ func FuzzUploadBufferReuse(f *testing.F) {
 	f.Add(uint8(2), fuzzutil.Records(reuseOpWidth,
 		decode(0, 0), release(0, 1), decode(3, 0), decode(1, 0), release(1, 2), decode(0, 0)))
 	// A malformed upload returns its buffer, which the next upload reuses.
-	f.Add(uint8(4), fuzzutil.Records(reuseOpWidth,
+	f.Add(uint8(1), fuzzutil.Records(reuseOpWidth,
 		decode(0, 1), decode(0, 0), decode(2, 1), decode(1, 0), release(0, 0), release(0, 0)))
+
+	// Under the smallest limit, uploads with extra bytes are rejected as
+	// oversized and must leave no buffer behind.
+	f.Add(uint8(0), fuzzutil.Records(reuseOpWidth,
+		decode(0, 0), decode(1, 0), decode(3, 0), release(0, 0), decode(2, 0), decode(0, 0)))
 
 	f.Fuzz(func(t *testing.T, limitMiB uint8, ops []byte) {
 		codec := NewServerCodec(testMaxRows, testMaxProofs).(*pooledCodec)
-		limit := (int(limitMiB%4) + 1) * (minUploadBufferSize + 4096)
+		// The smallest limit admits only the smallest upload, so larger ones
+		// reach the oversized rejection; the others admit every upload.
+		limits := []int{minUploadBufferSize + 1024, minUploadBufferSize + 4096, 2 * (minUploadBufferSize + 4096), 4 * (minUploadBufferSize + 4096)}
+		limit := limits[int(limitMiB)%len(limits)]
 		codec.uploads = &uploadBuffers{limit: limit}
 
 		type liveReq struct {
