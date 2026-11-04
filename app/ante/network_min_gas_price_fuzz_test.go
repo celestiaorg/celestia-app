@@ -48,12 +48,6 @@ func FuzzNetworkMinGasPrice(f *testing.F) {
 			minGasPriceApp, _, _ = testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 		})
 		testApp := minGasPriceApp
-		// ValidateTxFee panics on fees above MaxInt64 when it records the
-		// observed gas price; remove this bound with the fix:
-		// https://linear.app/celestia/issue/PROTOCO-3433 item 2.
-		if fee > 1<<63-1 {
-			return
-		}
 		mag := new(big.Int).SetBytes(magnitude)
 		if mag.BitLen() > maxGovMinGasPriceBits {
 			return

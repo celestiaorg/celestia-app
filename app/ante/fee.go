@@ -1,6 +1,7 @@
 package ante
 
 import (
+	"math/big"
 	"strings"
 
 	"cosmossdk.io/errors"
@@ -75,8 +76,10 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 
 	priority := getTxPriority(fee, gas)
 
-	// Track actual gas price paid by users for congestion monitoring
-	gasPriceFloat := float64(fee.Int64()) / float64(gas)
+	// Track actual gas price paid by users for congestion monitoring. The fee
+	// can exceed MaxInt64, so convert it through big.Float rather than Int64.
+	feeFloat, _ := new(big.Float).SetInt(fee.BigInt()).Float64()
+	gasPriceFloat := feeFloat / float64(gas)
 	metrics.AddSampleWithLabels(
 		[]string{"gas_price_observed"},
 		float32(gasPriceFloat),
@@ -119,7 +122,10 @@ func getTxPriority(fee math.Int, gas uint64) int64 {
 	if gas == 0 {
 		return 0
 	}
-	priority := fee.Mul(math.NewInt(priorityScalingFactor)).Quo(math.NewIntFromUint64(gas))
+	// Use big.Int: fee * priorityScalingFactor can exceed math.Int's 256 bits,
+	// and math.Int.Mul panics on overflow.
+	priority := new(big.Int).Mul(fee.BigInt(), big.NewInt(priorityScalingFactor))
+	priority.Quo(priority, new(big.Int).SetUint64(gas))
 	if !priority.IsInt64() {
 		return 0
 	}
