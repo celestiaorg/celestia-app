@@ -293,7 +293,7 @@ func FuzzUploadBufferReuse(f *testing.F) {
 		}
 
 		for _, lr := range live {
-			_, err := codec.uploads.intercept(context.Background(), lr.req, nil, func(context.Context, any) (any, error) { return nil, nil })
+			_, err := handleUpload(context.Background(), codec.uploads, lr.req, func(context.Context, any) (any, error) { return nil, nil })
 			require.NoError(t, err)
 		}
 		require.Empty(t, codec.uploads.active)
