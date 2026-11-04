@@ -96,9 +96,9 @@ func snapshotCache(c *LocalPromiseCache) cacheSnapshot {
 // promises, escrow balance changes, on-chain settlements and block advances.
 // A forged promise must be rejected without touching the cache, and a promise
 // whose hash is already reserved leaves the cache unchanged. Per signer, the
-// amount reserved since the last sweep never exceeds the AvailableBalance that
-// sweep read, and a swept signer keeps no settled or no longer settleable
-// reservation. A reservation that reads a lower AvailableBalance than the
+// reservations a sweep kept plus those added since never exceed the
+// AvailableBalance that sweep read (or the kept amount, if already above it),
+// and a swept signer keeps no settled or no longer settleable reservation. A reservation that reads a lower AvailableBalance than the
 // last sweep sweeps first; a higher one needs no sweep.
 func FuzzPromiseCacheReservations(f *testing.F) {
 	promise := func(signer, size, commit byte, minutes int8, forge byte) []byte {
@@ -141,7 +141,11 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 		}
 		unit := types.PaymentAmount(cacheFuzzSizes[1]).Amount
 		availAtSweep := map[string]math.Int{}
-		sinceSweep := map[string]math.Int{}
+		// committed is the cost of a signer's reservations since its last
+		// sweep, counting those the sweep kept; capAtSweep bounds it by the
+		// balance that sweep read, or by the kept cost when that is larger.
+		committed := map[string]math.Int{}
+		capAtSweep := map[string]math.Int{}
 		hashSigner := map[string]string{}
 		var pool []types.PaymentPromise
 
@@ -177,16 +181,23 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				require.NotEmpty(t, reader.sweeps, "available balance fell from %s to %s without a sweep", prev, reader.lastAvailable)
 			}
 			for _, s := range reader.sweeps {
-				availAtSweep[s.signer], sinceSweep[s.signer] = s.available, math.ZeroInt()
+				kept := math.ZeroInt()
+				for h := range after.hashes[s.signer] {
+					if _, ok := before.pending[h]; ok {
+						kept = kept.Add(requiredAmount(after.pending[h].blobSize))
+					}
+				}
+				availAtSweep[s.signer], committed[s.signer] = s.available, kept
+				capAtSweep[s.signer] = math.MaxInt(s.available, kept)
 				swept[s.signer] = true
 			}
 			for h := range after.pending {
 				if _, ok := before.pending[h]; !ok {
 					require.Equal(t, hashKey, h, "reserved a hash other than the promise's")
 					hashSigner[h] = signer
-					sinceSweep[signer] = sinceSweep[signer].Add(requiredAmount(after.pending[h].blobSize))
-					require.True(t, sinceSweep[signer].LTE(availAtSweep[signer]),
-						"reserved %s since the last sweep, which read only %s", sinceSweep[signer], availAtSweep[signer])
+					committed[signer] = committed[signer].Add(requiredAmount(after.pending[h].blobSize))
+					require.True(t, committed[signer].LTE(capAtSweep[signer]),
+						"%s committed since the last sweep, which read %s", committed[signer], availAtSweep[signer])
 				}
 			}
 			for h := range before.pending {
