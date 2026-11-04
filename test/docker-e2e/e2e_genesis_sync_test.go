@@ -42,12 +42,16 @@ const (
 // TestGenesisSyncMocha starts a full node from the Mocha genesis file and
 // verifies it processes genesis and block syncs the first block from live peers.
 func (s *CelestiaTestSuite) TestGenesisSyncMocha() {
+	// TODO: remove this skip once celestiaorg/infrastructure#1077 is deployed.
+	s.T().Skip("skipping until archive peers reserve a slot for this node: https://github.com/celestiaorg/infrastructure/pull/1077")
 	s.runGenesisSync(networks.NewMochaConfig())
 }
 
 // TestGenesisSyncMainnet starts a full node from the Mainnet Beta genesis file
 // and verifies it processes genesis and block syncs the first block from live peers.
 func (s *CelestiaTestSuite) TestGenesisSyncMainnet() {
+	// TODO: remove this skip once celestiaorg/infrastructure#1077 is deployed.
+	s.T().Skip("skipping until archive peers reserve a slot for this node: https://github.com/celestiaorg/infrastructure/pull/1077")
 	s.runGenesisSync(networks.NewMainnetConfig(), fmt.Sprintf("--v2-upgrade-height=%d", mainnetV2UpgradeHeight))
 }
 
