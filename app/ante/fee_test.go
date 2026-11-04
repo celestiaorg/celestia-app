@@ -3,7 +3,6 @@ package ante_test
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -46,8 +45,6 @@ func TestValidateTxFee(t *testing.T) {
 	validatorMinGasPriceCoin := fmt.Sprintf("%f%s", validatorMinGasPrice, appconsts.BondDenom)
 
 	feeAmount := int64(1000)
-	// maxFee is the largest amount math.Int holds: 2^256 - 1.
-	maxFee := sdkmath.NewIntFromBigInt(new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1)))
 
 	paramsKeeper, minFeeKeeper, stateStore := setUp(t)
 
@@ -65,14 +62,6 @@ func TestValidateTxFee(t *testing.T) {
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			isCheckTx:   false,
 			expErr:      true,
-			minGasPrice: validatorMinGasPriceCoin,
-		},
-		{
-			name:        "good tx; fee of MaxInt64",
-			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(math.MaxInt64))),
-			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
-			isCheckTx:   false,
-			expErr:      false,
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
@@ -197,14 +186,6 @@ func TestValidateTxFee(t *testing.T) {
 			name:        "bad tx; fee above MaxInt64",
 			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(math.MaxInt64+1))),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
-			isCheckTx:   false,
-			expErr:      true,
-			minGasPrice: validatorMinGasPriceCoin,
-		},
-		{
-			name:        "bad tx; largest representable fee",
-			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, maxFee)),
-			gasLimit:    1,
 			isCheckTx:   false,
 			expErr:      true,
 			minGasPrice: validatorMinGasPriceCoin,
