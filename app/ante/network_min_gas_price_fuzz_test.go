@@ -87,7 +87,7 @@ func FuzzNetworkMinGasPrice(f *testing.F) {
 		wantAccept := fee <= 1<<63-1 && new(big.Int).SetUint64(fee).Cmp(required) >= 0
 		require.Equal(t, wantAccept, err == nil, "price %s, gas %d, fee %d: %v", stored, gas, fee, err)
 		require.GreaterOrEqual(t, priority, int64(0))
-		if negative || mag.Sign() == 0 {
+		if (negative || mag.Sign() == 0) && fee <= 1<<63-1 {
 			require.NoError(t, err, "a non-positive network price must not require a fee")
 		}
 	})
