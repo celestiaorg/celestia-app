@@ -68,6 +68,8 @@ const (
 //	CORTO_WORKERS          – parallel worker accounts (default: 1 = sequential)
 func (s *CelestiaTestSuite) TestCortoLoad() {
 	t := s.T()
+	// TODO(PROTOCO-3612): remove this skip once the CORTO_PRIV_KEY account is funded.
+	t.Skip("skipping Corto load test until its account is funded: https://linear.app/celestia/issue/PROTOCO-3612")
 	if testing.Short() {
 		t.Skip("skipping Corto load test in short mode")
 	}
