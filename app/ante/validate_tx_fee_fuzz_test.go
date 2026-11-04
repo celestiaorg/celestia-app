@@ -70,7 +70,8 @@ func FuzzValidateTxFee(f *testing.F) {
 		minimum := new(big.Int).SetUint64(gas)
 		minimum.Add(minimum, big.NewInt(999_999))
 		minimum.Quo(minimum, big.NewInt(1_000_000))
-		require.Equal(t, !foreign && feeBig.Cmp(minimum) >= 0, err == nil, "fee %s gas %d denom %q: %v", feeBig, gas, otherDenom, err)
+		// Fees that do not fit in an int64 are rejected.
+		require.Equal(t, !foreign && feeBig.IsInt64() && feeBig.Cmp(minimum) >= 0, err == nil, "fee %s gas %d denom %q: %v", feeBig, gas, otherDenom, err)
 		require.GreaterOrEqual(t, priority, int64(0))
 	})
 }

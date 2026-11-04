@@ -68,6 +68,14 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
+			name:        "good tx; fee of MaxInt64",
+			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(math.MaxInt64))),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      false,
+			minGasPrice: validatorMinGasPriceCoin,
+		},
+		{
 			name:        "good tx; fee equal to required minimum",
 			fee:         sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
@@ -186,19 +194,19 @@ func TestValidateTxFee(t *testing.T) {
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:        "good tx; fee above MaxInt64 in DeliverTx",
+			name:        "bad tx; fee above MaxInt64",
 			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(math.MaxInt64+1))),
 			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			isCheckTx:   false,
-			expErr:      false,
+			expErr:      true,
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{
-			name:        "good tx; largest representable fee",
+			name:        "bad tx; largest representable fee",
 			fee:         sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, maxFee)),
 			gasLimit:    1,
 			isCheckTx:   false,
-			expErr:      false,
+			expErr:      true,
 			minGasPrice: validatorMinGasPriceCoin,
 		},
 		{

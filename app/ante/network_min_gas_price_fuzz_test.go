@@ -83,7 +83,8 @@ func FuzzNetworkMinGasPrice(f *testing.F) {
 		if rem.Sign() > 0 {
 			required.Add(required, big.NewInt(1))
 		}
-		wantAccept := new(big.Int).SetUint64(fee).Cmp(required) >= 0
+		// Fees that do not fit in an int64 are rejected.
+		wantAccept := fee <= 1<<63-1 && new(big.Int).SetUint64(fee).Cmp(required) >= 0
 		require.Equal(t, wantAccept, err == nil, "price %s, gas %d, fee %d: %v", stored, gas, fee, err)
 		require.GreaterOrEqual(t, priority, int64(0))
 		if negative || mag.Sign() == 0 {
