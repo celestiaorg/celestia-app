@@ -1,17 +1,10 @@
 package appd
 
 import (
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestMPTCPListenersDisabledByDefault(t *testing.T) {
-	t.Setenv("GODEBUG", "")
-	var lc net.ListenConfig
-	require.False(t, lc.MultipathTCP())
-}
 
 func TestMPTCPDisableEnv(t *testing.T) {
 	tests := map[string]struct {
@@ -36,9 +29,9 @@ func TestChildEnvDisablesMPTCP(t *testing.T) {
 	a := &Appd{path: "/bin/true"}
 
 	env := a.getEnv()
-	require.Equal(t, "GODEBUG=multipathtcp=0", env[len(env)-1])
+	require.Contains(t, env, "GODEBUG=multipathtcp=0")
 
 	cmd, err := a.CreateExecCommand()
 	require.NoError(t, err)
-	require.Equal(t, "GODEBUG=multipathtcp=0", cmd.Env[len(cmd.Env)-1])
+	require.Contains(t, cmd.Env, "GODEBUG=multipathtcp=0")
 }

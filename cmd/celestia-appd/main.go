@@ -1,3 +1,5 @@
+// Overrides go.work too, which ignores go.mod godebug lines.
+//go:debug multipathtcp=0
 package main
 
 import (

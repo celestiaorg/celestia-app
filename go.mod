@@ -2,6 +2,7 @@ module github.com/celestiaorg/celestia-app/v11
 
 go 1.26.10
 
+// Plain TCP listeners: MPTCP is unused and adds kernel attack surface.
 godebug multipathtcp=0
 
 require (
