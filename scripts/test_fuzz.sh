@@ -17,6 +17,9 @@
 #                            of stdout, and list failing targets in
 #                            FUZZ_LOG_DIR/failed.txt. CI uses this to keep
 #                            crash inputs out of public logs.
+#   FUZZ_DROP_FAILED_CORPUS  if 1, delete a failing target's generated corpus
+#                            under $(go env GOCACHE)/fuzz, so CI never caches
+#                            inputs near a crash where other jobs can read them.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -103,6 +106,15 @@ while read -r priority pkg target fuzztime minimizetime; do
 	fi
 	if [ -z "${FUZZ_LOG_DIR:-}" ]; then
 		cat "$log"
+	fi
+	if [ "$ok" = 0 ] && [ "${FUZZ_DROP_FAILED_CORPUS:-}" = 1 ]; then
+		if import_path=$(go list "$pkg") && [ -n "$import_path" ]; then
+			rm -rf "$(go env GOCACHE)/fuzz/$import_path/$target"
+		else
+			# Without the import path the corpus cannot be located, so drop
+			# every generated corpus rather than risk caching a near-crash.
+			rm -rf "$(go env GOCACHE)/fuzz"
+		fi
 	fi
 	if [ "$ok" = 1 ]; then
 		echo "PASS $target"

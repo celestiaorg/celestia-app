@@ -26,6 +26,11 @@ ante bypasses, and fee/priority arithmetic, where attacker-selected gas and fees
 cross rounding and integer-width boundaries. Structured nested messages pass
 through the real transaction encoder/decoder before reaching the decorator.
 
+The nightly job caches each shard's generated corpus (`$(go env GOCACHE)/fuzz`)
+and restores the newest copy on the next run, so targets resume from inputs
+found on earlier nights instead of only the checked-in seeds. A failing target's
+generated corpus is deleted before the cache is saved.
+
 ## Covered surfaces
 
 Each row records a fuzzed surface, its untrusted input, and its target. A target

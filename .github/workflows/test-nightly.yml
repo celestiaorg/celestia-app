@@ -268,6 +268,20 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: ./.github/actions/setup-go
+        id: go
+
+      # Generated corpora live under $GOCACHE/fuzz. Restoring the newest one
+      # for this shard and saving a new entry each run lets the corpus grow
+      # across nights instead of restarting from the seeds. The cache never
+      # holds the crashing input itself (go test writes that to testdata/), and
+      # test_fuzz.sh drops a failing target's corpus before it is saved, since
+      # caches on main are readable by other workflows in this repository.
+      - name: Restore fuzz corpus
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gocache }}/fuzz
+          key: fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}-
 
       - name: Check fuzz target registry
         if: ${{ matrix.shard == 0 }}
@@ -278,7 +292,16 @@ jobs:
           FUZZ_SHARD: ${{ matrix.shard }}
           FUZZ_SHARDS: 6
           FUZZ_LOG_DIR: ${{ runner.temp }}/fuzz
+          FUZZ_DROP_FAILED_CORPUS: "1"
         run: make test-fuzz
+
+      # Save even when a target failed so the other targets' progress is kept.
+      - name: Save fuzz corpus
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: ${{ steps.go.outputs.gocache }}/fuzz
+          key: fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}-${{ github.run_id }}
 
       - name: File Linear issues for failing targets
         if: ${{ failure() && github.ref == 'refs/heads/main' }}

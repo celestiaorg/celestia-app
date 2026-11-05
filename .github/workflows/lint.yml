@@ -26,6 +26,38 @@ jobs:
       - run: go tool golangci-lint run --timeout 10m
         if: steps.changes.outputs.go == 'true'
 
+  # Cognitive complexity on new code only. Runs separately from the main
+  # golangci-lint job so .golangci.yml and its whole-repo checks are unchanged;
+  # issues are reported only on lines changed relative to the base, so existing
+  # complex functions are grandfathered. Config: .golangci-gocognit.yml.
+  gocognit:
+    name: gocognit (new code)
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+        with:
+          # The base commit must be present to diff against it.
+          fetch-depth: 0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
+        id: changes
+        with:
+          token: ''
+          filters: |
+            go:
+              - '**/*.go'
+              - '.golangci-gocognit.yml'
+      - uses: ./.github/actions/setup-go
+        if: steps.changes.outputs.go == 'true'
+        with:
+          golangci-lint-cache: true
+      - name: Run gocognit on changed code
+        if: steps.changes.outputs.go == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: make lint-complexity LINT_BASE="$BASE_SHA"
+
   govulncheck:
     runs-on: ubuntu-latest
     timeout-minutes: 25
