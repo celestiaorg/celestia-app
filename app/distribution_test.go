@@ -32,7 +32,6 @@ func TestFibreRewardDistribution(t *testing.T) {
 		unbonding  bool
 		emptyVotes bool
 	}{
-		{name: "v10 unchanged", version: 10},
 		{name: "v11 no registrations", version: 11},
 		{name: "v11 mixed registrations", version: 11, registered: 1},
 		{name: "v11 all registered", version: 11, registered: 2},

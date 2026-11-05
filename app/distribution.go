@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	valaddrkeeper "github.com/celestiaorg/celestia-app/v11/x/valaddr/keeper"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,8 +23,9 @@ type distributionModule struct {
 
 func (am distributionModule) BeginBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	version := sdkCtx.ConsensusParams().Version
-	if version == nil || version.App < appconsts.FibreRewardsActivationVersion || sdkCtx.BlockHeight() <= 1 {
+	// No app-version gate is needed: the multiplexer runs this binary only at
+	// app version 11 and above.
+	if sdkCtx.BlockHeight() <= 1 {
 		return am.AppModule.BeginBlock(ctx)
 	}
 
