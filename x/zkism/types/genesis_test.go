@@ -142,6 +142,15 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrIsmNotFound,
 		},
 		{
+			name: "merkle tree state for an id that only shares the ism's internal id",
+			malleate: func(gs *types.GenesisState) {
+				alias := gs.Isms[0].Id
+				alias[0] ^= 0xff
+				gs.TreeStates[0].Id = alias
+			},
+			expErr: types.ErrIsmNotFound,
+		},
+		{
 			name: "duplicate merkle tree state entry",
 			malleate: func(gs *types.GenesisState) {
 				gs.TreeStates = append(gs.TreeStates, gs.TreeStates[0])
@@ -173,6 +182,15 @@ func TestGenesisStateValidate(t *testing.T) {
 			name: "state root history for unknown ism",
 			malleate: func(gs *types.GenesisState) {
 				gs.StateRootHistory[0].Id = util.CreateMockHexAddress("module", 2)
+			},
+			expErr: types.ErrIsmNotFound,
+		},
+		{
+			name: "state root history for an id that only shares the ism's internal id",
+			malleate: func(gs *types.GenesisState) {
+				alias := gs.Isms[0].Id
+				alias[0] ^= 0xff
+				gs.StateRootHistory[0].Id = alias
 			},
 			expErr: types.ErrIsmNotFound,
 		},

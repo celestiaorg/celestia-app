@@ -4,6 +4,7 @@ import (
 	"math"
 
 	errorsmod "cosmossdk.io/errors"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/internal/groth16"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -15,8 +16,11 @@ func DefaultGenesis() *GenesisState {
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
-	// historySizes maps each ism to its effective root history size.
-	historySizes := make(map[uint64]uint32, len(gs.Isms))
+	// historySizes maps each ism id to its effective root history size. Other
+	// entries must name an ism by its full id, as InitGenesis requires.
+	historySizes := make(map[util.HexAddress]uint32, len(gs.Isms))
+	// internalIDs holds the internal ids in use; the store is keyed by them.
+	internalIDs := make(map[uint64]struct{}, len(gs.Isms))
 	for i := range gs.Isms {
 		ism := gs.Isms[i]
 		if ism.Id.IsZeroAddress() {
@@ -24,14 +28,15 @@ func (gs GenesisState) Validate() error {
 		}
 
 		internalID := ism.Id.GetInternalId()
-		if _, exists := historySizes[internalID]; exists {
+		if _, exists := internalIDs[internalID]; exists {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate ism id %s", ism.Id.String())
 		}
+		internalIDs[internalID] = struct{}{}
 
 		if err := ValidateRootHistorySize(ism.RootHistorySize); err != nil {
 			return errorsmod.Wrapf(ErrInvalidRootHistorySize, "ism %s: %v", ism.Id.String(), err)
 		}
-		historySizes[internalID] = EffectiveRootHistorySize(ism.RootHistorySize)
+		historySizes[ism.Id] = EffectiveRootHistorySize(ism.RootHistorySize)
 
 		if ism.StateHeight < 0 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "negative state height for ism %s", ism.Id.String())
@@ -73,10 +78,11 @@ func (gs GenesisState) Validate() error {
 			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 		}
 
-		internalID := entry.Id.GetInternalId()
-		if _, exists := historySizes[internalID]; !exists {
+		if _, exists := historySizes[entry.Id]; !exists {
 			return errorsmod.Wrapf(ErrIsmNotFound, "merkle tree state defined for unknown ism %s", entry.Id.String())
 		}
+
+		internalID := entry.Id.GetInternalId()
 
 		if _, exists := treeStates[internalID]; exists {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate merkle tree state entry for ism %s", entry.Id.String())
@@ -100,7 +106,7 @@ func (gs GenesisState) Validate() error {
 
 // validateRootHistory checks that each entry belongs to a known ism, has a unique sequence below MaxInt64 and a
 // 32 byte root, and that no ism has more entries than its root history size.
-func validateRootHistory(kind string, entries []GenesisRootHistoryEntry, historySizes map[uint64]uint32) error {
+func validateRootHistory(kind string, entries []GenesisRootHistoryEntry, historySizes map[util.HexAddress]uint32) error {
 	type entryKey struct {
 		ism      uint64
 		sequence uint64
@@ -115,7 +121,7 @@ func validateRootHistory(kind string, entries []GenesisRootHistoryEntry, history
 		}
 
 		internalID := entry.Id.GetInternalId()
-		size, exists := historySizes[internalID]
+		size, exists := historySizes[entry.Id]
 		if !exists {
 			return errorsmod.Wrapf(ErrIsmNotFound, "%s history defined for unknown ism %s", kind, entry.Id.String())
 		}
