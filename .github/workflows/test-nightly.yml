@@ -249,34 +249,60 @@ jobs:
             make test-race PACKAGES="$RACE_PACKAGE"
           fi
 
+  # Checks the fuzz target registry and turns it into the test-fuzz matrix, so
+  # adding a target to scripts/fuzz_targets.txt needs no workflow edit. A
+  # matrix is capped at 256 jobs; the registry is well below that.
+  fuzz-targets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - name: Check fuzz target registry
+        run: scripts/test_fuzz.sh --check
+
+      - name: List fuzz targets
+        id: list
+        run: |
+          matrix=$(scripts/test_fuzz.sh --list-json)
+          count=$(echo "$matrix" | jq length)
+          echo "$count fuzz targets"
+          if [ "$count" -eq 0 ] || [ "$count" -gt 256 ]; then
+            echo "::error::Fuzz matrix has $count targets; it must have 1 to 256"
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   # WARNING: Required job — a defense line against codec / wire-format bugs,
   # including the fibre scatter codec. The fuzz targets live in
   # scripts/fuzz_targets.txt. Do NOT remove or disable this job; doing so
   # re-opens https://github.com/celestiaorg/celestia-app/issues/7392.
   #
-  # Targets are split round-robin across shards. Fuzz output can contain a
+  # Each registered target runs on its own runner. Fuzz output can contain a
   # crashing input for an exploitable bug, so it stays out of the public log
   # and is sent to a Linear issue instead.
   test-fuzz:
+    name: fuzz ${{ matrix.target }}
+    needs: fuzz-targets
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    # The longest registry fuzztime is 5m; the rest covers checkout, module
+    # download, the instrumented build and minimizing a crashing input.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5]
+        include: ${{ fromJSON(needs.fuzz-targets.outputs.matrix) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: ./.github/actions/setup-go
 
-      - name: Check fuzz target registry
-        if: ${{ matrix.shard == 0 }}
-        run: scripts/test_fuzz.sh --check
-
-      - name: Run fuzz tests
+      - name: Run ${{ matrix.target }}
         env:
-          FUZZ_SHARD: ${{ matrix.shard }}
-          FUZZ_SHARDS: 6
+          FUZZ_TARGET: ${{ matrix.target }}
+          FUZZ_PKG: ${{ matrix.pkg }}
           FUZZ_LOG_DIR: ${{ runner.temp }}/fuzz
         run: make test-fuzz
 
@@ -294,7 +320,7 @@ jobs:
   notify-slack-on-failure:
     name: Notify Slack on failure
     runs-on: ubuntu-latest
-    needs: [build-e2e-image, build-latency-monitor-image, test-nightly, test-race, test-fuzz]
+    needs: [build-e2e-image, build-latency-monitor-image, test-nightly, test-race, fuzz-targets, test-fuzz]
     if: ${{ always() && contains(needs.*.result, 'failure') }}
     steps:
       - name: Slack Notification
