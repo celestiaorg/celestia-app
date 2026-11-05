@@ -24,11 +24,21 @@ var (
 	defaultSignalThreshold = math.LegacyNewDec(5).Quo(math.LegacyNewDec(6))
 )
 
+const (
+	// thresholdNumerator and thresholdDenominator give the exact 5/6
+	// threshold that GetVotingPowerThreshold applies.
+	thresholdNumerator   = 5
+	thresholdDenominator = 6
+)
+
 // Threshold is the fraction of voting power that is required
 // to signal for a version change. It is set to 5/6 as the middle point
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
-// hard fork change that modified the app version
+// hard fork change that modified the app version.
+//
+// The returned decimal has 18 digits, so it is slightly below 5/6.
+// GetVotingPowerThreshold uses the exact fraction instead.
 func Threshold(_ uint64) math.LegacyDec {
 	return defaultSignalThreshold
 }
@@ -292,8 +302,11 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) (math.Int, error) {
 		return math.ZeroInt(), err
 	}
 
-	thresholdFraction := Threshold(ctx.BlockHeader().Version.App)
-	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt(), nil
+	// ceil(total * 5 / 6), computed with integers. Multiplying by the 18-digit
+	// decimal 5/6 can round one below the exact ceiling once the total power
+	// reaches 5e17.
+	numerator := totalVotingPower.MulRaw(thresholdNumerator).AddRaw(thresholdDenominator - 1)
+	return numerator.QuoRaw(thresholdDenominator), nil
 }
 
 // ShouldUpgrade returns whether the signalling mechanism has concluded that the
