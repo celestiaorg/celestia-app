@@ -124,12 +124,22 @@ test with the fix; do not add a broad panic recovery to a harness.
 ## Running and maintaining coverage
 
 `make test-fuzz` runs the targets registered in
-[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). The nightly
-[test-nightly.yml](../.github/workflows/test-nightly.yml) job splits them
-round-robin across parallel shards, so adding a target only needs a registry
-line. `scripts/test_fuzz.sh --check` fails when a `Fuzz*` function is missing
-from the registry or a registered target no longer exists; the nightly job runs
-it first. To smoke-test one target:
+[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). In the nightly
+[test-nightly.yml](../.github/workflows/test-nightly.yml), the `fuzz-targets`
+job runs `scripts/test_fuzz.sh --check` and builds the `test-fuzz` matrix from
+`scripts/test_fuzz.sh --list-json`. Each target then runs on its own runner,
+named after the target, so adding a target only needs a registry line and does
+not lengthen the other jobs. `--check` fails when a `Fuzz*` function is missing
+from the registry or a registered target no longer exists.
+
+To run one registered target the way the nightly does, set `FUZZ_TARGET` (and
+optionally `FUZZ_PKG`); `FUZZ_TIME` overrides its registry fuzztime:
+
+```sh
+FUZZ_TARGET=FuzzNestedMsgDecorator FUZZ_TIME=60s make test-fuzz
+```
+
+Or call `go test` directly:
 
 ```sh
 go test ./app/ante -run='^$' -fuzz='^FuzzNestedMsgDecorator$' -fuzztime=60s -parallel=2 -fuzzminimizetime=100x
