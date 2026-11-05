@@ -106,14 +106,26 @@ const (
 	maxRowProofSegments = 64      // covers 2^64-leaf trees
 )
 
-func readUint32(r io.Reader, scratch []byte) (uint32, error) {
-	if _, err := io.ReadFull(r, scratch[:4]); err != nil {
-		return 0, err
-	}
-	return binary.BigEndian.Uint32(scratch[:4]), nil
+// shardSource yields the length prefixes and byte fields of a shard file.
+type shardSource interface {
+	uint32() (uint32, error)
+	bytes(n uint32) ([]byte, error)
 }
 
-func readBytes(r io.Reader, n uint32) ([]byte, error) {
+// readerSource copies fields out of a stream.
+type readerSource struct {
+	r       io.Reader
+	scratch [4]byte
+}
+
+func (s *readerSource) uint32() (uint32, error) {
+	if _, err := io.ReadFull(s.r, s.scratch[:]); err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(s.scratch[:]), nil
+}
+
+func (s *readerSource) bytes(n uint32) ([]byte, error) {
 	if n > shardLengthLimit {
 		return nil, fmt.Errorf("length %d exceeds shard limit %d", n, shardLengthLimit)
 	}
@@ -121,15 +133,65 @@ func readBytes(r io.Reader, n uint32) ([]byte, error) {
 		return nil, nil
 	}
 	out := make([]byte, n)
-	if _, err := io.ReadFull(r, out); err != nil {
+	if _, err := io.ReadFull(s.r, out); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
+// sliceSource returns fields as views of one buffer, which must outlive the
+// decoded shard.
+type sliceSource struct {
+	data []byte
+}
+
+func (s *sliceSource) uint32() (uint32, error) {
+	if len(s.data) < 4 {
+		return 0, io.ErrUnexpectedEOF
+	}
+	v := binary.BigEndian.Uint32(s.data)
+	s.data = s.data[4:]
+	return v, nil
+}
+
+func (s *sliceSource) bytes(n uint32) ([]byte, error) {
+	if n > shardLengthLimit {
+		return nil, fmt.Errorf("length %d exceeds shard limit %d", n, shardLengthLimit)
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	if uint64(len(s.data)) < uint64(n) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	// Appending to one field must not overwrite the next one.
+	out := s.data[:n:n]
+	s.data = s.data[n:]
+	return out, nil
+}
+
+// readShardBinary decodes a shard from r, copying every field.
 func readShardBinary(r io.Reader) (*types.BlobShard, error) {
-	var scratch [4]byte
-	version, err := readUint32(r, scratch[:])
+	return decodeShard(&readerSource{r: r})
+}
+
+// decodeShardBinary decodes a whole shard file. Rows, proofs and RLCs alias
+// data, so it must not be modified while the shard is in use. Trailing bytes
+// are rejected.
+func decodeShardBinary(data []byte) (*types.BlobShard, error) {
+	src := &sliceSource{data: data}
+	shard, err := decodeShard(src)
+	if err != nil {
+		return nil, err
+	}
+	if len(src.data) != 0 {
+		return nil, fmt.Errorf("%d trailing bytes after shard", len(src.data))
+	}
+	return shard, nil
+}
+
+func decodeShard(src shardSource) (*types.BlobShard, error) {
+	version, err := src.uint32()
 	if err != nil {
 		return nil, fmt.Errorf("reading version: %w", err)
 	}
@@ -137,16 +199,16 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 		return nil, fmt.Errorf("unsupported shard codec version %d (want %d)", version, shardCodecVersion)
 	}
 
-	rlcsLen, err := readUint32(r, scratch[:])
+	rlcsLen, err := src.uint32()
 	if err != nil {
 		return nil, fmt.Errorf("reading rlcs len: %w", err)
 	}
-	rlcs, err := readBytes(r, rlcsLen)
+	rlcs, err := src.bytes(rlcsLen)
 	if err != nil {
 		return nil, fmt.Errorf("reading rlcs: %w", err)
 	}
 
-	numRows, err := readUint32(r, scratch[:])
+	numRows, err := src.uint32()
 	if err != nil {
 		return nil, fmt.Errorf("reading num rows: %w", err)
 	}
@@ -159,19 +221,19 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 		Rlcs: rlcs,
 	}
 	for i := range numRows {
-		index, err := readUint32(r, scratch[:])
+		index, err := src.uint32()
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d index: %w", i, err)
 		}
-		dataLen, err := readUint32(r, scratch[:])
+		dataLen, err := src.uint32()
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d data len: %w", i, err)
 		}
-		data, err := readBytes(r, dataLen)
+		data, err := src.bytes(dataLen)
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d data: %w", i, err)
 		}
-		numProof, err := readUint32(r, scratch[:])
+		numProof, err := src.uint32()
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d num proof: %w", i, err)
 		}
@@ -182,11 +244,11 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 			}
 			proof = make([][]byte, numProof)
 			for j := range numProof {
-				segLen, err := readUint32(r, scratch[:])
+				segLen, err := src.uint32()
 				if err != nil {
 					return nil, fmt.Errorf("reading row %d proof %d len: %w", i, j, err)
 				}
-				seg, err := readBytes(r, segLen)
+				seg, err := src.bytes(segLen)
 				if err != nil {
 					return nil, fmt.Errorf("reading row %d proof %d: %w", i, j, err)
 				}
