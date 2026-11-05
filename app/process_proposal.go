@@ -158,7 +158,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Mirrors the taint PrepareProposal keeps: a pay-for-fibre may only settle
 	// when no earlier tx acts for one of its accounts in a way this branch does
 	// not execute. See proposalTaint.
-	taint := newProposalTaint(app.msgSignersFn(), app.isInterchainAccountFn())
+	taint := newProposalTaint(app.proposalTaintEnv(app.MsgServiceRouter()))
 
 	// The data root depends only on the tx bytes and the decodes above, so build it
 	// during the walk; a cache hit already has it.
@@ -213,6 +213,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
+			return reject(), nil
+		}
+		// FinalizeBlock fails a tx with invalid messages before its ante
+		// handler, so the ante handler run below would not match it.
+		if err := validateTxMsgsForBlock(sdkTx, app.MsgServiceRouter()); err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("tx %d fails message validation", idx), err)
 			return reject(), nil
 		}
 

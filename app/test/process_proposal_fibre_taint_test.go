@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	circuittypes "cosmossdk.io/x/circuit/types"
 	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
@@ -18,6 +20,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -275,4 +278,142 @@ func TestPayForFibreAfterBlobTxWithTouchedGranter(t *testing.T) {
 	require.Contains(t, kept, blobTx)
 	require.NotContains(t, kept, pff)
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{revoke, blobTx, pff}))
+}
+
+// timeoutMsg builds a MsgPaymentPromiseTimeout submitted by submitter for a
+// promise signed by account owner.
+func (f *fibreTaintFixture) timeoutMsg(t *testing.T, owner int, submitter sdk.AccAddress, creation time.Time) *fibretypes.MsgPaymentPromiseTimeout {
+	t.Helper()
+	ownerPub := f.signers[owner].Account(f.accounts[owner]).PubKey().(*secp256k1.PubKey)
+	promise := fibretypes.PaymentPromise{
+		ChainId:           testutil.ChainID,
+		Height:            1,
+		Namespace:         share.MustNewV0Namespace(bytes.Repeat([]byte{0x2}, share.NamespaceVersionZeroIDSize)).Bytes(),
+		BlobSize:          100,
+		Commitment:        make([]byte, 32),
+		CreationTimestamp: creation.Truncate(time.Second),
+		SignerPublicKey:   *ownerPub,
+	}
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&promise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	promise.Signature, _, err = f.signers[owner].Keyring().Sign(f.accounts[owner], signBytes, signing.SignMode_SIGN_MODE_DIRECT)
+	require.NoError(t, err)
+	return &fibretypes.MsgPaymentPromiseTimeout{Signer: submitter.String(), PaymentPromise: promise}
+}
+
+// requireVictimPayForFibreKept checks that the victim's pay-for-fibre survives
+// the attacker's tx in PrepareProposal and ProcessProposal and settles.
+func (f *fibreTaintFixture) requireVictimPayForFibreKept(t *testing.T, attackTx, victimPFF []byte) {
+	t.Helper()
+	kept := f.prepare(t, [][]byte{attackTx, victimPFF})
+	require.Contains(t, kept, attackTx)
+	require.Contains(t, kept, victimPFF, "the victim's pay-for-fibre must not be censored")
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// The tests below check that a tx cannot drop an unrelated account's
+// pay-for-fibre by naming it in messages that cannot act for it.
+
+func TestPayForFibreNotCensoredByUnprivilegedCircuitBreakerTrip(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	attacker, victim := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	trip := f.tx(t, attacker, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
+		Authority:   f.addrs[attacker].String(),
+		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+	}})
+	f.requireVictimPayForFibreKept(t, trip, f.pff(t, victim))
+}
+
+func TestPayForFibreDroppedAfterCircuitBreakerAdminTrip(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	admin, other := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
+	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
+		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
+
+	trip := f.tx(t, admin, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
+		Authority:   f.addrs[admin].String(),
+		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+	}})
+	pff := f.pff(t, other)
+	kept := f.prepare(t, [][]byte{trip, pff})
+	require.Contains(t, kept, trip)
+	require.NotContains(t, kept, pff)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{trip, pff}))
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+func TestPayForFibreNotCensoredByUnresolvableAuthzExec(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	attacker, victim := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	bogus := &banktypes.MsgSend{FromAddress: "not-bech32", ToAddress: f.addrs[attacker].String(), Amount: sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1))}
+	exec := authz.NewMsgExec(f.addrs[attacker], []sdk.Msg{bogus})
+	f.requireVictimPayForFibreKept(t, f.tx(t, attacker, []sdk.Msg{&exec}), f.pff(t, victim))
+}
+
+func TestPayForFibreNotCensoredByAuthzExecWithoutGrant(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	attacker, victim := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	exec := authz.NewMsgExec(f.addrs[attacker], []sdk.Msg{f.drainTo(t, victim, attacker, 0)})
+	f.requireVictimPayForFibreKept(t, f.tx(t, attacker, []sdk.Msg{&exec}), f.pff(t, victim))
+}
+
+func TestPayForFibreNotCensoredByCopiedInvalidTimeout(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	attacker, victim := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	// The victim's promise has not timed out, so the copied timeout cannot
+	// settle. The send keeps the tx from being executed on the branch.
+	send := banktypes.NewMsgSend(f.addrs[attacker], f.addrs[attacker], sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	timeout := f.timeoutMsg(t, victim, f.addrs[attacker], f.blockTime)
+	f.requireVictimPayForFibreKept(t, f.tx(t, attacker, []sdk.Msg{send, timeout}), f.pff(t, victim))
+}
+
+func TestPayForFibreDroppedAfterValidTimeoutInMixedTx(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	submitter, owner := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[owner], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	// An expired promise: the timeout debits the owner's whole escrow in
+	// FinalizeBlock, which the branch does not execute for a mixed tx.
+	send := banktypes.NewMsgSend(f.addrs[submitter], f.addrs[submitter], sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	timeout := f.timeoutMsg(t, owner, f.addrs[submitter], f.blockTime.Add(-2*time.Hour))
+	mixed := f.tx(t, submitter, []sdk.Msg{send, timeout})
+	pff := f.pff(t, owner)
+
+	kept := f.prepare(t, [][]byte{mixed, pff})
+	require.Contains(t, kept, mixed)
+	require.NotContains(t, kept, pff)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{mixed, pff}))
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// TestTxFailingMessageValidationBeforePayForFibre covers a tx that passes the
+// ante handler but fails message ValidateBasic, which FinalizeBlock checks
+// before the ante handler: its signer's sequence advances on the proposal
+// branch but not in FinalizeBlock, so the signer's next pay-for-fibre would
+// fail there.
+func TestTxFailingMessageValidationBeforePayForFibre(t *testing.T) {
+	f := newFibreTaintFixture(t, 1)
+	seedFibreEscrow(t, f.app, f.addrs[0], 2*fibretypes.PaymentAmount(100).Amount.Int64())
+
+	timeout := f.timeoutMsg(t, 0, f.addrs[0], f.blockTime.Add(-2*time.Hour))
+	timeout.PaymentPromise.ChainId = "" // fails PaymentPromise.ValidateBasic
+	require.Error(t, timeout.ValidateBasic())
+	invalid := f.tx(t, 0, []sdk.Msg{timeout})
+	pff := f.pff(t, 0)
+
+	kept := f.prepare(t, [][]byte{invalid, pff})
+	require.NotContains(t, kept, invalid)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{invalid, pff}))
+	f.requireNoUnpaidPayForFibre(t, kept)
 }

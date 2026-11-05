@@ -341,6 +341,8 @@ func NewMsgPayForFibre(t *testing.T, pubKey *secp256k1.PubKey, chainID string) *
 			SignerPublicKey:   *pubKey,
 			Signature:         make([]byte, 64),
 		},
+		// A placeholder of the right size, so the message passes ValidateBasic.
+		ValidatorSignatures: [][]byte{make([]byte, 64)},
 	}
 }
 

@@ -1,12 +1,16 @@
 package app
 
 import (
+	"bytes"
+	"errors"
 	"slices"
 
+	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -26,34 +30,48 @@ import (
 // account could settle on the branch, put its system blob in the square, and
 // then fail in FinalizeBlock, leaving the blob unpaid.
 //
-// Funds and allowances only move with the authorization of the account they
-// belong to: as a tx signer, as the signer of a message wrapped in authz
-// MsgExec, or, for a keyless interchain account, through an IBC packet. So
-// every account that signs a message the branch does not execute is marked
-// touched, interchain accounts are always treated as touched, and a
-// pay-for-fibre is only settled on the branch when its signers, fee payer, fee
-// granter and escrow owner are all untouched. Credits the branch misses only
-// leave FinalizeBlock with more funds than the branch saw, which is safe.
+// Funds, allowances and escrow only shrink with the authorization of the
+// account they belong to: as a tx signer, as the signer of a message wrapped in
+// authz MsgExec under an existing grant, or, for a keyless interchain account,
+// through an IBC packet. An escrow also shrinks through a valid payment promise
+// timeout, and a circuit breaker admin can disable MsgPayForFibre altogether.
+// So the accounts an unexecuted tx can act for are marked touched (only those
+// it can really act for, so a tx cannot taint an unrelated account), interchain
+// accounts are always treated as touched, and a pay-for-fibre is only settled
+// on the branch when its signers, fee payer, fee granter and escrow owner are
+// all untouched. Credits the branch misses only leave FinalizeBlock with more
+// funds than the branch saw, which is safe.
 type proposalTaint struct {
-	// msgSigners returns the signers of a message wrapped in authz MsgExec. When
-	// nil, any MsgExec taints every account.
-	msgSigners func(sdk.Msg) ([][]byte, error)
-	// isInterchainAccount reports whether addr is an interchain account. When
-	// nil, no account is treated as one.
-	isInterchainAccount func(sdk.Context, sdk.AccAddress) bool
+	env proposalTaintEnv
 
 	touched map[string]struct{}
 	// all is set when the branch can no longer vouch for any account, e.g. a
-	// circuit breaker message that can disable MsgPayForFibre in FinalizeBlock.
+	// circuit breaker admin's message that can disable MsgPayForFibre in
+	// FinalizeBlock.
 	all bool
 }
 
-func newProposalTaint(msgSigners func(sdk.Msg) ([][]byte, error), isInterchainAccount func(sdk.Context, sdk.AccAddress) bool) *proposalTaint {
-	return &proposalTaint{
-		msgSigners:          msgSigners,
-		isInterchainAccount: isInterchainAccount,
-		touched:             make(map[string]struct{}),
-	}
+// proposalTaintEnv holds the state lookups proposalTaint needs. Each lookup
+// reads the proposal branch it is given. A nil lookup makes proposalTaint
+// assume the worst for it.
+type proposalTaintEnv struct {
+	// msgSigners returns the v1 signers of a message.
+	msgSigners func(sdk.Msg) ([][]byte, error)
+	// isInterchainAccount reports whether addr is an interchain account.
+	isInterchainAccount func(sdk.Context, sdk.AccAddress) bool
+	// hasGrant reports whether granter has an unexpired authz grant to grantee
+	// for msgTypeURL.
+	hasGrant func(ctx sdk.Context, grantee, granter sdk.AccAddress, msgTypeURL string) bool
+	// isCircuitAdmin reports whether addr may trip circuit breakers or grant
+	// that permission.
+	isCircuitAdmin func(sdk.Context, sdk.AccAddress) bool
+	// timeoutSettles reports whether msg would settle on ctx, without keeping
+	// any of its writes.
+	timeoutSettles func(sdk.Context, *fibretypes.MsgPaymentPromiseTimeout) bool
+}
+
+func newProposalTaint(env proposalTaintEnv) *proposalTaint {
+	return &proposalTaint{env: env, touched: make(map[string]struct{})}
 }
 
 // observeNormalTx updates the taint for a kept non-blob tx that is not a
@@ -67,14 +85,14 @@ func (t *proposalTaint) observeNormalTx(ctx sdk.Context, sdkTx sdk.Tx, execute f
 		_ = execute(ctx, sdkTx)
 		return
 	}
-	t.touch(sdkTx)
+	t.touch(ctx, sdkTx)
 }
 
 // observeBlobTx updates the taint for a kept blob tx. Its MsgPayForBlobs only
 // consumes gas, so only a divergent ante handler can make it inexact.
 func (t *proposalTaint) observeBlobTx(ctx sdk.Context, sdkTx sdk.Tx) {
 	if t.inputsTouched(ctx, sdkTx) {
-		t.touch(sdkTx)
+		t.touch(ctx, sdkTx)
 	}
 }
 
@@ -106,7 +124,7 @@ func (t *proposalTaint) inputsTouched(ctx sdk.Context, sdkTx sdk.Tx) bool {
 			}
 			// An interchain account can revoke its allowance or spend its
 			// balance through an IBC packet the branch does not execute.
-			if t.isInterchainAccount != nil && t.isInterchainAccount(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), granter) {
+			if t.env.isInterchainAccount == nil || t.env.isInterchainAccount(readCtx(ctx), granter) {
 				return true
 			}
 		}
@@ -123,77 +141,138 @@ func (t *proposalTaint) inputsTouched(ctx sdk.Context, sdkTx sdk.Tx) bool {
 	return false
 }
 
-// touch marks every account sdkTx acts for as touched.
-func (t *proposalTaint) touch(sdkTx sdk.Tx) {
+// touch marks every account the unexecuted messages of sdkTx can act for.
+func (t *proposalTaint) touch(ctx sdk.Context, sdkTx sdk.Tx) {
 	if t.all {
 		return
 	}
 	sigTx, ok := sdkTx.(authsigning.SigVerifiableTx)
 	if !ok {
+		// Unreachable for a tx that passed the ante handler, which needs its
+		// signers.
 		t.all = true
 		return
 	}
 	signers, err := sigTx.GetSigners()
 	if err != nil {
+		// Unreachable for the same reason.
 		t.all = true
 		return
 	}
 	for _, s := range signers {
-		t.touched[string(s)] = struct{}{}
+		t.mark(s)
 	}
 	if feeTx, ok := sdkTx.(sdk.FeeTx); ok {
-		t.touched[string(feeTx.FeePayer())] = struct{}{}
+		t.mark(feeTx.FeePayer())
 	}
 	for _, msg := range sdkTx.GetMsgs() {
 		switch m := msg.(type) {
 		case *authz.MsgExec:
-			if !t.touchExec(m) {
-				t.all = true
-				return
-			}
-		case *circuittypes.MsgAuthorizeCircuitBreaker,
-			*circuittypes.MsgTripCircuitBreaker,
-			*circuittypes.MsgResetCircuitBreaker:
-			t.all = true
+			t.touchExec(ctx, m)
+		case *fibretypes.MsgPaymentPromiseTimeout:
+			t.touchTimeout(ctx, m)
+		default:
+			t.touchCircuit(ctx, msg)
+		}
+		if t.all {
 			return
 		}
-		owner, ok, valid := promiseEscrowOwner(msg)
-		if !ok {
-			continue
-		}
-		if !valid {
-			t.all = true
-			return
-		}
-		t.touched[string(owner)] = struct{}{}
 	}
 }
 
-// touchExec marks the signers of the messages wrapped in exec. It returns false
-// if they cannot be determined.
-func (t *proposalTaint) touchExec(exec *authz.MsgExec) bool {
-	if t.msgSigners == nil {
-		return false
+// touchExec marks the granters exec can act for: the signer of each wrapped
+// message that holds an unexpired grant to the grantee for it. Authz refuses
+// the others in FinalizeBlock, and a wrapped message whose signer the codec
+// cannot resolve fails the whole MsgExec there, so it acts for no one. The
+// ante handler rejects wrapped MsgExec and fibre messages.
+func (t *proposalTaint) touchExec(ctx sdk.Context, exec *authz.MsgExec) {
+	if t.env.msgSigners == nil {
+		t.all = true
+		return
 	}
+	outer, err := t.env.msgSigners(exec)
+	if err != nil || len(outer) != 1 {
+		return
+	}
+	grantee := sdk.AccAddress(outer[0])
 	nested, err := exec.GetMessages()
 	if err != nil {
-		return false
+		return
 	}
 	for _, msg := range nested {
-		signers, err := t.msgSigners(msg)
-		if err != nil {
-			return false
+		signers, err := t.env.msgSigners(msg)
+		if err != nil || len(signers) != 1 {
+			continue
 		}
-		for _, s := range signers {
-			t.touched[string(s)] = struct{}{}
+		granter := sdk.AccAddress(signers[0])
+		if !bytes.Equal(granter, grantee) {
+			if t.env.hasGrant != nil && !t.env.hasGrant(readCtx(ctx), grantee, granter, sdk.MsgTypeURL(msg)) {
+				continue
+			}
+			t.mark(granter)
+		}
+		t.touchCircuit(ctx, msg)
+		if t.all {
+			return
 		}
 	}
-	return true
+}
+
+// touchTimeout marks the escrow owner of a timeout the branch does not
+// execute, if the timeout would settle. One that would not settle cannot debit
+// the escrow in FinalizeBlock either: the escrow, the processed-promise records
+// and the params it reads only differ from FinalizeBlock for an owner that is
+// already touched.
+func (t *proposalTaint) touchTimeout(ctx sdk.Context, msg *fibretypes.MsgPaymentPromiseTimeout) {
+	owner, _, valid := promiseEscrowOwner(msg)
+	if !valid || t.isTouched(owner) {
+		// A malformed key fails the timeout in FinalizeBlock.
+		return
+	}
+	if t.env.timeoutSettles == nil || t.env.timeoutSettles(ctx, msg) {
+		t.mark(owner)
+	}
+}
+
+// touchCircuit taints every account if msg lets a circuit breaker admin
+// disable messages, which could disable MsgPayForFibre in FinalizeBlock. Only
+// admins can: the circuit module refuses the message from anyone else.
+// Resetting a breaker only re-enables messages, so it is ignored.
+func (t *proposalTaint) touchCircuit(ctx sdk.Context, msg sdk.Msg) {
+	switch msg.(type) {
+	case *circuittypes.MsgTripCircuitBreaker, *circuittypes.MsgAuthorizeCircuitBreaker:
+	default:
+		return
+	}
+	if t.env.msgSigners == nil || t.env.isCircuitAdmin == nil {
+		t.all = true
+		return
+	}
+	signers, err := t.env.msgSigners(msg)
+	if err != nil {
+		return
+	}
+	for _, s := range signers {
+		if t.env.isCircuitAdmin(readCtx(ctx), s) {
+			t.all = true
+			return
+		}
+	}
+}
+
+func (t *proposalTaint) mark(addr []byte) {
+	t.touched[string(addr)] = struct{}{}
 }
 
 func (t *proposalTaint) isTouched(addr []byte) bool {
 	_, ok := t.touched[string(addr)]
 	return ok
+}
+
+// readCtx returns ctx with an unlimited gas meter, so the taint's own reads
+// never run a tx's gas meter out.
+func readCtx(ctx sdk.Context) sdk.Context {
+	return ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 }
 
 // isPureTimeoutTx reports whether every message of sdkTx is a
@@ -232,19 +311,38 @@ func promiseEscrowOwner(msg sdk.Msg) (owner []byte, ok, valid bool) {
 	return promise.SignerPublicKey.Address(), true, true
 }
 
-// isInterchainAccountFn returns a lookup that reports whether an address holds
-// an interchain account.
-func (app *App) isInterchainAccountFn() func(sdk.Context, sdk.AccAddress) bool {
-	return func(ctx sdk.Context, addr sdk.AccAddress) bool {
-		_, ok := app.AccountKeeper.GetAccount(ctx, addr).(*icatypes.InterchainAccount)
-		return ok
-	}
-}
-
-// msgSignersFn returns the v1 signers of a message.
-func (app *App) msgSignersFn() func(sdk.Msg) ([][]byte, error) {
-	return func(msg sdk.Msg) ([][]byte, error) {
-		signers, _, err := app.encodingConfig.Codec.GetMsgV1Signers(msg)
-		return signers, err
+// proposalTaintEnv returns the state lookups for a proposalTaint, settling
+// timeouts through router.
+func (app *App) proposalTaintEnv(router baseapp.MessageRouter) proposalTaintEnv {
+	return proposalTaintEnv{
+		msgSigners: func(msg sdk.Msg) ([][]byte, error) {
+			signers, _, err := app.encodingConfig.Codec.GetMsgV1Signers(msg)
+			return signers, err
+		},
+		isInterchainAccount: func(ctx sdk.Context, addr sdk.AccAddress) bool {
+			_, ok := app.AccountKeeper.GetAccount(ctx, addr).(*icatypes.InterchainAccount)
+			return ok
+		},
+		hasGrant: func(ctx sdk.Context, grantee, granter sdk.AccAddress, msgTypeURL string) bool {
+			auth, _ := app.AuthzKeeper.GetAuthorization(ctx, grantee, granter, msgTypeURL)
+			return auth != nil
+		},
+		isCircuitAdmin: func(ctx sdk.Context, addr sdk.AccAddress) bool {
+			if bytes.Equal(addr, app.CircuitKeeper.GetAuthority()) {
+				return true
+			}
+			perms, err := app.CircuitKeeper.Permissions.Get(ctx, addr)
+			if errors.Is(err, collections.ErrNotFound) {
+				return false
+			}
+			// Treat a read error as an admin, the safe side.
+			return err != nil || perms.Level != circuittypes.Permissions_LEVEL_NONE_UNSPECIFIED
+		},
+		timeoutSettles: func(ctx sdk.Context, msg *fibretypes.MsgPaymentPromiseTimeout) bool {
+			// Run the msg server on a discarded branch, with its own gas meter
+			// and event manager, so nothing it does is kept.
+			cacheCtx, _ := readCtx(ctx).WithEventManager(sdk.NewEventManager()).CacheContext()
+			return runMsgs(cacheCtx, []sdk.Msg{msg}, router) == nil
+		},
 	}
 }

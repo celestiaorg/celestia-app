@@ -10,7 +10,9 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -209,6 +211,35 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 		}
 		if err := pff.PaymentPromise.ValidateBasic(); err != nil {
 			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise: %s", err)
+		}
+	}
+	return nil
+}
+
+// validateTxMsgsForBlock mirrors the checks FinalizeBlock makes on a tx's
+// messages before it runs the ante handler (baseapp's validateBasicTxMsgs and
+// handler lookup). The proposal branch runs the ante handler alone, so a tx
+// failing these checks would bump its signer's sequence and charge its fee
+// there but not in FinalizeBlock. CheckTx makes the same checks, so a tx from
+// an honest mempool always passes. A nil router skips the handler lookup.
+func validateTxMsgsForBlock(sdkTx sdk.Tx, router baseapp.MessageRouter) error {
+	msgs := sdkTx.GetMsgs()
+	if len(msgs) == 0 {
+		return errors.Wrap(sdkerrors.ErrInvalidRequest, "must contain at least one message")
+	}
+	for _, msg := range msgs {
+		if m, ok := msg.(sdk.HasValidateBasic); ok {
+			if err := m.ValidateBasic(); err != nil {
+				return err
+			}
+		}
+	}
+	if router == nil {
+		return nil
+	}
+	for _, msg := range msgs {
+		if router.Handler(msg) == nil {
+			return errors.Wrapf(sdkerrors.ErrUnknownRequest, "no message handler found for %T", msg)
 		}
 	}
 	return nil

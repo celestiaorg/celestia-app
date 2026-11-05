@@ -32,10 +32,9 @@ type FilteredSquareBuilder struct {
 	// preverifyPFF warms the signature cache. Both are optional.
 	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
-	// msgSigners and isInterchainAccount feed the proposalTaint of each Fill;
-	// see proposalTaint for what a nil value means.
-	msgSigners          func(sdk.Msg) ([][]byte, error)
-	isInterchainAccount func(sdk.Context, sdk.AccAddress) bool
+	// taintEnv feeds the proposalTaint of each Fill; see proposalTaintEnv for
+	// what a nil lookup means.
+	taintEnv proposalTaintEnv
 }
 
 func NewFilteredSquareBuilder(
@@ -124,7 +123,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	// Tracks accounts whose state the proposal branch cannot model exactly, so
 	// processFibreTxsForSquare drops pay-for-fibre txs that depend on them.
-	taint := newProposalTaint(fsb.msgSigners, fsb.isInterchainAccount)
+	taint := newProposalTaint(fsb.taintEnv)
 
 	var (
 		sdkMessageCount = 0
@@ -148,6 +147,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 		if _, has := hasPFB(sdkTx.GetMsgs()); has || countMsgPayForFibre(sdkTx) > 0 {
+			continue
+		}
+		// FinalizeBlock would fail this tx before its ante handler; see
+		// validateTxMsgsForBlock. ProcessProposal rejects it.
+		if err := validateTxMsgsForBlock(sdkTx, fsb.msgRouter); err != nil {
+			logger.Debug("skipping tx that fails message validation", "tx", lazyTxHash(tx), "err", err)
 			continue
 		}
 
@@ -246,6 +251,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		sdkTx, err := dec(bTx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err)
+			continue
+		}
+		if err := validateTxMsgsForBlock(sdkTx, fsb.msgRouter); err != nil {
+			logger.Debug("skipping blob tx that fails message validation", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
 
@@ -353,6 +362,10 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 	// builds a block its own ProcessProposal would reject.
 	if err := validatePayForFibreTxShape(e.sdkTx); err != nil {
 		logger.Debug("dropping invalid pay-for-fibre tx", "tx", lazyTxHash(e.raw), "err", err)
+		return false
+	}
+	if err := validateTxMsgsForBlock(e.sdkTx, fsb.msgRouter); err != nil {
+		logger.Debug("dropping pay-for-fibre tx that fails message validation", "tx", lazyTxHash(e.raw), "err", err)
 		return false
 	}
 	if fsb.decodePFF != nil {

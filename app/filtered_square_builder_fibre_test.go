@@ -527,7 +527,7 @@ func newPaymentPromiseTimeoutTx(t *testing.T, txConfig client.TxConfig) []byte {
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(&fibretypes.MsgPaymentPromiseTimeout{
 		Signer:         sdk.AccAddress(pubKey.Address()).String(),
-		PaymentPromise: fibretypes.PaymentPromise{SignerPublicKey: *pubKey},
+		PaymentPromise: blobfactory.NewMsgPayForFibre(t, pubKey, "test").PaymentPromise,
 	}))
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
@@ -564,4 +564,52 @@ func newMixedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
 	return txBytes
+}
+
+// TestFillDropsTxsFailingMessageValidation checks that Fill drops txs whose
+// messages fail ValidateBasic, which FinalizeBlock checks before the ante
+// handler, even when the ante handler and settlement accept them. A
+// pay-for-fibre whose quorum precedes a malformed validator signature would
+// otherwise settle on the proposal branch and fail in FinalizeBlock.
+func TestFillDropsTxsFailingMessageValidation(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	encode := func(msg sdk.Msg) []byte {
+		builder := txConfig.NewTxBuilder()
+		require.NoError(t, builder.SetMsgs(msg))
+		txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+		require.NoError(t, err)
+		return txBytes
+	}
+	newKey := func() *secp256k1.PubKey { return secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey) }
+
+	validPFF := encode(blobfactory.NewMsgPayForFibre(t, newKey(), "test"))
+	badSigMsg := blobfactory.NewMsgPayForFibre(t, newKey(), "test")
+	badSigMsg.ValidatorSignatures = append(badSigMsg.ValidatorSignatures, []byte{1})
+	require.Error(t, badSigMsg.ValidateBasic())
+	badSigPFF := encode(badSigMsg)
+
+	timeoutKey := newKey()
+	badTimeoutMsg := &fibretypes.MsgPaymentPromiseTimeout{
+		Signer:         sdk.AccAddress(timeoutKey.Address()).String(),
+		PaymentPromise: blobfactory.NewMsgPayForFibre(t, timeoutKey, "").PaymentPromise,
+	}
+	require.Error(t, badTimeoutMsg.ValidateBasic())
+	badTimeout := encode(badTimeoutMsg)
+
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
+	settleAll := stubMsgRouter{handler: func(sdk.Context, sdk.Msg) (*sdk.Result, error) { return &sdk.Result{}, nil }}
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, settleAll, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
+	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+
+	kept := fsb.Fill(ctx, [][]byte{badTimeout, badSigPFF, validPFF}, math.MaxInt64)
+	require.Equal(t, [][]byte{validPFF}, kept)
+
+	dec := txConfig.TxDecoder()
+	for _, raw := range [][]byte{badTimeout, badSigPFF} {
+		sdkTx, err := dec(raw)
+		require.NoError(t, err)
+		require.Error(t, validateTxMsgsForBlock(sdkTx, nil), "ProcessProposal rejects the same tx")
+	}
 }
