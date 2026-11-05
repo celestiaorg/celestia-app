@@ -281,7 +281,7 @@ test-docker-e2e:
 ## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.
 test-docker-e2e-upgrade-all:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
-	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
 	@echo "--> Running upgrade test for all app versions starting from v2"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade-all
