@@ -206,6 +206,10 @@ func (g *HostRegistry) queryHost(ctx context.Context, consAddr string) (validato
 	if !resp.Found {
 		return "", fmt.Errorf("host not found for validator %s", consAddr)
 	}
+	// The state node is not trusted to fill in Info when it reports Found.
+	if resp.Info == nil {
+		return "", fmt.Errorf("state node reported validator %s found without provider info", consAddr)
+	}
 	return validator.Host(resp.Info.Host), nil
 }
 
