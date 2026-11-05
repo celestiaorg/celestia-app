@@ -154,6 +154,41 @@ with [test/util/fuzzutil](../test/util/fuzzutil). Give each operation a
 fixed-width `Consumer.Record`, so editing one operation does not shift the bytes
 of later ones, and lay out seeds with `fuzzutil.Records`.
 
+### Persistent corpora
+
+Each nightly target starts from the inputs earlier nights found. `go test -fuzz`
+stores the inputs that reach new coverage in a cache directory, by default
+`$(go env GOCACHE)/fuzz`. With `FUZZ_CACHE_DIR` set, `scripts/test_fuzz.sh`
+passes `-test.fuzzcachedir` so each target's corpus lives in
+`$FUZZ_CACHE_DIR/<pkg>/<target>` instead, apart from the Go build cache. The
+`test-fuzz` job restores that directory from an `actions/cache` entry keyed
+`fuzz-corpus-v1-<pkg>/<target>-<run>`, fuzzes, and saves it again under a new
+key even when the target fails. It then deletes the target's older entries, so
+each target keeps one entry. The `gathering baseline coverage` count in a target's
+log is its seeds plus the restored corpus, so it grows from night to night.
+
+The cache holds only inputs that did not fail. `go test` writes a crashing input
+to the package's `testdata/fuzz` directory, which the job never caches or
+uploads; it reaches only the Linear issue. The saved corpus can still hold
+inputs one mutation away from a crash, and a pull request workflow can restore
+caches saved on `main`, so treat the corpus as public.
+
+Corpus files are small. In local 90-second runs, `FuzzCheckTxMutatedTxs` wrote
+139 files totalling 12 KB, and the largest local corpora are under 100 KB. Even
+if a long-running target grows to a few MB, the registry's 82 targets, with one
+entry each, need a few hundred MB at most of GitHub's 10 GB repository cache. A
+corpus over 32 MiB (`CORPUS_MAX_MIB` in the workflow) is not saved, which bounds
+the worst case at about 2.6 GB, and the job prints a warning. The target
+then keeps restoring its last saved corpus. Bump `v1` in `CORPUS_KEY` to start
+every target from its seeds again. Entries that no longer match a target's
+argument types are skipped by `go test`, so a signature change needs no bump.
+
+To reuse a corpus locally, set `FUZZ_CACHE_DIR` on successive runs:
+
+```sh
+FUZZ_TARGET=FuzzValidateHost FUZZ_TIME=30s FUZZ_CACHE_DIR=/tmp/fuzz-corpus make test-fuzz
+```
+
 ## Nightly failures
 
 A crashing input can describe an exploitable bug, so the nightly job writes each

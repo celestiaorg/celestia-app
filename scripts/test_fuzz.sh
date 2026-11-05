@@ -24,6 +24,11 @@
 #   FUZZ_LOG_DIR  write each target's output to FUZZ_LOG_DIR instead of stdout,
 #                 and list failing targets in FUZZ_LOG_DIR/failed.txt. CI uses
 #                 this to keep crash inputs out of public logs.
+#   FUZZ_CACHE_DIR  keep each target's generated corpus in
+#                 FUZZ_CACHE_DIR/<pkg>/<target> instead of $(go env GOCACHE)/fuzz.
+#                 The nightly job caches this directory between runs, apart
+#                 from the Go build cache. Crashing inputs still go to the
+#                 package's testdata/fuzz directory, never here.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -120,11 +125,16 @@ while read -r priority pkg target fuzztime minimizetime; do
 	if [ "$minimizetime" != "-" ]; then
 		args+=(-fuzzminimizetime="$minimizetime")
 	fi
+	args+=("$pkg")
+	if [ -n "${FUZZ_CACHE_DIR:-}" ]; then
+		# go test passes its own -test.fuzzcachedir first, so this one wins.
+		args+=(-args -test.fuzzcachedir="$FUZZ_CACHE_DIR/${pkg#./}")
+	fi
 
 	echo "==> $target ($pkg, priority $priority)"
 	log=${FUZZ_LOG_DIR:-$tmp}/$target.log
 	# go test exits 0 with "no fuzz tests to fuzz" when the target is missing.
-	if go test "${args[@]}" "$pkg" >"$log" 2>&1 && ! grep -q 'no fuzz tests to fuzz' "$log"; then
+	if go test "${args[@]}" >"$log" 2>&1 && ! grep -q 'no fuzz tests to fuzz' "$log"; then
 		ok=1
 	elif only_fuzztime_expired "$log" "$target"; then
 		echo "NOTE $target: go test reported its own -fuzztime deadline as a failure; no failing input was found"
