@@ -76,6 +76,12 @@ func (q queryServer) MerkleTreeState(ctx context.Context, req *types.QueryMerkle
 		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
 	}
 
+	if _, err := q.k.getIsm(ctx, ismId); errors.Is(err, collections.ErrNotFound) {
+		return nil, status.Errorf(codes.NotFound, "ism not found: %s", req.Id)
+	} else if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	treeState, err := q.k.treeStates.Get(ctx, ismId.GetInternalId())
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Errorf(codes.NotFound, "merkle tree state not found: %s", req.Id)

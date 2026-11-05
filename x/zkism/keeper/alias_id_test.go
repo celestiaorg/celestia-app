@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -17,6 +18,8 @@ func (suite *KeeperTestSuite) TestAliasIdsDoNotNameIsm() {
 	ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
 	ism.Owner = testfactory.TestAccAddr
 	suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+	treeState := types.MerkleTreeState{Root: bytes.Repeat([]byte{0x01}, 32), Count: 1}
+	suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, treeState))
 
 	exists, err := suite.zkISMKeeper.Exists(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
@@ -45,6 +48,8 @@ func (suite *KeeperTestSuite) TestAliasIdsDoNotNameIsm() {
 		suite.Require().ErrorIs(err, types.ErrIsmNotFound)
 
 		_, err = queryServer.Ism(suite.ctx, &types.QueryIsmRequest{Id: alias.String()})
+		suite.Require().Equal(codes.NotFound, status.Code(err))
+		_, err = queryServer.MerkleTreeState(suite.ctx, &types.QueryMerkleTreeStateRequest{Id: alias.String()})
 		suite.Require().Equal(codes.NotFound, status.Code(err))
 	}
 

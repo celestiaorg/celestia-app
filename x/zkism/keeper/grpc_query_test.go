@@ -82,7 +82,7 @@ func (suite *KeeperTestSuite) TestQueryServerMerkleTreeState() {
 		{
 			name: "success",
 			setupTest: func() {
-				ismID := util.CreateMockHexAddress("ism", 1)
+				ismID := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes")).Id
 				req = &types.QueryMerkleTreeStateRequest{Id: ismID.String()}
 
 				expResult = types.MerkleTreeState{Root: bytes.Repeat([]byte{0x01}, 32), Count: 5}
@@ -94,9 +94,17 @@ func (suite *KeeperTestSuite) TestQueryServerMerkleTreeState() {
 		{
 			name: "merkle tree state not found",
 			setupTest: func() {
-				req = &types.QueryMerkleTreeStateRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
+				ismID := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes")).Id
+				req = &types.QueryMerkleTreeStateRequest{Id: ismID.String()}
 			},
 			expErr: errors.New("merkle tree state not found"),
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				req = &types.QueryMerkleTreeStateRequest{Id: util.CreateMockHexAddress("ism", 3).String()}
+			},
+			expErr: errors.New("ism not found"),
 		},
 		{
 			name: "request cannot be empty",
