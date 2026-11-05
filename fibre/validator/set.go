@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"math/big"
 	"math/rand/v2"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
@@ -106,10 +107,24 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 
 // AssignedRows returns the rows assigned to val
 func (s Set) AssignedRows(val *core.Validator, originalRows, minRows int, lt cmtmath.Fraction) int {
-	num := int64(originalRows) * val.VotingPower * int64(lt.Denominator)
-	den := s.TotalVotingPower() * int64(lt.Numerator)
-	rows := int((num + den - 1) / den) // ceil
-	return min(max(rows, minRows), originalRows)
+	// big.Int keeps the products exact for any voting power.
+	num := new(big.Int).Mul(big.NewInt(int64(originalRows)), big.NewInt(val.VotingPower))
+	num.Mul(num, new(big.Int).SetUint64(lt.Denominator))
+	den := new(big.Int).Mul(big.NewInt(s.TotalVotingPower()), new(big.Int).SetUint64(lt.Numerator))
+	rows := ceilDiv(num, den)
+	if rows.Cmp(big.NewInt(int64(originalRows))) > 0 {
+		return originalRows
+	}
+	return min(max(int(rows.Int64()), minRows), originalRows)
+}
+
+// ceilDiv returns ceil(num / den) for non-negative num and positive den.
+func ceilDiv(num, den *big.Int) *big.Int {
+	q, r := new(big.Int).QuoRem(num, den, new(big.Int))
+	if r.Sign() > 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	return q
 }
 
 // Select returns validators to download shards from, shuffled by stake for load balancing.
@@ -132,8 +147,16 @@ func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fractio
 	// find split point where row assignments start overlapping
 	// each validator contributes max(their stake, minStake) where minStake ensures unique decodability
 	totalStake := s.TotalVotingPower()
-	totalDistributedRows := int64(originalRows) * int64(livenessThreshold.Denominator) / int64(livenessThreshold.Numerator)
-	minStake := (int64(minRows)*totalStake + totalDistributedRows - 1) / totalDistributedRows // ceil division
+	// big.Int keeps the products exact for any voting power.
+	totalDistributedRows := new(big.Int).Mul(big.NewInt(int64(originalRows)), new(big.Int).SetUint64(livenessThreshold.Denominator))
+	totalDistributedRows.Quo(totalDistributedRows, new(big.Int).SetUint64(livenessThreshold.Numerator))
+	minStakeBig := ceilDiv(new(big.Int).Mul(big.NewInt(int64(minRows)), big.NewInt(totalStake)), totalDistributedRows)
+	// Any minStake above totalStake splits at the first validator, so clamping
+	// it to totalStake+1 keeps the result and avoids overflow below.
+	minStake := totalStake + 1
+	if minStakeBig.Cmp(big.NewInt(minStake)) < 0 {
+		minStake = minStakeBig.Int64()
+	}
 
 	accumulated := int64(0)
 	splitIdx := len(selected)
