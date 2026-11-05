@@ -28,12 +28,11 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, classifiedTxs...)
-	if err != nil {
-		return ShareProof{}, err
-	}
-
-	dataSquare, err := builder.Export()
+	// square.Construct and square.TxShareRange reject txs that are not in
+	// square order (normal, then blob, then pay-for-fibre). Without that check
+	// the builder regroups txs by kind, so the share range of txIndex in the
+	// regrouped square would not belong to the caller's tx at txIndex.
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return ShareProof{}, err
 	}
@@ -42,7 +41,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	shareRange, err := builder.FindTxShareRange(txIndexInt)
+	shareRange, err := square.TxShareRange(classifiedTxs, txIndexInt, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return ShareProof{}, err
 	}

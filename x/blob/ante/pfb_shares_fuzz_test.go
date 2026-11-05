@@ -2,6 +2,7 @@ package ante
 
 import (
 	"encoding/binary"
+	"math"
 	"math/big"
 	"testing"
 
@@ -16,12 +17,6 @@ type fuzzBlobParams struct{ squareSize uint64 }
 
 func (k fuzzBlobParams) GetParams(sdk.Context) blobtypes.Params {
 	return blobtypes.Params{GasPerBlobByte: appconsts.GasPerBlobByte, GovMaxSquareSize: k.squareSize}
-}
-
-// excludedShortShareVersions reports a PFB with more blob sizes than share
-// versions, which is excluded below.
-func excludedShortShareVersions(msg *blobtypes.MsgPayForBlobs) bool {
-	return len(msg.ShareVersions) < len(msg.BlobSizes)
 }
 
 // FuzzPFBShareAndGasValidation checks getSharesNeeded, validateEnoughGas and
@@ -56,8 +51,22 @@ func FuzzPFBShareAndGasValidation(f *testing.F) {
 		for range int(namespaces % 66) {
 			msg.Namespaces = append(msg.Namespaces, make([]byte, share.NamespaceSize))
 		}
-		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
-		if excludedShortShareVersions(msg) {
+		// A PFB with more blob sizes than share versions has no share layout,
+		// so every check must reject it. Gas estimation must not panic on it.
+		if len(msg.ShareVersions) < len(msg.BlobSizes) {
+			_ = msg.Gas(appconsts.GasPerBlobByte)
+			if _, err := getSharesNeeded(txSize, msg); err == nil {
+				t.Fatal("getSharesNeeded accepted fewer share versions than blob sizes")
+			}
+			if err := validateEnoughGas(msg, appconsts.GasPerBlobByte, txGas); err == nil {
+				t.Fatal("validateEnoughGas accepted fewer share versions than blob sizes")
+			}
+			if err := NewMinGasPFBDecorator().validatePFBHasEnoughGas([]sdk.Msg{msg}, appconsts.GasPerBlobByte, txGas); err == nil {
+				t.Fatal("validatePFBHasEnoughGas accepted fewer share versions than blob sizes")
+			}
+			if err := NewBlobShareDecorator(fuzzBlobParams{squareSize: squareSize}).validateMsgs([]sdk.Msg{msg}, txSize, math.MaxInt); err == nil {
+				t.Fatal("validateMsgs accepted fewer share versions than blob sizes")
+			}
 			return
 		}
 
@@ -80,8 +89,8 @@ func FuzzPFBShareAndGasValidation(f *testing.F) {
 			blobShares.Add(blobShares, big.NewInt(n))
 		}
 		wantShares := new(big.Int).Add(blobShares, big.NewInt(int64(share.CompactSharesNeeded(txSize))))
-		if got := getSharesNeeded(txSize, msg); big.NewInt(int64(got)).Cmp(wantShares) != 0 {
-			t.Fatalf("getSharesNeeded = %d, want %s", got, wantShares)
+		if got, err := getSharesNeeded(txSize, msg); err != nil || big.NewInt(int64(got)).Cmp(wantShares) != 0 {
+			t.Fatalf("getSharesNeeded = %d, %v, want %s", got, err, wantShares)
 		}
 
 		gasNeeded := new(big.Int).Mul(blobShares, big.NewInt(share.ShareSize*int64(appconsts.GasPerBlobByte)))
