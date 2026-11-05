@@ -64,7 +64,7 @@ func (k *Keeper) importRootHistory(ctx context.Context, history rootHistory, ent
 
 // requireIsm returns ErrIsmNotFound if the ism does not exist.
 func (k *Keeper) requireIsm(ctx context.Context, id util.HexAddress) error {
-	exists, err := k.isms.Has(ctx, id.GetInternalId())
+	exists, err := k.Exists(ctx, id)
 	if err != nil {
 		return err
 	}

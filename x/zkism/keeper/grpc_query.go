@@ -34,7 +34,7 @@ func (q queryServer) Ism(ctx context.Context, req *types.QueryIsmRequest) (*type
 		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
 	}
 
-	ism, err := q.k.isms.Get(ctx, ismId.GetInternalId())
+	ism, err := q.k.getIsm(ctx, ismId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "ism not found: %s", req.Id)
 	}
@@ -100,7 +100,7 @@ func (q queryServer) RootHistory(ctx context.Context, req *types.QueryRootHistor
 		return nil, status.Errorf(codes.InvalidArgument, "invalid hex address %s, %s", req.Id, err.Error())
 	}
 
-	ism, err := q.k.isms.Get(ctx, ismId.GetInternalId())
+	ism, err := q.k.getIsm(ctx, ismId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "ism not found: %s", req.Id)
 	}

@@ -178,13 +178,7 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 		r := c.Record(zkismFuzzRecord)
 		next := r.Byte
 		op, sel, form := next()%7, int(next()), next()
-		id, target, alias := zkismFuzzId(isms, sel, form)
-		if alias {
-			// Excluded pending a fix; see the Linear issue for this target.
-			// The keeper resolves an id by its internal id alone, so an id that
-			// differs only in the module type or specifier reaches the same ISM.
-			target = byInternal[id.GetInternalId()]
-		}
+		id, target := zkismFuzzId(isms, sel, form)
 
 		switch op {
 		case 0:
@@ -314,24 +308,23 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 
 // zkismFuzzId picks an id: a modelled ISM's id or an id that differs from it
 // in the module type or the 20-byte module specifier, or an id no ISM has.
-// It returns the modelled ISM the id names, if any, and whether the id is
-// such an alias, which names no ISM.
-func zkismFuzzId(isms []*zkismModel, sel int, form byte) (util.HexAddress, *zkismModel, bool) {
+// It returns the modelled ISM the id names, if any; an alias names no ISM.
+func zkismFuzzId(isms []*zkismModel, sel int, form byte) (util.HexAddress, *zkismModel) {
 	if len(isms) == 0 || form%5 == 4 {
 		var spec [20]byte
-		return util.GenerateHexAddress(spec, uint32(types.ModuleTypeZkISM), 1<<40+uint64(sel)), nil, false
+		return util.GenerateHexAddress(spec, uint32(types.ModuleTypeZkISM), 1<<40+uint64(sel)), nil
 	}
 	m := isms[sel%len(isms)]
 	other := m.id
 	switch form % 5 {
 	case 1, 2:
 		binary.BigEndian.PutUint32(other[20:24], uint32(form%5)) // a reserved hyperlane module type
-		return other, nil, true
+		return other, nil
 	case 3:
 		other[int(form)%20] ^= 0x5a
-		return other, nil, true
+		return other, nil
 	}
-	return m.id, m, false
+	return m.id, m
 }
 
 // zkismMutate returns the golden proof and public values, or a copy with one

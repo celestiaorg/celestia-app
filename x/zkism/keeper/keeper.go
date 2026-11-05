@@ -65,16 +65,35 @@ func (k *Keeper) Logger(ctx context.Context) log.Logger {
 	return sdk.UnwrapSDKContext(ctx).Logger().With("module", "x/"+types.ModuleName)
 }
 
+// getIsm returns the ISM with the given id. ISMs are stored by internal id, the
+// last 8 bytes of the id, so it also checks the stored ISM's full id: an id
+// with another module specifier or module type does not name this ISM. It
+// returns collections.ErrNotFound when no ISM has that id.
+func (k *Keeper) getIsm(ctx context.Context, ismId util.HexAddress) (types.InterchainSecurityModule, error) {
+	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
+	if err != nil {
+		return types.InterchainSecurityModule{}, err
+	}
+	if ism.Id != ismId {
+		return types.InterchainSecurityModule{}, collections.ErrNotFound
+	}
+	return ism, nil
+}
+
 // Exists implements hyperlane util.InterchainSecurityModule.
 func (k *Keeper) Exists(ctx context.Context, ismId util.HexAddress) (bool, error) {
-	return k.isms.Has(ctx, ismId.GetInternalId())
+	_, err := k.getIsm(ctx, ismId)
+	if errors.Is(err, collections.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // Verify implements the util.InterchainSecurityModule interface. The metadata must contain a merkle proof of the
 // message id against the latest proven merkle tree root or a root in the ISM's tree state history.
 // Replay protection is provided by the Hyperlane mailbox, which rejects message ids it has already received.
 func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []byte, message util.HyperlaneMessage) (bool, error) {
-	ism, err := k.isms.Get(ctx, ismId.GetInternalId())
+	ism, err := k.getIsm(ctx, ismId)
 	if err != nil {
 		return false, errorsmod.Wrap(types.ErrIsmNotFound, err.Error())
 	}

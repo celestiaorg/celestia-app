@@ -15,6 +15,7 @@ This guide provides notes for major version releases. These notes may be helpful
 - At most one state transition proof and one membership proof are accepted per ISM per block; a second one fails with `ErrAlreadyUpdatedInBlock` (code 15). The ISM records `state_height` and the merkle tree state records `height` for this. Gas simulation skips this check.
 - Each ISM stores at most `root_history_size` replaced state roots and at most `root_history_size` replaced merkle tree states at any time (default 64, at most 256). `SubmitMessages` accepts a proof against any kept state root and `Verify` accepts a merkle proof against any kept tree root, so a root update between proving and inclusion no longer invalidates in-flight proofs. The owner sets the size at creation or with `UpdateRootHistorySize`; the `RootHistory` query lists the kept roots.
 - The genesis field `submissions` is deprecated: it is ignored on import and no longer exported. Genesis gains `state_root_history` and `tree_state_history`.
+- An ISM id must match the stored ISM's full id. Messages, `Exists`, `Verify` and the `Ism` and `RootHistory` queries reject an id that shares an ISM's internal id but has a different module specifier or module type, instead of resolving it to that ISM.
 - The zkism genesis section no longer contains `messages`. A genesis file exported by a v10 binary must have `app_state.zkism.messages` removed before a v11 binary can load it.
 
 See the [x/zkism README](../../x/zkism/README.md) for details.

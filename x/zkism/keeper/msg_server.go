@@ -62,7 +62,7 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 
 // UpdateInterchainSecurityModule implements types.MsgServer.
 func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *types.MsgUpdateInterchainSecurityModule) (*types.MsgUpdateInterchainSecurityModuleResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ism, err := m.getIsm(ctx, msg.Id)
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
@@ -128,7 +128,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 
 // SubmitMessages implements types.MsgServer.
 func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessages) (*types.MsgSubmitMessagesResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ism, err := m.getIsm(ctx, msg.Id)
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
@@ -212,7 +212,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 
 // UpdateVerifyingKeys implements types.MsgServer.
 func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdateVerifyingKeys) (*types.MsgUpdateVerifyingKeysResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ism, err := m.getIsm(ctx, msg.Id)
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
@@ -257,7 +257,7 @@ func (m msgServer) UpdateVerifyingKeys(ctx context.Context, msg *types.MsgUpdate
 // TransferOwnership implements types.MsgServer. Only the current owner can transfer ownership to another address or
 // renounce it. Renouncing is irreversible: with no owner, no account can call UpdateVerifyingKeys or TransferOwnership.
 func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransferOwnership) (*types.MsgTransferOwnershipResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ism, err := m.getIsm(ctx, msg.Id)
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
@@ -292,7 +292,7 @@ func (m msgServer) TransferOwnership(ctx context.Context, msg *types.MsgTransfer
 
 // UpdateRootHistorySize implements types.MsgServer. Only the owner can call it; shrinking drops the oldest entries.
 func (m msgServer) UpdateRootHistorySize(ctx context.Context, msg *types.MsgUpdateRootHistorySize) (*types.MsgUpdateRootHistorySizeResponse, error) {
-	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	ism, err := m.getIsm(ctx, msg.Id)
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}

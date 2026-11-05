@@ -12,7 +12,7 @@ import (
 
 func (suite *KeeperTestSuite) TestQueryServerIsm() {
 	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 1)
-	expIsm := types.InterchainSecurityModule{Owner: "test"}
+	expIsm := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
 
 	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, expIsm)
 	suite.Require().NoError(err)
