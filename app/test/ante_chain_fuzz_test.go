@@ -385,9 +385,7 @@ func (fx *anteChainFixture) check(t *testing.T, script []byte) bool {
 	// The SDK's signing adapter panics on a signer without a public key by
 	// design (celestia-app#4847); baseapp turns it into a rejection.
 	nilPubKey := tx.omitsPubKey && strings.Contains(resp.Log, "signerInfo.PublicKey cannot be nil")
-	// ValidateTxFee panics on fees above MaxInt64, pending PROTOCO-3433 item 2.
-	hugeFee := !tx.fee.AmountOf(appconsts.BondDenom).IsInt64() && strings.Contains(resp.Log, "Int64() out of bound")
-	if recovered && !nilPubKey && !hugeFee && !knownAntePanic(fx.app.GetTxConfig().TxDecoder(), [][]byte{tx.raw}) {
+	if recovered && !nilPubKey && !knownAntePanic(fx.app.GetTxConfig().TxDecoder(), [][]byte{tx.raw}) {
 		t.Fatalf("CheckTx recovered a panic:\n%s", resp.Log)
 	}
 	after := fx.snapshot()

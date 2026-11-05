@@ -48,12 +48,6 @@ func FuzzNetworkMinGasPrice(f *testing.F) {
 			minGasPriceApp, _, _ = testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 		})
 		testApp := minGasPriceApp
-		// ValidateTxFee panics on fees above MaxInt64 when it records the
-		// observed gas price; remove this bound with the fix:
-		// https://linear.app/celestia/issue/PROTOCO-3433 item 2.
-		if fee > 1<<63-1 {
-			return
-		}
 		mag := new(big.Int).SetBytes(magnitude)
 		if mag.BitLen() > maxGovMinGasPriceBits {
 			return
@@ -89,10 +83,11 @@ func FuzzNetworkMinGasPrice(f *testing.F) {
 		if rem.Sign() > 0 {
 			required.Add(required, big.NewInt(1))
 		}
-		wantAccept := new(big.Int).SetUint64(fee).Cmp(required) >= 0
+		// Fees that do not fit in an int64 are rejected.
+		wantAccept := fee <= 1<<63-1 && new(big.Int).SetUint64(fee).Cmp(required) >= 0
 		require.Equal(t, wantAccept, err == nil, "price %s, gas %d, fee %d: %v", stored, gas, fee, err)
 		require.GreaterOrEqual(t, priority, int64(0))
-		if negative || mag.Sign() == 0 {
+		if (negative || mag.Sign() == 0) && fee <= 1<<63-1 {
 			require.NoError(t, err, "a non-positive network price must not require a fee")
 		}
 	})
