@@ -105,6 +105,23 @@ func TestNewTxInclusionProof(t *testing.T) {
 	}
 }
 
+// TestNewTxInclusionProofRejectsOutOfOrderTxs is a regression test for
+// PROTOCO-3519: txs not in square order used to be regrouped by kind, so the
+// proof for an index covered a different tx than the one at that index.
+func TestNewTxInclusionProofRejectsOutOfOrderTxs(t *testing.T) {
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+	blobTxs := blobfactory.RandBlobTxs(signer, random.New(), 2, 1, 500).ToSliceOfBytes()
+	normalTxs := testfactory.GenerateRandomTxs(2, 500).ToSliceOfBytes()
+
+	// [blobTx A, normal N1, normal N2, blobTx B]
+	txs := [][]byte{blobTxs[0], normalTxs[0], normalTxs[1], blobTxs[1]}
+	for i := range txs {
+		_, err := proof.NewTxInclusionProof(txs, uint64(i), appconsts.Version)
+		require.Error(t, err, "tx index %d", i)
+	}
+}
+
 func TestNewShareInclusionProof(t *testing.T) {
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	ns2 := share.MustNewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
