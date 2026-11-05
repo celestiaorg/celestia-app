@@ -334,3 +334,52 @@ func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 		t.Fatal("no rawProof expected")
 	}
 }
+
+// TestShareProofValidateRejectsSwappedRows checks that a share proof cannot
+// present two real rows in swapped order, which would splice their shares into
+// a sequence that never existed contiguously in the square.
+func TestShareProofValidateRejectsSwappedRows(t *testing.T) {
+	txs := testfactory.GenerateRandomTxs(243, 500)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs.ToSliceOfBytes())
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	dataRoot := dah.Hash()
+
+	width := uint32(eds.Width() / 2)
+	pRow0, err := proof.NewShareInclusionProof(dataSquare, share.TxNamespace, share.NewRange(0, 1))
+	require.NoError(t, err)
+	pRow1, err := proof.NewShareInclusionProof(dataSquare, share.TxNamespace, share.NewRange(int(width), int(width)+1))
+	require.NoError(t, err)
+	require.NoError(t, pRow0.Validate(dataRoot))
+	require.NoError(t, pRow1.Validate(dataRoot))
+
+	swapped := proof.ShareProof{
+		Data:             [][]byte{pRow1.Data[0], pRow0.Data[0]},
+		ShareProofs:      []*proof.NMTProof{pRow1.ShareProofs[0], pRow0.ShareProofs[0]},
+		NamespaceId:      share.TxNamespace.ID(),
+		NamespaceVersion: uint32(share.TxNamespace.Version()),
+		RowProof: &proof.RowProof{
+			StartRow: 0,
+			EndRow:   1,
+			RowRoots: [][]byte{pRow1.RowProof.RowRoots[0], pRow0.RowProof.RowRoots[0]},
+			Proofs:   []*proof.Proof{pRow1.RowProof.Proofs[0], pRow0.RowProof.Proofs[0]},
+		},
+	}
+	require.Error(t, swapped.Validate(dataRoot))
+
+	duplicated := swapped
+	duplicated.Data = [][]byte{pRow0.Data[0], pRow0.Data[0]}
+	duplicated.ShareProofs = []*proof.NMTProof{pRow0.ShareProofs[0], pRow0.ShareProofs[0]}
+	duplicated.RowProof = &proof.RowProof{
+		StartRow: 0,
+		EndRow:   1,
+		RowRoots: [][]byte{pRow0.RowProof.RowRoots[0], pRow0.RowProof.RowRoots[0]},
+		Proofs:   []*proof.Proof{pRow0.RowProof.Proofs[0], pRow0.RowProof.Proofs[0]},
+	}
+	require.Error(t, duplicated.Validate(dataRoot))
+}
