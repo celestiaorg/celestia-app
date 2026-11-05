@@ -36,6 +36,8 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 	fsb.validateBlobTx = app.ValidateBlobTxWithCache
+	fsb.msgSigners = app.msgSignersFn()
+	fsb.isInterchainAccount = app.isInterchainAccountFn()
 
 	fsb.decodePFF = fibrekeeper.DecodePayForFibre
 	fsb.preverifyPFF = func(ctx sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {

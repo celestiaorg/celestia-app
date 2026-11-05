@@ -300,6 +300,8 @@ The SDK module does not insert commitments or blobs into the data square. Data-s
 
 A valid PayForFibre transaction for square construction is a plain SDK transaction that contains exactly one `MsgPayForFibre` and no other messages. PrepareProposal separates these transactions from normal SDK transactions, drops mixed or multi-PFF transactions, skips transactions after `MaxPayForFibreMessages`, and appends accepted Fibre transactions to the square builder. ProcessProposal rejects a block if a plain SDK transaction contains multiple `MsgPayForFibre` messages, mixes `MsgPayForFibre` with other messages, or causes the block to exceed `MaxPayForFibreMessages`.
 
+PrepareProposal and ProcessProposal settle each `MsgPayForFibre` on the proposal state, which runs every transaction's ante handler but executes the messages of only PayForFibre transactions and transactions made solely of `MsgPaymentPromiseTimeout`. A PayForFibre transaction is only valid in a block if no earlier transaction in that block acts for an account it depends on through messages the proposal state does not execute. An account is acted for when it signs such a transaction, signs a message wrapped in an authz `MsgExec`, or owns the escrow of a `MsgPaymentPromiseTimeout` in it. The accounts a PayForFibre transaction depends on are its signers, its fee payer, its fee granter and the escrow owner of its payment promise. A fee granter that is an interchain account is never accepted. PrepareProposal drops such PayForFibre transactions and ProcessProposal rejects a block that contains one. As a result, a deposit to escrow funds payments from the next block on.
+
 The current production constant is:
 
 ```go

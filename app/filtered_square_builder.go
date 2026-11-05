@@ -32,6 +32,10 @@ type FilteredSquareBuilder struct {
 	// preverifyPFF warms the signature cache. Both are optional.
 	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
+	// msgSigners and isInterchainAccount feed the proposalTaint of each Fill;
+	// see proposalTaint for what a nil value means.
+	msgSigners          func(sdk.Msg) ([][]byte, error)
+	isInterchainAccount func(sdk.Context, sdk.AccAddress) bool
 }
 
 func NewFilteredSquareBuilder(
@@ -118,6 +122,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		fsb.preverifyPFF(ctx, decoded)
 	}
 
+	// Tracks accounts whose state the proposal branch cannot model exactly, so
+	// processFibreTxsForSquare drops pay-for-fibre txs that depend on them.
+	taint := newProposalTaint(fsb.msgSigners, fsb.isInterchainAccount)
+
 	var (
 		sdkMessageCount = 0
 		zkProofMsgCount = 0
@@ -202,14 +210,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		commit()
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
-		// Replay fibre escrow effects (e.g. a timeout debit) so later pay-for-fibre
-		// settlement sees the same balance it will in FinalizeBlock. A failed
-		// message keeps the tx (gas only), so ignore the error.
-		if containsFibreStateMsg(sdkTx) {
-			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
-				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", lazyTxHash(tx), "error", err)
+		// Replay a timeout's escrow debit when the branch can do so exactly,
+		// otherwise mark the accounts this tx acts for, so later pay-for-fibre
+		// settlement never relies on state FinalizeBlock may not share.
+		taint.observeNormalTx(ctx, sdkTx, func(ctx sdk.Context, sdkTx sdk.Tx) error {
+			err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter)
+			if err != nil {
+				logger.Debug("payment promise timeout did not settle in proposal; keeping tx", "tx", lazyTxHash(tx), "error", err)
 			}
-		}
+			return err
+		})
 
 		sdkMessageCount += execMsgCount
 		zkProofMsgCount += zkProofCount
@@ -283,6 +293,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 		commit()
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
+		taint.observeBlobTx(ctx, sdkTx)
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
 		rawBlobTxs[m] = rawTx
@@ -290,7 +301,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs, taint)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
@@ -443,7 +454,7 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) [][]byte {
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx, taint *proposalTaint) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
@@ -462,6 +473,14 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			continue
 		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
+		// An earlier tx acts for an account this tx depends on in a way the
+		// branch did not execute, so settling here would not prove it pays in
+		// FinalizeBlock. ProcessProposal rejects the same txs.
+		if taint.inputsTouched(ctx, sdkTx) {
+			logger.Debug("dropping pay-for-fibre tx: an earlier tx in the block acts for one of its accounts", "tx", lazyTxHash(rawTx))
+			telemetry.IncrCounter(1, "prepare_proposal", "tainted_pay_for_fibre_txs")
+			continue
+		}
 		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
 			if _, ok := settled[entry.decoded.PromiseKey]; ok {
 				continue

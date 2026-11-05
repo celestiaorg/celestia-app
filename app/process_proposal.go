@@ -155,6 +155,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	certKeys := &fibretypes.CertKeyHolder{}
 	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
+	// Mirrors the taint PrepareProposal keeps: a pay-for-fibre may only settle
+	// when no earlier tx acts for one of its accounts in a way this branch does
+	// not execute. See proposalTaint.
+	taint := newProposalTaint(app.msgSignersFn(), app.isInterchainAccountFn())
+
 	// The data root depends only on the tx bytes and the decodes above, so build it
 	// during the walk; a cache hit already has it.
 	var (
@@ -236,6 +241,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 					return reject(), nil
 				}
+				if taint.inputsTouched(ctx, sdkTx) {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d: pay-for-fibre depends on an account an earlier tx acts for", idx))
+					return reject(), nil
+				}
 			} else {
 				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if zkProofMsgCount > appconsts.MaxZKProofMessages {
@@ -277,13 +286,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
-			} else if containsFibreStateMsg(sdkTx) {
-				// Replay fibre escrow effects in block order so later settlement
-				// sees the FinalizeBlock balance. A failed message keeps the tx
-				// (gas only), so don't reject.
-				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
-					app.Logger().Debug("fibre state msg did not settle in proposal; keeping tx", "idx", idx, "err", execErr)
-				}
+			} else {
+				// Replay a timeout's escrow debit when the branch can do so
+				// exactly, otherwise mark the accounts this tx acts for.
+				taint.observeNormalTx(ctx, sdkTx, func(ctx sdk.Context, sdkTx sdk.Tx) error {
+					execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter())
+					if execErr != nil {
+						app.Logger().Debug("payment promise timeout did not settle in proposal; keeping tx", "idx", idx, "err", execErr)
+					}
+					return execErr
+				})
 			}
 
 			// The non-blob path is complete; blob-specific checks below do not apply.
@@ -314,6 +326,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			logInvalidPropBlockError(app.Logger(), blockHeader, "ante handler validation failed", err)
 			return reject(), nil
 		}
+		taint.observeBlobTx(ctx, sdkTx)
 
 	}
 

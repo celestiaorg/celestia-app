@@ -332,7 +332,8 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 	bigNorm := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 2500)) // larger than a 2x2 square
 	blob1, blob2, blob3 := newBlobTx(t, txConfig), newBlobTx(t, txConfig), newBlobTx(t, txConfig)
 	pff1, pff2, pff3 := blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	deposit1, deposit2 := newDepositToEscrowTx(t, txConfig), newDepositToEscrowTx(t, txConfig)
+	deposit1 := newDepositToEscrowTx(t, txConfig)
+	timeout1, timeout2 := newPaymentPromiseTimeoutTx(t, txConfig), newPaymentPromiseTimeoutTx(t, txConfig)
 
 	tests := []struct {
 		name       string
@@ -424,12 +425,19 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			wantKept:   [][]byte{midNorm},
 		},
 		{
-			name:        "failed fibre state msg keeps the tx without its writes",
+			name:        "failed payment promise timeout keeps the tx without its writes",
 			squareSize:  64,
-			txs:         [][]byte{deposit1, deposit2, pff1},
-			settleErr:   [][]byte{deposit1},
-			wantKept:    [][]byte{deposit1, deposit2, pff1},
-			wantEscrows: [][]byte{deposit2, pff1},
+			txs:         [][]byte{timeout1, timeout2, pff1},
+			settleErr:   [][]byte{timeout1},
+			wantKept:    [][]byte{timeout1, timeout2, pff1},
+			wantEscrows: [][]byte{timeout2, pff1},
+		},
+		{
+			name:        "escrow deposit is kept but not executed on the proposal branch",
+			squareSize:  64,
+			txs:         [][]byte{deposit1, pff1},
+			wantKept:    [][]byte{deposit1, pff1},
+			wantEscrows: [][]byte{pff1},
 		},
 	}
 
@@ -506,6 +514,21 @@ func newDepositToEscrowTx(t *testing.T, txConfig client.TxConfig) []byte {
 	addr := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(&fibretypes.MsgDepositToEscrow{Signer: addr.String(), Amount: sdk.NewInt64Coin("utia", 1)}))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
+// newPaymentPromiseTimeoutTx creates an unsigned MsgPaymentPromiseTimeout tx
+// for a promise from a fresh escrow owner.
+func newPaymentPromiseTimeoutTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	pubKey := secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey)
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(&fibretypes.MsgPaymentPromiseTimeout{
+		Signer:         sdk.AccAddress(pubKey.Address()).String(),
+		PaymentPromise: fibretypes.PaymentPromise{SignerPublicKey: *pubKey},
+	}))
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
 	return txBytes

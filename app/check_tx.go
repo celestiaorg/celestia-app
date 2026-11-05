@@ -213,19 +213,3 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 	}
 	return nil
 }
-
-// containsFibreStateMsg reports whether the tx carries a fibre message that
-// mutates escrow state/balance as soon as it executes, so proposal must replay
-// it before settling a later MsgPayForFibre. MsgPayForFibre (settled on its
-// own path) and MsgRequestWithdrawal (only locks funds, paid out later by the
-// BeginBlocker) are excluded.
-func containsFibreStateMsg(tx sdk.Tx) bool {
-	for _, msg := range tx.GetMsgs() {
-		switch msg.(type) {
-		case *fibretypes.MsgPaymentPromiseTimeout,
-			*fibretypes.MsgDepositToEscrow:
-			return true
-		}
-	}
-	return false
-}
