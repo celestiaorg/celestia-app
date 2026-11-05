@@ -20,7 +20,6 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
-	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -186,30 +185,6 @@ func newQueryBlock(t *testing.T, txs [][]byte) queryBlock {
 	return b
 }
 
-// inSquareOrder reports whether txs list normal, then blob, then
-// pay-for-fibre transactions, the order square construction requires. Txs
-// that do not classify count as ordered.
-func inSquareOrder(txs [][]byte) bool {
-	classified, err := fibretypes.ClassifyTxs(txs)
-	if err != nil {
-		return true
-	}
-	last := poolNormal
-	for _, tx := range classified {
-		kind := poolNormal
-		if tx.FibreTx != nil {
-			kind = poolFibre
-		} else if _, isBlob, _ := blobtx.UnmarshalBlobTx(tx.Bytes); isBlob {
-			kind = poolBlob
-		}
-		if kind < last {
-			return false
-		}
-		last = kind
-	}
-	return true
-}
-
 // checkProofCovers requires raw to be a share proof that validates against
 // the block's data root and proves exactly the shares in want, under the
 // namespace of those shares.
@@ -238,10 +213,6 @@ func checkTxQuery(t *testing.T, b queryBlock, index int) {
 	t.Helper()
 	raw, err := proof.QueryTxInclusionProof(sdk.Context{}, []string{strconv.Itoa(index)}, &abci.RequestQuery{Data: b.bytes})
 	if !b.valid {
-		if !inSquareOrder(b.txs) {
-			// Excluded pending a fix; see the Linear issue for this target.
-			return
-		}
 		require.Error(t, err, "proof returned for a block the square rejects")
 		return
 	}
