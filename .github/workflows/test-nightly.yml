@@ -139,6 +139,17 @@ jobs:
             max-attempts: 2
           - test: TestCortoLoad
             extra-image: true
+          # Export and restart from the export: core state, then IBC/ICA and
+          # Hyperlane with the same chain-id, and IBC with a new chain-id
+          # recovered by governance.
+          - test: TestExportRestart
+          - test: TestExportRestartNewChainID
+          - test: TestIBCExportRestart
+            entrypoint: TestIBCTestSuite
+          - test: TestIBCExportRestartNewChainID
+            entrypoint: TestIBCTestSuite
+          - test: TestHyperlaneExportRestart
+            entrypoint: TestHyperlaneTestSuite
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -198,7 +209,7 @@ jobs:
           timeout_minutes: 30
           # Defaults to 1 attempt (no retry) for tests that don't opt in.
           max_attempts: ${{ matrix.max-attempts || 1 }}
-          command: make test-docker-e2e test=${{ matrix.test }}
+          command: make test-docker-e2e test=${{ matrix.test }} entrypoint=${{ matrix.entrypoint || 'TestCelestiaTestSuite' }}
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
