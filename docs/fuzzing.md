@@ -26,11 +26,6 @@ ante bypasses, and fee/priority arithmetic, where attacker-selected gas and fees
 cross rounding and integer-width boundaries. Structured nested messages pass
 through the real transaction encoder/decoder before reaching the decorator.
 
-The nightly job caches each shard's generated corpus (`$(go env GOCACHE)/fuzz`)
-and restores the newest copy on the next run, so targets resume from inputs
-found on earlier nights instead of only the checked-in seeds. A failing target's
-generated corpus is deleted before the cache is saved.
-
 ## Covered surfaces
 
 Each row records a fuzzed surface, its untrusted input, and its target. A target
@@ -129,12 +124,22 @@ test with the fix; do not add a broad panic recovery to a harness.
 ## Running and maintaining coverage
 
 `make test-fuzz` runs the targets registered in
-[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). The nightly
-[test-nightly.yml](../.github/workflows/test-nightly.yml) job splits them
-round-robin across parallel shards, so adding a target only needs a registry
-line. `scripts/test_fuzz.sh --check` fails when a `Fuzz*` function is missing
-from the registry or a registered target no longer exists; the nightly job runs
-it first. To smoke-test one target:
+[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). In the nightly
+[test-nightly.yml](../.github/workflows/test-nightly.yml), the `fuzz-targets`
+job runs `scripts/test_fuzz.sh --check` and builds the `test-fuzz` matrix from
+`scripts/test_fuzz.sh --list-json`. Each target then runs on its own runner,
+named after the target, so adding a target only needs a registry line and does
+not lengthen the other jobs. `--check` fails when a `Fuzz*` function is missing
+from the registry or a registered target no longer exists.
+
+To run one registered target the way the nightly does, set `FUZZ_TARGET` (and
+optionally `FUZZ_PKG`); `FUZZ_TIME` overrides its registry fuzztime:
+
+```sh
+FUZZ_TARGET=FuzzNestedMsgDecorator FUZZ_TIME=60s make test-fuzz
+```
+
+Or call `go test` directly:
 
 ```sh
 go test ./app/ante -run='^$' -fuzz='^FuzzNestedMsgDecorator$' -fuzztime=60s -parallel=2 -fuzzminimizetime=100x
@@ -148,6 +153,41 @@ Targets that interpret a byte slice as a script of operations should read it
 with [test/util/fuzzutil](../test/util/fuzzutil). Give each operation a
 fixed-width `Consumer.Record`, so editing one operation does not shift the bytes
 of later ones, and lay out seeds with `fuzzutil.Records`.
+
+### Persistent corpora
+
+Each nightly target starts from the inputs earlier nights found. `go test -fuzz`
+stores the inputs that reach new coverage in a cache directory, by default
+`$(go env GOCACHE)/fuzz`. With `FUZZ_CACHE_DIR` set, `scripts/test_fuzz.sh`
+passes `-test.fuzzcachedir` so each target's corpus lives in
+`$FUZZ_CACHE_DIR/<pkg>/<target>` instead, apart from the Go build cache. The
+`test-fuzz` job restores that directory from an `actions/cache` entry keyed
+`fuzz-corpus-v1-<pkg>/<target>-<run>`, fuzzes, and saves it again under a new
+key even when the target fails. It then deletes the target's older entries, so
+each target keeps one entry. The `gathering baseline coverage` count in a target's
+log is its seeds plus the restored corpus, so it grows from night to night.
+
+The cache holds only inputs that did not fail. `go test` writes a crashing input
+to the package's `testdata/fuzz` directory, which the job never caches or
+uploads; it reaches only the Linear issue. The saved corpus can still hold
+inputs one mutation away from a crash, and a pull request workflow can restore
+caches saved on `main`, so treat the corpus as public.
+
+Corpus files are small. In local 90-second runs, `FuzzCheckTxMutatedTxs` wrote
+139 files totalling 12 KB, and the largest local corpora are under 100 KB. Even
+if a long-running target grows to a few MB, the registry's 82 targets, with one
+entry each, need a few hundred MB at most of GitHub's 10 GB repository cache. A
+corpus over 32 MiB (`CORPUS_MAX_MIB` in the workflow) is not saved, which bounds
+the worst case at about 2.6 GB, and the job prints a warning. The target
+then keeps restoring its last saved corpus. Bump `v1` in `CORPUS_KEY` to start
+every target from its seeds again. Entries that no longer match a target's
+argument types are skipped by `go test`, so a signature change needs no bump.
+
+To reuse a corpus locally, set `FUZZ_CACHE_DIR` on successive runs:
+
+```sh
+FUZZ_TARGET=FuzzValidateHost FUZZ_TIME=30s FUZZ_CACHE_DIR=/tmp/fuzz-corpus make test-fuzz
+```
 
 ## Nightly failures
 
