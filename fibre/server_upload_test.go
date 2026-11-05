@@ -356,3 +356,36 @@ func TestServerLocalMinUploadSize(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 }
+
+// TestServerUploadShardCheapChecksFirst checks that structurally malformed
+// shards are rejected before the promise signature is checked or the app node
+// is queried.
+func TestServerUploadShardCheapChecksFirst(t *testing.T) {
+	var stateClient *countingPromiseState
+	server, valSet, serverValidator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		inner := cfg.StateClientFn
+		cfg.StateClientFn = func() (state.Client, error) {
+			client, err := inner()
+			stateClient = &countingPromiseState{Client: client}
+			return stateClient, err
+		}
+	})
+
+	for name, modify := range map[string]func(*types.UploadShardRequest){
+		"nil shard":     func(req *types.UploadShardRequest) { req.Shard = nil },
+		"no rows":       func(req *types.UploadShardRequest) { req.Shard.Rows = nil },
+		"short rlcs":    func(req *types.UploadShardRequest) { req.Shard.Rlcs = req.Shard.Rlcs[:16] },
+		"proof segment": func(req *types.UploadShardRequest) { req.Shard.Rows[0].Proof[0] = []byte{1} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := makeTestRequest(t, valSet, serverValidator, modify)
+			// Corrupt the signature too: the shard check must fire first.
+			req.Promise.Signature[0] ^= 0xff
+			resp, err := server.UploadShard(t.Context(), req)
+			require.Nil(t, resp)
+			require.Equal(t, codes.InvalidArgument, status.Code(err))
+			require.NotContains(t, err.Error(), "signature")
+			require.Zero(t, stateClient.calls, "malformed shards must not reach the app node")
+		})
+	}
+}

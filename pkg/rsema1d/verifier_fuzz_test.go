@@ -194,12 +194,6 @@ func mutateProofs(c *fuzzutil.Consumer, maxOps int, proofs []*RowProof, vec rlc.
 	return proofs
 }
 
-// excludedNilFirstProof reports inputs that put a nil proof first, which are
-// excluded below.
-func excludedNilFirstProof(proofs []*RowProof) bool {
-	return len(proofs) > 0 && proofs[0] == nil
-}
-
 // FuzzVerifier checks Verifier.Verify and VerifyShared, which validate row
 // proofs from fibre upload peers, against mutated proofs, rows, RLC values and
 // commitments. Neither may panic, and an accepted batch must consist of the
@@ -227,10 +221,6 @@ func FuzzVerifier(f *testing.F) {
 		vec := append(rlc.Vector(nil), m.rlc...)
 		commitment := m.commitment
 		proofs := mutateProofs(fuzzutil.New(ops), 16, m.proofs(t, indices), vec, &commitment)
-		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
-		if excludedNilFirstProof(proofs) {
-			return
-		}
 
 		v, err := NewVerifier(m.coder.config)
 		if err != nil {
@@ -345,10 +335,6 @@ func FuzzReconstructor(f *testing.F) {
 				vec := append(rlc.Vector(nil), m.rlc...)
 				commitment := m.commitment
 				proofs := mutateProofs(o, o.Intn(maxStepOps+1), m.proofs(t, indices), vec, &commitment)
-				// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
-				if excludedNilFirstProof(proofs) {
-					continue
-				}
 				novel, err := r.Add(proofs, vec)
 				if err != nil {
 					continue

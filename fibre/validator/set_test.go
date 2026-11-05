@@ -135,6 +135,24 @@ func TestSet_AssignedRows(t *testing.T) {
 	}
 }
 
+// TestSet_AssignedRows_LargeVotingPower guards against int64 overflow in the
+// row assignment products for large voting powers.
+func TestSet_AssignedRows_LargeVotingPower(t *testing.T) {
+	const totalRows = testOriginalRows
+	valSet := makeValidatorSetWithStakes(makeStakes(16, 1<<56-1))
+	// ceil(4096 * (1/16) * 3) = 768
+	const want = 768
+
+	shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+	for _, val := range valSet.Validators {
+		require.Equal(t, want, valSet.AssignedRows(val, testOriginalRows, testMinRows, testLivenessThreshold))
+		require.Len(t, shardMap[val], want)
+	}
+	for _, sv := range valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold) {
+		require.Equal(t, want, sv.ExpectedRows)
+	}
+}
+
 func TestShardMap_Verify(t *testing.T) {
 	valSet := makeValidatorSet(3)
 	shardMap := valSet.Assign(testCommitment, 12, 4, 1, testLivenessThreshold)

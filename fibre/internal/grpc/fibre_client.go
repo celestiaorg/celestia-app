@@ -58,6 +58,16 @@ func (f *fibreClientCloser) WaitReady(ctx context.Context) bool {
 	}
 }
 
+// dialTarget returns the gRPC target for host with an explicit "dns:///"
+// scheme. Without it, grpc.NewClient would treat a host such as "unix:9090" or
+// "passthrough:9090" as a resolver scheme instead of a network host. Dial with
+// [grpclib.WithLocalDNSResolution] too: otherwise, when a proxy is set in the
+// environment, gRPC hands the unresolved host to the transport, which again
+// reads a "unix:" prefix as a local socket.
+func dialTarget(host validator.Host) string {
+	return "dns:///" + host.String()
+}
+
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the
 // validator's network host through hostReg, then dials over TLS with the
 // peer identity bound to the validator's consensus pubkey via
@@ -109,7 +119,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 			MinVersion: tls.VersionTLS13,
 		}
 
-		conn, err := grpclib.NewClient(host.String(),
+		conn, err := grpclib.NewClient(dialTarget(host),
+			grpclib.WithLocalDNSResolution(),
 			grpclib.WithIdleTimeout(20*time.Second),
 			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
 			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
