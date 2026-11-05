@@ -51,15 +51,6 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V10} AS base-v10
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 
-# must be specified for this build step in order for propagation of values.
-ARG TARGETOS
-ARG TARGETARCH
-
-# The multiplexer must be built with both TARGETOS and TARGETARCH build arguments
-# as the location of the embedded binary is derived from these values.
-RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
-RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
-
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
@@ -81,49 +72,36 @@ RUN sh /usr/local/bin/download-go-modules.sh
 # copy source code after downloading modules (to leverage caching)
 COPY . .
 
-# Copy v3 binary from base-v3 and compress it
-COPY --from=base-v3 /bin/celestia-appd /tmp/celestia-appd-v3
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd-v3 \
-    && rm /tmp/celestia-appd-v3
+# Declare the target platform only after the steps that do not depend on it, so
+# the builds for each platform share those layers instead of each storing a copy.
+ARG TARGETOS
+ARG TARGETARCH
 
-# Copy v4 binary from base-v4 and compress it
-COPY --from=base-v4 /bin/celestia-appd /tmp/celestia-appd-v4
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v4_${TARGETARCH}.tar.gz /tmp/celestia-appd-v4 \
-    && rm /tmp/celestia-appd-v4
+# The multiplexer must be built with both TARGETOS and TARGETARCH build arguments
+# as the location of the embedded binary is derived from these values.
+RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
+RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
 
-# Copy v5 binary from base-v5 and compress it
-COPY --from=base-v5 /bin/celestia-appd /tmp/celestia-appd-v5
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v5_${TARGETARCH}.tar.gz /tmp/celestia-appd-v5 \
-    && rm /tmp/celestia-appd-v5
+# Compress the v3-v10 binaries from their base images for embedding. Bind
+# mounts read them without copying each binary into a layer of its own, which
+# kept every uncompressed binary on disk for the rest of the build.
+RUN --mount=type=bind,from=base-v3,source=/bin/celestia-appd,target=/tmp/celestia-appd-v3 \
+    --mount=type=bind,from=base-v4,source=/bin/celestia-appd,target=/tmp/celestia-appd-v4 \
+    --mount=type=bind,from=base-v5,source=/bin/celestia-appd,target=/tmp/celestia-appd-v5 \
+    --mount=type=bind,from=base-v6,source=/bin/celestia-appd,target=/tmp/celestia-appd-v6 \
+    --mount=type=bind,from=base-v7,source=/bin/celestia-appd,target=/tmp/celestia-appd-v7 \
+    --mount=type=bind,from=base-v8,source=/bin/celestia-appd,target=/tmp/celestia-appd-v8 \
+    --mount=type=bind,from=base-v9,source=/bin/celestia-appd,target=/tmp/celestia-appd-v9 \
+    --mount=type=bind,from=base-v10,source=/bin/celestia-appd,target=/tmp/celestia-appd-v10 \
+    for v in 3 4 5 6 7 8 9 10; do \
+        tar -cvzf "internal/embedding/celestia-app_${TARGETOS}_v${v}_${TARGETARCH}.tar.gz" "/tmp/celestia-appd-v${v}" || exit 1; \
+    done
 
-# Copy v6 binary from base-v6 and compress it
-COPY --from=base-v6 /bin/celestia-appd /tmp/celestia-appd-v6
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v6_${TARGETARCH}.tar.gz /tmp/celestia-appd-v6 \
-    && rm /tmp/celestia-appd-v6
-
-# Copy v7 binary from base-v7 and compress it
-COPY --from=base-v7 /bin/celestia-appd /tmp/celestia-appd-v7
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v7_${TARGETARCH}.tar.gz /tmp/celestia-appd-v7 \
-    && rm /tmp/celestia-appd-v7
-
-# Copy v8 binary from base-v8 and compress it
-COPY --from=base-v8 /bin/celestia-appd /tmp/celestia-appd-v8
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v8_${TARGETARCH}.tar.gz /tmp/celestia-appd-v8 \
-    && rm /tmp/celestia-appd-v8
-
-# Copy v9 binary from base-v9 and compress it
-COPY --from=base-v9 /bin/celestia-appd /tmp/celestia-appd-v9
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v9_${TARGETARCH}.tar.gz /tmp/celestia-appd-v9 \
-    && rm /tmp/celestia-appd-v9
-
-# Copy v10 binary from base-v10 and compress it
-COPY --from=base-v10 /bin/celestia-appd /tmp/celestia-appd-v10
-RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v10_${TARGETARCH}.tar.gz /tmp/celestia-appd-v10 \
-    && rm /tmp/celestia-appd-v10
-
+# Remove the Go build cache in the same layer so it is not kept for each platform.
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make -o mod build DOWNLOAD=false
+    make -o mod build DOWNLOAD=false && \
+    go clean -cache
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
 # docker/e2e.Dockerfile copies this stage for the CI e2e image; keep them in sync
