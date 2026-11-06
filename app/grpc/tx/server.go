@@ -10,9 +10,18 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	gogogrpc "github.com/cosmos/gogoproto/grpc"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 )
+
+// maxTxStatusBatchIDs is the maximum number of tx ids a TxStatusBatch request
+// may carry.
+const maxTxStatusBatchIDs = 20
+
+// txStatusBatchTxIDsField is the field number of TxStatusBatchRequest.tx_ids.
+const txStatusBatchTxIDsField = 1
 
 // RegisterTxService registers the tx service on the gRPC router.
 func RegisterTxService(
@@ -20,10 +29,96 @@ func RegisterTxService(
 	clientCtx client.Context,
 	interfaceRegistry codectypes.InterfaceRegistry,
 ) {
-	RegisterTxServer(
-		qrt,
-		NewTxServer(clientCtx, interfaceRegistry),
-	)
+	qrt.RegisterService(txServiceDesc(), NewTxServer(clientCtx, interfaceRegistry))
+}
+
+// txServiceDesc returns the generated Tx service description with the
+// TxStatusBatch handler replaced by one that enforces the tx id limit while
+// decoding the request, before any tx ids are allocated.
+func txServiceDesc() *grpc.ServiceDesc {
+	desc := _Tx_serviceDesc
+	desc.Methods = append([]grpc.MethodDesc(nil), _Tx_serviceDesc.Methods...)
+	for i := range desc.Methods {
+		if desc.Methods[i].MethodName == "TxStatusBatch" {
+			desc.Methods[i].Handler = boundedTxStatusBatchHandler
+		}
+	}
+	return &desc
+}
+
+// boundedTxStatusBatchHandler wraps the generated TxStatusBatch handler so
+// that the request is decoded through boundedTxStatusBatchRequest.
+func boundedTxStatusBatchHandler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+	return _Tx_TxStatusBatch_Handler(srv, ctx, func(in any) error {
+		req, ok := in.(*TxStatusBatchRequest)
+		if !ok {
+			return dec(in)
+		}
+		bounded := &boundedTxStatusBatchRequest{req: req}
+		if err := dec(bounded); err != nil {
+			return err
+		}
+		if bounded.tooManyIDs {
+			return errTooManyTxIDs()
+		}
+		return nil
+	}, interceptor)
+}
+
+// boundedTxStatusBatchRequest decodes into req only if the encoded request
+// carries at most maxTxStatusBatchIDs tx ids. Otherwise it leaves req empty and
+// sets tooManyIDs without failing the decode, because the gRPC server reports
+// every decode error as Internal and the limit error should stay
+// InvalidArgument.
+type boundedTxStatusBatchRequest struct {
+	req        *TxStatusBatchRequest
+	tooManyIDs bool
+}
+
+func (m *boundedTxStatusBatchRequest) Reset()         { m.req.Reset() }
+func (m *boundedTxStatusBatchRequest) String() string { return m.req.String() }
+func (*boundedTxStatusBatchRequest) ProtoMessage()    {}
+
+func (m *boundedTxStatusBatchRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+
+func (m *boundedTxStatusBatchRequest) Unmarshal(b []byte) error {
+	if tooManyTxStatusBatchIDs(b) {
+		m.tooManyIDs = true
+		return nil
+	}
+	return m.req.Unmarshal(b)
+}
+
+func errTooManyTxIDs() error {
+	return status.Errorf(codes.InvalidArgument, "maximum of %d tx ids allowed", maxTxStatusBatchIDs)
+}
+
+// tooManyTxStatusBatchIDs scans an encoded TxStatusBatchRequest without
+// allocating and reports whether it carries more than maxTxStatusBatchIDs tx
+// ids. Malformed input is left for the regular decoder to reject.
+func tooManyTxStatusBatchIDs(b []byte) bool {
+	count := 0
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			return false
+		}
+		b = b[n:]
+		n = protowire.ConsumeFieldValue(num, typ, b)
+		if n < 0 {
+			return false
+		}
+		b = b[n:]
+		if num == txStatusBatchTxIDsField {
+			count++
+			if count > maxTxStatusBatchIDs {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // RegisterGRPCGatewayRoutes mounts the tx service's GRPC-gateway routes on the
@@ -90,8 +185,8 @@ func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest)
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	if len(req.TxIds) > 20 {
-		return nil, status.Error(codes.InvalidArgument, "maximum of 20 tx ids allowed")
+	if len(req.TxIds) > maxTxStatusBatchIDs {
+		return nil, errTooManyTxIDs()
 	}
 
 	if len(req.TxIds) == 0 {
