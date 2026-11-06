@@ -6,6 +6,15 @@ The `x/valaddr` module lets a validator operator register the Fibre server host 
 
 The module is compiled into the app by default and is available starting with app version 10.
 
+From app version 11, active, bonded, non-jailed validators without a registration
+forfeit their full future allocation from the fee collector to the community
+pool. This includes commission and delegator rewards from inflation and fees.
+Other validators retain their original allocations, and previously accrued
+rewards remain withdrawable. Eligibility is checked at BeginBlock with no grace
+period; a registration takes effect for rewards in the following block. The
+requirement checks registration presence, not host availability, and does not
+slash stake or jail validators.
+
 ## Contents
 
 1. [Concepts](#concepts)

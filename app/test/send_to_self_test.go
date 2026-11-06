@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -52,6 +53,18 @@ func TestSendToSelfWithLargeFee(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, validatorsResp.Validators, 1)
 	validatorAddr := validatorsResp.Validators[0].OperatorAddress
+
+	// From v11, a validator must register a Fibre host to earn commission.
+	registrationClient, err := testnode.NewTxClientFromContext(cctx)
+	require.NoError(t, err)
+	registration, err := registrationClient.SubmitTx(cctx.GoContext(), []sdk.Msg{&valaddrtypes.MsgSetFibreProviderInfo{
+		Signer: validatorAddr,
+		Host:   "fibre.example.com:7980",
+	}}, user.SetGasLimit(200_000))
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, registration.Code)
+	_, err = cctx.WaitForHeight(registration.Height)
+	require.NoError(t, err)
 
 	// Get the fee collector module address
 	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)

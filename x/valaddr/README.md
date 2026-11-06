@@ -6,6 +6,22 @@ The `x/valaddr` module is an on-chain registry that maps a validator's consensus
 
 The module is available starting from app version 10.
 
+## Reward eligibility from v11
+
+Starting at app version 11, active validators that are bonded, not jailed, and
+have no Fibre host registration receive no new fee-collector reward allocation.
+Their share goes to the community pool; other validators' allocations stay the
+same. This applies to operator commission and delegator rewards, including
+inflation, transaction fees, and Fibre settlement proceeds. Existing accrued
+rewards remain withdrawable. No stake is slashed and no validator is jailed by
+this rule.
+
+Eligibility is checked against on-chain registration at the beginning of each
+block, with no grace period. Registering a host restores eligibility for the next
+block's distribution, without recovering previously withheld rewards. Host
+availability is not checked. Validators outside the active set, unbonding
+validators, and jailed validators receive no additional penalty from this rule.
+
 ## State
 
 The module stores one record per validator, keyed by the validator's consensus address:
