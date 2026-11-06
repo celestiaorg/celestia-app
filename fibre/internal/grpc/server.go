@@ -66,9 +66,9 @@ type Server struct {
 	listener             net.Listener
 	conns                *limitedListener
 	adm                  *admission
-	intercept            grpc.UnaryServerInterceptor // wraps every handler; nil for none
-	done                 chan struct{}               // closed when Serve returns
-	err                  error                       // why Serve returned; valid once done is closed
+	releaseDecoded       func(any)     // frees request decode state; nil for none
+	done                 chan struct{} // closed when Serve returns
+	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
 }
 
@@ -123,7 +123,7 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 // RegisterService implements [grpc.ServiceRegistrar] for extra services such as
 // gRPC health, admitting their requests too. Use it between Register and Serve.
 func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl any) {
-	s.server.RegisterService(admitServiceDesc(sd, s.adm, s.intercept), impl)
+	s.server.RegisterService(admitServiceDesc(sd, s.adm, s.releaseDecoded), impl)
 }
 
 // deadlineTap bounds server-side handling of one request. grpc uses the returned
@@ -137,12 +137,12 @@ func deadlineTap(ctx context.Context, _ *tap.Info) (context.Context, error) {
 // admitServiceDesc serves every unary method of sd through admitHandler. Streaming
 // methods are left unregistered (Fibre has none; health Watch is unsupported), so
 // grpc rejects them as Unimplemented before reading a body.
-func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission, intercept grpc.UnaryServerInterceptor) *grpc.ServiceDesc {
+func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission, releaseDecoded func(any)) *grpc.ServiceDesc {
 	out := *sd
 	out.Methods, out.Streams = nil, nil
 	for _, m := range sd.Methods {
 		reserveMaxSpace := sd.ServiceName == types.Fibre_serviceDesc.ServiceName && m.MethodName == "DownloadShard"
-		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm, reserveMaxSpace, intercept)})
+		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm, reserveMaxSpace, releaseDecoded)})
 	}
 	return &out
 }
@@ -151,9 +151,10 @@ func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission, intercept grpc.Unary
 // admitted before it is read; the generated handler's dec reads it. With
 // reserveMaxSpace the max reservation is kept until the handler returns, covering
 // a response the handler builds (DownloadShard). Unary interceptors set as server
-// options do not run here, so panics are recovered inline and intercept is handed
-// to the generated handler instead.
-func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool, intercept grpc.UnaryServerInterceptor) grpc.StreamHandler {
+// options do not run here, so panics are recovered inline. releaseDecoded, if set,
+// runs on the message dec was asked to decode when the stream handler returns,
+// including when RecvMsg failed after the codec had already decoded it.
+func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool, releaseDecoded func(any)) grpc.StreamHandler {
 	return func(srv any, ss grpc.ServerStream) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -169,7 +170,19 @@ func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool, inter
 		}
 		defer res.release()
 
+		// The codec may retain state for v before RecvMsg's end-of-stream check
+		// fails, in which case the generated handler returns without running.
+		// Generated unary handlers call dec once.
+		var decoded any
+		if releaseDecoded != nil {
+			defer func() {
+				if decoded != nil {
+					releaseDecoded(decoded)
+				}
+			}()
+		}
 		dec := func(v any) error {
+			decoded = v
 			if err := ss.RecvMsg(v); err != nil {
 				return err
 			}
@@ -180,7 +193,7 @@ func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool, inter
 			res.received(size)
 			return nil
 		}
-		resp, err := m.Handler(srv, ctx, dec, intercept)
+		resp, err := m.Handler(srv, ctx, dec, nil)
 		if err != nil {
 			return err
 		}

@@ -104,7 +104,7 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
 	}
 	if req, ok := v.(*types.UploadShardRequest); ok {
-		// Only the paired server interceptor can release view-decoded backing.
+		// Only the server's admitHandler can release view-decoded backing.
 		var buf []byte
 		reuse := c.uploads != nil && data.Len() >= minUploadBufferSize
 		if reuse {
