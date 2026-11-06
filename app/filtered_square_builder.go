@@ -58,35 +58,10 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
-	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.
-	// Required because the data square can be configured larger than
-	// block.MaxBytes.
-	//
-	// Size each tx by its protobuf-framed length (tag + length prefix + bytes),
-	// matching how CometBFT validates the returned list. Raw len(tx) under-counts
-	// the framing, so a list that fits here could still be rejected by Core. The
-	// kept list is a subset of what's admitted here, so the bound carries over.
-	//
-	// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
-	// positive value in production, but some tests construct requests
-	// directly and leave it at zero.
-	filteredByMaxBytes := txs
-	if maxTxBytes > 0 {
-		var currentTxBytes int64
-		filteredByMaxBytes = make([][]byte, 0, len(txs))
-		for _, tx := range txs {
-			txProtoSize := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
-			if currentTxBytes+txProtoSize > maxTxBytes {
-				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
-				continue
-			}
-			currentTxBytes += txProtoSize
-			filteredByMaxBytes = append(filteredByMaxBytes, tx)
-		}
-	}
+	budget := newTxByteBudget(logger, txs, maxTxBytes)
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
+	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, txs)
 
 	var (
 		sdkMessageCount = 0
@@ -97,6 +72,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	)
 
 	for _, tx := range normalTxs {
+		txSize, inBudget := budget.fits(tx)
+		if !inBudget {
+			continue
+		}
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
@@ -152,11 +131,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		sdkMessageCount += execMsgCount
+		budget.use(txSize)
 		normalTxs[n] = tx
 		n++
 	}
 
 	for i, tx := range blobTxs {
+		txSize, inBudget := budget.fits(rawBlobTxs[i])
+		if !inBudget {
+			continue
+		}
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -208,11 +192,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
+		budget.use(txSize)
 		rawBlobTxs[m] = rawBlobTxs[i]
 		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs, budget)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
@@ -221,6 +206,84 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
 	return kept
+}
+
+// txByteBudget bounds the protobuf-framed size of the txs Fill keeps by
+// maxTxBytes. Required because the data square can be configured larger than
+// block.MaxBytes.
+//
+// Size each tx by its protobuf-framed length (tag + length prefix + bytes),
+// matching how CometBFT validates the returned list. Raw len(tx) under-counts
+// the framing, so a list that fits here could still be rejected by Core.
+//
+// The txs that fit in mempool priority order are admitted and their bytes
+// reserved up front. Fill then walks every candidate of each class (normal,
+// blob, pay-for-fibre) in priority order. A candidate releases its own
+// reservation when Fill reaches it, so an admitted tx always fits and is kept
+// whenever it passes validation. Bytes released by an admitted tx that is then
+// dropped (for example because it expired, or because its signer's nonce chain
+// alternates classes) go to the candidates Fill reaches after it. used +
+// reserved never exceeds maxTxBytes, so neither does the kept list.
+//
+// A non-positive maxTxBytes means "no limit" — CometBFT always sets a positive
+// value in production, but some tests construct requests directly and leave it
+// at zero.
+type txByteBudget struct {
+	max, used, reserved int64
+	// admitted counts the admitted txs by the identity of their bytes. Txs
+	// with the same identity have the same size, so the admitted ones are the
+	// first in priority order and a count is enough.
+	admitted map[txIdentity]int
+}
+
+type txIdentity struct {
+	data *byte
+	len  int
+}
+
+func identityOf(tx []byte) txIdentity {
+	if len(tx) == 0 {
+		return txIdentity{}
+	}
+	return txIdentity{data: &tx[0], len: len(tx)}
+}
+
+func newTxByteBudget(logger log.Logger, txs [][]byte, maxTxBytes int64) *txByteBudget {
+	b := &txByteBudget{max: maxTxBytes}
+	if maxTxBytes <= 0 {
+		return b
+	}
+	b.admitted = make(map[txIdentity]int, len(txs))
+	for _, tx := range txs {
+		size := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
+		if b.reserved+size > maxTxBytes {
+			logger.Debug("not reserving bytes for tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+		b.reserved += size
+		b.admitted[identityOf(tx)]++
+	}
+	return b
+}
+
+// fits releases the reservation of tx, if any, and reports whether tx fits
+// the bytes neither used nor reserved. Fill must call use with the returned
+// size if it keeps tx.
+func (b *txByteBudget) fits(tx []byte) (int64, bool) {
+	if b.max <= 0 {
+		return 0, true
+	}
+	size := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
+	if id := identityOf(tx); b.admitted[id] > 0 {
+		b.admitted[id]--
+		b.reserved -= size
+	}
+	return size, b.used+b.reserved+size <= b.max
+}
+
+// use records that Fill kept a tx of the given size.
+func (b *txByteBudget) use(size int64) {
+	b.used += size
 }
 
 func msgTypes(sdkTx sdk.Tx) []string {
@@ -312,13 +375,17 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs [][]byte) [][]byte {
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs [][]byte, budget *txByteBudget) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	dec := fsb.txConfig.TxDecoder()
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
 	for _, rawTx := range payForFibreTxs {
+		txSize, inBudget := budget.fits(rawTx)
+		if !inBudget {
+			continue
+		}
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
 		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so isFibreTx is always true.
 		fibreTx, isFibreTx, err := fibretypes.TryParseFibreTx(rawTx)
@@ -392,6 +459,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		commit()
 
 		pffMessageCount += len(sdkTx.GetMsgs())
+		budget.use(txSize)
 		fibreTxs = append(fibreTxs, rawTx)
 	}
 
