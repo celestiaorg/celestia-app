@@ -3,7 +3,9 @@ package keeper
 import (
 	"fmt"
 
+	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -14,19 +16,33 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	// InitChain runs at height 0 for a chain starting at 1, and at InitialHeight otherwise.
 	k.setGenesisHeight(ctx, max(ctx.BlockHeight(), 1))
 
-	// InitChainer does not run ValidateGenesis, so check signers before writing them.
+	// InitChainer records the current module version, so Migrate1to2 never runs
+	// on imported state. A v10 export may hold escrows under non-canonical
+	// signers or in other denominations; store them as v10 did, then apply the
+	// same migration. InitChainer does not run ValidateGenesis, so check here.
+	legacy := false
 	for _, escrowAccount := range genesisState.EscrowAccounts {
-		if err := types.ValidateGenesisSigner(escrowAccount.Signer); err != nil {
+		canonical, err := isCanonicalGenesisSigner(escrowAccount.Signer)
+		if err != nil {
 			panic(fmt.Errorf("invalid %s genesis escrow account: %w", types.ModuleName, err))
 		}
+		legacy = legacy || !canonical || escrowAccount.Balance.Denom != appconsts.BondDenom
 		k.SetEscrowAccount(ctx, escrowAccount)
 	}
 
 	for _, withdrawal := range genesisState.Withdrawals {
-		if err := types.ValidateGenesisSigner(withdrawal.Signer); err != nil {
+		canonical, err := isCanonicalGenesisSigner(withdrawal.Signer)
+		if err != nil {
 			panic(fmt.Errorf("invalid %s genesis withdrawal: %w", types.ModuleName, err))
 		}
+		legacy = legacy || !canonical || withdrawal.Amount.Denom != appconsts.BondDenom
 		k.SetWithdrawal(ctx, withdrawal)
+	}
+
+	if legacy {
+		if err := NewMigrator(k).Migrate1to2(ctx); err != nil {
+			panic(fmt.Errorf("migrate legacy %s genesis state: %w", types.ModuleName, err))
+		}
 	}
 
 	for _, entry := range genesisState.ProcessedPayments {
@@ -38,6 +54,16 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	if floor := genesisState.PromiseFreshnessFloor; !floor.IsZero() {
 		k.SetPromiseFreshnessFloor(ctx, floor)
 	}
+}
+
+// isCanonicalGenesisSigner reports whether a valid bech32 signer is already in
+// the canonical form the keeper uses as its store key.
+func isCanonicalGenesisSigner(signer string) (bool, error) {
+	addr, err := sdk.AccAddressFromBech32(signer)
+	if err != nil {
+		return false, errorsmod.Wrapf(types.ErrInvalidSigner, "%q: %s", signer, err)
+	}
+	return addr.String() == signer, nil
 }
 
 // ExportGenesis returns the module's exported genesis
