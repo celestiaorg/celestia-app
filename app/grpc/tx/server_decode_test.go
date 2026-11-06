@@ -33,6 +33,13 @@ func (c *captureServer) RegisterService(desc *grpc.ServiceDesc, impl any) {
 // registered TxStatusBatch handler, as the gRPC server does.
 func invokeTxStatusBatch(t testing.TB, raw []byte) (any, error) {
 	t.Helper()
+	return invokeTxStatusBatchWithInterceptor(t, raw, nil)
+}
+
+// invokeTxStatusBatchWithInterceptor is invokeTxStatusBatch with a unary
+// interceptor, as the app's gRPC server installs one.
+func invokeTxStatusBatchWithInterceptor(t testing.TB, raw []byte, interceptor grpc.UnaryServerInterceptor) (any, error) {
+	t.Helper()
 	registry := codectypes.NewInterfaceRegistry()
 	srv := &captureServer{}
 	tx.RegisterTxService(srv, client.Context{}.WithClient(&stubNode{mode: stubFaithful}), registry)
@@ -42,7 +49,7 @@ func invokeTxStatusBatch(t testing.TB, raw []byte) (any, error) {
 		if m.MethodName == "TxStatusBatch" {
 			return m.Handler(srv.impl, context.Background(), func(v any) error {
 				return grpcCodec.Unmarshal(raw, v)
-			}, nil)
+			}, interceptor)
 		}
 	}
 	t.Fatal("TxStatusBatch not registered")
@@ -70,6 +77,40 @@ func TestTxStatusBatchDecodeRejectsOverLimit(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
+func TestTxStatusBatchDecodeAcceptsUnknownFields(t *testing.T) {
+	raw := protowire.AppendTag(nil, 5, protowire.StartGroupType)
+	raw = protowire.AppendTag(raw, 1, protowire.BytesType)
+	raw = protowire.AppendString(raw, "ignored")
+	raw = protowire.AppendTag(raw, 5, protowire.EndGroupType)
+	raw = protowire.AppendTag(raw, 6, protowire.VarintType)
+	raw = protowire.AppendVarint(raw, 7)
+	raw = append(raw, encodeTxIDs(20, "aa")...)
+
+	res, err := invokeTxStatusBatch(t, raw)
+	require.NoError(t, err)
+	require.Len(t, res.(*tx.TxStatusBatchResponse).Statuses, 20)
+}
+
+// TestTxStatusBatchDecodeRejectsThroughInterceptor checks that rejected
+// requests still pass through the unary interceptor, so it can observe them.
+func TestTxStatusBatchDecodeRejectsThroughInterceptor(t *testing.T) {
+	calls := 0
+	interceptor := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		calls++
+		require.Equal(t, "/celestia.core.v1.tx.Tx/TxStatusBatch", info.FullMethod)
+		return handler(ctx, req)
+	}
+
+	_, err := invokeTxStatusBatchWithInterceptor(t, encodeTxIDs(21, "aa"), interceptor)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.Equal(t, 1, calls)
+
+	res, err := invokeTxStatusBatchWithInterceptor(t, encodeTxIDs(2, "aa"), interceptor)
+	require.NoError(t, err)
+	require.Len(t, res.(*tx.TxStatusBatchResponse).Statuses, 2)
+	require.Equal(t, 2, calls)
+}
+
 func TestTxStatusBatchDecodeRejectsMalformed(t *testing.T) {
 	_, err := invokeTxStatusBatch(t, []byte{0x0a, 0x05, 'a'})
 	require.Error(t, err)
@@ -79,18 +120,29 @@ func TestTxStatusBatchDecodeRejectsMalformed(t *testing.T) {
 // number of tx ids is rejected without allocating memory proportional to it.
 func TestTxStatusBatchDecodeBoundsAllocation(t *testing.T) {
 	const entries = 1_000_000
-	raw := encodeTxIDs(entries, "")
+	// A group whose end tag names another field is skipped by the generated
+	// decoder but is not valid protobuf.
+	mismatchedGroup := protowire.AppendTag(nil, 2, protowire.StartGroupType)
+	mismatchedGroup = protowire.AppendTag(mismatchedGroup, 3, protowire.EndGroupType)
 
-	var before, after runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&before)
-	_, err := invokeTxStatusBatch(t, raw)
-	runtime.ReadMemStats(&after)
+	for name, raw := range map[string][]byte{
+		"tx ids":                    encodeTxIDs(entries, ""),
+		"mismatched group then ids": append(mismatchedGroup, encodeTxIDs(entries, "")...),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			_, err := invokeTxStatusBatch(t, raw)
+			runtime.ReadMemStats(&after)
 
-	require.Equal(t, codes.InvalidArgument, status.Code(err))
-	// Decoding every entry would allocate at least 16 bytes per string header.
-	allocated := after.TotalAlloc - before.TotalAlloc
-	require.Less(t, allocated, uint64(1<<20), "allocated %d bytes", allocated)
+			require.Equal(t, codes.InvalidArgument, status.Code(err))
+			// Decoding every entry would allocate at least 16 bytes per string
+			// header.
+			allocated := after.TotalAlloc - before.TotalAlloc
+			require.Less(t, allocated, uint64(1<<20), "allocated %d bytes", allocated)
+		})
+	}
 }
 
 // TestTxStatusBatchOverGRPC checks the limit through a gRPC server using the

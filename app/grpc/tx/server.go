@@ -46,33 +46,40 @@ func txServiceDesc() *grpc.ServiceDesc {
 	return &desc
 }
 
-// boundedTxStatusBatchHandler wraps the generated TxStatusBatch handler so
-// that the request is decoded through boundedTxStatusBatchRequest.
+// boundedTxStatusBatchHandler replaces the generated TxStatusBatch handler.
+// It decodes the request through boundedTxStatusBatchRequest and, if the
+// request was not decoded, returns the rejection from inside the
+// interceptor-wrapped handler so that interceptors still see the request.
 func boundedTxStatusBatchHandler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	return _Tx_TxStatusBatch_Handler(srv, ctx, func(in any) error {
-		req, ok := in.(*TxStatusBatchRequest)
-		if !ok {
-			return dec(in)
+	in := new(TxStatusBatchRequest)
+	bounded := &boundedTxStatusBatchRequest{req: in}
+	if err := dec(bounded); err != nil {
+		return nil, err
+	}
+	handler := func(ctx context.Context, req any) (any, error) {
+		if bounded.rejectErr != nil {
+			return nil, bounded.rejectErr
 		}
-		bounded := &boundedTxStatusBatchRequest{req: req}
-		if err := dec(bounded); err != nil {
-			return err
-		}
-		if bounded.tooManyIDs {
-			return errTooManyTxIDs()
-		}
-		return nil
-	}, interceptor)
+		return srv.(TxServer).TxStatusBatch(ctx, req.(*TxStatusBatchRequest))
+	}
+	if interceptor == nil {
+		return handler(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.core.v1.tx.Tx/TxStatusBatch",
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-// boundedTxStatusBatchRequest decodes into req only if the encoded request
-// carries at most maxTxStatusBatchIDs tx ids. Otherwise it leaves req empty and
-// sets tooManyIDs without failing the decode, because the gRPC server reports
-// every decode error as Internal and the limit error should stay
-// InvalidArgument.
+// boundedTxStatusBatchRequest decodes into req only if the encoded request is
+// well formed and carries at most maxTxStatusBatchIDs tx ids. Otherwise it
+// leaves req empty and records the rejection in rejectErr without failing the
+// decode, because the gRPC server reports every decode error as Internal and
+// skips interceptors for it.
 type boundedTxStatusBatchRequest struct {
-	req        *TxStatusBatchRequest
-	tooManyIDs bool
+	req       *TxStatusBatchRequest
+	rejectErr error
 }
 
 func (m *boundedTxStatusBatchRequest) Reset()         { m.req.Reset() }
@@ -84,8 +91,8 @@ func (m *boundedTxStatusBatchRequest) XXX_Unmarshal(b []byte) error {
 }
 
 func (m *boundedTxStatusBatchRequest) Unmarshal(b []byte) error {
-	if tooManyTxStatusBatchIDs(b) {
-		m.tooManyIDs = true
+	if err := checkTxStatusBatchRequest(b); err != nil {
+		m.rejectErr = err
 		return nil
 	}
 	return m.req.Unmarshal(b)
@@ -95,30 +102,35 @@ func errTooManyTxIDs() error {
 	return status.Errorf(codes.InvalidArgument, "maximum of %d tx ids allowed", maxTxStatusBatchIDs)
 }
 
-// tooManyTxStatusBatchIDs scans an encoded TxStatusBatchRequest without
-// allocating and reports whether it carries more than maxTxStatusBatchIDs tx
-// ids. Malformed input is left for the regular decoder to reject.
-func tooManyTxStatusBatchIDs(b []byte) bool {
+// checkTxStatusBatchRequest scans an encoded TxStatusBatchRequest without
+// allocating. It rejects input that is not valid protobuf, which the generated
+// decoder may still partly accept, and input that carries more than
+// maxTxStatusBatchIDs tx ids.
+func checkTxStatusBatchRequest(b []byte) error {
 	count := 0
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)
 		if n < 0 {
-			return false
+			return errInvalidTxStatusBatchRequest(protowire.ParseError(n))
 		}
 		b = b[n:]
 		n = protowire.ConsumeFieldValue(num, typ, b)
 		if n < 0 {
-			return false
+			return errInvalidTxStatusBatchRequest(protowire.ParseError(n))
 		}
 		b = b[n:]
 		if num == txStatusBatchTxIDsField {
 			count++
 			if count > maxTxStatusBatchIDs {
-				return true
+				return errTooManyTxIDs()
 			}
 		}
 	}
-	return false
+	return nil
+}
+
+func errInvalidTxStatusBatchRequest(err error) error {
+	return status.Errorf(codes.InvalidArgument, "invalid tx status batch request: %v", err)
 }
 
 // RegisterGRPCGatewayRoutes mounts the tx service's GRPC-gateway routes on the
