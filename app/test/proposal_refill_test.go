@@ -31,6 +31,7 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 		name        string
 		chain       [][]byte
 		sendFillers []string
+		pfbFillers  []string
 	}{
 		{
 			// The square orders normal txs before blob txs, so only the first
@@ -44,6 +45,7 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 				txs.pfb("chain", 4, bigBlob),
 			},
 			sendFillers: sendFillers,
+			pfbFillers:  pfbFillers,
 		},
 		{
 			name: "expired blob txs",
@@ -52,17 +54,28 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 				txs.pfbWithOpts("chain", 1, []int{bigBlob}, expired),
 				txs.pfbWithOpts("chain", 2, []int{bigBlob}, expired),
 			},
+			pfbFillers: pfbFillers,
+		},
+		{
+			// Classification drops undecodable txs before Fill reaches them, so
+			// they must not reserve the bytes the fillers need.
+			name: "undecodable tx",
+			chain: [][]byte{
+				txs.pfb("chain", 0, 100),
+				bytes.Repeat([]byte{0xff}, 2_000),
+			},
+			sendFillers: sendFillers,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Lower-priority candidates from other signers, after the chain in
 			// mempool order.
 			sends := make([][]byte, 0, len(tc.sendFillers))
-			pfbs := make([][]byte, 0, len(pfbFillers))
+			pfbs := make([][]byte, 0, len(tc.pfbFillers))
 			for _, f := range tc.sendFillers {
 				sends = append(sends, txs.send(f, 0, lowFee))
 			}
-			for _, f := range pfbFillers {
+			for _, f := range tc.pfbFillers {
 				pfbs = append(pfbs, txs.pfbWithOpts(f, 0, []int{1000}, lowFee))
 			}
 			lower := append(append([][]byte{}, sends...), pfbs...)
