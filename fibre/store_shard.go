@@ -24,6 +24,9 @@ type shardBackend interface {
 type routedStorage struct {
 	primary   shardBackend
 	secondary shardBackend
+	// packed batches several shards into one object. It is non-nil only when
+	// packing is enabled or previously-packed shards still need reads or pruning.
+	packed *packedBackend
 	// objectMarkersPresent is captured when the store opens.
 	objectMarkersPresent bool
 }
@@ -48,6 +51,9 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 		storage = newRoutedStorage(local, object)
 	}
 	storage.objectMarkersPresent = objectMarkersPresent
+	if err := storage.openPacked(ctx, cfg, db, object); err != nil {
+		return nil, fmt.Errorf("opening packed shard storage: %w", err)
+	}
 	return storage, nil
 }
 
@@ -57,6 +63,11 @@ func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 		backend.metrics = metrics
 	case *objectBackend:
 		backend.metrics = metrics
+	}
+	if s.packed != nil {
+		// The packed backend may wrap the object backend in the secondary slot
+		// (local mode with previously-packed shards), which the switch skips.
+		s.packed.object.metrics = metrics
 	}
 }
 
@@ -228,6 +239,9 @@ func (s *routedStorage) backendForMarker(marker []byte) (shardBackend, error) {
 }
 
 func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
+	if tag == packedObjectBackendTag && s.packed != nil {
+		return s.packed, nil
+	}
 	if s.primary.backendTag() == tag {
 		return s.primary, nil
 	}

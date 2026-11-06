@@ -143,3 +143,56 @@ The charge per blob is `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` utia (see
 - `Put` is the convenience path: one blob, one `MsgPayForFibre`, submitted through the provided tx client. For custom transaction handling, use `Client.Upload` and submit the message yourself. Each PFF contains one promise, and each PFF transaction must contain exactly one message. `Upload` alone does not perform escrow auto-funding or local budget admission.
 - Uploaded data is retained by fibre servers for a limited window (the `shard_retention` chain parameter, plus whatever servers keep voluntarily). Fibre is not archival storage: download soon after publishing, or persist the data elsewhere.
 - The full API and configuration reference (`ClientConfig`, thresholds, timeouts, retries) is specified in [specs/src/fibre_client.md](../specs/src/fibre_client.md).
+
+## Packing shards into one S3 object (operators)
+
+A fibre server in `storage_backend = object` mode writes **one S3 object per
+shard** by default. On a high-throughput server this can hit the object store's
+request-rate limits — S3/R2 reply `HTTP 503 SlowDown` and enforce per-prefix
+PUT/s caps — long before bandwidth is the bottleneck. `object_storage.shards_per_object`
+batches several shards into a single PUT to cut the request rate:
+
+```toml
+[store.object_storage]
+shards_per_object = 16   # default 1: one object per shard, unchanged
+```
+
+- **Default `1`** keeps today's behaviour exactly: no packed objects are
+  written, no batching machinery runs. This is right for most validators — raise
+  it only when the object store is rate-limiting uploads.
+- With `N > 1`, up to `N` shards become one object, so the PUT (and DELETE)
+  request rate drops by roughly `N×`. Reads fetch a shard with a ranged GET of
+  its byte range, so download cost per shard is unchanged.
+
+Trade-offs to weigh before raising it:
+
+- **Latency.** A batch uploads once it fills, or after a short internal delay
+  (~250 ms) if it does not, so an upload can wait up to that delay for slower
+  neighbours. Under the heavy load that motivates packing, batches fill fast and
+  this wait is negligible; under light load there is no reason to pack.
+- **Object size.** Packed objects are up to `N ×` a shard; a single object is
+  still capped well under the S3 limit.
+- **Delete granularity.** Each shard's accounted occupancy is still released as
+  soon as that shard is pruned, so the storage budget is not over-held. The
+  physical S3 object, however, is deleted only once its **last** member is
+  pruned, so its bytes persist until the latest member's prune time. Members of
+  one object usually expire close together (they are batched as they arrive),
+  but the bound is the spread of their prune times, not of their arrival. No
+  shard with live neighbours is ever dropped.
+
+Compatibility and rollback:
+
+- Packed shards use a new on-disk marker (`0x06`) that **older binaries cannot
+  read**. A default (`N = 1`) deployment never writes it and stays fully
+  backward/forward compatible.
+- Lowering `shards_per_object` back to `1` stops new packing immediately;
+  shards packed earlier stay readable, prunable, and are deleted
+  normally — the backend self-attaches whenever packed markers still exist.
+  Keep object storage configured until all packed shards have been pruned.
+- A crash between a batch's PUT and its durable metadata commit can leave an
+  unreferenced object behind (bounded by the batches in flight at the crash). It
+  is never read and causes no data loss; set a bucket lifecycle rule if you want
+  such strays reaped automatically.
+
+`fibre.server.storage.packed.shards` reports how many shards each object holds —
+its mean is the realised request-reduction factor.
