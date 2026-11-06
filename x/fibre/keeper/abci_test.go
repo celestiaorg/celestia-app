@@ -793,19 +793,64 @@ func (suite *ABCITestSuite) TestGenesisRoundTripPreservesFreshnessFloor() {
 	suite.True(got.IsZero(), "a zero exported floor must remain unset after import")
 }
 
-func (suite *ABCITestSuite) TestInitGenesisRejectsNonCanonicalSigner() {
-	signer := sdk.AccAddress([]byte("genesis_signer______")).String()
+func (suite *ABCITestSuite) TestInitGenesisRejectsInvalidSigner() {
 	balance := sdk.NewCoin("utia", math.NewInt(1000))
 	genesis := types.DefaultGenesis()
 	genesis.EscrowAccounts = []types.EscrowAccount{{
-		Signer:           strings.ToUpper(signer),
+		Signer:           "not-a-bech32-address",
 		Balance:          balance,
 		AvailableBalance: balance,
 	}}
 
 	suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
-	_, found := suite.keeper.GetEscrowAccount(suite.ctx, strings.ToUpper(signer))
-	suite.False(found, "no escrow account is written under the uppercase key")
+}
+
+// TestInitGenesisMigratesLegacyEscrows imports a v10 export, which InitChainer
+// stamps with the v11 module version, so Migrate1to2 must run inside InitGenesis.
+func (suite *ABCITestSuite) TestInitGenesisMigratesLegacyEscrows() {
+	lower := sdk.AccAddress([]byte("genesis_signer______")).String()
+	upper := strings.ToUpper(lower)
+	other := sdk.AccAddress([]byte("genesis_other_signer")).String()
+	requested := suite.ctx.BlockTime()
+
+	var refunds []sdk.Coins
+	suite.bankKeeper.SendCoinsFromModuleToAccountFn = func(_ context.Context, module string, owner sdk.AccAddress, coins sdk.Coins) error {
+		suite.Equal(types.ModuleName, module)
+		suite.Equal(other, owner.String())
+		refunds = append(refunds, coins)
+		return nil
+	}
+	defer func() { suite.bankKeeper.SendCoinsFromModuleToAccountFn = nil }()
+
+	genesis := types.DefaultGenesis()
+	genesis.EscrowAccounts = []types.EscrowAccount{
+		{Signer: upper, Balance: sdk.NewInt64Coin("utia", 500), AvailableBalance: sdk.NewInt64Coin("utia", 400)},
+		{Signer: lower, Balance: sdk.NewInt64Coin("utia", 50), AvailableBalance: sdk.NewInt64Coin("utia", 50)},
+		{Signer: other, Balance: sdk.NewInt64Coin("stake", 70), AvailableBalance: sdk.NewInt64Coin("stake", 60)},
+	}
+	genesis.Withdrawals = []types.Withdrawal{
+		{Signer: upper, Amount: sdk.NewInt64Coin("utia", 100), RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour)},
+		{Signer: other, Amount: sdk.NewInt64Coin("stake", 10), RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour)},
+	}
+
+	suite.NotPanics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
+
+	account, found := suite.keeper.GetEscrowAccount(suite.ctx, lower)
+	suite.Require().True(found)
+	suite.Equal(sdk.NewInt64Coin("utia", 550), account.Balance)
+	suite.Equal(sdk.NewInt64Coin("utia", 450), account.AvailableBalance)
+	withdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, lower, requested)
+	suite.Require().True(found)
+	suite.Equal(sdk.NewInt64Coin("utia", 100), withdrawal.Amount)
+	_, found = suite.keeper.GetEscrowAccount(suite.ctx, upper)
+	suite.False(found, "no escrow account remains under the uppercase key")
+
+	_, found = suite.keeper.GetEscrowAccount(suite.ctx, other)
+	suite.False(found, "a non-utia escrow is refunded and removed")
+	suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, other))
+	suite.Equal([]sdk.Coins{sdk.NewCoins(sdk.NewInt64Coin("stake", 70))}, refunds)
+
+	suite.Require().NoError(suite.keeper.ExportGenesis(suite.ctx).Validate())
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {
