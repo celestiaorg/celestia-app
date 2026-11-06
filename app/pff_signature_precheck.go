@@ -5,6 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	squaretx "github.com/celestiaorg/go-square/v4/tx"
+	coretypes "github.com/cometbft/cometbft/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -20,13 +22,11 @@ const (
 	wirePFFValidatorSignatures    = 3 // MsgPayForFibre.validator_signatures
 	wireMsgExecMsgs               = 2 // MsgExec.msgs
 	wireMsgSubmitProposalMessages = 1 // MsgSubmitProposal.messages
-	wireIndexWrapperTx            = 1 // IndexWrapper.tx
-	wireIndexWrapperTypeID        = 3 // IndexWrapper.type_id
-	indexWrapperTypeID            = "INDX"
 )
 
 var (
 	msgPayForFibreTypeURLBytes = []byte(fibretypes.MsgPayForFibreTypeURL)
+	indexWrapperTypeIDBytes    = []byte(squaretx.ProtoIndexWrapperTypeID)
 	msgExecTypeURL             = sdk.MsgTypeURL(&authz.MsgExec{})
 	msgSubmitProposalTypeURL   = sdk.MsgTypeURL(&govv1.MsgSubmitProposal{})
 )
@@ -38,18 +38,20 @@ var (
 //
 // It never rejects a tx that would pass decoding and ValidateBasic: it counts
 // exactly the entries the decoder would, and a MsgPayForFibre nested in a
-// MsgExec or MsgSubmitProposal is rejected by ante anyway. Malformed input
-// reports false and is left to the decoder.
+// MsgExec or MsgSubmitProposal is rejected by ante anyway. Like the decoder's
+// unknown field check, it skips other fields with ConsumeFieldValue, groups
+// included. Input that check cannot parse reports false: the decoder rejects
+// it before unmarshalling any entries.
 func exceedsPFFSignatureLimit(raw []byte) bool {
 	// The type URL is a verbatim subrange of any tx carrying a MsgPayForFibre.
 	if !bytes.Contains(raw, msgPayForFibreTypeURLBytes) {
 		return false
 	}
-	// The tx decoder unwraps an IndexWrapper. Treating any INDX-tagged bytes as
-	// one is safe: an IndexWrapper must carry a MsgPayForBlobs, and read as a
-	// TxRaw, "INDX" is a 4-byte signature that never verifies.
-	if inner, ok := indexWrapperInnerTx(raw); ok {
-		raw = inner
+	// Unwrap an IndexWrapper exactly when the tx decoder does.
+	if bytes.Contains(raw, indexWrapperTypeIDBytes) {
+		if indexWrapper, ok := coretypes.UnmarshalIndexWrapper(raw); ok {
+			raw = indexWrapper.Tx
+		}
 	}
 	// A repeated body_bytes resolves to the last occurrence, as in the decoder.
 	body, ok := lastBytesField(raw, wireTxRawBody)
@@ -66,7 +68,7 @@ func anysExceedPFFSignatureLimit(msg []byte, field protowire.Number, depth int) 
 	}
 	for len(msg) > 0 {
 		num, typ, n := protowire.ConsumeTag(msg)
-		if n < 0 || typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+		if n < 0 {
 			return false
 		}
 		msg = msg[n:]
@@ -114,7 +116,7 @@ func countBytesField(msg []byte, field protowire.Number, limit int) int {
 	count := 0
 	for len(msg) > 0 && count < limit {
 		num, typ, n := protowire.ConsumeTag(msg)
-		if n < 0 || typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+		if n < 0 {
 			return count
 		}
 		msg = msg[n:]
@@ -138,7 +140,7 @@ func lastBytesField(msg []byte, field protowire.Number) ([]byte, bool) {
 	)
 	for len(msg) > 0 {
 		num, typ, n := protowire.ConsumeTag(msg)
-		if n < 0 || typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+		if n < 0 {
 			return nil, false
 		}
 		msg = msg[n:]
@@ -157,14 +159,4 @@ func lastBytesField(msg []byte, field protowire.Number) ([]byte, bool) {
 		msg = msg[n:]
 	}
 	return value, found
-}
-
-// indexWrapperInnerTx returns the tx an IndexWrapper carries when raw's last
-// type_id is INDX.
-func indexWrapperInnerTx(raw []byte) ([]byte, bool) {
-	typeID, ok := lastBytesField(raw, wireIndexWrapperTypeID)
-	if !ok || string(typeID) != indexWrapperTypeID {
-		return nil, false
-	}
-	return lastBytesField(raw, wireIndexWrapperTx)
 }

@@ -120,6 +120,42 @@ func TestExceedsPFFSignatureLimit(t *testing.T) {
 	body := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), shadowed)
 	shadowedTx := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), body)
 
+	// Groups on a non-critical field number pass the decoder's unknown field
+	// check, so the scan must skip them rather than stop.
+	group := protowire.AppendTag(protowire.AppendTag(nil, 1025, protowire.StartGroupType), 1025, protowire.EndGroupType)
+	overValue := pffValueWithSignatures(t, limit+1, false)
+	anyBytes := func(prefix, value []byte) []byte {
+		bz := append(append([]byte{}, prefix...), protowire.AppendTag(nil, 1, protowire.BytesType)...)
+		bz = protowire.AppendString(bz, fibretypes.MsgPayForFibreTypeURL)
+		return protowire.AppendBytes(protowire.AppendTag(bz, 2, protowire.BytesType), value)
+	}
+	txRaw := func(bodyPrefix, anyBz, authInfo []byte, signatures ...[]byte) []byte {
+		body := protowire.AppendBytes(protowire.AppendTag(append([]byte{}, bodyPrefix...), 1, protowire.BytesType), anyBz)
+		bz := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), body)
+		if authInfo != nil {
+			bz = protowire.AppendBytes(protowire.AppendTag(bz, 2, protowire.BytesType), authInfo)
+		}
+		for _, sig := range signatures {
+			bz = protowire.AppendBytes(protowire.AppendTag(bz, 3, protowire.BytesType), sig)
+		}
+		return bz
+	}
+	groupInValue := txRaw(nil, anyBytes(nil, append(append([]byte{}, group...), overValue...)), nil)
+	groupInAny := txRaw(nil, anyBytes(group, overValue), nil)
+	groupInBody := txRaw(group, anyBytes(nil, overValue), nil)
+	// An "INDX" signature does not make a tx an IndexWrapper when the
+	// IndexWrapper unmarshal fails; the decoder then reads it as a TxRaw.
+	indxSignature := txRaw(nil, anyBytes(nil, overValue), bytes.Repeat([]byte{0xff}, 11), []byte("INDX"))
+	_, isIndexWrapper := coretypes.UnmarshalIndexWrapper(indxSignature)
+	require.False(t, isIndexWrapper)
+	indexWrappedGroup := append(append([]byte{}, indexWrapped...), protowire.AppendTag(protowire.AppendTag(nil, 5, protowire.StartGroupType), 5, protowire.EndGroupType)...)
+	_, isIndexWrapper = coretypes.UnmarshalIndexWrapper(indexWrappedGroup)
+	require.True(t, isIndexWrapper)
+	// A field number protowire rejects, which the IndexWrapper unmarshal skips.
+	indexWrappedBigField := append(append(protowire.AppendVarint(nil, uint64(1<<29)<<3), 0x00), indexWrapped...)
+	_, isIndexWrapper = coretypes.UnmarshalIndexWrapper(indexWrappedBigField)
+	require.True(t, isIndexWrapper)
+
 	tests := []struct {
 		name string
 		raw  []byte
@@ -135,6 +171,12 @@ func TestExceedsPFFSignatureLimit(t *testing.T) {
 		{"oversized Any.value shadowed by a later one", shadowedTx, false},
 		{"not a tx", []byte("not a tx"), false},
 		{"truncated PFF over the limit", overLimit[:len(overLimit)/2], false},
+		{"group in the PFF value", groupInValue, true},
+		{"group in the Any", groupInAny, true},
+		{"group in the TxBody", groupInBody, true},
+		{"INDX signature on a tx that is not an IndexWrapper", indxSignature, true},
+		{"index wrapper with a trailing group", indexWrappedGroup, true},
+		{"index wrapper with a field number protowire rejects", indexWrappedBigField, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -148,6 +190,11 @@ func TestExceedsPFFSignatureLimit(t *testing.T) {
 	require.True(t, rejectedByDecodeOrValidateBasic(txConfig, overLimit))
 	require.True(t, rejectedByDecodeOrValidateBasic(txConfig, emptyOverLimit))
 	require.True(t, rejectedByDecodeOrValidateBasic(txConfig, indexWrapped))
+	for _, raw := range [][]byte{groupInValue, groupInAny, groupInBody} {
+		tx, err := txConfig.TxDecoder()(raw)
+		require.NoError(t, err, "the decoder accepts the group, so it would decode every entry")
+		require.Len(t, fibretypes.PayForFibreMsg(tx).ValidatorSignatures, limit+1)
+	}
 	require.False(t, rejectedByDecodeOrValidateBasic(txConfig, shadowedTx))
 }
 
@@ -204,34 +251,52 @@ func BenchmarkPFFSignatureBomb(b *testing.B) {
 	})
 }
 
-// FuzzExceedsPFFSignatureLimitNoFalsePositives checks that the precheck only
-// flags txs the decoder or ValidateBasic would reject anyway.
-func FuzzExceedsPFFSignatureLimitNoFalsePositives(f *testing.F) {
+// maxPFFSignatures returns the most validator signatures any MsgPayForFibre in
+// msgs carries, including those nested in MsgExec or MsgSubmitProposal.
+func maxPFFSignatures(msgs []sdk.Msg) int {
+	most := -1
+	for _, msg := range msgs {
+		count := -1
+		switch msg := msg.(type) {
+		case *fibretypes.MsgPayForFibre:
+			count = len(msg.ValidatorSignatures)
+		case *authz.MsgExec:
+			if nested, err := msg.GetMessages(); err == nil {
+				count = maxPFFSignatures(nested)
+			}
+		case *govv1.MsgSubmitProposal:
+			if nested, err := msg.GetMsgs(); err == nil {
+				count = maxPFFSignatures(nested)
+			}
+		}
+		most = max(most, count)
+	}
+	return most
+}
+
+// FuzzExceedsPFFSignatureLimitMatchesDecoder checks that, for every tx the
+// decoder accepts, the precheck flags it exactly when it carries a
+// MsgPayForFibre over the signature limit. A flagged top-level MsgPayForFibre
+// fails ValidateBasic and a nested one fails ante, so this also shows the
+// precheck never rejects a tx that could otherwise pass CheckTx.
+func FuzzExceedsPFFSignatureLimitMatchesDecoder(f *testing.F) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	limit := appconsts.MaxFibreValidatorSignatures
+	group := protowire.AppendTag(protowire.AppendTag(nil, 1025, protowire.StartGroupType), 1025, protowire.EndGroupType)
 	f.Add(rawTxWithAnys(f, pffAny(pffValueWithSignatures(f, limit, true))))
 	f.Add(rawTxWithAnys(f, pffAny(pffValueWithSignatures(f, limit+1, false))))
 	f.Add(rawTxWithAnys(f, pffAny(pffValueWithSignatures(f, 1, true))))
+	f.Add(rawTxWithAnys(f, pffAny(append(group, pffValueWithSignatures(f, limit+1, false)...))))
+	exec := &authz.MsgExec{Grantee: "grantee", Msgs: []*codectypes.Any{pffAny(pffValueWithSignatures(f, limit+1, false))}}
+	f.Add(rawTxWithAnys(f, marshalAny(f, sdk.MsgTypeURL(exec), exec)))
 	f.Fuzz(func(t *testing.T, raw []byte) {
-		if !exceedsPFFSignatureLimit(raw) {
-			return
-		}
+		flagged := exceedsPFFSignatureLimit(raw)
 		tx, err := txConfig.TxDecoder()(raw)
 		if err != nil {
 			return
 		}
-		for _, msg := range tx.GetMsgs() {
-			if pff, ok := msg.(*fibretypes.MsgPayForFibre); ok && pff.ValidateBasic() != nil {
-				return
-			}
-			// A MsgPayForFibre nested in MsgExec or MsgSubmitProposal is rejected by ante.
-			if _, ok := msg.(*authz.MsgExec); ok {
-				return
-			}
-			if _, ok := msg.(*govv1.MsgSubmitProposal); ok {
-				return
-			}
+		if overLimit := maxPFFSignatures(tx.GetMsgs()) > limit; overLimit != flagged {
+			t.Fatalf("precheck flagged=%v but the decoded tx is over the limit=%v", flagged, overLimit)
 		}
-		t.Fatalf("precheck flagged a tx that decodes and passes ValidateBasic")
 	})
 }

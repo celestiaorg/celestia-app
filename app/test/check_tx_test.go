@@ -1165,7 +1165,7 @@ func TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding(t *testing.T) 
 
 	// newTx fills a PayForFibre tx with empty validator_signatures entries
 	// until it is about size bytes.
-	newTx := func(size int) []byte {
+	newTx := func(size int, bodyPrefix ...byte) []byte {
 		msg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), testutil.ChainID)
 		value, err := msg.Marshal()
 		require.NoError(t, err)
@@ -1173,10 +1173,12 @@ func TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding(t *testing.T) 
 		value = append(value, bytes.Repeat(emptySignature, (size-len(value))/len(emptySignature))...)
 		body, err := (&txtypes.TxBody{Messages: []*codectypes.Any{{TypeUrl: fibretypes.MsgPayForFibreTypeURL, Value: value}}}).Marshal()
 		require.NoError(t, err)
-		raw, err := (&txtypes.TxRaw{BodyBytes: body}).Marshal()
+		raw, err := (&txtypes.TxRaw{BodyBytes: append(bodyPrefix, body...)}).Marshal()
 		require.NoError(t, err)
 		return raw
 	}
+	// An empty group on non-critical field 1025, which the decoder skips.
+	group := []byte{0x8b, 0x40, 0x8c, 0x40}
 	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte{1})
 	require.NoError(t, err)
 	blobTx, err := tx.MarshalBlobTx(newTx(appconsts.MaxTxSize-4096), blob)
@@ -1188,6 +1190,7 @@ func TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding(t *testing.T) 
 	}{
 		{"plain tx", newTx(appconsts.MaxTxSize - 1024)},
 		{"blob tx", blobTx},
+		{"tx body with a leading group", newTx(appconsts.MaxTxSize-1024, group...)},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
