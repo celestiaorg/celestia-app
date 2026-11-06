@@ -978,6 +978,75 @@ func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 	}
 }
 
+// TestCheckTxRejectedTxAdmitsNoSignatureCacheEntry checks that a tx whose own
+// signature verifies but which a later ante decorator rejects leaves no entry
+// in the signature cache, so rejected CheckTx spam cannot evict entries of
+// admissible txs.
+func TestCheckTxRejectedTxAdmitsNoSignatureCacheEntry(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	for _, account := range accounts {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	tests := map[string]struct {
+		txBytes   func(t *testing.T) []byte
+		wantLog   string
+		wantAdmit bool
+	}{
+		"PayForFibre with a forged certificate": {
+			txBytes: func(t *testing.T) []byte {
+				return newSignedPayForFibreTx(t, newSigner(0), accounts[0], false)
+			},
+			wantLog: "validator signature validation failed",
+		},
+		"PayForBlobs below MinGasPFB": {
+			txBytes: func(t *testing.T) []byte {
+				blobs := blobfactory.ManyBlobs(random.New(), []share.Namespace{namespace}, []int{100_000})
+				txBytes, _, err := newSigner(1).CreatePayForBlobs(accounts[1], blobs,
+					user.SetGasLimit(100_000), user.SetFee(4_000))
+				require.NoError(t, err)
+				return txBytes
+			},
+			wantLog: "not enough gas to pay for blobs",
+		},
+		// The control: an admitted tx does populate the cache.
+		"admitted PayForFibre": {
+			txBytes: func(t *testing.T) []byte {
+				return newSignedPayForFibreTx(t, newSigner(2), accounts[2], true)
+			},
+			wantAdmit: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			txBytes := tc.txBytes(t)
+			before := testApp.VerifiedSignatureCount()
+
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+			require.NoError(t, err)
+			if tc.wantAdmit {
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+				require.Greater(t, testApp.VerifiedSignatureCount(), before)
+				return
+			}
+
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+			require.Contains(t, resp.Log, tc.wantLog)
+			require.Equal(t, before, testApp.VerifiedSignatureCount(),
+				"a tx rejected by the ante chain must not admit a signature cache entry")
+		})
+	}
+}
+
 // TestCheckTxPayForFibreRecheck checks that a rechecked payment promise takes the
 // pay-for-fibre shortcut and bytes that are not one take the full path.
 func TestCheckTxPayForFibreRecheck(t *testing.T) {

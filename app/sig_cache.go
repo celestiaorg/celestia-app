@@ -71,3 +71,9 @@ func NewSigCache(mempoolMaxTxs int) *sigcache.Cache {
 func (app *App) HasVerifiedSignature(key sigcache.Key) bool {
 	return app.sigCache.Has(key)
 }
+
+// VerifiedSignatureCount returns the number of entries in the signature cache,
+// so tests can assert that a rejected tx admitted none.
+func (app *App) VerifiedSignatureCount() int {
+	return app.sigCache.Len()
+}

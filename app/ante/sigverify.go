@@ -29,6 +29,8 @@ func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *t
 // The sign bytes are a pure function of the keyed inputs, so a hit skips a
 // check that would have produced the same result. Only successful
 // verifications are recorded, so a rejected signature is rejected again.
+// Inside the ante chain they are recorded only once the whole chain passes;
+// see SigCacheAdmissionDecorator.
 func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 	return func(
 		ctx context.Context,
@@ -46,10 +48,61 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 			return err
 		}
 		if keyed && sigCache != nil {
-			sigCache.Add(key)
+			admitTxSignature(ctx, sigCache, key)
 		}
 		return nil
 	}
+}
+
+// pendingTxSignatures holds the tx-signature keys one ante pass verified until
+// the whole ante chain has passed.
+type pendingTxSignatures struct {
+	keys []sigcache.Key
+}
+
+type pendingTxSignaturesKey struct{}
+
+// admitTxSignature records key in sigCache, deferring it to the end of the
+// ante chain when ctx carries a SigCacheAdmissionDecorator collector.
+func admitTxSignature(ctx context.Context, sigCache *sigcache.Cache, key sigcache.Key) {
+	if pending, ok := ctx.Value(pendingTxSignaturesKey{}).(*pendingTxSignatures); ok {
+		pending.keys = append(pending.keys, key)
+		return
+	}
+	sigCache.Add(key)
+}
+
+// SigCacheAdmissionDecorator admits the tx signatures verified by the rest of
+// the ante chain to the signature cache only once that whole chain has passed.
+// A tx rejected by a later decorator, such as a PayForFibre with a bad
+// certificate or a PayForBlobs below its minimum gas, therefore buys no entry
+// and cannot evict entries of admissible txs. It must run before
+// NewCachedSigVerificationDecorator.
+//
+// It changes no verdict, gas or state: a cache hit only skips a curve
+// operation that would have passed.
+type SigCacheAdmissionDecorator struct {
+	sigCache *sigcache.Cache
+}
+
+// NewSigCacheAdmissionDecorator returns a SigCacheAdmissionDecorator.
+func NewSigCacheAdmissionDecorator(sigCache *sigcache.Cache) SigCacheAdmissionDecorator {
+	return SigCacheAdmissionDecorator{sigCache: sigCache}
+}
+
+func (d SigCacheAdmissionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	if d.sigCache == nil {
+		return next(ctx, tx, simulate)
+	}
+	pending := &pendingTxSignatures{}
+	newCtx, err := next(ctx.WithValue(pendingTxSignaturesKey{}, pending), tx, simulate)
+	if err != nil {
+		return newCtx, err
+	}
+	for _, key := range pending.keys {
+		d.sigCache.Add(key)
+	}
+	return newCtx, nil
 }
 
 // PreverifyTxSignatures warms the signature cache for single-signer direct-sign txs
