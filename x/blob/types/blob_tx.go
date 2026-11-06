@@ -9,6 +9,8 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -56,6 +58,13 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	return nil
 }
 
+// UnmarshalIndexWrapper is the IndexWrapper predicate of the app's tx decoder.
+// Checks that must match what the decoder unwraps use it too: protobuf-go
+// parsers differ, e.g. on invalid UTF-8 in an earlier repeated type_id.
+func UnmarshalIndexWrapper(txBytes []byte) (cmtproto.IndexWrapper, bool) {
+	return coretypes.UnmarshalIndexWrapper(txBytes)
+}
+
 // ValidateBlobTxSkipCommitment performs the same validation as ValidateBlobTx but skips
 // the expensive commitment generation and verification step. This should only be used
 // when the commitment validation has already been performed (e.g., in CheckTx) and
@@ -66,7 +75,7 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 	}
 	// The app's tx decoder unwraps an IndexWrapper, so reject one here; the
 	// square builder adds the only IndexWrapper a PFB may carry.
-	if _, isIndexWrapper := tx.UnmarshalIndexWrapper(bTx.Tx); isIndexWrapper {
+	if _, isIndexWrapper := UnmarshalIndexWrapper(bTx.Tx); isIndexWrapper {
 		return nil, ErrNestedIndexWrapper
 	}
 
