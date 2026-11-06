@@ -3,13 +3,12 @@ package encoding
 import (
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
-	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
-		indexWrapper, isIndexWrapper := coretypes.UnmarshalIndexWrapper(txBytes)
+		indexWrapper, isIndexWrapper := blobtypes.UnmarshalIndexWrapper(txBytes)
 		if !isIndexWrapper {
 			return decoder(txBytes)
 		}
