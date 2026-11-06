@@ -63,6 +63,11 @@ type Multiplexer struct {
 	appVersion uint64
 	// nextAppVersion this is updated based on the consensus params every FinalizeBlock.
 	nextAppVersion uint64
+	// switchInfo is the Info response of the previous app, taken right after it
+	// committed the block that switched the app version. Info returns it until
+	// the new app commits its first block, because before then the new app has
+	// no committed state of its own to answer from. Guarded by mu.
+	switchInfo *abci.ResponseInfo
 	// started indicates if there is an embedded app or native app running
 	started bool
 	// appCreator is a function type responsible for creating a new application instance.
