@@ -42,12 +42,10 @@ func (ms msgServer) SetFibreProviderInfo(goCtx context.Context, msg *types.MsgSe
 	}
 	consAddr := sdk.ConsAddress(consPubKey.Address())
 
-	// Validate address length (supports IP addresses, DNS names, etc.)
-	if len(msg.Host) > types.MaxHostLen {
-		return nil, errors.Wrapf(types.ErrInvalidHostAddress, "address must be less or equal than %d characters, got %d", types.MaxHostLen, len(msg.Host))
-	}
-	if len(msg.Host) == 0 {
-		return nil, errors.Wrap(types.ErrInvalidHostAddress, "address cannot be empty")
+	// Apply the full host check here too, so the stored host is valid even
+	// on a path that did not run ValidateBasic.
+	if err := types.ValidateHost(msg.Host); err != nil {
+		return nil, err
 	}
 
 	info := types.FibreProviderInfo{

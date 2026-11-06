@@ -6,6 +6,10 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ### State Machine Changes (v11.0.0)
 
+**`x/valaddr`**:
+
+- `MsgSetFibreProviderInfo` only accepts a host in canonical `host:port` form whose host is an IP literal or a host name. Hosts such as `unix:9090`, `passthrough:9090`, `[host]:80`, `host:+80` and `host:080` are rejected.
+
 **`x/zkism`**:
 
 - Messages are verified against a proven source chain merkle tree root instead of a proven list of message ids. `SubmitMessages` stores the root and leaf count from fixed 101-byte public values (`version (u8) || state_root || merkle_tree_address || tree_root || count (u32)`), and each message is delivered with merkle proof metadata (`leaf_index (u32, big-endian) || 32 x 32-byte branch`). Proofs produced by the previous membership program are rejected.
