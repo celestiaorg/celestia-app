@@ -1200,8 +1200,9 @@ func TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding(t *testing.T) 
 			require.NoError(t, err)
 			require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code, resp.Log)
 			require.Contains(t, resp.Log, "validator signatures")
-			// Decoding every entry allocates hundreds of MiB.
-			require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(16<<20))
+			// Decoding every entry allocates over 600 MiB. The bound leaves room
+			// for copying the tx a few times.
+			require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(64<<20))
 		})
 	}
 }
