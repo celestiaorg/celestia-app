@@ -36,7 +36,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 	fsb.validateBlobTx = app.ValidateBlobTxWithCache
-	fsb.taintEnv = app.proposalTaintEnv(app.MsgServiceRouter())
+	fsb.taintEnv = app.proposalTaintEnv()
 
 	fsb.decodePFF = fibrekeeper.DecodePayForFibre
 	fsb.preverifyPFF = func(ctx sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {

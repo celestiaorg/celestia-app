@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	"github.com/stretchr/testify/require"
 )
@@ -416,4 +419,145 @@ func TestTxFailingMessageValidationBeforePayForFibre(t *testing.T) {
 	require.NotContains(t, kept, invalid)
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{invalid, pff}))
 	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// requireOtherPayForFibreDropped checks that a pay-for-fibre from an account the
+// attack txs never name is dropped by PrepareProposal and makes
+// ProcessProposal reject the block.
+func (f *fibreTaintFixture) requireOtherPayForFibreDropped(t *testing.T, attack [][]byte, pff []byte) {
+	t.Helper()
+	block := append(append([][]byte{}, attack...), pff)
+	kept := f.prepare(t, block)
+	for _, tx := range attack {
+		require.Contains(t, kept, tx)
+	}
+	require.NotContains(t, kept, pff)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, block))
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// TestPayForFibreDroppedAfterSameBlockGrantedCircuitTrip covers a circuit admin
+// granting another account authz for a trip in the same block: the grant
+// exists for the wrapped trip in FinalizeBlock but not on the proposal branch.
+func TestPayForFibreDroppedAfterSameBlockGrantedCircuitTrip(t *testing.T) {
+	f := newFibreTaintFixture(t, 3)
+	admin, executor, other := 0, 1, 2
+	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
+	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
+		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
+
+	expiration := f.blockTime.Add(time.Hour)
+	grant, err := authz.NewMsgGrant(f.addrs[admin], f.addrs[executor],
+		authz.NewGenericAuthorization(sdk.MsgTypeURL(&circuittypes.MsgTripCircuitBreaker{})), &expiration)
+	require.NoError(t, err)
+	grantTx := f.tx(t, admin, []sdk.Msg{grant})
+	exec := authz.NewMsgExec(f.addrs[executor], []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
+		Authority:   f.addrs[admin].String(),
+		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+	}})
+	execTx := f.tx(t, executor, []sdk.Msg{&exec})
+
+	f.requireOtherPayForFibreDropped(t, [][]byte{grantTx, execTx}, f.pff(t, other))
+}
+
+// TestPayForFibreDroppedAfterWrappedCircuitAuthorization covers a circuit
+// admin's authorization wrapped in MsgExec that makes a new admin, whose own
+// trip the proposal branch would not otherwise treat as an admin's.
+func TestPayForFibreDroppedAfterWrappedCircuitAuthorization(t *testing.T) {
+	f := newFibreTaintFixture(t, 4)
+	admin, executor, newAdmin, other := 0, 1, 2, 3
+	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
+	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
+		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
+
+	exec := authz.NewMsgExec(f.addrs[executor], []sdk.Msg{&circuittypes.MsgAuthorizeCircuitBreaker{
+		Granter:     f.addrs[admin].String(),
+		Grantee:     f.addrs[newAdmin].String(),
+		Permissions: &circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN},
+	}})
+	execTx := f.tx(t, executor, []sdk.Msg{&exec})
+	trip := f.tx(t, newAdmin, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
+		Authority:   f.addrs[newAdmin].String(),
+		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+	}})
+
+	f.requireOtherPayForFibreDropped(t, [][]byte{execTx, trip}, f.pff(t, other))
+}
+
+// TestPayForFibreNotCensoredByVoteGrantExec checks that executing a vote on
+// the victim's behalf, which cannot debit the victim, does not drop the
+// victim's pay-for-fibre.
+func TestPayForFibreNotCensoredByVoteGrantExec(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	grantee, victim := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
+	expiration := f.blockTime.Add(time.Hour)
+	require.NoError(t, f.app.AuthzKeeper.SaveGrant(f.ctx(), f.addrs[grantee], f.addrs[victim],
+		authz.NewGenericAuthorization(sdk.MsgTypeURL(&govv1.MsgVote{})), &expiration))
+
+	exec := authz.NewMsgExec(f.addrs[grantee], []sdk.Msg{govv1.NewMsgVote(f.addrs[victim], 999, govv1.OptionYes, "")})
+	f.requireVictimPayForFibreKept(t, f.tx(t, grantee, []sdk.Msg{&exec}), f.pff(t, victim))
+}
+
+// TestCopiedTimeoutDoesNotIterateOwnerWithdrawals checks that judging an
+// unexecuted timeout reads no pending withdrawal of its owner, however many
+// there are, while still treating a valid timeout as debiting the owner.
+func TestCopiedTimeoutDoesNotIterateOwnerWithdrawals(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	submitter, owner := 0, 1
+	payment := fibretypes.PaymentAmount(100).Amount.Int64()
+	// All of the escrow is locked in many small pending withdrawals, so a
+	// debit has to walk them to cover the payment.
+	const withdrawals = 500
+	perWithdrawal := payment/withdrawals + 1
+	seedFibreEscrow(t, f.app, f.addrs[owner], perWithdrawal*withdrawals)
+
+	ctx := f.ctx()
+	ownerStr := f.addrs[owner].String()
+	escrow, found := f.app.FibreKeeper.GetEscrowAccount(ctx, ownerStr)
+	require.True(t, found)
+	escrow.AvailableBalance = sdk.NewInt64Coin(appconsts.BondDenom, 0)
+	f.app.FibreKeeper.SetEscrowAccount(ctx, escrow)
+	for i := range withdrawals {
+		requested := f.blockTime.Add(-time.Duration(i+1) * time.Second)
+		f.app.FibreKeeper.SetWithdrawal(ctx, fibretypes.Withdrawal{
+			Signer:             ownerStr,
+			Amount:             sdk.NewInt64Coin(appconsts.BondDenom, perWithdrawal),
+			RequestedTimestamp: requested,
+			AvailableTimestamp: f.blockTime.Add(24 * time.Hour),
+		})
+	}
+
+	send := banktypes.NewMsgSend(f.addrs[submitter], f.addrs[submitter], sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	mixed := f.tx(t, submitter, []sdk.Msg{send, f.timeoutMsg(t, owner, f.addrs[submitter], f.blockTime.Add(-2*time.Hour))})
+	pff := f.pff(t, owner)
+
+	var trace bytes.Buffer
+	cms := f.app.CommitMultiStore()
+	cms.SetTracer(&trace)
+	kept := f.prepare(t, [][]byte{mixed, pff})
+	resp, err := f.app.ProcessProposal(processProposalRequestAt(t, f.app, [][]byte{mixed, pff}, f.blockTime))
+	cms.SetTracer(nil)
+	require.NoError(t, err)
+
+	require.NotContains(t, kept, pff, "a valid timeout still marks its owner")
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+
+	prefix := fibretypes.WithdrawalsBySignerPrefix(ownerStr)
+	var traced, withdrawalReads int
+	dec := json.NewDecoder(&trace)
+	for dec.More() {
+		var op struct {
+			Key string `json:"key"`
+		}
+		require.NoError(t, dec.Decode(&op))
+		traced++
+		key, err := base64.StdEncoding.DecodeString(op.Key)
+		require.NoError(t, err)
+		if bytes.HasPrefix(key, prefix) {
+			withdrawalReads++
+		}
+	}
+	require.Positive(t, traced, "the store trace must capture proposal reads")
+	require.Zero(t, withdrawalReads, "the owner's pending withdrawals must not be read")
 }

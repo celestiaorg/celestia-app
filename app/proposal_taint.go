@@ -8,12 +8,14 @@ import (
 	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 )
 
@@ -35,6 +37,11 @@ import (
 // authz MsgExec under an existing grant, or, for a keyless interchain account,
 // through an IBC packet. An escrow also shrinks through a valid payment promise
 // timeout, and a circuit breaker admin can disable MsgPayForFibre altogether.
+// FinalizeBlock runs the ante handlers of all txs before any tx's messages,
+// so a message sees the writes of every earlier message in the block,
+// including grants and circuit breaker permissions the branch never sees.
+// Lookups below that read the branch account for that.
+//
 // So the accounts an unexecuted tx can act for are marked touched (only those
 // it can really act for, so a tx cannot taint an unrelated account), interchain
 // accounts are always treated as touched, and a pay-for-fibre is only settled
@@ -65,8 +72,8 @@ type proposalTaintEnv struct {
 	// isCircuitAdmin reports whether addr may trip circuit breakers or grant
 	// that permission.
 	isCircuitAdmin func(sdk.Context, sdk.AccAddress) bool
-	// timeoutSettles reports whether msg would settle on ctx, without keeping
-	// any of its writes.
+	// timeoutSettles reports whether msg may settle on ctx, reading a bounded
+	// amount of state and writing nothing.
 	timeoutSettles func(sdk.Context, *fibretypes.MsgPaymentPromiseTimeout) bool
 }
 
@@ -200,22 +207,45 @@ func (t *proposalTaint) touchExec(ctx sdk.Context, exec *authz.MsgExec) {
 		return
 	}
 	for _, msg := range nested {
+		// A grant made by an earlier tx in the block exists in FinalizeBlock but
+		// not on the branch, so a circuit admin's wrapped message counts
+		// whether or not the branch sees a grant for it.
+		t.touchCircuit(ctx, msg)
+		if t.all {
+			return
+		}
+		if cannotDebitSigner(msg) {
+			continue
+		}
 		signers, err := t.env.msgSigners(msg)
 		if err != nil || len(signers) != 1 {
 			continue
 		}
 		granter := sdk.AccAddress(signers[0])
-		if !bytes.Equal(granter, grantee) {
-			if t.env.hasGrant != nil && !t.env.hasGrant(readCtx(ctx), grantee, granter, sdk.MsgTypeURL(msg)) {
-				continue
-			}
-			t.mark(granter)
+		if bytes.Equal(granter, grantee) {
+			continue
 		}
-		t.touchCircuit(ctx, msg)
-		if t.all {
-			return
+		// Without a grant on the branch, the only way FinalizeBlock can have
+		// one is an earlier MsgGrant in the block, which the granter signs
+		// directly (marking it) or through an exec of a grant the branch sees.
+		if t.env.hasGrant != nil && !t.env.hasGrant(readCtx(ctx), grantee, granter, sdk.MsgTypeURL(msg)) {
+			continue
 		}
+		t.mark(granter)
 	}
+}
+
+// cannotDebitSigner reports whether msg is of a type that, executed on behalf
+// of its signer, cannot change the signer's bank balance, fee allowances,
+// escrow or circuit breaker state. Keep this list small and obviously safe:
+// any type not on it marks its signer.
+func cannotDebitSigner(msg sdk.Msg) bool {
+	switch msg.(type) {
+	case *govv1.MsgVote, *govv1.MsgVoteWeighted, *govv1beta1.MsgVote, *govv1beta1.MsgVoteWeighted:
+		// A vote only records the voter's choice on a proposal.
+		return true
+	}
+	return false
 }
 
 // touchTimeout marks the escrow owner of a timeout the branch does not
@@ -236,8 +266,10 @@ func (t *proposalTaint) touchTimeout(ctx sdk.Context, msg *fibretypes.MsgPayment
 
 // touchCircuit taints every account if msg lets a circuit breaker admin
 // disable messages, which could disable MsgPayForFibre in FinalizeBlock. Only
-// admins can: the circuit module refuses the message from anyone else.
-// Resetting a breaker only re-enables messages, so it is ignored.
+// admins can: the circuit module refuses the message from anyone else. A new
+// admin can only be made by an admin's MsgAuthorizeCircuitBreaker, which
+// taints every account itself, so the branch's view of who is an admin is
+// enough. Resetting a breaker only re-enables messages, so it is ignored.
 func (t *proposalTaint) touchCircuit(ctx sdk.Context, msg sdk.Msg) {
 	switch msg.(type) {
 	case *circuittypes.MsgTripCircuitBreaker, *circuittypes.MsgAuthorizeCircuitBreaker:
@@ -311,9 +343,8 @@ func promiseEscrowOwner(msg sdk.Msg) (owner []byte, ok, valid bool) {
 	return promise.SignerPublicKey.Address(), true, true
 }
 
-// proposalTaintEnv returns the state lookups for a proposalTaint, settling
-// timeouts through router.
-func (app *App) proposalTaintEnv(router baseapp.MessageRouter) proposalTaintEnv {
+// proposalTaintEnv returns the state lookups for a proposalTaint.
+func (app *App) proposalTaintEnv() proposalTaintEnv {
 	return proposalTaintEnv{
 		msgSigners: func(msg sdk.Msg) ([][]byte, error) {
 			signers, _, err := app.encodingConfig.Codec.GetMsgV1Signers(msg)
@@ -339,10 +370,26 @@ func (app *App) proposalTaintEnv(router baseapp.MessageRouter) proposalTaintEnv 
 			return err != nil || perms.Level != circuittypes.Permissions_LEVEL_NONE_UNSPECIFIED
 		},
 		timeoutSettles: func(ctx sdk.Context, msg *fibretypes.MsgPaymentPromiseTimeout) bool {
-			// Run the msg server on a discarded branch, with its own gas meter
-			// and event manager, so nothing it does is kept.
-			cacheCtx, _ := readCtx(ctx).WithEventManager(sdk.NewEventManager()).CacheContext()
-			return runMsgs(cacheCtx, []sdk.Msg{msg}, router) == nil
+			// The msg server's checks before it debits the escrow, each a
+			// bounded number of reads. The debit itself is not run: it can
+			// iterate every pending withdrawal of the owner. A timeout that
+			// passes these checks is treated as settling.
+			pp := fibre.PaymentPromise{}
+			if err := pp.FromProto(&msg.PaymentPromise); err != nil {
+				return false
+			}
+			if err := app.FibreKeeper.ValidatePromiseStateless(&pp); err != nil {
+				return false
+			}
+			expiration, err := app.FibreKeeper.ValidatePaymentPromiseStatefulForTimeout(readCtx(ctx), &msg.PaymentPromise)
+			if err != nil {
+				return false
+			}
+			if ctx.BlockTime().Before(expiration) {
+				return false
+			}
+			_, err = pp.Hash()
+			return err == nil
 		},
 	}
 }

@@ -158,7 +158,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Mirrors the taint PrepareProposal keeps: a pay-for-fibre may only settle
 	// when no earlier tx acts for one of its accounts in a way this branch does
 	// not execute. See proposalTaint.
-	taint := newProposalTaint(app.proposalTaintEnv(app.MsgServiceRouter()))
+	taint := newProposalTaint(app.proposalTaintEnv())
 
 	// The data root depends only on the tx bytes and the decodes above, so build it
 	// during the walk; a cache hit already has it.
