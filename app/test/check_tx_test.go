@@ -3,6 +3,7 @@ package app_test
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -1154,4 +1155,53 @@ func appendUnknownProtoField(raw []byte, padLen int) []byte {
 	out = append(out, varint(uint64(padLen))...)
 	out = append(out, make([]byte, padLen)...)
 	return out
+}
+
+// TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding checks that
+// CheckTx rejects a MsgPayForFibre with too many validator signatures without
+// decoding them, whether the tx is plain or carried by a BlobTx.
+func TestCheckTxRejectsPayForFibreSignatureOverflowBeforeDecoding(t *testing.T) {
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+
+	// newTx fills a PayForFibre tx with empty validator_signatures entries
+	// until it is about size bytes.
+	newTx := func(size int) []byte {
+		msg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), testutil.ChainID)
+		value, err := msg.Marshal()
+		require.NoError(t, err)
+		emptySignature := []byte{0x1a, 0x00}
+		value = append(value, bytes.Repeat(emptySignature, (size-len(value))/len(emptySignature))...)
+		body, err := (&txtypes.TxBody{Messages: []*codectypes.Any{{TypeUrl: fibretypes.MsgPayForFibreTypeURL, Value: value}}}).Marshal()
+		require.NoError(t, err)
+		raw, err := (&txtypes.TxRaw{BodyBytes: body}).Marshal()
+		require.NoError(t, err)
+		return raw
+	}
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte{1})
+	require.NoError(t, err)
+	blobTx, err := tx.MarshalBlobTx(newTx(appconsts.MaxTxSize-4096), blob)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		raw  []byte
+	}{
+		{"plain tx", newTx(appconsts.MaxTxSize - 1024)},
+		{"blob tx", blobTx},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.LessOrEqual(t, len(tc.raw), appconsts.MaxTxSize)
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: tc.raw, Type: abci.CheckTxType_New})
+			runtime.ReadMemStats(&after)
+			require.NoError(t, err)
+			require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code, resp.Log)
+			require.Contains(t, resp.Log, "validator signatures")
+			// Decoding every entry allocates hundreds of MiB.
+			require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(16<<20))
+		})
+	}
 }

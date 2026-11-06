@@ -43,6 +43,17 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
+	// Reject an oversized validator signature list before decoding allocates
+	// every entry. ValidateBasic would reject it after decoding.
+	sdkTxBytes := tx
+	if isBlob {
+		sdkTxBytes = btx.Tx
+	}
+	if exceedsPFFSignatureLimit(sdkTxBytes) {
+		err := errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "MsgPayForFibre carries more than %d validator signatures", appconsts.MaxFibreValidatorSignatures)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+
 	if isBlob {
 		return app.handleBlobCheckTx(req, btx)
 	}
