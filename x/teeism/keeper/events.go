@@ -1,0 +1,64 @@
+package keeper
+
+import (
+	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+// EmitCreateISMEvent emits a typed event when a new ISM is created.
+func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) error {
+	digest, err := ism.IdentityDigest()
+	if err != nil {
+		return err
+	}
+	return ctx.EventManager().EmitTypedEvent(&types.EventCreateInterchainSecurityModule{
+		Id:                ism.Id,
+		Owner:             ism.Owner,
+		State:             types.EncodeHex(ism.State),
+		MerkleTreeAddress: types.EncodeHex(ism.MerkleTreeAddress),
+		IdentityDigest:    types.EncodeHex(digest[:]),
+	})
+}
+
+// EmitUpdateEnclaveIdentityEvent emits a typed event when an owner re-pins an ISM.
+func EmitUpdateEnclaveIdentityEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous [32]byte) error {
+	digest := ism.Identity.Digest()
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateEnclaveIdentity{
+		Id:                     ism.Id,
+		Owner:                  ism.Owner,
+		PreviousIdentityDigest: types.EncodeHex(previous[:]),
+		IdentityDigest:         types.EncodeHex(digest[:]),
+	})
+}
+
+// EmitSubmitAttestationEvent emits a typed event when an attestation advances an ISM.
+func EmitSubmitAttestationEvent(ctx sdk.Context, ism types.InterchainSecurityModule, state *types.IsmState) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventSubmitAttestation{
+		Id:        ism.Id,
+		State:     types.EncodeHex(ism.State),
+		StateRoot: types.EncodeHex(state.StateRoot[:]),
+		Height:    state.Height,
+		TreeRoot:  types.EncodeHex(ism.TreeRoot),
+		TreeCount: ism.TreeCount,
+	})
+}
+
+// EmitUpdateOwnerEvent emits a typed event when an ism changes owner.
+func EmitUpdateOwnerEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous string) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateOwner{
+		Id:            ism.Id,
+		PreviousOwner: previous,
+		NewOwner:      ism.Owner,
+	})
+}
+
+// EmitSetVerifierOverridesEvent emits a typed event when an owner sets or clears
+// an ism's verifier overrides.
+func EmitSetVerifierOverridesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous *types.VerifierOverrides) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventSetVerifierOverrides{
+		Id:        ism.Id,
+		Owner:     ism.Owner,
+		Previous:  previous,
+		Overrides: ism.VerifierOverrides,
+	})
+}

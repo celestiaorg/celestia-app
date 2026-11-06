@@ -145,8 +145,8 @@ func TestEndBlockerUpgradeFailureIsNotCommitted(t *testing.T) {
 }
 
 // TestNewAppWithPendingV11Upgrade checks that a node restarted at the v11
-// upgrade height loads its existing stores. The v11 upgrade adds no stores, so
-// it must not install an upgrade store loader.
+// upgrade height loads its existing stores. The v11 store loader must not try
+// to add the teeism store when the database already has it.
 func TestNewAppWithPendingV11Upgrade(t *testing.T) {
 	home := setNodeHome(t)
 	db := tmdb.NewMemDB()
