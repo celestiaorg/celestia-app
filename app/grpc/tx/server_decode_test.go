@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -42,7 +42,7 @@ func invokeTxStatusBatchWithInterceptor(t testing.TB, raw []byte, interceptor gr
 	t.Helper()
 	registry := codectypes.NewInterfaceRegistry()
 	srv := &captureServer{}
-	tx.RegisterTxService(srv, client.Context{}.WithClient(&stubNode{mode: stubFaithful}), registry)
+	tx.RegisterTxService(srv, client.Context{}.WithClient(&stubNode{}), registry)
 
 	grpcCodec := codec.NewProtoCodec(registry).GRPCCodec()
 	for _, m := range srv.desc.Methods {
@@ -150,7 +150,7 @@ func TestTxStatusBatchDecodeBoundsAllocation(t *testing.T) {
 func TestTxStatusBatchOverGRPC(t *testing.T) {
 	registry := codectypes.NewInterfaceRegistry()
 	srv := grpc.NewServer(grpc.ForceServerCodec(codec.NewProtoCodec(registry).GRPCCodec()))
-	tx.RegisterTxService(srv, client.Context{}.WithClient(&stubNode{mode: stubFaithful}), registry)
+	tx.RegisterTxService(srv, client.Context{}.WithClient(&stubNode{}), registry)
 	lis := bufconn.Listen(1 << 20)
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
