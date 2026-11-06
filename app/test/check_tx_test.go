@@ -543,6 +543,25 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "MsgModuleQuerySafe with more than MaxModuleQuerySafeRequests requests, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The message weighs exactly MaxSDKMessages, so the count alone
+				// admits it, but it would take a whole block's SDK message budget.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: sdkerrors.ErrInvalidRequest.ABCICode(),
+		},
+		{
 			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
