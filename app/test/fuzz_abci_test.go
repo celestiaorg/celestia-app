@@ -333,8 +333,14 @@ func (c corpusTxs) send(from string, seq uint64, opts ...user.TxOption) []byte {
 }
 
 func (c corpusTxs) pfb(from string, seq uint64, sizes ...int) []byte {
+	return c.pfbWithOpts(from, seq, sizes)
+}
+
+// pfbWithOpts is pfb with tx options applied after the default gas limit and price.
+func (c corpusTxs) pfbWithOpts(from string, seq uint64, sizes []int, opts ...user.TxOption) []byte {
 	require.NoError(c.t, c.signer.SetSequence(from, seq))
-	tx, _, err := c.signer.CreatePayForBlobs(from, c.blobs(sizes...), user.SetGasLimitAndGasPrice(10_000_000, 0.1))
+	opts = append([]user.TxOption{user.SetGasLimitAndGasPrice(10_000_000, 0.1)}, opts...)
+	tx, _, err := c.signer.CreatePayForBlobs(from, c.blobs(sizes...), opts...)
 	require.NoError(c.t, err)
 	return tx
 }
