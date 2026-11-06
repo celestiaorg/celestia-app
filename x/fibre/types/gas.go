@@ -38,3 +38,11 @@ func PaymentAmount(blobSize uint32) sdk.Coin {
 	gasPrice := math.LegacyNewDecWithPrec(int64(appconsts.DefaultMinGasPrice*1_000_000), 6)
 	return sdk.NewCoin(appconsts.BondDenom, gasPrice.MulInt(gas).Ceil().TruncateInt())
 }
+
+// PaymentTransferGas is the fixed gas a settled payment (MsgPayForFibre or
+// MsgPaymentPromiseTimeout) is charged for moving the payment from the fibre
+// module to the fee collector, in place of the transfer's store gas. That store
+// gas grows by about 66 gas per decimal digit of the two balances, from about
+// 17,200 for single-digit balances to about 19,750 for 40-digit balances (far
+// above the total supply), so 20,000 covers every reachable balance.
+const PaymentTransferGas uint64 = 20_000

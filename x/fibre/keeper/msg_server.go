@@ -5,6 +5,7 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
@@ -345,7 +346,17 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	// this transfer the coins would stay stranded in the module account and be
 	// paid to no one. The full payment leaves the module account regardless of
 	// how it was split between available balance and pending withdrawals.
-	if err := ms.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, authtypes.FeeCollectorName, sdk.NewCoins(paymentAmount)); err != nil {
+	//
+	// The transfer's store gas grows with the decimal length of the fibre
+	// module and fee collector balances, which the proposal branch that
+	// settles this payment in PrepareProposal and ProcessProposal does not see
+	// exactly: it skips other txs' escrow deposits, and FinalizeBlock collects
+	// every tx's fee before any message runs. So the transfer runs on an
+	// unlimited meter and is charged a fixed PaymentTransferGas up front, and a
+	// payment that fits its gas limit on the branch also fits it in
+	// FinalizeBlock.
+	ctx.GasMeter().ConsumeGas(types.PaymentTransferGas, "fibre payment transfer")
+	if err := ms.bankKeeper.SendCoinsFromModuleToModule(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), types.ModuleName, authtypes.FeeCollectorName, sdk.NewCoins(paymentAmount)); err != nil {
 		return errorsmod.Wrap(err, "failed to send fibre payment to fee collector")
 	}
 

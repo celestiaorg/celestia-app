@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -26,8 +27,13 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -319,56 +325,6 @@ func (f *fibreTaintFixture) requireVictimPayForFibreKept(t *testing.T, attackTx,
 // The tests below check that a tx cannot drop an unrelated account's
 // pay-for-fibre by naming it in messages that cannot act for it.
 
-func TestPayForFibreNotCensoredByUnprivilegedCircuitBreakerTrip(t *testing.T) {
-	f := newFibreTaintFixture(t, 2)
-	attacker, victim := 0, 1
-	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
-
-	trip := f.tx(t, attacker, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
-		Authority:   f.addrs[attacker].String(),
-		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
-	}})
-	f.requireVictimPayForFibreKept(t, trip, f.pff(t, victim))
-}
-
-func TestPayForFibreDroppedAfterCircuitBreakerAdminTrip(t *testing.T) {
-	f := newFibreTaintFixture(t, 2)
-	admin, other := 0, 1
-	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
-	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
-		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
-
-	trip := f.tx(t, admin, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
-		Authority:   f.addrs[admin].String(),
-		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
-	}})
-	pff := f.pff(t, other)
-	kept := f.prepare(t, [][]byte{trip, pff})
-	require.Contains(t, kept, trip)
-	require.NotContains(t, kept, pff)
-	require.Equal(t, abci.ResponseProcessProposal_REJECT, f.process(t, [][]byte{trip, pff}))
-	f.requireNoUnpaidPayForFibre(t, kept)
-}
-
-func TestPayForFibreNotCensoredByUnresolvableAuthzExec(t *testing.T) {
-	f := newFibreTaintFixture(t, 2)
-	attacker, victim := 0, 1
-	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
-
-	bogus := &banktypes.MsgSend{FromAddress: "not-bech32", ToAddress: f.addrs[attacker].String(), Amount: sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1))}
-	exec := authz.NewMsgExec(f.addrs[attacker], []sdk.Msg{bogus})
-	f.requireVictimPayForFibreKept(t, f.tx(t, attacker, []sdk.Msg{&exec}), f.pff(t, victim))
-}
-
-func TestPayForFibreNotCensoredByAuthzExecWithoutGrant(t *testing.T) {
-	f := newFibreTaintFixture(t, 2)
-	attacker, victim := 0, 1
-	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
-
-	exec := authz.NewMsgExec(f.addrs[attacker], []sdk.Msg{f.drainTo(t, victim, attacker, 0)})
-	f.requireVictimPayForFibreKept(t, f.tx(t, attacker, []sdk.Msg{&exec}), f.pff(t, victim))
-}
-
 func TestPayForFibreNotCensoredByCopiedInvalidTimeout(t *testing.T) {
 	f := newFibreTaintFixture(t, 2)
 	attacker, victim := 0, 1
@@ -436,67 +392,153 @@ func (f *fibreTaintFixture) requireOtherPayForFibreDropped(t *testing.T, attack 
 	f.requireNoUnpaidPayForFibre(t, kept)
 }
 
-// TestPayForFibreDroppedAfterSameBlockGrantedCircuitTrip covers a circuit admin
-// granting another account authz for a trip in the same block: the grant
-// exists for the wrapped trip in FinalizeBlock but not on the proposal branch.
-func TestPayForFibreDroppedAfterSameBlockGrantedCircuitTrip(t *testing.T) {
-	f := newFibreTaintFixture(t, 3)
-	admin, executor, other := 0, 1, 2
-	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
-	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
-		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
-
-	expiration := f.blockTime.Add(time.Hour)
-	grant, err := authz.NewMsgGrant(f.addrs[admin], f.addrs[executor],
-		authz.NewGenericAuthorization(sdk.MsgTypeURL(&circuittypes.MsgTripCircuitBreaker{})), &expiration)
-	require.NoError(t, err)
-	grantTx := f.tx(t, admin, []sdk.Msg{grant})
-	exec := authz.NewMsgExec(f.addrs[executor], []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
-		Authority:   f.addrs[admin].String(),
-		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
-	}})
-	execTx := f.tx(t, executor, []sdk.Msg{&exec})
-
-	f.requireOtherPayForFibreDropped(t, [][]byte{grantTx, execTx}, f.pff(t, other))
+// TestPayForFibreDroppedAfterUnmodelableMessage covers messages the proposal
+// branch cannot reason about without executing them. Each could change what
+// a later pay-for-fibre reads in FinalizeBlock (the circuit breaker, fibre
+// params, or anyone's escrow through authz), so no pay-for-fibre settles
+// after one in the same block, whoever signed it.
+func TestPayForFibreDroppedAfterUnmodelableMessage(t *testing.T) {
+	const actor, other, admin = 0, 1, 2
+	trip := func(authority sdk.AccAddress) *circuittypes.MsgTripCircuitBreaker {
+		return &circuittypes.MsgTripCircuitBreaker{
+			Authority:   authority.String(),
+			MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+		}
+	}
+	tests := []struct {
+		name   string
+		attack func(t *testing.T, f *fibreTaintFixture) [][]byte
+	}{
+		{"unprivileged circuit trip", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			return [][]byte{f.tx(t, actor, []sdk.Msg{trip(f.addrs[actor])})}
+		}},
+		{"circuit admin trip", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			return [][]byte{f.tx(t, admin, []sdk.Msg{trip(f.addrs[admin])})}
+		}},
+		{"exec of a circuit trip naming the gov authority", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{trip(authtypes.NewModuleAddress(govtypes.ModuleName))})
+			return [][]byte{f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+		{"same-block grant then exec of an admin's trip", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			expiration := f.blockTime.Add(time.Hour)
+			grant, err := authz.NewMsgGrant(f.addrs[admin], f.addrs[actor],
+				authz.NewGenericAuthorization(sdk.MsgTypeURL(&circuittypes.MsgTripCircuitBreaker{})), &expiration)
+			require.NoError(t, err)
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{trip(f.addrs[admin])})
+			return [][]byte{f.tx(t, admin, []sdk.Msg{grant}), f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+		{"exec of an admin's circuit authorization", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{&circuittypes.MsgAuthorizeCircuitBreaker{
+				Granter:     f.addrs[admin].String(),
+				Grantee:     f.addrs[actor].String(),
+				Permissions: &circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN},
+			}})
+			return [][]byte{f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+		{"delegated fibre params update", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			gov := authtypes.NewModuleAddress(govtypes.ModuleName)
+			expiration := f.blockTime.Add(time.Hour)
+			require.NoError(t, f.app.AuthzKeeper.SaveGrant(f.ctx(), f.addrs[actor], gov,
+				authz.NewGenericAuthorization(sdk.MsgTypeURL(&fibretypes.MsgUpdateFibreParams{})), &expiration))
+			params := f.app.FibreKeeper.GetParams(f.ctx())
+			params.PaymentPromiseTimeout = time.Minute
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{&fibretypes.MsgUpdateFibreParams{Authority: gov.String(), Params: params}})
+			return [][]byte{f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+		{"exec with an unresolvable signer", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			bogus := &banktypes.MsgSend{FromAddress: "not-bech32", ToAddress: f.addrs[actor].String(), Amount: sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1))}
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{bogus})
+			return [][]byte{f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+		{"exec of a vote", func(t *testing.T, f *fibreTaintFixture) [][]byte {
+			exec := authz.NewMsgExec(f.addrs[actor], []sdk.Msg{govv1.NewMsgVote(f.addrs[other], 999, govv1.OptionYes, "")})
+			return [][]byte{f.tx(t, actor, []sdk.Msg{&exec})}
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFibreTaintFixture(t, 3)
+			seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
+			require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
+				circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
+			f.requireOtherPayForFibreDropped(t, tc.attack(t, f), f.pff(t, other))
+		})
+	}
 }
 
-// TestPayForFibreDroppedAfterWrappedCircuitAuthorization covers a circuit
-// admin's authorization wrapped in MsgExec that makes a new admin, whose own
-// trip the proposal branch would not otherwise treat as an admin's.
-func TestPayForFibreDroppedAfterWrappedCircuitAuthorization(t *testing.T) {
-	f := newFibreTaintFixture(t, 4)
-	admin, executor, newAdmin, other := 0, 1, 2, 3
-	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
-	require.NoError(t, f.app.CircuitKeeper.Permissions.Set(f.ctx(), f.addrs[admin],
-		circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN}))
-
-	exec := authz.NewMsgExec(f.addrs[executor], []sdk.Msg{&circuittypes.MsgAuthorizeCircuitBreaker{
-		Granter:     f.addrs[admin].String(),
-		Grantee:     f.addrs[newAdmin].String(),
-		Permissions: &circuittypes.Permissions{Level: circuittypes.Permissions_LEVEL_SUPER_ADMIN},
-	}})
-	execTx := f.tx(t, executor, []sdk.Msg{&exec})
-	trip := f.tx(t, newAdmin, []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
-		Authority:   f.addrs[newAdmin].String(),
-		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
-	}})
-
-	f.requireOtherPayForFibreDropped(t, [][]byte{execTx, trip}, f.pff(t, other))
-}
-
-// TestPayForFibreNotCensoredByVoteGrantExec checks that executing a vote on
-// the victim's behalf, which cannot debit the victim, does not drop the
-// victim's pay-for-fibre.
-func TestPayForFibreNotCensoredByVoteGrantExec(t *testing.T) {
+// TestPayForFibreSettlesInBlockAfterUnmodelableMessage checks that an
+// unmodelable message only delays pay-for-fibre txs to the next block.
+func TestPayForFibreSettlesInBlockAfterUnmodelableMessage(t *testing.T) {
 	f := newFibreTaintFixture(t, 2)
-	grantee, victim := 0, 1
-	seedFibreEscrow(t, f.app, f.addrs[victim], fibretypes.PaymentAmount(100).Amount.Int64())
-	expiration := f.blockTime.Add(time.Hour)
-	require.NoError(t, f.app.AuthzKeeper.SaveGrant(f.ctx(), f.addrs[grantee], f.addrs[victim],
-		authz.NewGenericAuthorization(sdk.MsgTypeURL(&govv1.MsgVote{})), &expiration))
+	attacker, other := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[other], fibretypes.PaymentAmount(100).Amount.Int64())
 
-	exec := authz.NewMsgExec(f.addrs[grantee], []sdk.Msg{govv1.NewMsgVote(f.addrs[victim], 999, govv1.OptionYes, "")})
-	f.requireVictimPayForFibreKept(t, f.tx(t, grantee, []sdk.Msg{&exec}), f.pff(t, victim))
+	exec := authz.NewMsgExec(f.addrs[attacker], []sdk.Msg{&circuittypes.MsgTripCircuitBreaker{
+		Authority:   authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+		MsgTypeUrls: []string{sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})},
+	}})
+	pff := f.pff(t, other)
+	f.requireOtherPayForFibreDropped(t, [][]byte{f.tx(t, attacker, []sdk.Msg{&exec})}, pff)
+	_, err := f.app.Commit()
+	require.NoError(t, err)
+
+	f.blockTime = f.blockTime.Add(time.Second)
+	kept := f.prepare(t, [][]byte{pff})
+	require.Equal(t, [][]byte{pff}, kept)
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// TestPayForFibreSettlesAfterModelableMessages checks that ordinary user and
+// relayer traffic from other accounts does not stop pay-for-fibre settlement.
+func TestPayForFibreSettlesAfterModelableMessages(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	user0, payer := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[payer], fibretypes.PaymentAmount(100).Amount.Int64())
+
+	coin := sdk.NewInt64Coin(appconsts.BondDenom, 1_000)
+	vals, err := f.app.StakingKeeper.GetAllValidators(f.ctx())
+	require.NoError(t, err)
+	require.NotEmpty(t, vals)
+	send := f.tx(t, user0, []sdk.Msg{banktypes.NewMsgSend(f.addrs[user0], f.addrs[user0], sdk.NewCoins(coin))})
+	delegate := f.tx(t, user0, []sdk.Msg{stakingtypes.NewMsgDelegate(f.addrs[user0].String(), vals[0].OperatorAddress, coin)})
+	transfer := f.tx(t, user0, []sdk.Msg{ibctransfertypes.NewMsgTransfer("transfer", "channel-0", coin,
+		f.addrs[user0].String(), "cosmos1recipient", clienttypes.NewHeight(1, 1000), 0, "")})
+	recv := f.tx(t, user0, []sdk.Msg{f.recvPacket()})
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 100))
+	require.NoError(t, err)
+	blobTx, _, err := f.signers[user0].CreatePayForBlobs(f.accounts[user0], []*share.Blob{blob}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
+	require.NoError(t, err)
+	require.NoError(t, f.signers[user0].IncrementSequence(f.accounts[user0]))
+	pff := f.pff(t, payer)
+
+	block := [][]byte{send, delegate, transfer, recv, blobTx, pff}
+	kept := f.prepare(t, block)
+	require.Len(t, kept, len(block))
+	require.Contains(t, kept, pff)
+	f.requireNoUnpaidPayForFibre(t, kept)
+}
+
+// TestPayForFibreAfterRecvPacketWithUnmodelableICAHost checks that an inbound
+// IBC packet stops settlement when the ICA host may execute a message the
+// branch cannot reason about on behalf of an interchain account.
+func TestPayForFibreAfterRecvPacketWithUnmodelableICAHost(t *testing.T) {
+	f := newFibreTaintFixture(t, 2)
+	relayer, payer := 0, 1
+	seedFibreEscrow(t, f.app, f.addrs[payer], fibretypes.PaymentAmount(100).Amount.Int64())
+	ctx := f.ctx()
+	params := f.app.ICAHostKeeper.GetParams(ctx)
+	params.AllowMessages = append(params.AllowMessages, sdk.MsgTypeURL(&authz.MsgExec{}))
+	f.app.ICAHostKeeper.SetParams(ctx, params)
+
+	f.requireOtherPayForFibreDropped(t, [][]byte{f.tx(t, relayer, []sdk.Msg{f.recvPacket()})}, f.pff(t, payer))
+}
+
+// recvPacket returns a well-formed MsgRecvPacket for a channel that does not
+// exist, so it passes message validation and the ante handler and fails only
+// when executed.
+func (f *fibreTaintFixture) recvPacket() *channeltypes.MsgRecvPacket {
+	packet := channeltypes.NewPacket([]byte("data"), 1, "transfer", "channel-0", "transfer", "channel-1", clienttypes.NewHeight(1, 1000), 0)
+	return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), f.addrs[0].String())
 }
 
 // TestCopiedTimeoutDoesNotIterateOwnerWithdrawals checks that judging an
@@ -560,4 +602,47 @@ func TestCopiedTimeoutDoesNotIterateOwnerWithdrawals(t *testing.T) {
 	}
 	require.Positive(t, traced, "the store trace must capture proposal reads")
 	require.Zero(t, withdrawalReads, "the owner's pending withdrawals must not be read")
+}
+
+// TestExactGasPayForFibreSettlesWhenModuleBalancesGrow checks that a
+// pay-for-fibre whose gas limit only just covers its settlement on the proposal
+// branch also settles in FinalizeBlock, where the fibre module and fee
+// collector balances it transfers between can be larger: an earlier escrow
+// deposit is not executed on the branch, and FinalizeBlock collects every
+// tx's fee, including those of later pay-for-fibre txs, before any message.
+func TestExactGasPayForFibreSettlesWhenModuleBalancesGrow(t *testing.T) {
+	f := newFibreTaintFixture(t, 3)
+	depositor, payer, later := 0, 1, 2
+	payment := fibretypes.PaymentAmount(100).Amount.Int64()
+	seedFibreEscrow(t, f.app, f.addrs[payer], payment)
+	seedFibreEscrow(t, f.app, f.addrs[later], payment)
+
+	// Both push a balance past several powers of ten.
+	const big = 1_000_000_000
+	deposit := f.tx(t, depositor, []sdk.Msg{&fibretypes.MsgDepositToEscrow{
+		Signer: f.addrs[depositor].String(), Amount: sdk.NewInt64Coin(appconsts.BondDenom, big),
+	}})
+	pffWithGas := func(gas uint64) []byte {
+		return newSignedPayForFibreTxAt(t, f.signers[payer], f.accounts[payer], true, f.blockTime,
+			user.SetGasLimit(gas), user.SetFee(4_000))
+	}
+	laterPFF := f.pff(t, later, user.SetFee(big))
+
+	// The smallest gas limit with which the branch keeps the pay-for-fibre.
+	lo, hi := uint64(1), uint64(1_000_000)
+	require.Contains(t, f.prepare(t, [][]byte{deposit, pffWithGas(hi), laterPFF}), pffWithGas(hi))
+	for lo < hi {
+		mid := (lo + hi) / 2
+		if pff := pffWithGas(mid); slices.ContainsFunc(f.prepare(t, [][]byte{deposit, pff, laterPFF}), func(tx []byte) bool { return bytes.Equal(tx, pff) }) {
+			hi = mid
+		} else {
+			lo = mid + 1
+		}
+	}
+	pff := pffWithGas(hi)
+	require.NoError(t, f.signers[payer].IncrementSequence(f.accounts[payer]))
+
+	kept := f.prepare(t, [][]byte{deposit, pff, laterPFF})
+	require.Equal(t, [][]byte{deposit, pff, laterPFF}, kept)
+	f.requireNoUnpaidPayForFibre(t, kept)
 }
