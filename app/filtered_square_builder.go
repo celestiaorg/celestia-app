@@ -106,6 +106,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
+		// Proposal policy only, mirroring CheckTx: ProcessProposal does not
+		// apply this bound, so blocks that include such a tx stay valid.
+		if err := validateModuleQuerySafeRequests(sdkTx); err != nil {
+			logger.Debug("skipping tx with too many MsgModuleQuerySafe requests", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
+
 		msgTypes := msgTypes(sdkTx)
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
