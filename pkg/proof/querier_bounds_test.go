@@ -2,6 +2,7 @@ package proof_test
 
 import (
 	"bytes"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // maxRejectAllocs bounds the allocations of a rejected query. It is far below
@@ -94,6 +96,60 @@ func TestQueryShareInclusionProofRejectsInvalidRangeBeforeDecoding(t *testing.T)
 		})
 		require.ErrorContains(t, err, "invalid share range", "path %v", path)
 		require.LessOrEqual(t, allocs, float64(maxRejectAllocs), "path %v", path)
+	}
+}
+
+// allocatedBytes returns the bytes the heap allocated while running f.
+func allocatedBytes(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
+}
+
+// TestQueryProofsRejectMalformedBlockBeforeAllocatingTxs checks that a block
+// the decoder rejects before reaching its txs costs no allocation per tx, even
+// when it holds many txs.
+func TestQueryProofsRejectMalformedBlockBeforeAllocatingTxs(t *testing.T) {
+	const n = 1_000_000
+	txField := func(b []byte) []byte {
+		for range n {
+			b = protowire.AppendTag(b, 1, protowire.BytesType)
+			b = protowire.AppendBytes(b, []byte{0x01})
+		}
+		return b
+	}
+	dataField := func(data []byte) []byte {
+		b := protowire.AppendTag(nil, 2, protowire.BytesType)
+		return protowire.AppendBytes(b, data)
+	}
+	// A header holding its version field (a message) as a varint.
+	badHeader := protowire.AppendTag(nil, 1, protowire.BytesType)
+	badHeader = protowire.AppendBytes(badHeader, protowire.AppendVarint(protowire.AppendTag(nil, 1, protowire.VarintType), 0))
+	// A header encoded as a varint.
+	headerAsVarint := protowire.AppendVarint(protowire.AppendTag(nil, 1, protowire.VarintType), 0)
+	// A square size encoded as bytes.
+	squareSizeAsBytes := protowire.AppendBytes(protowire.AppendTag(nil, 5, protowire.BytesType), []byte{0x01})
+
+	for name, data := range map[string][]byte{
+		"block field with wrong wire type": append(headerAsVarint, dataField(txField(nil))...),
+		"data field with wrong wire type":  dataField(txField(squareSizeAsBytes)),
+		"malformed header before txs":      append(badHeader, dataField(txField(nil))...),
+	} {
+		req := &abci.RequestQuery{Data: data}
+		var err error
+		allocated := allocatedBytes(func() {
+			_, err = proof.QueryTxInclusionProof(sdk.Context{}, []string{"0"}, req)
+		})
+		require.Error(t, err, name)
+		require.Less(t, allocated, uint64(1<<20), "%s: tx query allocated %d bytes", name, allocated)
+
+		allocated = allocatedBytes(func() {
+			_, err = proof.QueryShareInclusionProof(sdk.Context{}, []string{"0", "1"}, req)
+		})
+		require.Error(t, err, name)
+		require.Less(t, allocated, uint64(1<<20), "%s: share query allocated %d bytes", name, allocated)
 	}
 }
 

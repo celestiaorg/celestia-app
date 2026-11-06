@@ -60,7 +60,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery)
 	}
 
 	// unmarshal the block data that is passed from the ABCI client
-	pbb, err := unmarshalBlock(req.Data, txCount)
+	pbb, err := unmarshalBlock(req.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -108,14 +108,13 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 		return nil, fmt.Errorf("invalid share range [%d, %d): must satisfy 0 <= begin < end <= %d", beginShare, endShare, maxSquareShares)
 	}
 
-	// count the block's txs before decoding the block
-	txCount, err := countBlockTxs(req.Data)
-	if err != nil {
+	// check the block's encoding before decoding the block
+	if _, err := countBlockTxs(req.Data); err != nil {
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
 
 	// unmarshal the block data that is passed from the ABCI client
-	pbb, err := unmarshalBlock(req.Data, txCount)
+	pbb, err := unmarshalBlock(req.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -165,15 +164,50 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 // the query handlers construct.
 const maxSquareShares = appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound
 
-// Field numbers of tmproto.Block.Data and tmproto.Data.Txs.
+// Field numbers of tmproto.Block and tmproto.Data.
 const (
-	blockDataField protowire.Number = 2
-	dataTxsField   protowire.Number = 1
+	blockHeaderField     protowire.Number = 1
+	blockDataField       protowire.Number = 2
+	blockEvidenceField   protowire.Number = 3
+	blockLastCommitField protowire.Number = 4
+
+	dataTxsField        protowire.Number = 1
+	dataSquareSizeField protowire.Number = 5
+	dataHashField       protowire.Number = 6
 )
 
+// blockFieldType returns the wire type of a known tmproto.Block field.
+func blockFieldType(num protowire.Number) (protowire.Type, bool) {
+	switch num {
+	case blockHeaderField, blockDataField, blockEvidenceField, blockLastCommitField:
+		return protowire.BytesType, true
+	}
+	return 0, false
+}
+
+// dataFieldType returns the wire type of a known tmproto.Data field.
+func dataFieldType(num protowire.Number) (protowire.Type, bool) {
+	switch num {
+	case dataTxsField, dataHashField:
+		return protowire.BytesType, true
+	case dataSquareSizeField:
+		return protowire.VarintType, true
+	}
+	return 0, false
+}
+
+// checkWireType rejects a known field encoded with the wrong wire type, as
+// decoding the message would.
+func checkWireType(num protowire.Number, typ protowire.Type, fieldType func(protowire.Number) (protowire.Type, bool)) error {
+	if want, ok := fieldType(num); ok && typ != want {
+		return fmt.Errorf("wrong wire type %d for field %d", typ, num)
+	}
+	return nil
+}
+
 // countBlockTxs returns the number of txs in a serialized tmproto.Block
-// without decoding it, so callers can validate requests and size allocations
-// before decoding. It rejects empty txs, which no data square can hold.
+// without decoding it, so callers can validate requests before decoding. It rejects empty txs, which no data square can hold, and
+// known fields with the wrong wire type.
 func countBlockTxs(bz []byte) (int, error) {
 	count := 0
 	for len(bz) > 0 {
@@ -182,7 +216,10 @@ func countBlockTxs(bz []byte) (int, error) {
 			return 0, protowire.ParseError(n)
 		}
 		bz = bz[n:]
-		if num == blockDataField && typ == protowire.BytesType {
+		if err := checkWireType(num, typ, blockFieldType); err != nil {
+			return 0, err
+		}
+		if num == blockDataField {
 			data, n := protowire.ConsumeBytes(bz)
 			if n < 0 {
 				return 0, protowire.ParseError(n)
@@ -212,7 +249,10 @@ func countDataTxs(bz []byte, count int) (int, error) {
 			return 0, protowire.ParseError(n)
 		}
 		bz = bz[n:]
-		if num == dataTxsField && typ == protowire.BytesType {
+		if err := checkWireType(num, typ, dataFieldType); err != nil {
+			return 0, err
+		}
+		if num == dataTxsField {
 			tx, n := protowire.ConsumeBytes(bz)
 			if n < 0 {
 				return 0, protowire.ParseError(n)
@@ -233,13 +273,11 @@ func countDataTxs(bz []byte, count int) (int, error) {
 	return count, nil
 }
 
-// unmarshalBlock decodes a serialized tmproto.Block holding txCount txs, as
-// counted by countBlockTxs.
-func unmarshalBlock(bz []byte, txCount int) (*tmproto.Block, error) {
+// unmarshalBlock decodes a serialized tmproto.Block. It does not size the tx
+// slice from countBlockTxs: decoding can still fail on a field that precedes
+// the txs, and must then not have allocated for them.
+func unmarshalBlock(bz []byte) (*tmproto.Block, error) {
 	pbb := new(tmproto.Block)
-	if txCount > 0 {
-		pbb.Data.Txs = make([][]byte, 0, txCount)
-	}
 	if err := pbb.Unmarshal(bz); err != nil {
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
