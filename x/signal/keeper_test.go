@@ -55,7 +55,7 @@ func TestVersionFromBytes(t *testing.T) {
 
 func TestGetVotingPowerThreshold(t *testing.T) {
 	bigInt := big.NewInt(0)
-	bigInt.SetString("23058430092136939509", 10)
+	bigInt.SetString("23058430092136939518", 10)
 
 	type testCase struct {
 		name       string
@@ -81,7 +81,14 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		{
 			name:       "one validator with voting power of math.MaxInt64",
 			validators: map[string]int64{testutil.ValAddrs[0].String(): math.MaxInt64},
-			want:       sdkmath.NewInt(7686143364045646503),
+			want:       sdkmath.NewInt(7686143364045646506),
+		},
+		{
+			// 5/6 of the total is 416666666666666669.17. An 18-digit decimal
+			// 5/6 rounds this down to 416666666666666669.
+			name:       "total power above 5e17 rounds up to the exact ceiling",
+			validators: map[string]int64{testutil.ValAddrs[0].String(): 500_000_000_000_000_003},
+			want:       sdkmath.NewInt(416666666666666670),
 		},
 		{
 			name: "multiple validators with voting power of math.MaxInt64",
@@ -100,7 +107,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got, err := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.NoError(t, err)
-			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
+			assert.True(t, tc.want.Equal(got), fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
 	}
 }
