@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 const TxInclusionQueryPath = "txInclusionProof"
@@ -50,19 +50,23 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery)
 		return nil, fmt.Errorf("path[0] element: %q produced a negative value: %d", path[0], index)
 	}
 
-	// unmarshal the block data that is passed from the ABCI client
-	pbb := new(tmproto.Block)
-	err = pbb.Unmarshal(req.Data)
+	// count the block's txs and check the index before decoding the block
+	txCount, err := countBlockTxs(req.Data)
 	if err != nil {
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
-	data, err := types.DataFromProto(&pbb.Data)
+	if uint64(index) >= uint64(txCount) {
+		return nil, fmt.Errorf("txIndex %d out of bounds", index)
+	}
+
+	// unmarshal the block data that is passed from the ABCI client
+	pbb, err := unmarshalBlock(req.Data, txCount)
 	if err != nil {
-		return nil, fmt.Errorf("error from proto block: %w", err)
+		return nil, err
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index), pbb.Header.Version.App)
+	shareProof, err := NewTxInclusionProof(pbb.Data.Txs, uint64(index), pbb.Header.Version.App)
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +103,21 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 	if err != nil {
 		return nil, err
 	}
+	// reject ranges that cannot lie in any square before decoding the block
+	if beginShare < 0 || endShare <= beginShare || endShare > int64(maxSquareShares) {
+		return nil, fmt.Errorf("invalid share range [%d, %d): must satisfy 0 <= begin < end <= %d", beginShare, endShare, maxSquareShares)
+	}
 
-	// unmarshal the block data that is passed from the ABCI client
-	pbb := new(tmproto.Block)
-	err = pbb.Unmarshal(req.Data)
+	// count the block's txs before decoding the block
+	txCount, err := countBlockTxs(req.Data)
 	if err != nil {
 		return nil, fmt.Errorf("error reading block: %w", err)
+	}
+
+	// unmarshal the block data that is passed from the ABCI client
+	pbb, err := unmarshalBlock(req.Data, txCount)
+	if err != nil {
+		return nil, err
 	}
 
 	// construct the data square from the block data. As we don't have
@@ -146,6 +159,91 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 	}
 
 	return rawShareProof, nil
+}
+
+// maxSquareShares is the number of shares in the largest original data square
+// the query handlers construct.
+const maxSquareShares = appconsts.SquareSizeUpperBound * appconsts.SquareSizeUpperBound
+
+// Field numbers of tmproto.Block.Data and tmproto.Data.Txs.
+const (
+	blockDataField protowire.Number = 2
+	dataTxsField   protowire.Number = 1
+)
+
+// countBlockTxs returns the number of txs in a serialized tmproto.Block
+// without decoding it, so callers can validate requests and size allocations
+// before decoding. It rejects empty txs, which no data square can hold.
+func countBlockTxs(bz []byte) (int, error) {
+	count := 0
+	for len(bz) > 0 {
+		num, typ, n := protowire.ConsumeTag(bz)
+		if n < 0 {
+			return 0, protowire.ParseError(n)
+		}
+		bz = bz[n:]
+		if num == blockDataField && typ == protowire.BytesType {
+			data, n := protowire.ConsumeBytes(bz)
+			if n < 0 {
+				return 0, protowire.ParseError(n)
+			}
+			bz = bz[n:]
+			var err error
+			if count, err = countDataTxs(data, count); err != nil {
+				return 0, err
+			}
+			continue
+		}
+		n = protowire.ConsumeFieldValue(num, typ, bz)
+		if n < 0 {
+			return 0, protowire.ParseError(n)
+		}
+		bz = bz[n:]
+	}
+	return count, nil
+}
+
+// countDataTxs adds the number of txs in a serialized tmproto.Data to count.
+// A block may carry its data field more than once; decoding merges them.
+func countDataTxs(bz []byte, count int) (int, error) {
+	for len(bz) > 0 {
+		num, typ, n := protowire.ConsumeTag(bz)
+		if n < 0 {
+			return 0, protowire.ParseError(n)
+		}
+		bz = bz[n:]
+		if num == dataTxsField && typ == protowire.BytesType {
+			tx, n := protowire.ConsumeBytes(bz)
+			if n < 0 {
+				return 0, protowire.ParseError(n)
+			}
+			if len(tx) == 0 {
+				return 0, fmt.Errorf("empty tx at index %d", count)
+			}
+			bz = bz[n:]
+			count++
+			continue
+		}
+		n = protowire.ConsumeFieldValue(num, typ, bz)
+		if n < 0 {
+			return 0, protowire.ParseError(n)
+		}
+		bz = bz[n:]
+	}
+	return count, nil
+}
+
+// unmarshalBlock decodes a serialized tmproto.Block holding txCount txs, as
+// counted by countBlockTxs.
+func unmarshalBlock(bz []byte, txCount int) (*tmproto.Block, error) {
+	pbb := new(tmproto.Block)
+	if txCount > 0 {
+		pbb.Data.Txs = make([][]byte, 0, txCount)
+	}
+	if err := pbb.Unmarshal(bz); err != nil {
+		return nil, fmt.Errorf("error reading block: %w", err)
+	}
+	return pbb, nil
 }
 
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
