@@ -62,6 +62,7 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 		name        string
 		chain       [][]byte
 		sendFillers []string
+		pfbFillers  []string
 	}{
 		{
 			// The square orders normal txs before blob txs, so only the first
@@ -75,6 +76,7 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 				pfb("chain", 4, bigBlob),
 			},
 			sendFillers: sendFillers,
+			pfbFillers:  pfbFillers,
 		},
 		{
 			name: "expired blob txs",
@@ -83,6 +85,17 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 				pfb("chain", 1, bigBlob, expired),
 				pfb("chain", 2, bigBlob, expired),
 			},
+			pfbFillers: pfbFillers,
+		},
+		{
+			// Classification drops undecodable txs before Fill reaches them, so
+			// they must not reserve the bytes the fillers need.
+			name: "undecodable tx",
+			chain: [][]byte{
+				pfb("chain", 0, 100),
+				bytes.Repeat([]byte{0xff}, 2_000),
+			},
+			sendFillers: sendFillers,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,8 +105,8 @@ func TestPrepareProposalRefillsBudgetReleasedByDroppedTxs(t *testing.T) {
 			for _, f := range tc.sendFillers {
 				sends = append(sends, send(f, 0, lowFee))
 			}
-			pfbs := make([][]byte, 0, len(pfbFillers))
-			for _, f := range pfbFillers {
+			pfbs := make([][]byte, 0, len(tc.pfbFillers))
+			for _, f := range tc.pfbFillers {
 				pfbs = append(pfbs, pfb(f, 0, 1000, lowFee))
 			}
 			lower := append(append([][]byte{}, sends...), pfbs...)

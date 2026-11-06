@@ -58,10 +58,21 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
-	budget := newTxByteBudget(logger, txs, maxTxBytes)
-
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, txs)
+
+	// Reserve bytes only for txs that survived classification: Fill never
+	// reaches a dropped one to release its reservation.
+	var classified map[txIdentity]int
+	if maxTxBytes > 0 {
+		classified = make(map[txIdentity]int, len(txs))
+		for _, class := range [][][]byte{normalTxs, rawBlobTxs, payForFibreTxs} {
+			for _, tx := range class {
+				classified[identityOf(tx)]++
+			}
+		}
+	}
+	budget := newTxByteBudget(logger, txs, maxTxBytes, classified)
 
 	var (
 		sdkMessageCount = 0
@@ -216,7 +227,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 // matching how CometBFT validates the returned list. Raw len(tx) under-counts
 // the framing, so a list that fits here could still be rejected by Core.
 //
-// The txs that fit in mempool priority order are admitted and their bytes
+// The classified txs that fit in mempool priority order are admitted and their bytes
 // reserved up front. Fill then walks every candidate of each class (normal,
 // blob, pay-for-fibre) in priority order. A candidate releases its own
 // reservation when Fill reaches it, so an admitted tx always fits and is kept
@@ -248,20 +259,27 @@ func identityOf(tx []byte) txIdentity {
 	return txIdentity{data: &tx[0], len: len(tx)}
 }
 
-func newTxByteBudget(logger log.Logger, txs [][]byte, maxTxBytes int64) *txByteBudget {
+// newTxByteBudget admits, in priority order, the txs of txs that classified
+// counts by identity, so a tx dropped before Fill reaches it reserves nothing.
+func newTxByteBudget(logger log.Logger, txs [][]byte, maxTxBytes int64, classified map[txIdentity]int) *txByteBudget {
 	b := &txByteBudget{max: maxTxBytes}
 	if maxTxBytes <= 0 {
 		return b
 	}
 	b.admitted = make(map[txIdentity]int, len(txs))
 	for _, tx := range txs {
+		id := identityOf(tx)
+		if classified[id] == 0 {
+			continue
+		}
+		classified[id]--
 		size := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
 		if b.reserved+size > maxTxBytes {
 			logger.Debug("not reserving bytes for tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 		b.reserved += size
-		b.admitted[identityOf(tx)]++
+		b.admitted[id]++
 	}
 	return b
 }
