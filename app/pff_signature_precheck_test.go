@@ -193,7 +193,7 @@ func TestExceedsPFFSignatureLimit(t *testing.T) {
 	for _, raw := range [][]byte{groupInValue, groupInAny, groupInBody} {
 		tx, err := txConfig.TxDecoder()(raw)
 		require.NoError(t, err, "the decoder accepts the group, so it would decode every entry")
-		require.Len(t, fibretypes.PayForFibreMsg(tx).ValidatorSignatures, limit+1)
+		require.Equal(t, limit+1, maxPFFSignatures(tx.GetMsgs()))
 	}
 	require.False(t, rejectedByDecodeOrValidateBasic(txConfig, shadowedTx))
 }
