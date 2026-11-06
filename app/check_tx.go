@@ -67,6 +67,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
+	// Mempool admission policy only: ProcessProposal and FinalizeBlock do not
+	// apply this bound, so it does not change block validity.
+	if err := validateModuleQuerySafeRequests(sdkTx); err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+
 	return app.forwardCheckTx(req, sdkTx)
 }
 
