@@ -522,6 +522,11 @@ func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.getAppLocked()
+}
+
+// getAppLocked is getApp for callers that hold m.mu.
+func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
 
 	// get the appropriate version for the latest app version.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -52,23 +53,32 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 		return nil, fmt.Errorf("failed to commit: %w", err)
 	}
 
-	// The app serving m.appVersion has committed a block, so it can answer
-	// Info from its own state again.
-	m.setSwitchInfo(nil)
-
 	// after a successful commit, start using the app version specified in FinalizeBlock. If
 	// there is an upgrade, perform that now.
-	oldAppVersion := m.appVersion
-	if oldAppVersion != m.nextAppVersion {
-		// The next app has not committed a block yet. Its Info would read the
-		// last committed height, which the previous app wrote, and the v4
-		// binary crashes doing so because the stores it adds at the upgrade
-		// do not exist at that height. Answer Info for this window from the
-		// previous app, which reports exactly that height. See #8366.
-		m.setSwitchInfo(m.previousAppInfo(app))
+	m.mu.Lock()
+	oldAppVersion, nextAppVersion := m.appVersion, m.nextAppVersion
+	m.mu.Unlock()
+
+	// The next app has not committed a block yet. Its Info would read the last
+	// committed height, which the previous app wrote, and the v4 binary
+	// crashes doing so because the stores it adds at the upgrade do not exist
+	// at that height. Answer Info for this window from the previous app, which
+	// reports exactly that height. See #8366.
+	var previousInfo *abci.ResponseInfo
+	if oldAppVersion != nextAppVersion {
+		previousInfo = m.previousAppInfo(app)
 	}
-	m.appVersion = m.nextAppVersion
-	if oldAppVersion != m.nextAppVersion {
+
+	// Switch the app version and the Info answer together so that Info never
+	// selects the next app before it has committed. Without a switch this
+	// clears the stored answer, because the app serving appVersion has now
+	// committed a block of its own.
+	m.mu.Lock()
+	m.switchInfo = previousInfo
+	m.appVersion = nextAppVersion
+	m.mu.Unlock()
+
+	if oldAppVersion != nextAppVersion {
 		// this effectively performs the upgrade immediately instead of waiting until the next call to getApp.
 		_, err = m.getApp()
 		if err != nil {
@@ -112,20 +122,29 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 
 	// set the app version to be used in the next block.
 	if resp.ConsensusParamUpdates != nil && resp.ConsensusParamUpdates.GetVersion() != nil {
+		m.mu.Lock()
 		m.nextAppVersion = resp.ConsensusParamUpdates.GetVersion().App
+		m.mu.Unlock()
 	}
 
 	return resp, err
 }
 
 func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	if info := m.getSwitchInfo(); info != nil {
-		return info, nil
+	// Check the stored answer and select the app in one critical section, so
+	// that a concurrent Commit cannot switch app versions in between.
+	m.mu.Lock()
+	if m.switchInfo != nil {
+		info := *m.switchInfo
+		info.LastBlockAppHash = bytes.Clone(m.switchInfo.LastBlockAppHash)
+		m.mu.Unlock()
+		return &info, nil
 	}
-
-	app, err := m.getApp()
+	app, err := m.getAppLocked()
+	appVersion := m.appVersion
+	m.mu.Unlock()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+		return nil, fmt.Errorf("failed to get app for version %d: %w", appVersion, err)
 	}
 
 	return app.Info(req)
@@ -214,11 +233,22 @@ func (m *Multiplexer) QuerySequence(ctx context.Context, req *abci.RequestQueryS
 	return app.QuerySequence(ctx, req)
 }
 
+// previousAppInfoTimeout bounds the Info call to the previous app in Commit,
+// so a dead embedded app whose connection is still open cannot block Commit.
+var previousAppInfoTimeout = 5 * time.Second
+
 // previousAppInfo returns the Info response of app, which has just committed
 // the last block of its app version. It returns nil if the call fails, in
 // which case Info keeps forwarding to the current app.
 func (m *Multiplexer) previousAppInfo(app servertypes.ABCI) *abci.ResponseInfo {
-	switch app.(type) {
+	ctx, cancel := context.WithTimeout(context.Background(), previousAppInfoTimeout)
+	defer cancel()
+
+	var (
+		info *abci.ResponseInfo
+		err  error
+	)
+	switch client := app.(type) {
 	case *RemoteABCIClientV1, *RemoteABCIClientV2:
 		// The connection is closed if the embedded app exited. Commit through
 		// RemoteABCIClientV1 makes no remote call, so it can succeed anyway.
@@ -226,36 +256,22 @@ func (m *Multiplexer) previousAppInfo(app servertypes.ABCI) *abci.ResponseInfo {
 		connected := m.conn != nil
 		m.mu.Unlock()
 		if !connected {
-			m.logger.Error("no connection to the previous app to get its info before switching app versions", "app_version", m.appVersion)
+			m.logger.Error("no connection to the previous app to get its info before switching app versions")
 			return nil
 		}
+		if v1, ok := client.(*RemoteABCIClientV1); ok {
+			info, err = v1.infoWithContext(ctx, &abci.RequestInfo{})
+		} else {
+			info, err = client.(*RemoteABCIClientV2).infoWithContext(ctx, &abci.RequestInfo{})
+		}
+	default:
+		info, err = app.Info(&abci.RequestInfo{})
 	}
-
-	info, err := app.Info(&abci.RequestInfo{})
 	if err != nil {
-		m.logger.Error("failed to get info from the previous app before switching app versions", "app_version", m.appVersion, "err", err)
+		m.logger.Error("failed to get info from the previous app before switching app versions", "err", err)
 		return nil
 	}
 	return info
-}
-
-func (m *Multiplexer) setSwitchInfo(info *abci.ResponseInfo) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.switchInfo = info
-}
-
-// getSwitchInfo returns a copy of the stored Info response of the previous
-// app, or nil if there is none.
-func (m *Multiplexer) getSwitchInfo() *abci.ResponseInfo {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.switchInfo == nil {
-		return nil
-	}
-	info := *m.switchInfo
-	info.LastBlockAppHash = bytes.Clone(m.switchInfo.LastBlockAppHash)
-	return &info
 }
 
 // checkHaltConditions returns an error if the node should halt based on a halt-height or

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
@@ -24,6 +26,9 @@ type upgradingServer struct {
 	info      *abci.ResponseInfo
 	infoCalls atomic.Int32
 	infoErr   error
+	// blockInfo makes Info wait until the caller gives up, like a dead
+	// embedded app whose connection is still open.
+	blockInfo bool
 }
 
 func (s *upgradingServer) FinalizeBlock(context.Context, *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
@@ -37,8 +42,12 @@ func (s *upgradingServer) Commit(context.Context, *abci.RequestCommit) (*abci.Re
 	return &abci.ResponseCommit{}, nil
 }
 
-func (s *upgradingServer) Info(context.Context, *abci.RequestInfo) (*abci.ResponseInfo, error) {
+func (s *upgradingServer) Info(ctx context.Context, _ *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	s.infoCalls.Add(1)
+	if s.blockInfo {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	if s.infoErr != nil {
 		return nil, s.infoErr
 	}
@@ -50,15 +59,25 @@ func (s *upgradingServer) Info(context.Context, *abci.RequestInfo) (*abci.Respon
 var errNoCommittedState = errors.New("new app has not committed a block")
 
 // freshApp is a native app that, like the v4 binary right after the v3 -> v4
-// switch, cannot answer Info until it has committed its first block.
+// switch, cannot answer Info until it has committed its first block. Info is
+// safe to call concurrently with Commit.
 type freshApp struct {
 	fakeApp
-	infoCalls int
+	committed atomic.Bool
+	infoCalls atomic.Int32
+}
+
+func (f *freshApp) Commit() (*abci.ResponseCommit, error) {
+	resp, err := f.fakeApp.Commit()
+	if err == nil {
+		f.committed.Store(true)
+	}
+	return resp, err
 }
 
 func (f *freshApp) Info(*abci.RequestInfo) (*abci.ResponseInfo, error) {
-	f.infoCalls++
-	if f.commitCalls == 0 {
+	f.infoCalls.Add(1)
+	if !f.committed.Load() {
 		return nil, errNoCommittedState
 	}
 	return &abci.ResponseInfo{AppVersion: 4, LastBlockHeight: 101}, nil
@@ -114,7 +133,7 @@ func TestInfoDuringVersionSwitch(t *testing.T) {
 	require.Equal(t, previousInfo.AppVersion, info.AppVersion)
 	require.Equal(t, previousInfo.LastBlockHeight, info.LastBlockHeight)
 	require.Equal(t, previousInfo.LastBlockAppHash, info.LastBlockAppHash)
-	require.Zero(t, native.infoCalls, "Info must not reach the new app before it commits")
+	require.Zero(t, native.infoCalls.Load(), "Info must not reach the new app before it commits")
 
 	// The new app has executed but not committed its first block, so its last
 	// committed height is still the previous app's.
@@ -123,14 +142,14 @@ func TestInfoDuringVersionSwitch(t *testing.T) {
 	info, err = m.Info(t.Context(), &abci.RequestInfo{})
 	require.NoError(t, err)
 	require.Equal(t, int64(100), info.LastBlockHeight)
-	require.Zero(t, native.infoCalls)
+	require.Zero(t, native.infoCalls.Load())
 
 	_, err = m.Commit(t.Context(), &abci.RequestCommit{})
 	require.NoError(t, err)
 	info, err = m.Info(t.Context(), &abci.RequestInfo{})
 	require.NoError(t, err)
 	require.Equal(t, int64(101), info.LastBlockHeight)
-	require.Equal(t, 1, native.infoCalls, "Info must reach the new app once it has committed")
+	require.EqualValues(t, 1, native.infoCalls.Load(), "Info must reach the new app once it has committed")
 }
 
 // TestInfoDuringVersionSwitchWithoutPreviousInfo verifies that Info keeps
@@ -151,5 +170,74 @@ func TestInfoDuringVersionSwitchWithoutPreviousInfo(t *testing.T) {
 
 	_, err = m.Info(t.Context(), &abci.RequestInfo{})
 	require.ErrorIs(t, err, errNoCommittedState)
-	require.Equal(t, 1, native.infoCalls)
+	require.EqualValues(t, 1, native.infoCalls.Load())
+}
+
+// TestInfoDuringVersionSwitchWithUnresponsivePreviousApp verifies that Commit
+// does not hang when the previous app never answers Info.
+func TestInfoDuringVersionSwitchWithUnresponsivePreviousApp(t *testing.T) {
+	timeout := previousAppInfoTimeout
+	previousAppInfoTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { previousAppInfoTimeout = timeout })
+
+	embedded := &upgradingServer{
+		info:      &abci.ResponseInfo{AppVersion: 4, LastBlockHeight: 100},
+		blockInfo: true,
+	}
+	m := newSwitchTestMultiplexer(t, embedded, &freshApp{})
+
+	_, err := m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 100})
+	require.NoError(t, err)
+	_, err = m.Commit(t.Context(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, embedded.infoCalls.Load())
+	require.Equal(t, uint64(4), m.appVersion)
+}
+
+// TestConcurrentInfoDuringVersionSwitch calls Info concurrently with the
+// commit that switches app versions, as CometBFT does on its query
+// connection. No Info may reach the new app before it has committed.
+func TestConcurrentInfoDuringVersionSwitch(t *testing.T) {
+	for range 20 {
+		embedded := &upgradingServer{info: &abci.ResponseInfo{
+			AppVersion: 4, LastBlockHeight: 100, LastBlockAppHash: []byte("v3-app-hash"),
+		}}
+		native := &freshApp{}
+		m := newSwitchTestMultiplexer(t, embedded, native)
+
+		_, err := m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 100})
+		require.NoError(t, err)
+
+		done := make(chan struct{})
+		var wg sync.WaitGroup
+		errs := make(chan error, 4)
+		for range 4 {
+			wg.Go(func() {
+				for {
+					select {
+					case <-done:
+						return
+					default:
+					}
+					if _, err := m.Info(t.Context(), &abci.RequestInfo{}); err != nil {
+						errs <- err
+						return
+					}
+				}
+			})
+		}
+
+		_, err = m.Commit(t.Context(), &abci.RequestCommit{})
+		require.NoError(t, err)
+		_, err = m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 101})
+		require.NoError(t, err)
+		_, err = m.Commit(t.Context(), &abci.RequestCommit{})
+		require.NoError(t, err)
+		close(done)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			require.NoError(t, err, "Info must not reach the new app before it commits")
+		}
+	}
 }
