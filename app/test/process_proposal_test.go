@@ -414,10 +414,10 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
+	// +2 accounts are grantees for the authz MsgExec txs built below, +4 sign the
 	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +2 sign the ZK
 	// proof txs, +3 sign the ISM signature txs and +2 sign the SDK gas txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 16
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 17
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -594,6 +594,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	accountIndex++
 	querySafeAtLimitTx := buildModuleQuerySafeTx(accountIndex, appconsts.MaxSDKMessages)
 	accountIndex++
+	querySafeOneRequestTx := buildModuleQuerySafeTx(accountIndex, 1+appconsts.MaxModuleQuerySafeRequests)
+	accountIndex++
 
 	// A MsgModuleQuerySafe with no queries dispatches nothing, but the tx still
 	// costs a full ante pass, so it must not be weightless. Per-message
@@ -742,8 +744,16 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
-			name:           "accept MsgModuleQuerySafe queries at exactly MaxSDKMessages",
+			// The count admits it, but MaxModuleQuerySafeRequests does not, so
+			// one tx cannot take a whole block's SDK message budget.
+			name:           "reject MsgModuleQuerySafe queries at exactly MaxSDKMessages",
 			txs:            [][]byte{querySafeAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept MsgModuleQuerySafe with MaxModuleQuerySafeRequests requests",
+			txs:            [][]byte{querySafeOneRequestTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 			validSquare:    true,
 		},
