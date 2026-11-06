@@ -66,6 +66,16 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 	// reports exactly that height. See #8366.
 	var previousInfo *abci.ResponseInfo
 	if oldAppVersion != nextAppVersion {
+		// Fail Info calls in flight to the previous app, and any that start
+		// before the switch, then wait for them to return. Info calls after
+		// the switch get previousInfo.
+		m.mu.Lock()
+		m.infoContextLocked()
+		m.cancelInfo()
+		m.mu.Unlock()
+		m.switchMu.Lock()
+		defer m.switchMu.Unlock()
+
 		previousInfo = m.previousAppInfo(app)
 	}
 
@@ -76,6 +86,9 @@ func (m *Multiplexer) Commit(context.Context, *abci.RequestCommit) (*abci.Respon
 	m.mu.Lock()
 	m.switchInfo = previousInfo
 	m.appVersion = nextAppVersion
+	if oldAppVersion != nextAppVersion {
+		m.infoCtx, m.cancelInfo = nil, nil
+	}
 	m.mu.Unlock()
 
 	if oldAppVersion != nextAppVersion {
@@ -131,8 +144,12 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 }
 
 func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
-	// Check the stored answer and select the app in one critical section, so
-	// that a concurrent Commit cannot switch app versions in between.
+	// Hold switchMu across selecting and calling the app, so that Commit
+	// cannot switch app versions in between: the next embedded app serves the
+	// same address, so a delayed call could otherwise reach it.
+	m.switchMu.RLock()
+	defer m.switchMu.RUnlock()
+
 	m.mu.Lock()
 	if m.switchInfo != nil {
 		info := *m.switchInfo
@@ -142,12 +159,13 @@ func (m *Multiplexer) Info(_ context.Context, req *abci.RequestInfo) (*abci.Resp
 	}
 	app, err := m.getAppLocked()
 	appVersion := m.appVersion
+	ctx := m.infoContextLocked()
 	m.mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app for version %d: %w", appVersion, err)
 	}
 
-	return app.Info(req)
+	return appInfo(ctx, app, req)
 }
 
 func (m *Multiplexer) InitChain(_ context.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
@@ -241,14 +259,7 @@ var previousAppInfoTimeout = 5 * time.Second
 // the last block of its app version. It returns nil if the call fails, in
 // which case Info keeps forwarding to the current app.
 func (m *Multiplexer) previousAppInfo(app servertypes.ABCI) *abci.ResponseInfo {
-	ctx, cancel := context.WithTimeout(context.Background(), previousAppInfoTimeout)
-	defer cancel()
-
-	var (
-		info *abci.ResponseInfo
-		err  error
-	)
-	switch client := app.(type) {
+	switch app.(type) {
 	case *RemoteABCIClientV1, *RemoteABCIClientV2:
 		// The connection is closed if the embedded app exited. Commit through
 		// RemoteABCIClientV1 makes no remote call, so it can succeed anyway.
@@ -259,19 +270,38 @@ func (m *Multiplexer) previousAppInfo(app servertypes.ABCI) *abci.ResponseInfo {
 			m.logger.Error("no connection to the previous app to get its info before switching app versions")
 			return nil
 		}
-		if v1, ok := client.(*RemoteABCIClientV1); ok {
-			info, err = v1.infoWithContext(ctx, &abci.RequestInfo{})
-		} else {
-			info, err = client.(*RemoteABCIClientV2).infoWithContext(ctx, &abci.RequestInfo{})
-		}
-	default:
-		info, err = app.Info(&abci.RequestInfo{})
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), previousAppInfoTimeout)
+	defer cancel()
+	info, err := appInfo(ctx, app, &abci.RequestInfo{})
 	if err != nil {
 		m.logger.Error("failed to get info from the previous app before switching app versions", "err", err)
 		return nil
 	}
 	return info
+}
+
+// infoContextLocked returns the context of Info calls to the current app,
+// creating it if needed. The caller must hold m.mu.
+func (m *Multiplexer) infoContextLocked() context.Context {
+	if m.infoCtx == nil {
+		m.infoCtx, m.cancelInfo = context.WithCancel(context.Background())
+	}
+	return m.infoCtx
+}
+
+// appInfo calls Info on app. ctx bounds the call for an embedded app; the
+// native app runs in process and is called directly.
+func appInfo(ctx context.Context, app servertypes.ABCI, req *abci.RequestInfo) (*abci.ResponseInfo, error) {
+	switch client := app.(type) {
+	case *RemoteABCIClientV1:
+		return client.infoWithContext(ctx, req)
+	case *RemoteABCIClientV2:
+		return client.infoWithContext(ctx, req)
+	default:
+		return app.Info(req)
+	}
 }
 
 // checkHaltConditions returns an error if the node should halt based on a halt-height or

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -219,7 +221,9 @@ func TestConcurrentInfoDuringVersionSwitch(t *testing.T) {
 						return
 					default:
 					}
-					if _, err := m.Info(t.Context(), &abci.RequestInfo{}); err != nil {
+					// Info calls in flight when the switch starts are
+					// cancelled, so only an error from the new app counts.
+					if _, err := m.Info(t.Context(), &abci.RequestInfo{}); errors.Is(err, errNoCommittedState) {
 						errs <- err
 						return
 					}
@@ -240,4 +244,128 @@ func TestConcurrentInfoDuringVersionSwitch(t *testing.T) {
 			require.NoError(t, err, "Info must not reach the new app before it commits")
 		}
 	}
+}
+
+// freshServer is an embedded app that, like the v4 binary right after the
+// v3 -> v4 switch, cannot answer Info until it has committed its first block.
+type freshServer struct {
+	abci.UnimplementedABCIServer
+	committed atomic.Bool
+	infoCalls atomic.Int32
+}
+
+func (s *freshServer) FinalizeBlock(context.Context, *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	return &abci.ResponseFinalizeBlock{AppHash: []byte("v4-app-hash")}, nil
+}
+
+func (s *freshServer) Commit(context.Context, *abci.RequestCommit) (*abci.ResponseCommit, error) {
+	s.committed.Store(true)
+	return &abci.ResponseCommit{}, nil
+}
+
+func (s *freshServer) Info(context.Context, *abci.RequestInfo) (*abci.ResponseInfo, error) {
+	s.infoCalls.Add(1)
+	if !s.committed.Load() {
+		return nil, errNoCommittedState
+	}
+	return &abci.ResponseInfo{AppVersion: 4, LastBlockHeight: 101}, nil
+}
+
+// TestDelayedInfoDoesNotReachRestartedEmbeddedApp covers an Info call that
+// selects the previous embedded app but is delayed until after the switch.
+// The next embedded app serves the same address and the connection is shared,
+// so if the switch did not wait for the call, it would reach the next app
+// before it has committed.
+func TestDelayedInfoDoesNotReachRestartedEmbeddedApp(t *testing.T) {
+	newServer := func(srv abci.ABCIServer) (*grpc.Server, *bufconn.Listener) {
+		listener := bufconn.Listen(1 << 20)
+		server := grpc.NewServer()
+		abci.RegisterABCIServer(server, srv)
+		go func() { _ = server.Serve(listener) }()
+		t.Cleanup(server.Stop)
+		return server, listener
+	}
+	v3 := &upgradingServer{info: &abci.ResponseInfo{
+		AppVersion: 4, LastBlockHeight: 100, LastBlockAppHash: []byte("v3-app-hash"),
+	}}
+	v3Server, v3Listener := newServer(v3)
+	v4 := &freshServer{}
+	_, v4Listener := newServer(v4)
+
+	// The connection dials whichever app currently serves the address.
+	var serving atomic.Pointer[bufconn.Listener]
+	serving.Store(v3Listener)
+
+	// Hold the first Info call after it selected the previous app, until the
+	// test releases it or its context is cancelled.
+	held, release := make(chan struct{}), make(chan struct{})
+	var holding atomic.Bool
+	delayInfo := func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if strings.HasSuffix(method, "/Info") && holding.CompareAndSwap(false, true) {
+			close(held)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+	conn, err := grpc.NewClient("passthrough:///app",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return serving.Load().Dial() }),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(delayInfo),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	versions, err := NewVersions(
+		Version{AppVersion: 3, ABCIVersion: ABCIClientVersion2, Appd: &appd.Appd{}},
+		Version{AppVersion: 4, ABCIVersion: ABCIClientVersion2, Appd: newMockAppd(t, "v0.0.0-info-switch-test", mockAppdScript(filepath.Join(t.TempDir(), "v4.log")))},
+	)
+	require.NoError(t, err)
+	m := newTestMultiplexer(t, versions, 3)
+	m.conn = conn
+	m.started = true
+	m.activeVersion = versions[0]
+	m.nextAppVersion = 3
+
+	_, err = m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 100})
+	require.NoError(t, err)
+
+	infoErr := make(chan error, 1)
+	go func() {
+		_, err := m.Info(t.Context(), &abci.RequestInfo{})
+		infoErr <- err
+	}()
+	<-held
+
+	_, err = m.Commit(t.Context(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	require.Equal(t, uint64(4), m.activeVersion.AppVersion)
+
+	// The next app now serves the address.
+	serving.Store(v4Listener)
+	v3Server.Stop()
+	close(release)
+	select {
+	case <-infoErr:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the delayed Info call did not return")
+	}
+	require.Zero(t, v4.infoCalls.Load(), "Info must not reach the next app before it commits")
+
+	info, err := m.Info(t.Context(), &abci.RequestInfo{})
+	require.NoError(t, err)
+	require.Equal(t, int64(100), info.LastBlockHeight)
+	require.Zero(t, v4.infoCalls.Load())
+
+	_, err = m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 101})
+	require.NoError(t, err)
+	_, err = m.Commit(t.Context(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	info, err = m.Info(t.Context(), &abci.RequestInfo{})
+	require.NoError(t, err)
+	require.Equal(t, int64(101), info.LastBlockHeight)
+	require.EqualValues(t, 1, v4.infoCalls.Load())
 }

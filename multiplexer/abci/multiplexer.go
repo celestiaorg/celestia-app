@@ -68,6 +68,17 @@ type Multiplexer struct {
 	// the new app commits its first block, because before then the new app has
 	// no committed state of its own to answer from. Guarded by mu.
 	switchInfo *abci.ResponseInfo
+	// switchMu serializes Info calls to an app with the app version switch in
+	// Commit, so that an Info call selected for the previous app cannot reach
+	// the next app, which serves the same address, before it has committed.
+	// Info holds it for reading while it selects and calls the app; Commit
+	// holds it for writing while it switches. Take it before mu.
+	switchMu sync.RWMutex
+	// infoCtx is the context of Info calls to the current app. Commit cancels
+	// it before switching so that an Info call stuck on the previous app
+	// cannot block the switch. Guarded by mu.
+	infoCtx    context.Context
+	cancelInfo context.CancelFunc
 	// started indicates if there is an embedded app or native app running
 	started bool
 	// appCreator is a function type responsible for creating a new application instance.
