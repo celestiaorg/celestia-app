@@ -23,6 +23,10 @@ type FilteredSquareBuilder struct {
 	txConfig  client.TxConfig
 	chanKeep  channelKeeper
 	builder   *square.Builder
+	// maxSquareSize and subtreeRootThreshold build a fresh square for each
+	// round of Fill.
+	maxSquareSize        int
+	subtreeRootThreshold int
 	// validateBlobTx, when set, drops blob txs it returns an error for.
 	validateBlobTx func(*tx.BlobTx) (bool, error)
 	// keptBlobTxs is index aligned with the list Fill returned: the decoded
@@ -52,6 +56,9 @@ func NewFilteredSquareBuilder(
 		txConfig:  txConfig,
 		chanKeep:  chanKeep,
 		builder:   builder,
+
+		maxSquareSize:        maxSquareSize,
+		subtreeRootThreshold: subtreeRootThreshold,
 	}, nil
 }
 
@@ -69,43 +76,139 @@ func (fsb *FilteredSquareBuilder) KeptBlobTxs() []*tx.BlobTx {
 	return fsb.keptBlobTxs
 }
 
+// maxFillRounds bounds how many times Fill rebuilds the square to refill byte
+// budget released by dropped txs. Each round runs the ante handler at most
+// once per candidate, so Fill does at most maxFillRounds times the work of a
+// single pass.
+const maxFillRounds = 3
+
+// Fill selects the txs of the proposal from txs, which is in mempool priority
+// order, and appends them to the square.
+//
+// The byte budget is assigned in priority order before the txs are validated.
+// A tx that is then dropped (it fails the ante handler, for example because a
+// signer's nonce chain alternates normal and blob txs, which the square
+// reorders normal-first, or because it expired) would otherwise keep its share
+// of the budget and leave the proposal underfilled. So after a round that
+// dropped a tx while other candidates were left out of the budget, Fill starts
+// over without the dropped txs, letting the next candidates in priority order
+// take their bytes. Each round starts from the same state and builds a fresh
+// square, so every round on its own yields a valid proposal; Fill keeps the one
+// with the most bytes.
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
-	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.
-	// Required because the data square can be configured larger than
-	// block.MaxBytes.
-	//
 	// Size each tx by its protobuf-framed length (tag + length prefix + bytes),
 	// matching how CometBFT validates the returned list. Raw len(tx) under-counts
-	// the framing, so a list that fits here could still be rejected by Core. The
-	// kept list is a subset of what's admitted here, so the bound carries over.
-	//
-	// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
-	// positive value in production, but some tests construct requests
-	// directly and leave it at zero.
-	filteredByMaxBytes := txs
-	if maxTxBytes > 0 {
-		var currentTxBytes int64
-		filteredByMaxBytes = make([][]byte, 0, len(txs))
-		for _, tx := range txs {
-			txProtoSize := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
-			if currentTxBytes+txProtoSize > maxTxBytes {
-				logger.Debug("skipping tx because it was too large to fit in the block", "tx", lazyTxHash(tx))
-				continue
+	// the framing, so a list that fits here could still be rejected by Core.
+	sizes := make([]int64, len(txs))
+	for i, tx := range txs {
+		sizes[i] = coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
+	}
+
+	var (
+		dropped = make([]bool, len(txs))
+		best    fillResult
+	)
+	for round := range maxFillRounds {
+		selected, excluded := selectWithinBytes(logger, txs, sizes, dropped, maxTxBytes)
+
+		builder := fsb.builder
+		if round > 0 {
+			var err error
+			builder, err = square.NewBuilder(fsb.maxSquareSize, fsb.subtreeRootThreshold)
+			if err != nil {
+				// Unreachable: the constructor built a square with the same parameters.
+				logger.Error("creating square builder for refill round", "err", err)
+				break
 			}
-			currentTxBytes += txProtoSize
-			filteredByMaxBytes = append(filteredByMaxBytes, tx)
+		}
+		fsb.builder = builder
+
+		roundCtx, commit := ctx.CacheContext()
+		result := fsb.fillRound(roundCtx, txs, selected, round == 0)
+		result.builder, result.commit = builder, commit
+		for _, i := range result.keptIdx {
+			result.bytes += sizes[i]
+		}
+		if round == 0 || result.bytes > best.bytes {
+			best = result
+		}
+
+		kept := make([]bool, len(txs))
+		for _, i := range result.keptIdx {
+			kept[i] = true
+		}
+		anyDropped := false
+		for _, i := range selected {
+			if !kept[i] {
+				dropped[i] = true
+				anyDropped = true
+			}
+		}
+		// Another round helps only if it can admit a candidate this one left out.
+		if !anyDropped || !excluded {
+			break
 		}
 	}
 
+	best.commit()
+	fsb.builder = best.builder
+	fsb.keptBlobTxs = best.keptBlobTxs
+	return best.txs
+}
+
+// fillResult is the outcome of one round of Fill.
+type fillResult struct {
+	txs [][]byte
+	// keptIdx holds the index into Fill's input of each tx in txs.
+	keptIdx     []int
+	keptBlobTxs []*tx.BlobTx
+	bytes       int64
+	builder     *square.Builder
+	commit      func()
+}
+
+// selectWithinBytes returns, in input order, the indices of the txs not yet
+// dropped whose cumulative size fits maxTxBytes, and whether a tx not yet
+// dropped was left out. Required because the data square can be configured
+// larger than block.MaxBytes. The kept list of a round is a subset of the
+// selection, so the bound carries over.
+//
+// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
+// positive value in production, but some tests construct requests directly
+// and leave it at zero.
+func selectWithinBytes(logger log.Logger, txs [][]byte, sizes []int64, dropped []bool, maxTxBytes int64) (selected []int, excluded bool) {
+	selected = make([]int, 0, len(txs))
+	var currentTxBytes int64
+	for i := range txs {
+		if dropped[i] {
+			continue
+		}
+		if maxTxBytes > 0 && currentTxBytes+sizes[i] > maxTxBytes {
+			logger.Debug("skipping tx because it was too large to fit in the block", "tx", lazyTxHash(txs[i]))
+			excluded = true
+			continue
+		}
+		currentTxBytes += sizes[i]
+		selected = append(selected, i)
+	}
+	return selected, excluded
+}
+
+// fillRound appends the selected txs that pass validation to fsb.builder,
+// normal txs first, then blob txs, then pay-for-fibre txs, executing their
+// ante handlers on ctx in that order.
+func (fsb *FilteredSquareBuilder) fillRound(ctx sdk.Context, txs [][]byte, selected []int, preverify bool) fillResult {
+	logger := ctx.Logger().With("app/filtered-square-builder")
+
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
+	normalIdx, blobIdx, payForFibreTxs, pffIdx := separateTxIndices(fsb.txConfig, txs, selected)
 	dec := fsb.txConfig.TxDecoder()
 
 	// Warm the signature cache across every CPU before filling. Failures are
 	// not recorded, so the fill still performs and decides each check itself.
-	if fsb.preverifyPFF != nil {
+	if preverify && fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
 		for i := range payForFibreTxs {
 			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
@@ -124,11 +227,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ismSigCount     = 0
 		sdkGas          uint64
 		pfbMessageCount = 0
-		n               = 0
-		m               = 0
+		keptNormal      = make([]int, 0, len(normalIdx))
+		keptBlob        = make([]int, 0, len(blobIdx))
 	)
 
-	for _, tx := range normalTxs {
+	for _, idx := range normalIdx {
+		tx := txs[idx]
 		// CheckTx rejects txs without messages, so every tx here weighs at least one message
 		// and nothing more fits once the cap is reached.
 		if sdkMessageCount >= appconsts.MaxSDKMessages {
@@ -215,12 +319,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		zkProofMsgCount += zkProofCount
 		ismSigCount += txISMSigCount
 		sdkGas += txGas
-		normalTxs[n] = tx
-		n++
+		keptNormal = append(keptNormal, idx)
 	}
 
 	var keptBlobTxs []*tx.BlobTx
-	for _, rawTx := range rawBlobTxs {
+	for _, idx := range blobIdx {
+		rawTx := txs[idx]
 		// validateBlobTx keeps only single-PFB blob txs, so nothing more fits once the cap is reached.
 		if pfbMessageCount >= appconsts.MaxPFBMessages {
 			break
@@ -285,25 +389,31 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		rawBlobTxs[m] = rawTx
+		keptBlob = append(keptBlob, idx)
 		keptBlobTxs = append(keptBlobTxs, bTx)
-		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
+	keptFibre := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
 
-	kept := make([][]byte, 0, n+m+len(fibreTxs))
-	kept = append(kept, normalTxs[:n]...)
+	n, m := len(keptNormal), len(keptBlob)
+	result := fillResult{keptIdx: make([]int, 0, n+m+len(keptFibre))}
+	result.keptIdx = append(result.keptIdx, keptNormal...)
+	result.keptIdx = append(result.keptIdx, keptBlob...)
+	for _, i := range keptFibre {
+		result.keptIdx = append(result.keptIdx, pffIdx[i])
+	}
 	// UnmarshalBlobTx only accepts canonically encoded blob txs, so the raw bytes
 	// are identical to re-marshaling the decoded blob txs and can be reused.
-	kept = append(kept, rawBlobTxs[:m]...)
-	kept = append(kept, fibreTxs...)
+	result.txs = make([][]byte, len(result.keptIdx))
+	for i, idx := range result.keptIdx {
+		result.txs[i] = txs[idx]
+	}
 
 	// Record where the decoded blob txs ended up so ProcessProposal reuses
 	// them. Only blob txs occupy this range; normal and fibre txs stay nil.
-	fsb.keptBlobTxs = make([]*tx.BlobTx, len(kept))
-	copy(fsb.keptBlobTxs[n:n+m], keptBlobTxs)
-	return kept
+	result.keptBlobTxs = make([]*tx.BlobTx, len(result.txs))
+	copy(result.keptBlobTxs[n:n+m], keptBlobTxs)
+	return result
 }
 
 func msgTypes(sdkTx sdk.Tx) []string {
@@ -362,12 +472,34 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 // filters them when it reaches them (pay-for-fibre txs through decodeFibreTx). Blob txs
 // are only classified by their type ID; Fill decodes them and drops malformed ones.
 func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
-	normalTxs = make([][]byte, 0, len(rawTxs))
-	rawBlobTxs = make([][]byte, 0, len(rawTxs))
-	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
+	all := make([]int, len(rawTxs))
+	for i := range all {
+		all[i] = i
+	}
+	normalIdx, blobIdx, payForFibreTxs, _ := separateTxIndices(txConfig, rawTxs, all)
+	normalTxs = make([][]byte, len(normalIdx))
+	for i, idx := range normalIdx {
+		normalTxs[i] = rawTxs[idx]
+	}
+	rawBlobTxs = make([][]byte, len(blobIdx))
+	for i, idx := range blobIdx {
+		rawBlobTxs[i] = rawTxs[idx]
+	}
+	return normalTxs, rawBlobTxs, payForFibreTxs
+}
+
+// separateTxIndices is separateTxsDecoded over the txs at the given indices of
+// rawTxs. It returns indices into rawTxs; pffIdx is index aligned with
+// payForFibreTxs.
+func separateTxIndices(txConfig client.TxConfig, rawTxs [][]byte, indices []int) (normalIdx, blobIdx []int, payForFibreTxs []decodedFibreTx, pffIdx []int) {
+	normalIdx = make([]int, 0, len(indices))
+	blobIdx = make([]int, 0, len(indices))
+	payForFibreTxs = make([]decodedFibreTx, 0, len(indices))
+	pffIdx = make([]int, 0, len(indices))
 	dec := txConfig.TxDecoder()
 
-	for _, rawTx := range rawTxs {
+	for _, idx := range indices {
+		rawTx := rawTxs[idx]
 		// this check in theory shouldn't get hit, as txs should be filtered
 		// in CheckTx. However in tests we're inserting too large of txs
 		// therefore also filter here.
@@ -377,7 +509,7 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 
 		// The same predicate as UnmarshalBlobTx's isBlob, without decoding the blobs.
 		if tx.HasBlobTxTypeID(rawTx) {
-			rawBlobTxs = append(rawBlobTxs, rawTx)
+			blobIdx = append(blobIdx, idx)
 			continue
 		}
 
@@ -385,8 +517,9 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok {
 			if isPFF {
 				payForFibreTxs = append(payForFibreTxs, decodedFibreTx{raw: rawTx})
+				pffIdx = append(pffIdx, idx)
 			} else {
-				normalTxs = append(normalTxs, rawTx)
+				normalIdx = append(normalIdx, idx)
 			}
 			continue
 		}
@@ -405,12 +538,13 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 
 		if countMsgPayForFibre(sdkTx) > 0 {
 			payForFibreTxs = append(payForFibreTxs, decodedFibreTx{raw: rawTx, sdkTx: sdkTx})
+			pffIdx = append(pffIdx, idx)
 			continue
 		}
 
-		normalTxs = append(normalTxs, rawTx)
+		normalIdx = append(normalIdx, idx)
 	}
-	return normalTxs, rawBlobTxs, payForFibreTxs
+	return normalIdx, blobIdx, payForFibreTxs, pffIdx
 }
 
 var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
@@ -441,12 +575,12 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 }
 
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
-// system blob, validate, append to builder. Returns the raw tx bytes of
-// accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) [][]byte {
+// system blob, validate, append to builder. Returns the positions in
+// payForFibreTxs of the accepted fibre txs.
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) []int {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
-	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
+	fibreTxs := make([]int, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
 	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
 	settled := make(map[sigcache.Key]struct{})
 	certKeys := &fibretypes.CertKeyHolder{}
@@ -543,7 +677,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 		}
 
 		pffMessageCount += len(sdkTx.GetMsgs())
-		fibreTxs = append(fibreTxs, rawTx)
+		fibreTxs = append(fibreTxs, i)
 	}
 
 	return fibreTxs
