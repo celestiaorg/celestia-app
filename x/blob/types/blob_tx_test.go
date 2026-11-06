@@ -94,6 +94,17 @@ func TestValidateBlobTx(t *testing.T) {
 			expectedErr: types.ErrNamespaceMismatch,
 		},
 		{
+			name: "invalid transaction, inner tx is an index wrapper",
+			getTx: func() *tx.BlobTx {
+				btx, _, err := tx.UnmarshalBlobTx(validRawBtx())
+				require.NoError(t, err)
+				btx.Tx, err = tx.MarshalIndexWrapper(btx.Tx, 12345)
+				require.NoError(t, err)
+				return btx
+			},
+			expectedErr: types.ErrNestedIndexWrapper,
+		},
+		{
 			name: "invalid transaction, no pfb",
 			getTx: func() *tx.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(signer, 1)

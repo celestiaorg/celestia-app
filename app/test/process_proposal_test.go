@@ -295,6 +295,20 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "blob tx whose inner tx is an index wrapper",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _, err := tx.UnmarshalBlobTx(d.Txs[0])
+				require.NoError(t, err)
+				wrapped, err := tx.MarshalIndexWrapper(blobTx.Tx, 12345)
+				require.NoError(t, err)
+				d.Txs[0], err = tx.MarshalBlobTx(wrapped, blobTx.Blobs...)
+				require.NoError(t, err)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {

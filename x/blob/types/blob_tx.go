@@ -64,6 +64,11 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 	if bTx == nil {
 		return nil, ErrNoBlobs
 	}
+	// The app's tx decoder unwraps an IndexWrapper, so reject one here; the
+	// square builder adds the only IndexWrapper a PFB may carry.
+	if _, isIndexWrapper := tx.UnmarshalIndexWrapper(bTx.Tx); isIndexWrapper {
+		return nil, ErrNestedIndexWrapper
+	}
 
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
