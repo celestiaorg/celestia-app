@@ -145,24 +145,20 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateful verification (escrow account, balance, not already processed)
-	_, err := ms.ValidatePaymentPromiseStateful(ctx, &msg.PaymentPromise)
+	validated, err := ms.validatePaymentForSettlement(ctx, &msg.PaymentPromise, false, &pp)
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
 	}
 
-	promiseHash, err := pp.Hash()
+	promiseHash, err := validated.hash, validated.hashErr
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
 	}
 
-	// Get escrow account for the payment promise signer
-	signerPubKey := msg.PaymentPromise.SignerPublicKey
-	signerAddr := sdk.AccAddress(signerPubKey.Address()).String()
-
-	escrowAccount, found := ms.GetEscrowAccount(ctx, signerAddr)
-	if !found {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", signerAddr)
-	}
+	signerAddr, escrowAccount := validated.signer, validated.escrow
+	// Preserve the original second read and its metering/error boundary exactly,
+	// while reusing the already unmarshaled account. No writes occur in between.
+	_ = ctx.KVStore(ms.storeKey).Get(types.EscrowAccountKey(signerAddr))
 
 	// Calculate payment amount based on blob size and gas per byte
 	paymentAmount := ms.calculatePaymentAmount(ctx, msg.PaymentPromise.BlobSize)

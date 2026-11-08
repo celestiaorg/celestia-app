@@ -431,9 +431,24 @@ func (k Keeper) ParseProcessedPaymentsByTimeKey(key []byte) (processedAt time.Ti
 // validatePaymentPromiseStatefulInternal performs the core stateful validation logic.
 // The isTimeout parameter indicates whether this is being called for timeout processing,
 // which skips expiration and height validation to allow processing older promises.
+type validatedPayment struct {
+	expiration time.Time
+	escrow     types.EscrowAccount
+	signer     string
+	hash       []byte
+	hashErr    error
+}
+
 func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise *types.PaymentPromise, isTimeout bool) (time.Time, error) {
+	result, err := k.validatePaymentForSettlement(ctx, promise, isTimeout, nil)
+	return result.expiration, err
+}
+
+// validatePaymentForSettlement shares derived values only within this call.
+// The optional internal promise has already passed stateless validation.
+func (k Keeper) validatePaymentForSettlement(ctx sdk.Context, promise *types.PaymentPromise, isTimeout bool, pp *fibre.PaymentPromise) (validatedPayment, error) {
 	if promise.ChainId != ctx.ChainID() {
-		return time.Time{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
+		return validatedPayment{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
 	}
 
 	params := k.GetParams(ctx)
@@ -453,27 +468,27 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	minAllowedTime := currentTime.Add(-params.WithdrawalDelay)
 	floor, err := k.GetPromiseFreshnessFloor(ctx)
 	if err != nil {
-		return time.Time{}, err
+		return validatedPayment{}, err
 	}
 	if floor.After(minAllowedTime) {
 		minAllowedTime = floor
 	}
 	if !creationTime.After(minAllowedTime) {
-		return time.Time{}, fmt.Errorf("creation_timestamp %v is too old; it must be after the freshness cutoff %v", creationTime, minAllowedTime)
+		return validatedPayment{}, fmt.Errorf("creation_timestamp %v is too old; it must be after the freshness cutoff %v", creationTime, minAllowedTime)
 	}
 
 	// Reject a future-dated creation_timestamp (beyond clock skew) on both paths;
 	// see types.MaxPromiseClockSkew for why.
 	maxAllowedTime := currentTime.Add(types.MaxPromiseClockSkew)
 	if creationTime.After(maxAllowedTime) {
-		return time.Time{}, fmt.Errorf("creation_timestamp %v must not be after %v (current_time + max_clock_skew)", creationTime, maxAllowedTime)
+		return validatedPayment{}, fmt.Errorf("creation_timestamp %v must not be after %v (current_time + max_clock_skew)", creationTime, maxAllowedTime)
 	}
 
 	expirationTime := creationTime.Add(params.PaymentPromiseTimeout)
 	// Expiration time validation only applies to normal flow (not timeout mechanism)
 	if !isTimeout {
 		if currentTime.After(expirationTime) || currentTime.Equal(expirationTime) {
-			return time.Time{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v, current_time: %v", creationTime, params.PaymentPromiseTimeout, expirationTime, currentTime)
+			return validatedPayment{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v, current_time: %v", creationTime, params.PaymentPromiseTimeout, expirationTime, currentTime)
 		}
 	}
 
@@ -484,18 +499,25 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 
 		// Validate height is not too far in the past
 		if currentHeight-promiseHeight > int64(params.PaymentPromiseHeightWindow) {
-			return time.Time{}, fmt.Errorf("payment promise height %d is too far in the past (current height: %d, max window: %d)", promiseHeight, currentHeight, params.PaymentPromiseHeightWindow)
+			return validatedPayment{}, fmt.Errorf("payment promise height %d is too far in the past (current height: %d, max window: %d)", promiseHeight, currentHeight, params.PaymentPromiseHeightWindow)
 		}
 
 		// Validate height is not too far in the future (allow up to 1 block ahead)
 		if promiseHeight > currentHeight+1 {
-			return time.Time{}, fmt.Errorf("payment promise height %d is too far in the future (current height: %d, max allowed: %d)", promiseHeight, currentHeight, currentHeight+1)
+			return validatedPayment{}, fmt.Errorf("payment promise height %d is too far in the future (current height: %d, max allowed: %d)", promiseHeight, currentHeight, currentHeight+1)
 		}
 	}
 
 	// Check if payment promise has already been processed
-	if isAlreadyProcessed := k.IsPaymentPromiseProcessed(ctx, promise); isAlreadyProcessed {
-		return time.Time{}, fmt.Errorf("payment promise has already been processed")
+	var hash []byte
+	var hashErr error
+	if pp != nil {
+		hash, hashErr = pp.Hash()
+	} else {
+		hash, hashErr = promiseHash(promise)
+	}
+	if hashErr == nil && k.IsPaymentProcessedByHash(ctx, hash) {
+		return validatedPayment{}, fmt.Errorf("payment promise has already been processed")
 	}
 
 	// Check escrow account exists
@@ -503,7 +525,7 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	signerAddrStr := signerAddr.String()
 	escrowAccount, found := k.GetEscrowAccount(ctx, signerAddrStr)
 	if !found {
-		return time.Time{}, fmt.Errorf("escrow account not found for signer %v", signerAddrStr)
+		return validatedPayment{}, fmt.Errorf("escrow account not found for signer %v", signerAddrStr)
 	}
 
 	// Check sufficient balance (includes funds locked in pending withdrawals)
@@ -511,10 +533,10 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 
 	hasSufficientBalance := escrowAccount.Balance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {
-		return time.Time{}, fmt.Errorf("insufficient balance in escrow account. required: %v, balance: %v", requiredAmount, escrowAccount.Balance)
+		return validatedPayment{}, fmt.Errorf("insufficient balance in escrow account. required: %v, balance: %v", requiredAmount, escrowAccount.Balance)
 	}
 
-	return expirationTime, nil
+	return validatedPayment{expiration: expirationTime, escrow: escrowAccount, signer: signerAddrStr, hash: hash, hashErr: hashErr}, nil
 }
 
 // ValidatePaymentPromiseStateful performs stateful validation of a payment promise.
