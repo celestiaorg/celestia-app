@@ -332,7 +332,8 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 	bigNorm := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 2500)) // larger than a 2x2 square
 	blob1, blob2, blob3 := newBlobTx(t, txConfig), newBlobTx(t, txConfig), newBlobTx(t, txConfig)
 	pff1, pff2, pff3 := blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	deposit1, deposit2 := newDepositToEscrowTx(t, txConfig), newDepositToEscrowTx(t, txConfig)
+	timeout1, timeout2 := newPaymentPromiseTimeoutTx(t, txConfig), newPaymentPromiseTimeoutTx(t, txConfig)
+	deposit := newDepositToEscrowTx(t, txConfig)
 
 	tests := []struct {
 		name       string
@@ -426,10 +427,19 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 		{
 			name:        "failed fibre state msg keeps the tx without its writes",
 			squareSize:  64,
-			txs:         [][]byte{deposit1, deposit2, pff1},
-			settleErr:   [][]byte{deposit1},
-			wantKept:    [][]byte{deposit1, deposit2, pff1},
-			wantEscrows: [][]byte{deposit2, pff1},
+			txs:         [][]byte{timeout1, timeout2, pff1},
+			settleErr:   [][]byte{timeout1},
+			wantKept:    [][]byte{timeout1, timeout2, pff1},
+			wantEscrows: [][]byte{timeout2, pff1},
+		},
+		{
+			// A deposit can fail in FinalizeBlock after an earlier bank send that
+			// the proposal does not replay, so it must not fund a later PFF.
+			name:        "deposit is kept but not replayed",
+			squareSize:  64,
+			txs:         [][]byte{deposit, pff1},
+			wantKept:    [][]byte{deposit, pff1},
+			wantEscrows: [][]byte{pff1},
 		},
 	}
 
@@ -498,6 +508,17 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			require.Equal(t, want, got)
 		})
 	}
+}
+
+// newPaymentPromiseTimeoutTx creates an unsigned MsgPaymentPromiseTimeout tx.
+func newPaymentPromiseTimeoutTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	addr := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(&fibretypes.MsgPaymentPromiseTimeout{Signer: addr.String()}))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
 }
 
 // newDepositToEscrowTx creates an unsigned MsgDepositToEscrow tx.

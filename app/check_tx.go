@@ -218,12 +218,13 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 // mutates escrow state/balance as soon as it executes, so proposal must replay
 // it before settling a later MsgPayForFibre. MsgPayForFibre (settled on its
 // own path) and MsgRequestWithdrawal (only locks funds, paid out later by the
-// BeginBlocker) are excluded.
+// BeginBlocker) are excluded. MsgDepositToEscrow is excluded too: proposal does
+// not replay bank msgs, so an earlier send can make a deposit that succeeds here
+// fail in FinalizeBlock and leave a later PFF unpaid. Skipping deposits only
+// makes proposal escrow lower than FinalizeBlock's, never higher.
 func containsFibreStateMsg(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
-		switch msg.(type) {
-		case *fibretypes.MsgPaymentPromiseTimeout,
-			*fibretypes.MsgDepositToEscrow:
+		if _, ok := msg.(*fibretypes.MsgPaymentPromiseTimeout); ok {
 			return true
 		}
 	}
