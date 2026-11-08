@@ -729,3 +729,26 @@ func TestPreverifyCapsAtCandidateBound(t *testing.T) {
 	// accepts it, which is the only thing that decides.
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, decoded[limit].Msg))
 }
+
+// Every partial-success pattern must preserve the sequential verifier's exact
+// error and must not turn an invalid certificate into a persistent cache hit.
+func TestPartialCertificateEvidenceMatchesSequential(t *testing.T) {
+	for _, validators := range []int{100, appconsts.MaxFibreValidatorSignatures} {
+		for _, corrupt := range []int{0, 7, 8, 63, 66} {
+			t.Run(fmt.Sprintf("validators=%d/corrupt=%d", validators, corrupt), func(t *testing.T) {
+				f := newPreverifyFixtureWithValidators(t, validators)
+				f.msg.ValidatorSignatures[corrupt][0] ^= 1
+				f.refreshCertKey(t)
+				cold := f.withFreshCache(t)
+				expected := cold.keeper.ValidatePayForFibreSignatures(cold.ctx, f.msg)
+				require.Error(t, expected)
+				ctx := types.WithVerificationEvidence(f.ctx)
+				f.keeper.PreverifyPayForFibreMsg(ctx, f.msg, f.certKey)
+				actual := f.keeper.ValidatePayForFibreSignatures(ctx, f.msg)
+				require.EqualError(t, actual, expected.Error())
+				require.False(t, f.cache.Has(f.certKey))
+				require.False(t, f.cache.Has(f.promiseKey))
+			})
+		}
+	}
+}
