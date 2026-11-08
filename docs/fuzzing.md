@@ -61,9 +61,9 @@ can cover several functions; target presence does not establish branch coverage.
 | 1 | `x/fibre/types.ParsePayForFibreTx`, `TryParseFibreTx`, `ClassifyTxs`: transaction bytes | `FuzzParsePayForFibreTx` in [x/fibre/types](../x/fibre/types/classified_tx_fuzz_test.go) | Parser/classifier agreement and system blob consistency; decoded PFF basic validation, signature cache keys and gas estimates. |
 | 1 | `x/zkism` verifying keys, proofs and public values: `MsgCreateInterchainSecurityModule`, `MsgUpdateVerifyingKeys`, `MsgUpdateInterchainSecurityModule`, `MsgSubmitMessages` | `FuzzValidateGroth16Vkey`, `FuzzPublicValuesUnmarshal`, `FuzzParseMerkleProofMetadata`, `FuzzSP1Groth16VerifyProof` in [x/zkism/types](../x/zkism/types/decoders_fuzz_test.go); `FuzzUnmarshalProof` in [x/zkism/internal/groth16](../x/zkism/internal/groth16/proof_fuzz_test.go) | Accepted keys decode in gnark with bounded allocation and a canonical encoding; decoders round trip; only golden proof statements verify. The pairing runs only for proofs within a few bytes of a golden proof. Message servers and keeper state are outside these targets. |
 | 1 | `x/fibre/keeper.PreverifySignatures`: block pay-for-fibre txs in PrepareProposal, ProcessProposal and PreBlocker | `FuzzPreverifySignatures` in [x/fibre/keeper](../x/fibre/keeper/preverify_fuzz_test.go) | Up to eight byte-level edits, duplications and removals over two valid signed PFF txs, with and without certificates and early stop. Every cache entry must pass the sequential verifier, and no other entry may be recorded. |
-| 1 | `x/signal` `SignalVersion`, `TryUpgrade`, `VersionTally`: DeliverTx upgrade signals over the bonded validator set | `FuzzSignalTryUpgrade` in [x/signal](../x/signal/signal_fuzz_test.go) | Up to 48 signals, upgrade attempts, validator power, bonding and removal changes, upgrade activations and tally queries over up to eight validators, each message on a cache context. A `math/big` oracle decides whether and to which version TryUpgrade schedules an upgrade and checks tallies and stored signals. Bonded totals stay below 5e17, pending a fix to the threshold rounding above it. |
+| 1 | `x/signal` `SignalVersion`, `TryUpgrade`, `VersionTally`: DeliverTx upgrade signals over the bonded validator set | `FuzzSignalTryUpgrade` in [x/signal](../x/signal/signal_fuzz_test.go) | Up to 48 signals, upgrade attempts, validator power, bonding and removal changes, upgrade activations and tally queries over up to eight validators, each message on a cache context. A `math/big` oracle decides whether and to which version TryUpgrade schedules an upgrade and checks tallies and stored signals. Bonded totals span the CometBFT range up to MaxInt64/8. |
 | 1 | `x/forwarding` `MsgForward`, `DeriveForwardingAddress` and `QuoteForwardingFee` queries: forward destinations, hook bindings and IGP fees | `FuzzDeriveForwardingAddress` in [x/forwarding/types](../x/forwarding/types/address_fuzz_test.go); `FuzzForwardingAddressQueryMsgParity`, `FuzzForwardIGPFee` in [x/forwarding/keeper](../x/forwarding/keeper/forward_fuzz_test.go) | Address derivation is injective up to equivalent hook bindings, and the query and message server agree on fuzzed hex inputs. Mocked bank, warp and hook keepers with amounts below 2^248; forwards succeed exactly when their preconditions hold, and the relayer's net cost is the fee the hook consumed. |
-| 1 | `x/zkism/keeper` msg server `Create`, `Update`, `SubmitMessages`, `UpdateVerifyingKeys`, `TransferOwnership` and `Keeper.Verify`: DeliverTx ISM messages and Hyperlane message metadata | `FuzzZKISMMsgSequence` in [x/zkism/keeper](../x/zkism/keeper/msg_sequence_fuzz_test.go) | Up to 24 operations with golden SP1 proofs from `x/zkism/internal/testdata`, single-byte proof or public value mutations, fuzz-chosen owners, verifying keys, messages and ids, each message on a cache context. A model predicts every outcome: owner-only key updates and transfers, proofs accepted only unmodified under the matching state and keys, and `Verify` only for proven messages. Ids differing only in module type or specifier are mapped to the ISM, pending a fix. |
+| 1 | `x/zkism/keeper` msg server `Create`, `Update`, `SubmitMessages`, `UpdateVerifyingKeys`, `TransferOwnership` and `Keeper.Verify`: DeliverTx ISM messages and Hyperlane message metadata | `FuzzZKISMMsgSequence` in [x/zkism/keeper](../x/zkism/keeper/msg_sequence_fuzz_test.go) | Up to 24 operations with golden SP1 proofs from `x/zkism/internal/testdata`, single-byte proof or public value mutations, fuzz-chosen owners, verifying keys, messages and ids, each message on a cache context. A model predicts every outcome: owner-only key updates and transfers, proofs accepted only unmodified under the matching state and keys, and `Verify` only for proven messages. Ids differing only in module type or specifier must resolve to the same ISM, as in hyperlane-cosmos's own ISMs. |
 | 1 | `x/fibre/keeper` msg server `DepositToEscrow`, `RequestWithdrawal`, `PayForFibre`, `PaymentPromiseTimeout`, `UpdateFibreParams` and `BeginBlocker`: DeliverTx escrow messages and signed payment promises | `FuzzEscrowMsgSequence`, `FuzzFibreStoreKeyRoundTrip` in [x/fibre/keeper](../x/fibre/keeper/escrow_fuzz_test.go) | Up to 32 messages, time advances and injected bank failures over three fixed signers, each message after `ValidateBasic` on a cache context. Escrow balances must match pending withdrawals and a balance-tracking bank mock, coins are conserved and no promise settles twice. Validator certificates are outside this target. Index keys must round-trip, and arbitrary or short keys must parse or return an error. |
 | 1 | `fibre.Server.UploadShard` (`verifyPromise`, `verifyAssignment`, `verifyShard`, `parseRow`) and `DownloadShard`: fibre client upload and download RPCs | `FuzzServerUploadShard`, `FuzzServerDownloadShard` in [fibre](../fibre/server_upload_fuzz_test.go) | Up to 32 typed edits to a valid upload (row indices, foreign rows, row data, proof segments, RLCs, promise fields and signature), re-signed unless the signature is the target, sent through the wire encoding. Rejections must be `InvalidArgument`. An accepted upload must carry a valid client signature, rows assigned to the server that verify against the commitment (unless the identical promise was already stored), and a valid validator signature, and the stored shard must verify. Downloads take arbitrary blob IDs and may only return the stored shard for its own ID. The state client is a mock; escrow checks are outside this target. |
 | 2 | `app/ante.ParamFilterDecorator` with the app's governance param filters: param changes nested in gov proposals and authz execs | `FuzzParamFilterDecorator` in [app](../app/param_filter_fuzz_test.go) | Message trees up to four levels deep mixing sends with bank, staking and consensus `MsgUpdateParams` (allowed and refused values, missing consensus sections), round-tripped through the tx encoder and decoder. The decorator must reject exactly when a wrapper holds a refused change or no messages, judged by an independent reading of the rules. |
@@ -124,12 +124,22 @@ test with the fix; do not add a broad panic recovery to a harness.
 ## Running and maintaining coverage
 
 `make test-fuzz` runs the targets registered in
-[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). The nightly
-[test-nightly.yml](../.github/workflows/test-nightly.yml) job splits them
-round-robin across parallel shards, so adding a target only needs a registry
-line. `scripts/test_fuzz.sh --check` fails when a `Fuzz*` function is missing
-from the registry or a registered target no longer exists; the nightly job runs
-it first. To smoke-test one target:
+[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). In the nightly
+[test-nightly.yml](../.github/workflows/test-nightly.yml), the `fuzz-targets`
+job runs `scripts/test_fuzz.sh --check` and builds the `test-fuzz` matrix from
+`scripts/test_fuzz.sh --list-json`. Each target then runs on its own runner,
+named after the target, so adding a target only needs a registry line and does
+not lengthen the other jobs. `--check` fails when a `Fuzz*` function is missing
+from the registry or a registered target no longer exists.
+
+To run one registered target the way the nightly does, set `FUZZ_TARGET` (and
+optionally `FUZZ_PKG`); `FUZZ_TIME` overrides its registry fuzztime:
+
+```sh
+FUZZ_TARGET=FuzzNestedMsgDecorator FUZZ_TIME=60s make test-fuzz
+```
+
+Or call `go test` directly:
 
 ```sh
 go test ./app/ante -run='^$' -fuzz='^FuzzNestedMsgDecorator$' -fuzztime=60s -parallel=2 -fuzzminimizetime=100x
@@ -143,6 +153,41 @@ Targets that interpret a byte slice as a script of operations should read it
 with [test/util/fuzzutil](../test/util/fuzzutil). Give each operation a
 fixed-width `Consumer.Record`, so editing one operation does not shift the bytes
 of later ones, and lay out seeds with `fuzzutil.Records`.
+
+### Persistent corpora
+
+Each nightly target starts from the inputs earlier nights found. `go test -fuzz`
+stores the inputs that reach new coverage in a cache directory, by default
+`$(go env GOCACHE)/fuzz`. With `FUZZ_CACHE_DIR` set, `scripts/test_fuzz.sh`
+passes `-test.fuzzcachedir` so each target's corpus lives in
+`$FUZZ_CACHE_DIR/<pkg>/<target>` instead, apart from the Go build cache. The
+`test-fuzz` job restores that directory from an `actions/cache` entry keyed
+`fuzz-corpus-v1-<pkg>/<target>-<run>`, fuzzes, and saves it again under a new
+key even when the target fails. It then deletes the target's older entries, so
+each target keeps one entry. The `gathering baseline coverage` count in a target's
+log is its seeds plus the restored corpus, so it grows from night to night.
+
+The cache holds only inputs that did not fail. `go test` writes a crashing input
+to the package's `testdata/fuzz` directory, which the job never caches or
+uploads; it reaches only the Linear issue. The saved corpus can still hold
+inputs one mutation away from a crash, and a pull request workflow can restore
+caches saved on `main`, so treat the corpus as public.
+
+Corpus files are small. In local 90-second runs, `FuzzCheckTxMutatedTxs` wrote
+139 files totalling 12 KB, and the largest local corpora are under 100 KB. Even
+if a long-running target grows to a few MB, the registry's 82 targets, with one
+entry each, need a few hundred MB at most of GitHub's 10 GB repository cache. A
+corpus over 32 MiB (`CORPUS_MAX_MIB` in the workflow) is not saved, which bounds
+the worst case at about 2.6 GB, and the job prints a warning. The target
+then keeps restoring its last saved corpus. Bump `v1` in `CORPUS_KEY` to start
+every target from its seeds again. Entries that no longer match a target's
+argument types are skipped by `go test`, so a signature change needs no bump.
+
+To reuse a corpus locally, set `FUZZ_CACHE_DIR` on successive runs:
+
+```sh
+FUZZ_TARGET=FuzzValidateHost FUZZ_TIME=30s FUZZ_CACHE_DIR=/tmp/fuzz-corpus make test-fuzz
+```
 
 ## Nightly failures
 

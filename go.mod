@@ -2,6 +2,9 @@ module github.com/celestiaorg/celestia-app/v11
 
 go 1.26.10
 
+// Plain TCP listeners: MPTCP is unused and adds kernel attack surface.
+godebug multipathtcp=0
+
 require (
 	cloud.google.com/go/compute v1.73.0
 	cosmossdk.io/api v1.0.0
@@ -315,7 +318,7 @@ require (
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect

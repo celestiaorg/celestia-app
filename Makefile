@@ -138,6 +138,8 @@ mod-verify: mod
 
 BUF_VERSION=v1.50.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
+# Mutation testing tool used by `make test-mutation` and the nightly mutation workflow.
+GREMLINS_VERSION := v0.6.0
 
 ## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
@@ -221,6 +223,13 @@ lint:
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
+
+## lint-complexity: Flag functions with cognitive complexity above 30 in code changed since LINT_BASE (default origin/main). Existing code is not checked.
+LINT_BASE ?= origin/main
+lint-complexity:
+	@echo "--> Running gocognit on code changed since $(LINT_BASE)"
+	@go tool golangci-lint run --config .golangci-gocognit.yml --new-from-merge-base=$(LINT_BASE)
+.PHONY: lint-complexity
 
 ## govulncheck: Check for vulnerabilities in dependencies.
 govulncheck:
@@ -312,10 +321,16 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
-## test-fuzz: Run all fuzz tests.
+## test-fuzz: Run all fuzz tests, or one with FUZZ_TARGET=FuzzX.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## test-mutation: Run informational mutation testing with gremlins. Set PACKAGES to override the default critical packages.
+test-mutation:
+	@GOBIN=$(CURDIR)/build/tools go install github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)
+	@GREMLINS=$(CURDIR)/build/tools/gremlins bash scripts/test_mutation.sh $(PACKAGES)
+.PHONY: test-mutation
 
 ## build-fibre-server: Build the fibre server binary into the ./build directory.
 build-fibre-server:
