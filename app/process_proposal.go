@@ -143,7 +143,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
+	txEvidence := ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs, req.Txs)
+	txSigHolder := &ante.TxSigEvidenceHolder{}
+	ctx = ante.WithTxSigEvidenceHolder(ctx, txSigHolder)
 	if verifyPFF != nil {
 		// Runs alongside the walk; a panic is re-raised after it, so the recover above rejects the block.
 		waitVerify := goWait(verifyPFF)
@@ -204,6 +206,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// Hand the ante handler the certificate key already derived from this
 		// tx; a nil view clears the previous tx's key.
 		certKeys.Set(decoded[idx])
+		txSigHolder.Current = txEvidence[idx]
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.

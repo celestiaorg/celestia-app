@@ -1,6 +1,7 @@
 package ante
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"runtime"
@@ -39,7 +40,10 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 		handler *txsigning.HandlerMap,
 		txData txsigning.TxData,
 	) error {
-		key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData)
+		key, keyed := carriedTxSigKey(ctx, pubKey, signerData, sigData, handler, txData)
+		if !keyed {
+			key, keyed = txSigCacheKey(pubKey, signerData, sigData, txData)
+		}
 		if keyed && sigCache != nil && sigCache.Has(key) {
 			return nil
 		}
@@ -59,12 +63,15 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 
 // PreverifyTxSignatures warms the signature cache for single-signer direct-sign txs
 // before ante runs; sound because the key binds every sign-bytes input.
-func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx) {
+func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx, rawTxs ...[][]byte) (evidence []*TxSigEvidence) {
+	evidence = make([]*TxSigEvidence, len(txs))
 	if sigCache == nil {
 		return
 	}
 	verify := cachedVerifier(sigCache)
 	type workItem struct {
+		index      int
+		raw        []byte
 		pubKey     cryptotypes.PubKey
 		signerData txsigning.SignerData
 		sigData    signing.SignatureData
@@ -82,7 +89,12 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		for item := range jobs {
 			func() {
 				defer func() { _ = recover() }()
-				_ = verify(ctx, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData)
+				if err := verify(ctx, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData); err == nil && len(item.raw) > 0 {
+					key, ok := txSigCacheKey(item.pubKey, item.signerData, item.sigData, item.txData)
+					if ok {
+						evidence[item.index] = newTxSigEvidence(item.raw, key, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData)
+					}
+				}
 			}()
 		}
 	}
@@ -91,7 +103,7 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		wg.Wait()
 		_ = recover() // malformed txs remain for the ante handler
 	}()
-	for _, tx := range txs {
+	for index, tx := range txs {
 		sigTx, ok := tx.(authsigning.Tx)
 		if !ok {
 			continue
@@ -135,7 +147,12 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 			workers++
 			wg.Go(worker)
 		}
+		var raw []byte
+		if len(rawTxs) == 1 && len(rawTxs[0]) == len(txs) {
+			raw = rawTxs[0][index]
+		}
 		jobs <- workItem{
+			index: index, raw: raw,
 			pubKey: pubKey,
 			signerData: txsigning.SignerData{
 				Address: acc.GetAddress().String(), ChainID: ctx.ChainID(),
@@ -146,6 +163,7 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 			txData:  adaptableTx.GetSigningTxData(),
 		}
 	}
+	return evidence
 }
 
 // txSigCacheKey covers every input the sign bytes are derived from, plus the
@@ -189,4 +207,63 @@ func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, s
 		txData.AuthInfoBytes,
 		single.Signature,
 	), true
+}
+
+// TxSigEvidence holds positive evidence for one transaction during one ordered walk.
+// Snapshots make a changed input a miss, even if a caller reuses backing arrays.
+type TxSigEvidence struct {
+	raw, pub, signature, body, auth, signerPub []byte
+	pubType, address, chainID, signerPubType   string
+	number, sequence                           uint64
+	mode                                       signing.SignMode
+	unknown                                    bool
+	handler                                    *txsigning.HandlerMap
+	key                                        sigcache.Key
+}
+
+func newTxSigEvidence(raw []byte, key sigcache.Key, pub cryptotypes.PubKey, signer txsigning.SignerData, sig signing.SignatureData, handler *txsigning.HandlerMap, tx txsigning.TxData) *TxSigEvidence {
+	single := sig.(*signing.SingleSignatureData)
+	e := &TxSigEvidence{raw: bytes.Clone(raw), pub: bytes.Clone(pub.Bytes()), pubType: pub.Type(), signature: bytes.Clone(single.Signature), body: bytes.Clone(tx.BodyBytes), auth: bytes.Clone(tx.AuthInfoBytes), address: signer.Address, chainID: signer.ChainID, number: signer.AccountNumber, sequence: signer.Sequence, mode: single.SignMode, unknown: tx.BodyHasUnknownNonCriticals, handler: handler, key: key}
+	if signer.PubKey != nil {
+		e.signerPubType = signer.PubKey.TypeUrl
+		e.signerPub = bytes.Clone(signer.PubKey.Value)
+	}
+	return e
+}
+
+type txSigEvidenceContextKey struct{}
+
+// TxSigEvidenceHolder is used serially and cleared for transactions without evidence.
+type TxSigEvidenceHolder struct{ Current *TxSigEvidence }
+
+func WithTxSigEvidenceHolder(ctx sdk.Context, holder *TxSigEvidenceHolder) sdk.Context {
+	if ctx.Context() == nil {
+		ctx = ctx.WithContext(context.Background())
+	}
+	return ctx.WithValue(txSigEvidenceContextKey{}, holder)
+}
+func carriedTxSigKey(ctx context.Context, pub cryptotypes.PubKey, signer txsigning.SignerData, sig signing.SignatureData, handler *txsigning.HandlerMap, tx txsigning.TxData) (sigcache.Key, bool) {
+	sdkCtx, ok := ctx.(sdk.Context)
+	if !ok {
+		return sigcache.Key{}, false
+	}
+	holder, _ := ctx.Value(txSigEvidenceContextKey{}).(*TxSigEvidenceHolder)
+	if holder == nil || holder.Current == nil || pub == nil {
+		return sigcache.Key{}, false
+	}
+	e := holder.Current
+	single, ok := sig.(*signing.SingleSignatureData)
+	if !ok || e.handler != handler || e.pubType != pub.Type() || e.address != signer.Address || e.chainID != signer.ChainID || e.number != signer.AccountNumber || e.sequence != signer.Sequence || e.mode != single.SignMode || e.unknown != tx.BodyHasUnknownNonCriticals {
+		return sigcache.Key{}, false
+	}
+	var signerPubType string
+	var signerPub []byte
+	if signer.PubKey != nil {
+		signerPubType = signer.PubKey.TypeUrl
+		signerPub = signer.PubKey.Value
+	}
+	if e.signerPubType != signerPubType || !bytes.Equal(e.signerPub, signerPub) || !bytes.Equal(e.raw, sdkCtx.TxBytes()) || !bytes.Equal(e.pub, pub.Bytes()) || !bytes.Equal(e.signature, single.Signature) || !bytes.Equal(e.body, tx.BodyBytes) || !bytes.Equal(e.auth, tx.AuthInfoBytes) {
+		return sigcache.Key{}, false
+	}
+	return e.key, true
 }
