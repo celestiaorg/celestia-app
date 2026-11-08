@@ -25,6 +25,7 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4"
+	blobv4 "github.com/celestiaorg/go-square/v4/proto/blob/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -41,6 +42,7 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
+	gproto "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -147,12 +149,18 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
+				// share.NewBlob refuses reserved namespaces, so encode the
+				// blob directly to mimic a malicious proposer.
+				var pbBlobTx blobv4.BlobTx
+				require.NoError(t, gproto.Unmarshal(blobTxs[0], &pbBlobTx))
+				pbBlobTx.Blobs[0] = &blobv4.BlobProto{
+					NamespaceId:      share.TxNamespace.ID(),
+					NamespaceVersion: uint32(share.TxNamespace.Version()),
+					Data:             data,
+					ShareVersion:     uint32(share.ShareVersionZero),
+				}
+				blobTxBytes, err := gproto.Marshal(&pbBlobTx)
 				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.TxNamespace, data, share.ShareVersionZero, nil)
-				require.NoError(t, err)
-				blobTx.Blobs[0] = newBlob
-				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
