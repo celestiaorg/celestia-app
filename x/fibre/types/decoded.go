@@ -15,6 +15,8 @@ import (
 type DecodedPayForFibre struct {
 	Raw []byte
 	Msg *MsgPayForFibre
+	// Evidence is transaction-local and must not survive its ABCI call.
+	Evidence *validator.SignatureEvidence
 	// CertKey is the signature cache key of the validator certificate.
 	// CertKeyed is false when the certificate could not be keyed.
 	CertKey   sigcache.Key
@@ -45,8 +47,9 @@ type certKeyContextKey struct{}
 // CertKeyHolder carries the certificate cache key of the tx a sequential walk is
 // processing: one context value per walk. Not safe for concurrent use.
 type CertKeyHolder struct {
-	raw []byte
-	key sigcache.Key
+	raw      []byte
+	key      sigcache.Key
+	evidence *validator.SignatureEvidence
 }
 
 // Set points the holder at the key derived for the transaction about to be
@@ -56,7 +59,7 @@ func (h *CertKeyHolder) Set(d *DecodedPayForFibre) {
 		*h = CertKeyHolder{}
 		return
 	}
-	*h = CertKeyHolder{raw: d.Raw, key: d.CertKey}
+	*h = CertKeyHolder{raw: d.Raw, key: d.CertKey, evidence: d.Evidence}
 }
 
 // WithCertKeyHolder attaches h to ctx once, for a whole walk.
@@ -91,6 +94,12 @@ func WithVerificationEvidence(ctx sdk.Context) sdk.Context {
 }
 func VerificationEvidence(ctx sdk.Context) *validator.SignatureEvidence {
 	if ctx.Context() == nil {
+		return nil
+	}
+	if h, _ := ctx.Value(certKeyContextKey{}).(*CertKeyHolder); h != nil {
+		if len(h.raw) > 0 && bytes.Equal(h.raw, ctx.TxBytes()) {
+			return h.evidence
+		}
 		return nil
 	}
 	evidence, _ := ctx.Value(verificationEvidenceContextKey{}).(*validator.SignatureEvidence)

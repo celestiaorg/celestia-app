@@ -78,11 +78,11 @@ func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.Decoded
 	}
 	return func() {
 		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
-			work.recordEvidence(types.VerificationEvidence(ctx), results, start, end)
+			work.recordEvidence(results, start, end)
 			work.record(k.sigCache, results, start, end)
 		})
 		// Groups crossing worker boundaries are published after all workers finish.
-		work.recordEvidence(types.VerificationEvidence(ctx), verified, 0, len(work.items))
+		work.recordEvidence(verified, 0, len(work.items))
 		work.record(k.sigCache, verified, 0, len(work.items))
 	}
 }
@@ -119,6 +119,7 @@ type verification struct {
 	message    []byte
 	pubKeys    []crypto.PubKey
 	signatures [][]byte
+	evidence   *validator.SignatureEvidence
 }
 
 // run reports whether every check in this item passed.
@@ -169,8 +170,9 @@ type verificationGroup struct {
 
 // preverification is the work collected for one block.
 type preverification struct {
-	items  []verification
-	groups []verificationGroup
+	items            []verification
+	groups           []verificationGroup
+	evidenceRecorded []atomic.Bool
 }
 
 // record adds the cache entries of every group whose items all succeeded and
@@ -219,6 +221,9 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 	}
 
 	for _, d := range decoded {
+		if d != nil {
+			d.Evidence = nil
+		}
 		if d == nil || !d.PromiseKeyed() || (!opts.admitted && !canPayForPreverification(d)) {
 			continue
 		}
@@ -270,12 +275,22 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 			// that is left to warm.
 		}
 
+		if opts.Certificates && len(work.items) > first {
+			d.Evidence = &validator.SignatureEvidence{}
+			if opts.admitted {
+				d.Evidence = types.VerificationEvidence(ctx)
+			}
+			for i := first; i < len(work.items); i++ {
+				work.items[i].evidence = d.Evidence
+			}
+		}
 		if len(keys) > 0 {
 			work.groups = append(work.groups, verificationGroup{
 				keys: keys, first: first, end: len(work.items),
 			})
 		}
 	}
+	work.evidenceRecorded = make([]atomic.Bool, len(work.items))
 	return work
 }
 
@@ -460,14 +475,11 @@ func canPayForPreverification(d *types.DecodedPayForFibre) bool {
 	return auth.Fee.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(count)
 }
 
-func (p *preverification) recordEvidence(evidence *validator.SignatureEvidence, verified []atomic.Bool, start, end int) {
-	if evidence == nil {
-		return
-	}
+func (p *preverification) recordEvidence(verified []atomic.Bool, start, end int) {
 	for i := start; i < end; i++ {
-		item := p.items[i]
-		if item.promise == nil && verified[i].Load() {
-			evidence.RecordVerified(item.message, item.pubKeys, item.signatures)
+		item := &p.items[i]
+		if item.evidence != nil && item.promise == nil && verified[i].Load() && p.evidenceRecorded[i].CompareAndSwap(false, true) {
+			item.evidence.RecordVerified(item.message, item.pubKeys, item.signatures)
 		}
 	}
 }

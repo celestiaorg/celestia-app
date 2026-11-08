@@ -70,7 +70,6 @@ func (fsb *FilteredSquareBuilder) KeptBlobTxs() []*tx.BlobTx {
 }
 
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
-	ctx = fibretypes.WithVerificationEvidence(ctx)
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
 	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.

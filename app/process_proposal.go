@@ -139,7 +139,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// Warm the signature cache across every CPU alongside the sequential loop, once per
 	// distinct certificate; the loop still decides.
-	ctx = fibretypes.WithVerificationEvidence(ctx)
 	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
