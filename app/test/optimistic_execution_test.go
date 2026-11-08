@@ -94,7 +94,7 @@ func (p *oePair) mixedTxs() [][]byte {
 		idx, signer := p.nextSigner()
 		from := signer.Account(p.accounts[idx]).Address()
 		msg := banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
-		tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100_000), user.SetFee(400))
 		require.NoError(p.t, err)
 		txs = append(txs, tx)
 	}

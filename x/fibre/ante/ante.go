@@ -96,19 +96,21 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return next(ctx, tx, simulate)
 	}
 
+	verificationCtx := ctx
+
 	// CheckTx reaches this once gas, fees, authentication and fibre admission
 	// have passed, so the pass is spent on an otherwise admissible tx. After
 	// the lookup, never before: warming a cached entry is pure loss. The other
 	// phases pre-verify their whole block, and recheck has nothing to warm.
 	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
-		ctx = fibretypes.WithVerificationEvidence(ctx)
-		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
+		verificationCtx = fibretypes.WithVerificationEvidence(ctx)
+		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(verificationCtx), msg, cacheKey)
 		if d.pffSigCache.Has(cacheKey) {
 			return next(ctx, tx, simulate)
 		}
 	}
 
-	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
+	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(verificationCtx), msg); err != nil {
 		return ctx, err
 	}
 	d.pffSigCache.Add(cacheKey)
