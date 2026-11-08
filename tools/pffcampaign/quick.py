@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """User-requested bounded campaign: main versus complete, OE disabled."""
-import argparse, itertools, json, pathlib, subprocess, time
+import argparse, itertools, json, pathlib, statistics, subprocess, time
 import run
 
 p = argparse.ArgumentParser()
@@ -26,6 +26,26 @@ status = dict(hardware=a.hardware, cpus=a.cpus, started=time.time(), deadline=a.
 status_path = root/('quick-'+a.hardware+f'-cgo{a.cgo}'+('-extra' if a.extra else '')+'.json')
 def save():
     status_path.write_text(json.dumps(status, indent=2)+'\n')
+def cutoff_for(count):
+    """A lower level exceeding the user limit stops higher levels on this shard."""
+    for lower in [100, 200, 400, 1000, 2000, 5000]:
+        if lower >= count:
+            continue
+        for cgo, arm, cache in itertools.product([a.cgo] if a.cgo is not None else [0, 1], ['main', 'complete'], ['cold', 'warm']):
+            medians = []
+            for method in ['PrepareProposal', 'ProcessProposal', 'FinalizeBlock']:
+                pattern = f'{a.hardware}-cpu{a.cpus}-valid-*-cgo{cgo}-n{lower}-{method}-{cache}-r0-{arm}-budget60-{a.operations}.json'
+                values = []
+                for path in (root/'results').glob(pattern):
+                    values.extend(row['NS'] for row in json.loads(path.read_text()))
+                if not values:
+                    break
+                medians.append(statistics.median(values))
+            if len(medians)==3 and sum(medians)>3_000_000_000:
+                return dict(lower_count=lower, branch=arm, cache=cache, cgo=cgo,
+                            sum_median_seconds=sum(medians)/1e9,
+                            reason='PrepareProposal + ProcessProposal + FinalizeBlock exceeds 3 seconds')
+    return None
 save()
 try:
     for index, (count, cgo, method, cache) in enumerate(cases):
@@ -33,6 +53,10 @@ try:
         for arm in arms:
             remaining = a.deadline-time.time()
             case = dict(count=count, cgo=cgo, method=method, cache=cache, arm=arm)
+            cutoff = cutoff_for(count)
+            if cutoff:
+                status['omitted'].append(dict(case, cutoff=cutoff))
+                continue
             if remaining < 20:
                 status['omitted'].append(case)
                 continue
@@ -48,7 +72,7 @@ try:
             status['completed_cases'] += 1
             save()
     run.summarize()
-    status['status'] = 'complete' if not status['omitted'] else 'budget-exhausted'
+    status['status'] = 'complete' if not status['omitted'] else 'complete-with-omissions'
 except Exception as e:
     status['status'] = 'failed'
     status['error'] = repr(e)
