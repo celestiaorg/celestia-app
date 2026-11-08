@@ -69,7 +69,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 			want:       sdkmath.NewInt(0),
 		},
 		{
-			name:       "one validator with 6 power returns 5 because the defaultSignalThreshold is 5/6",
+			name:       "one validator with 6 power returns 5 because the threshold is 5/6",
 			validators: map[string]int64{testutil.ValAddrs[0].String(): 6},
 			want:       sdkmath.NewInt(5),
 		},
