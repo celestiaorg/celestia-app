@@ -19,29 +19,16 @@ import (
 var (
 	_ types.MsgServer   = &Keeper{}
 	_ types.QueryServer = Keeper{}
-
-	// defaultSignalThreshold is 5/6 or approximately 83.33%
-	defaultSignalThreshold = math.LegacyNewDec(5).Quo(math.LegacyNewDec(6))
 )
 
 const (
-	// thresholdNumerator and thresholdDenominator give the exact 5/6
-	// threshold that GetVotingPowerThreshold applies.
+	// thresholdNumerator and thresholdDenominator give the fraction of voting
+	// power required to signal for a version change: 5/6, the midpoint between
+	// 2/3 and 3/3, which gives 1/6 fault tolerance to halting the network
+	// during an upgrade period. It can only change in a new app version.
 	thresholdNumerator   = 5
 	thresholdDenominator = 6
 )
-
-// Threshold is the fraction of voting power that is required
-// to signal for a version change. It is set to 5/6 as the middle point
-// between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
-// network during an upgrade period. It can be modified through a
-// hard fork change that modified the app version.
-//
-// The returned decimal has 18 digits, so it is slightly below 5/6.
-// GetVotingPowerThreshold uses the exact fraction instead.
-func Threshold(_ uint64) math.LegacyDec {
-	return defaultSignalThreshold
-}
 
 type Keeper struct {
 	// binaryCodec is used to marshal and unmarshal data from the store.

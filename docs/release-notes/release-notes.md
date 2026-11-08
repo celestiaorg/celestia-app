@@ -9,6 +9,7 @@ This guide provides notes for major version releases. These notes may be helpful
 **`x/signal`**:
 
 - The 5/6 upgrade threshold is computed exactly as `ceil(total_power * 5 / 6)`. The previous 18-digit decimal 5/6 could round the threshold one or more below the exact ceiling once total voting power reached 5e17; at current voting power the threshold is unchanged.
+- The exported `signal.Threshold` function is removed. It returned the rounded decimal and was no longer used.
 
 **`x/zkism`**:
 
