@@ -9,6 +9,8 @@ ARMS = ['main','pr-stack','complete']
 
 def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False,variant="valid"):
     name = f'{hardware}-cpu{cpus}-{variant}-{limits}-cgo{cgo}-n{count}-{method}-{cache}-r{rep}-{arm}'
+    if profile: name+='-profile'
+    elif operations==1: name+='-smoke'
     out = ROOT/'results'/f'{name}.json'
     if out.exists() and not profile:
         rows=json.loads(out.read_text())
@@ -25,7 +27,7 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
     rows=json.loads(out.read_text())
     assert len(rows)==operations
     for row in rows:
-        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile)
+        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile,Smoke=operations==1)
         assert row['Validators']==100 and row['SignaturesPerPFF']==67
     out.write_text(json.dumps(rows,indent=2)+'\n')
 
@@ -48,7 +50,7 @@ def verify_results():
 def summarize():
     raw=[]
     for path in (ROOT/'results').glob('*.json'):
-        raw.extend(r for r in json.loads(path.read_text()) if not r.get('Profile'))
+        raw.extend(r for r in json.loads(path.read_text()) if not r.get('Profile') and not r.get('Smoke'))
     keys=['Hardware','CPUs','Limits','CGO','Count','Method','Cache','Checkpoint','Variant']
     groups={}
     for row in raw: groups.setdefault(tuple(row[k] for k in keys),[]).append(row)

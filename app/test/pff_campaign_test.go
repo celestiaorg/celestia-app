@@ -272,7 +272,7 @@ func campaignDigest(v any) string {
 
 type campaignSample struct {
 	Variant                                                                                string
-	WireMiB, SquareMiB                                                                     float64
+	InputMiB, WireMiB, SquareMiB                                                           float64
 	Validators, SignaturesPerPFF                                                           int
 	Method, Cache, Checkpoint, Limits, CGO                                                 string
 	Count, Iteration                                                                       int
@@ -344,11 +344,14 @@ func TestPFFCampaign(t *testing.T) {
 			require.NoError(t, e)
 			require.Equal(t, campaignDigest(proposal), campaignDigest(p))
 		}
-		var wireBytes int
+		var inputBytes, wireBytes int
+		for _, tx := range f.txs {
+			inputBytes += int(core.ComputeProtoSizeForTxs([]core.Tx{tx}))
+		}
 		for _, tx := range proposal.Txs {
 			wireBytes += int(core.ComputeProtoSizeForTxs([]core.Tx{tx}))
 		}
-		sample := campaignSample{Variant: variant, WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
+		sample := campaignSample{Variant: variant, InputMiB: float64(inputBytes) / (1 << 20), WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
 		var before, after runtime.MemStats
 		profile := os.Getenv("PFF_PROFILE")
 		if profile != "" && iteration == 0 {
