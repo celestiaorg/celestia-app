@@ -37,12 +37,21 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	if k.sigCache == nil {
 		return
 	}
-	decoded := make([]*types.DecodedPayForFibre, 0, len(txs))
-	for _, rawTx := range txs {
-		if d := decodePayForFibre(rawTx, opts.Certificates); d != nil {
-			decoded = append(decoded, d)
-		}
+	// Slots preserve input order. Workers decode only; state collection below
+	// remains on the calling goroutine. Bound both fan-out and candidate work.
+	decoded := make([]*types.DecodedPayForFibre, min(len(txs), appconsts.MaxPayForFibreCandidates))
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), len(decoded)) {
+		wg.Go(func() {
+			for i := int(next.Add(1)) - 1; i < len(decoded); i = int(next.Add(1)) - 1 {
+				if len(txs[i]) <= appconsts.MaxTxSize {
+					decoded[i] = decodePayForFibre(txs[i], opts.Certificates)
+				}
+			}
+		})
 	}
+	wg.Wait()
 	k.PreverifyDecoded(ctx, decoded, opts)
 }
 
