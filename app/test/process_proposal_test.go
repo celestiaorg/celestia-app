@@ -40,6 +40,7 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 const (
@@ -291,6 +292,32 @@ func TestProcessProposal(t *testing.T) {
 				// tx. It decodes to the same tx but is a distinct, larger
 				// encoding whose padding never reaches the block.
 				d.Txs[0] = appendUnknownProtoField(d.Txs[0], 4096)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "blob tx whose inner tx is an index wrapper",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _, err := tx.UnmarshalBlobTx(d.Txs[0])
+				require.NoError(t, err)
+				wrapped, err := tx.MarshalIndexWrapper(blobTx.Tx, 12345)
+				require.NoError(t, err)
+				d.Txs[0], err = tx.MarshalBlobTx(wrapped, blobTx.Blobs...)
+				require.NoError(t, err)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "blob tx whose inner tx is an index wrapper with a non-UTF-8 type id",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _, err := tx.UnmarshalBlobTx(d.Txs[0])
+				require.NoError(t, err)
+				d.Txs[0], err = tx.MarshalBlobTx(nonUTF8IndexWrapper(blobTx.Tx), blobTx.Blobs...)
+				require.NoError(t, err)
+				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -836,4 +863,18 @@ func seedICAHostChannel(t *testing.T, testApp *app.App) {
 		State:   channeltypes.OPEN,
 		Version: string(icatypes.ModuleCdc.MustMarshalJSON(&metadata)),
 	})
+}
+
+// nonUTF8IndexWrapper encodes an IndexWrapper whose first type_id is invalid
+// UTF-8. gogoproto keeps the last type_id ("INDX"); protobuf-go rejects it.
+func nonUTF8IndexWrapper(inner []byte) []byte {
+	var b []byte
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	b = protowire.AppendBytes(b, inner)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	b = protowire.AppendBytes(b, protowire.AppendVarint(nil, 12345))
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	b = protowire.AppendBytes(b, []byte{0xff})
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	return protowire.AppendBytes(b, []byte("INDX"))
 }

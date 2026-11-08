@@ -27,6 +27,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 func TestNewV0Blob(t *testing.T) {
@@ -92,6 +93,27 @@ func TestValidateBlobTx(t *testing.T) {
 				return btx
 			},
 			expectedErr: types.ErrNamespaceMismatch,
+		},
+		{
+			name: "invalid transaction, inner tx is an index wrapper",
+			getTx: func() *tx.BlobTx {
+				btx, _, err := tx.UnmarshalBlobTx(validRawBtx())
+				require.NoError(t, err)
+				btx.Tx, err = tx.MarshalIndexWrapper(btx.Tx, 12345)
+				require.NoError(t, err)
+				return btx
+			},
+			expectedErr: types.ErrNestedIndexWrapper,
+		},
+		{
+			name: "invalid transaction, inner tx is an index wrapper with a non-UTF-8 type id",
+			getTx: func() *tx.BlobTx {
+				btx, _, err := tx.UnmarshalBlobTx(validRawBtx())
+				require.NoError(t, err)
+				btx.Tx = nonUTF8IndexWrapper(btx.Tx)
+				return btx
+			},
+			expectedErr: types.ErrNestedIndexWrapper,
 		},
 		{
 			name: "invalid transaction, no pfb",
@@ -417,4 +439,18 @@ func createTestSigner(t *testing.T, kr keyring.Keyring, accountName string, enc 
 	signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(accountName, accNum, 0))
 	require.NoError(t, err)
 	return signer
+}
+
+// nonUTF8IndexWrapper encodes an IndexWrapper whose first type_id is invalid
+// UTF-8. gogoproto keeps the last type_id ("INDX"); protobuf-go rejects it.
+func nonUTF8IndexWrapper(inner []byte) []byte {
+	var b []byte
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	b = protowire.AppendBytes(b, inner)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	b = protowire.AppendBytes(b, protowire.AppendVarint(nil, 12345))
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	b = protowire.AppendBytes(b, []byte{0xff})
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	return protowire.AppendBytes(b, []byte("INDX"))
 }

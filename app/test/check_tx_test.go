@@ -607,6 +607,26 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
 		},
+		{
+			name:      "blob tx whose inner tx is an index wrapper, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				wrapped, err := tx.MarshalIndexWrapper(innerBlobTx.Tx, 12345)
+				require.NoError(t, err)
+				outer, err := tx.MarshalBlobTx(wrapped, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
+			},
+			expectedABCICode: blobtypes.ErrNestedIndexWrapper.ABCICode(),
+		},
 	}
 
 	for _, tt := range tests {
