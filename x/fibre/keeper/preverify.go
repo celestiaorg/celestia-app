@@ -78,9 +78,11 @@ func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.Decoded
 	}
 	return func() {
 		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
+			work.recordEvidence(types.VerificationEvidence(ctx), results, start, end)
 			work.record(k.sigCache, results, start, end)
 		})
 		// Groups crossing worker boundaries are published after all workers finish.
+		work.recordEvidence(types.VerificationEvidence(ctx), verified, 0, len(work.items))
 		work.record(k.sigCache, verified, 0, len(work.items))
 	}
 }
@@ -456,4 +458,16 @@ func canPayForPreverification(d *types.DecodedPayForFibre) bool {
 		return false
 	}
 	return auth.Fee.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(count)
+}
+
+func (p *preverification) recordEvidence(evidence *validator.SignatureEvidence, verified []atomic.Bool, start, end int) {
+	if evidence == nil {
+		return
+	}
+	for i := start; i < end; i++ {
+		item := p.items[i]
+		if item.promise == nil && verified[i].Load() {
+			evidence.RecordVerified(item.message, item.pubKeys, item.signatures)
+		}
+	}
 }

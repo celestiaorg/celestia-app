@@ -101,6 +101,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 	// the lookup, never before: warming a cached entry is pure loss. The other
 	// phases pre-verify their whole block, and recheck has nothing to warm.
 	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
+		ctx = fibretypes.WithVerificationEvidence(ctx)
 		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
 		if d.pffSigCache.Has(cacheKey) {
 			return next(ctx, tx, simulate)

@@ -402,7 +402,7 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 		}
 
 		// Add signature to set (this validates the signature internally)
-		hasEnough, err := sigSet.Add(cmtValidators[i], signature)
+		hasEnough, err := sigSet.AddWithEvidence(cmtValidators[i], signature, types.VerificationEvidence(ctx))
 		if err != nil {
 			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid signature at index %d: %s", i, err)
 		}

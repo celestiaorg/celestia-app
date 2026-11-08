@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"context"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
@@ -77,4 +78,21 @@ func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
 		return sigcache.Key{}, false
 	}
 	return h.key, true
+}
+
+type verificationEvidenceContextKey struct{}
+
+// WithVerificationEvidence starts a fresh call-local evidence scope.
+func WithVerificationEvidence(ctx sdk.Context) sdk.Context {
+	if ctx.Context() == nil {
+		ctx = ctx.WithContext(context.Background())
+	}
+	return ctx.WithValue(verificationEvidenceContextKey{}, &validator.SignatureEvidence{})
+}
+func VerificationEvidence(ctx sdk.Context) *validator.SignatureEvidence {
+	if ctx.Context() == nil {
+		return nil
+	}
+	evidence, _ := ctx.Value(verificationEvidenceContextKey{}).(*validator.SignatureEvidence)
+	return evidence
 }

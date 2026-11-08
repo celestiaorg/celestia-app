@@ -68,8 +68,12 @@ func QuorumPrefix(validators []*core.Validator, signatures [][]byte, minRequired
 // Verification applies ZIP-215, which accepts strictly more signatures than
 // crypto/ed25519 did. See fibre/validator/zip215_test.go.
 func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error) {
-	// verify signature
-	if !val.PubKey.VerifySignature(ss.requiredBytesSigned, signature) {
+	return ss.AddWithEvidence(val, signature, nil)
+}
+
+// AddWithEvidence skips only cryptography proven for these exact inputs.
+func (ss *SignatureSet) AddWithEvidence(val *core.Validator, signature []byte, evidence *SignatureEvidence) (bool, error) {
+	if !evidence.has(ss.requiredBytesSigned, val.PubKey, signature) && !val.PubKey.VerifySignature(ss.requiredBytesSigned, signature) {
 		return false, fmt.Errorf("invalid signature from validator %s", val.Address.String())
 	}
 
