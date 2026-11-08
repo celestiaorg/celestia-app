@@ -103,7 +103,7 @@ func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 	f.vals = core.NewValidatorSet(vals)
 	var fixturePath string
 	if parent := os.Getenv("PFF_FIXTURES"); parent != "" {
-		fixturePath = filepath.Join(parent, strconv.Itoa(n), "fixture.json")
+		fixturePath = filepath.Join(parent, strconv.Itoa(n)+"-"+os.Getenv("PFF_VARIANT"), "fixture.json")
 		f.dir = filepath.Join(filepath.Dir(fixturePath), "database")
 		if bz, err := os.ReadFile(fixturePath); err == nil {
 			var saved struct {
@@ -171,7 +171,25 @@ func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 			msg.ValidatorSignatures[j], err = ordered[j].Sign(signBytes)
 			require.NoError(t, err)
 		}
-		f.txs[i], _, err = signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
+		gas := uint64(1_000_000)
+		switch variant := os.Getenv("PFF_VARIANT"); variant {
+		case "", "valid":
+		case "lowgas":
+			gas = 0
+		case "invalid-first", "invalid-boundary", "invalid-quorum-end":
+			index := 0
+			if variant == "invalid-boundary" {
+				index = 8
+			}
+			if variant == "invalid-quorum-end" {
+				index = 66
+			}
+			msg.ValidatorSignatures[index], err = ordered[index].Sign([]byte("different promise"))
+			require.NoError(t, err)
+		default:
+			t.Fatalf("unknown variant %s", variant)
+		}
+		f.txs[i], _, err = signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gas), user.SetFee(4_000))
 		require.NoError(t, err)
 	}
 	f.initial = bytes.Clone(a.LastCommitID().Hash)
@@ -253,6 +271,7 @@ func campaignDigest(v any) string {
 }
 
 type campaignSample struct {
+	Variant                                                                                string
 	WireMiB, SquareMiB                                                                     float64
 	Validators, SignaturesPerPFF                                                           int
 	Method, Cache, Checkpoint, Limits, CGO                                                 string
@@ -271,6 +290,15 @@ func TestPFFCampaign(t *testing.T) {
 	n, err := strconv.Atoi(os.Getenv("PFF_COUNT"))
 	require.NoError(t, err)
 	method, cache := os.Getenv("PFF_METHOD"), os.Getenv("PFF_CACHE")
+	variant := os.Getenv("PFF_VARIANT")
+	if variant == "" {
+		variant = "valid"
+	}
+	expected := n
+	if variant != "valid" {
+		expected = 0
+		require.Contains(t, []string{"CheckTxRejected", "PrepareProposalRejected"}, method)
+	}
 	if n > appconsts.MaxPayForFibreMessages {
 		t.Fatalf("requested %d exceeds build limit %d", n, appconsts.MaxPayForFibreMessages)
 	}
@@ -286,7 +314,7 @@ func TestPFFCampaign(t *testing.T) {
 		a, done, dir := f.fresh(t, oe)
 		proposal, err := a.PrepareProposal(f.prepare(a))
 		require.NoError(t, err)
-		if len(proposal.Txs) != n {
+		if len(proposal.Txs) != expected {
 			t.Fatalf("proposal included %d of %d", len(proposal.Txs), n)
 		}
 		process, finalize := f.requests(a, proposal)
@@ -304,7 +332,7 @@ func TestPFFCampaign(t *testing.T) {
 			process, finalize = f.requests(a, proposal)
 		}
 		if method == "Commit" {
-			campaignFinalize(t, a, finalize, n)
+			campaignFinalize(t, a, finalize, expected)
 		}
 		if cache == "cold" {
 			a.CampaignPurge()
@@ -320,7 +348,7 @@ func TestPFFCampaign(t *testing.T) {
 		for _, tx := range proposal.Txs {
 			wireBytes += int(core.ComputeProtoSizeForTxs([]core.Tx{tx}))
 		}
-		sample := campaignSample{WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
+		sample := campaignSample{Variant: variant, WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
 		var before, after runtime.MemStats
 		profile := os.Getenv("PFF_PROFILE")
 		if profile != "" && iteration == 0 {
@@ -333,17 +361,26 @@ func TestPFFCampaign(t *testing.T) {
 		start := time.Now()
 		var result any
 		switch method {
-		case "PrepareProposal":
+		case "PrepareProposal", "PrepareProposalRejected":
 			p, e := a.PrepareProposal(f.prepare(a))
 			require.NoError(t, e)
-			if len(p.Txs) != n {
+			if len(p.Txs) != expected {
 				t.Fatal("truncated workload")
 			}
 			result = p
 		case "ProcessProposal", "ProcessProposalProposer":
 			result = campaignAccept(t, a, process)
 		case "FinalizeBlock":
-			result = campaignFinalize(t, a, finalize, n)
+			result = campaignFinalize(t, a, finalize, expected)
+		case "CheckTxRejected":
+			rejected := make([]*abci.ResponseCheckTx, len(f.txs))
+			for i, tx := range f.txs {
+				r, e := a.CheckTx(&abci.RequestCheckTx{Tx: tx, Type: abci.CheckTxType_New})
+				require.NoError(t, e)
+				require.NotZero(t, r.Code)
+				rejected[i] = r
+			}
+			result = rejected
 		case "CheckTx":
 			result = campaignCheck(t, a, f.txs, abci.CheckTxType_New)
 		case "ReCheckTx":
@@ -363,7 +400,7 @@ func TestPFFCampaign(t *testing.T) {
 				}
 			}
 			finalStart := time.Now()
-			result = campaignFinalize(t, a, finalize, n)
+			result = campaignFinalize(t, a, finalize, expected)
 			sample.FinalizeNS = time.Since(finalStart).Nanoseconds()
 
 			if method == "OEImmediate" {
@@ -395,7 +432,7 @@ func TestPFFCampaign(t *testing.T) {
 		sample.Digest = campaignDigest(result)
 		sample.CacheAfter = a.CampaignCacheStats()
 		if !oe && method != "Commit" && method != "FinalizeBlock" {
-			campaignFinalize(t, a, finalize, n)
+			campaignFinalize(t, a, finalize, expected)
 		}
 		if !oe && method != "Commit" {
 			_, err = a.Commit()

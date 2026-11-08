@@ -7,14 +7,14 @@ METHODS = ['PrepareProposal','ProcessProposal','ProcessProposalProposer','Finali
 OE = ['OEImmediate','OEComplete']
 ARMS = ['main','pr-stack','complete']
 
-def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False):
-    name = f'{hardware}-cpu{cpus}-{limits}-cgo{cgo}-n{count}-{method}-{cache}-r{rep}-{arm}'
+def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False,variant="valid"):
+    name = f'{hardware}-cpu{cpus}-{variant}-{limits}-cgo{cgo}-n{count}-{method}-{cache}-r{rep}-{arm}'
     out = ROOT/'results'/f'{name}.json'
     if out.exists() and not profile:
         rows=json.loads(out.read_text())
         if len(rows)==operations: return
     env=dict(os.environ, GOMAXPROCS=str(cpus), PFF_CAMPAIGN='1', PFF_COUNT=str(count), PFF_METHOD=method,
-        PFF_CACHE=cache, PFF_CHECKPOINT=arm, PFF_LIMITS=limits, PFF_CGO=str(cgo),
+        PFF_CACHE=cache, PFF_VARIANT=variant, PFF_CHECKPOINT=arm, PFF_LIMITS=limits, PFF_CGO=str(cgo),
         PFF_OPERATIONS=str(operations), PFF_OUTPUT=str(out), TMPDIR=str(ROOT/'tmp'),PFF_FIXTURES=str(ROOT/'fixtures'/arm))
     if profile: env['PFF_PROFILE']=str(ROOT/'profiles'/name)
     binary=ROOT/'bin'/f'{arm}-cgo{cgo}-{limits}.test'
@@ -36,7 +36,7 @@ def verify_results():
             if row.get('Profile'):continue
             # OE responses equal ordinary FinalizeBlock; total wall times differ.
             method='FinalizeBlock' if row['Method'].startswith('OE') else row['Method']
-            key=(row['Count'],method)
+            key=(row['Count'],method,row.get('Variant','valid'))
             values=(row['InitialHash'],row['Digest'],row['FinalHash'])
             # CheckTx/recheck gas/results may differ from each other, but never
             # between checkpoints, CGO modes, hardware or application cache states.
@@ -49,7 +49,7 @@ def summarize():
     raw=[]
     for path in (ROOT/'results').glob('*.json'):
         raw.extend(r for r in json.loads(path.read_text()) if not r.get('Profile'))
-    keys=['Hardware','CPUs','Limits','CGO','Count','Method','Cache','Checkpoint']
+    keys=['Hardware','CPUs','Limits','CGO','Count','Method','Cache','Checkpoint','Variant']
     groups={}
     for row in raw: groups.setdefault(tuple(row[k] for k in keys),[]).append(row)
     summaries=[]
@@ -80,10 +80,16 @@ def summarize():
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--hardware',default='c3d-highcpu-16');p.add_argument('--cpus',type=int,default=16)
     p.add_argument('--large',action='store_true');p.add_argument('--smoke',action='store_true');p.add_argument('--summarize',action='store_true')
-    p.add_argument('--profiles',action='store_true');a=p.parse_args()
+    p.add_argument('--profiles',action='store_true');p.add_argument('--attacks',action='store_true');a=p.parse_args()
     for d in ['results','logs','tmp','profiles']: (ROOT/d).mkdir(exist_ok=True)
     if a.summarize:summarize();raise SystemExit
-    cases=[('override',n) for n in ([1000,2000,5000] if a.large else [100,200,400,1000,2000,5800])]
+    if a.attacks:
+        for cgo,variant,method in itertools.product([0,1],['lowgas','invalid-first','invalid-boundary','invalid-quorum-end'],['CheckTxRejected','PrepareProposalRejected']):
+            for rep in range(10):
+                for arm in ARMS[rep%3:]+ARMS[:rep%3]:
+                    execute(arm,cgo,'production',200,method,'cold',rep,a.cpus,a.hardware,variant=variant)
+        summarize();raise SystemExit
+    cases=[('override',n) for n in ([1000,2000,5000] if a.large else [100,200,400,1000,2000,5000,5800])]
     if not a.large:cases=[('production',100),('production',200)]+cases
     if a.smoke:cases=[('production',100)]
     if a.profiles:cases=[('override',200),('override',2000)]
