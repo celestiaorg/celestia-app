@@ -33,10 +33,7 @@ const (
 	signalFuzzMaxOps        = 48
 	// signalFuzzMaxTotalPower bounds the bonded total power. CometBFT allows up
 	// to MaxInt64/8.
-	// Excluded pending a fix; see the Linear issue for this target.
-	// At 5e17 and above the keeper's decimal 5/6 threshold can fall one below
-	// the exact ceiling, so totals stay below it.
-	signalFuzzMaxTotalPower = 500_000_000_000_000_000 - 1
+	signalFuzzMaxTotalPower = math.MaxInt64 / 8
 )
 
 // fuzzStakingKeeper is a staking keeper whose validator set, powers and
