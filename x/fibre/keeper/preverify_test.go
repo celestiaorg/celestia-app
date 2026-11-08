@@ -755,7 +755,7 @@ func TestPartialCertificateEvidenceMatchesSequential(t *testing.T) {
 
 func TestPreBlockPFFBudgetIgnoresOrdinaryTransactions(t *testing.T) {
 	f := newPreverifyFixture(t)
-	txs := make([][]byte, appconsts.MaxSDKMessages)
+	txs := make([][]byte, appconsts.MaxSDKMessages, appconsts.MaxSDKMessages+1)
 	for i := range txs {
 		txs[i] = []byte("ordinary transaction")
 	}

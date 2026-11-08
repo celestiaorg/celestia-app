@@ -7,9 +7,10 @@ METHODS = ['PrepareProposal','ProcessProposal','ProcessProposalProposer','Finali
 OE = ['OEImmediate','OEComplete']
 ARMS = ['main','pr-stack','complete']
 
-def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False,variant="valid"):
+def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False,variant="valid",sample_label=None,timeout=1800):
     name = f'{hardware}-cpu{cpus}-{variant}-{limits}-cgo{cgo}-n{count}-{method}-{cache}-r{rep}-{arm}'
     if profile: name+='-profile'
+    elif sample_label: name+='-'+sample_label
     elif operations==1: name+='-smoke'
     out = ROOT/'results'/f'{name}.json'
     if out.exists() and not profile:
@@ -23,11 +24,11 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
     cmd=['taskset','-c',f'0-{cpus-1}',str(binary),'-test.run=^TestPFFCampaign$','-test.timeout=30m']
     print(time.strftime('%FT%TZ',time.gmtime()),name,flush=True)
     with (ROOT/'logs'/f'{name}.log').open('w') as log:
-        subprocess.run(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,check=True)
+        subprocess.run(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=timeout)
     rows=json.loads(out.read_text())
     assert len(rows)==operations
     for row in rows:
-        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile,Smoke=operations==1)
+        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile,Smoke=operations==1 and sample_label is None,Sampling=sample_label or 'original')
         assert row['Validators']==100 and row['SignaturesPerPFF']==67
     out.write_text(json.dumps(rows,indent=2)+'\n')
 
@@ -57,7 +58,7 @@ def summarize():
     summaries=[]
     for key,rows in sorted(groups.items()):
         r=dict(zip(keys,key));ns=sorted(x['NS'] for x in rows)
-        r.update(samples=len(ns),median_ms=statistics.median(ns)/1e6,p95_ms=ns[math.ceil(.95*len(ns))-1]/1e6,
+        r.update(samples=len(ns),median_ms=statistics.median(ns)/1e6,p95_ms=ns[math.ceil(.95*len(ns))-1]/1e6 if len(ns)>=20 else None,
             wire_MiB=rows[0]['WireMiB'],square_MiB=rows[0]['SquareMiB'],
             median_allocs=statistics.median(x['Allocs'] for x in rows),median_bytes=statistics.median(x['Bytes'] for x in rows),
             peak_RSS_MiB=max(x['PeakRSS'] for x in rows)/(1<<20),
