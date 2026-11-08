@@ -752,3 +752,15 @@ func TestPartialCertificateEvidenceMatchesSequential(t *testing.T) {
 		}
 	}
 }
+
+func TestPreBlockPFFBudgetIgnoresOrdinaryTransactions(t *testing.T) {
+	f := newPreverifyFixture(t)
+	txs := make([][]byte, appconsts.MaxSDKMessages)
+	for i := range txs {
+		txs[i] = []byte("ordinary transaction")
+	}
+	txs = append(txs, f.txBytes(t))
+	f.keeper.PreverifySignatures(f.ctx, txs, keeper.PreverifyOptions{})
+	require.True(t, f.cache.Has(f.promiseKey))
+	require.False(t, f.cache.Has(f.certKey))
+}

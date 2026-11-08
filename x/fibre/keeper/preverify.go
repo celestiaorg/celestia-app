@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"runtime"
 	"sort"
 	"sync"
@@ -40,17 +41,24 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	if k.sigCache == nil {
 		return
 	}
-	// Slots preserve input order. Workers decode only; state collection below
-	// remains on the calling goroutine. Bound both fan-out and candidate work.
-	decoded := make([]*types.DecodedPayForFibre, min(len(txs), appconsts.MaxPayForFibreCandidates))
+	// Slots preserve candidate order. Ordinary SDK transactions must not
+	// consume the PFF work budget (PrepareProposal places them first).
+	candidates := make([][]byte, 0, min(len(txs), appconsts.MaxPayForFibreCandidates))
+	for _, raw := range txs {
+		if len(raw) <= appconsts.MaxTxSize && bytes.Contains(raw, []byte(types.MsgPayForFibreTypeURL)) {
+			candidates = append(candidates, raw)
+			if len(candidates) == appconsts.MaxPayForFibreCandidates {
+				break
+			}
+		}
+	}
+	decoded := make([]*types.DecodedPayForFibre, len(candidates))
 	var next atomic.Int64
 	var wg sync.WaitGroup
 	for range min(runtime.GOMAXPROCS(0), len(decoded)) {
 		wg.Go(func() {
 			for i := int(next.Add(1)) - 1; i < len(decoded); i = int(next.Add(1)) - 1 {
-				if len(txs[i]) <= appconsts.MaxTxSize {
-					decoded[i] = decodePayForFibre(txs[i], opts.Certificates)
-				}
+				decoded[i] = decodePayForFibre(candidates[i], opts.Certificates)
 			}
 		})
 	}
