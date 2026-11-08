@@ -18,7 +18,7 @@ for arm,ref in refs.items():
  if arm!='complete':
   (dest/'x/fibre/keeper/pff_evidence_campaign_test.go').write_text('//go:build pffcampaign\n\npackage keeper_test\nimport sdk "github.com/cosmos/cosmos-sdk/types"\nfunc campaignEvidence(ctx sdk.Context) sdk.Context {return ctx}\n')
  manifest[arm]={'sha':sha,'tree':subprocess.check_output(['git','rev-parse',sha+'^{tree}'],text=True).strip(),'go_mod_sha256':hashlib.sha256((dest/'go.mod').read_bytes()).hexdigest(),'harness':{name:hashlib.sha256((dest/name).read_bytes()).hexdigest() for name in harness}}
-for name in ['run.py','build.sh']:(root/name).write_bytes((pathlib.Path('tools/pffcampaign')/name).read_bytes())
+for name in ['run.py','build.sh','cert.py']:(root/name).write_bytes((pathlib.Path('tools/pffcampaign')/name).read_bytes())
 (root/'source-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 with tarfile.open(root/'sources.tar.gz','w:gz') as tf:
- for name in ['source','source-manifest.json','run.py','build.sh']:tf.add(root/name,arcname=name)
+ for name in ['source','source-manifest.json','run.py','build.sh','cert.py']:tf.add(root/name,arcname=name)

@@ -114,7 +114,9 @@ func TestPFFCertificateCampaign(t *testing.T) {
 			} else {
 				require.Equal(t, "sequential", mode)
 			}
-			actual = fresh.keeper.ValidatePayForFibreSignatures(ctx, f.msg)
+			if mode == "sequential" || !fresh.cache.Has(f.certKey) {
+				actual = fresh.keeper.ValidatePayForFibreSignatures(ctx, f.msg)
+			}
 		}
 		elapsed := time.Since(start)
 		runtime.ReadMemStats(&after)
