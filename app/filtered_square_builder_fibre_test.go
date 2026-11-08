@@ -332,7 +332,7 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 	bigNorm := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 2500)) // larger than a 2x2 square
 	blob1, blob2, blob3 := newBlobTx(t, txConfig), newBlobTx(t, txConfig), newBlobTx(t, txConfig)
 	pff1, pff2, pff3 := blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	timeout1, timeout2 := newPaymentPromiseTimeoutTx(t, txConfig), newPaymentPromiseTimeoutTx(t, txConfig)
+	timeout := newPaymentPromiseTimeoutTx(t, txConfig)
 	deposit := newDepositToEscrowTx(t, txConfig)
 
 	tests := []struct {
@@ -425,20 +425,12 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			wantKept:   [][]byte{midNorm},
 		},
 		{
-			name:        "failed fibre state msg keeps the tx without its writes",
+			// Proposal never executes deposits or timeouts: their outcome can
+			// depend on msgs it does not run, such as an earlier bank send.
+			name:        "deposit and timeout are kept but not executed",
 			squareSize:  64,
-			txs:         [][]byte{timeout1, timeout2, pff1},
-			settleErr:   [][]byte{timeout1},
-			wantKept:    [][]byte{timeout1, timeout2, pff1},
-			wantEscrows: [][]byte{timeout2, pff1},
-		},
-		{
-			// A deposit can fail in FinalizeBlock after an earlier bank send that
-			// the proposal does not replay, so it must not fund a later PFF.
-			name:        "deposit is kept but not replayed",
-			squareSize:  64,
-			txs:         [][]byte{deposit, pff1},
-			wantKept:    [][]byte{deposit, pff1},
+			txs:         [][]byte{timeout, deposit, pff1},
+			wantKept:    [][]byte{timeout, deposit, pff1},
 			wantEscrows: [][]byte{pff1},
 		},
 	}

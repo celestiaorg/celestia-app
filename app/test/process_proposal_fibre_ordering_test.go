@@ -23,9 +23,9 @@ import (
 )
 
 // TestProcessProposalTimeoutThenPayForFibre guards against an underpaid
-// pay-for-fibre: a timeout ordered before it debits the same escrow in
-// FinalizeBlock. ProcessProposal replays that debit, so it rejects the block
-// unless the escrow still covers the pay-for-fibre.
+// pay-for-fibre: a timeout ordered before it can debit the same escrow in
+// FinalizeBlock. Proposal does not execute the timeout, so it rejects any
+// pay-for-fibre on an escrow that a timeout earlier in the block touches.
 func TestProcessProposalTimeoutThenPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
@@ -38,7 +38,8 @@ func TestProcessProposalTimeoutThenPayForFibre(t *testing.T) {
 
 	// accounts[0]: exactly one payment -> the timeout drains it, so the
 	// pay-for-fibre can no longer settle and the block must be rejected.
-	// accounts[1]: two payments -> the timeout and the pay-for-fibre both settle.
+	// accounts[1]: two payments -> both could settle, but the block is still
+	// rejected; the pay-for-fibre waits for the next block.
 	// accounts[2]: one payment, pay-for-fibre alone -> accepted (control).
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 2*payment)
@@ -72,9 +73,9 @@ func TestProcessProposalTimeoutThenPayForFibre(t *testing.T) {
 			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "accept: escrow covers both the timeout and the pay-for-fibre",
+			name:           "reject: timeout touches the escrow even when it covers both",
 			txs:            [][]byte{timeout1, pff1},
-			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
 		{
 			name:           "accept: pay-for-fibre alone fits the escrow",
@@ -162,7 +163,7 @@ func TestPrepareProposalTimeoutThenPayForFibre(t *testing.T) {
 		require.NotContains(t, resp.Txs, pff0, "the unpayable pay-for-fibre must be dropped")
 	})
 
-	t.Run("keeps both when the escrow covers them", func(t *testing.T) {
+	t.Run("defers the pay-for-fibre even when the escrow covers both", func(t *testing.T) {
 		resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 			Txs:    [][]byte{timeout1, pff1},
 			Height: testApp.LastBlockHeight() + 1,
@@ -170,7 +171,7 @@ func TestPrepareProposalTimeoutThenPayForFibre(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Contains(t, resp.Txs, timeout1)
-		require.Contains(t, resp.Txs, pff1)
+		require.NotContains(t, resp.Txs, pff1)
 	})
 }
 

@@ -10,6 +10,7 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
@@ -214,19 +215,39 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 	return nil
 }
 
-// containsFibreStateMsg reports whether the tx carries a fibre message that
-// mutates escrow state/balance as soon as it executes, so proposal must replay
-// it before settling a later MsgPayForFibre. MsgPayForFibre (settled on its
-// own path) and MsgRequestWithdrawal (only locks funds, paid out later by the
-// BeginBlocker) are excluded. MsgDepositToEscrow is excluded too: proposal does
-// not replay bank msgs, so an earlier send can make a deposit that succeeds here
-// fail in FinalizeBlock and leave a later PFF unpaid. Skipping deposits only
-// makes proposal escrow lower than FinalizeBlock's, never higher.
-func containsFibreStateMsg(tx sdk.Tx) bool {
+// fibreEscrowSigners returns the escrow accounts that the tx's
+// MsgDepositToEscrow and MsgPaymentPromiseTimeout msgs can change. Proposal
+// cannot predict whether these msgs succeed in FinalizeBlock: the outcome can
+// depend on msgs that proposal does not execute, such as a bank send that
+// drains the depositor first. So proposal excludes a later MsgPayForFibre
+// against any of these escrows instead of guessing its balance. The ante
+// handler rejects these msgs when nested, so top-level msgs are enough.
+func fibreEscrowSigners(tx sdk.Tx) []string {
+	var signers []string
 	for _, msg := range tx.GetMsgs() {
-		if _, ok := msg.(*fibretypes.MsgPaymentPromiseTimeout); ok {
-			return true
+		switch m := msg.(type) {
+		case *fibretypes.MsgDepositToEscrow:
+			if addr, err := sdk.AccAddressFromBech32(m.Signer); err == nil {
+				signers = append(signers, addr.String())
+			}
+		case *fibretypes.MsgPaymentPromiseTimeout:
+			// Address panics on a key of the wrong size; such a msg cannot execute.
+			if key := m.PaymentPromise.SignerPublicKey; len(key.Key) == secp256k1.PubKeySize {
+				signers = append(signers, sdk.AccAddress(key.Address()).String())
+			}
 		}
 	}
-	return false
+	return signers
+}
+
+// payForFibreEscrowSigner returns the escrow account a MsgPayForFibre charges.
+func payForFibreEscrowSigner(msg *fibretypes.MsgPayForFibre) string {
+	if msg == nil {
+		return ""
+	}
+	key := msg.PaymentPromise.SignerPublicKey
+	if len(key.Key) != secp256k1.PubKeySize {
+		return ""
+	}
+	return sdk.AccAddress(key.Address()).String()
 }

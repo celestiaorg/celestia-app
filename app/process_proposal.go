@@ -174,6 +174,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}()
 	}
 
+	// Escrows a deposit or timeout earlier in the block may change. A later PFF
+	// against one of them could settle here and fail in FinalizeBlock.
+	changedEscrows := make(map[string]struct{})
+
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
@@ -273,16 +277,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// FinalizeBlock's gas. This ante pass is the only consensus check of PFF validator
 			// signatures. No per-tx branch: any failure rejects the whole proposal.
 			if isPFF {
+				if _, changed := changedEscrows[payForFibreEscrowSigner(fibretypes.PayForFibreMsg(sdkTx))]; changed {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d: pay-for-fibre escrow changed earlier in the block", idx))
+					return reject(), nil
+				}
 				if execErr := runMsgs(ctx, msgs, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
-			} else if containsFibreStateMsg(sdkTx) {
-				// Replay fibre escrow effects in block order so later settlement
-				// sees the FinalizeBlock balance. A failed message keeps the tx
-				// (gas only), so don't reject.
-				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
-					app.Logger().Debug("fibre state msg did not settle in proposal; keeping tx", "idx", idx, "err", execErr)
+			} else {
+				for _, signer := range fibreEscrowSigners(sdkTx) {
+					changedEscrows[signer] = struct{}{}
 				}
 			}
 

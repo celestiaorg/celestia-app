@@ -118,6 +118,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		fsb.preverifyPFF(ctx, decoded)
 	}
 
+	changedEscrows := make(map[string]struct{})
 	var (
 		sdkMessageCount = 0
 		zkProofMsgCount = 0
@@ -202,13 +203,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		commit()
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
-		// Replay fibre escrow effects (e.g. a timeout debit) so later pay-for-fibre
-		// settlement sees the same balance it will in FinalizeBlock. A failed
-		// message keeps the tx (gas only), so ignore the error.
-		if containsFibreStateMsg(sdkTx) {
-			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
-				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", lazyTxHash(tx), "error", err)
-			}
+		// A later pay-for-fibre tx against an escrow this tx may change is
+		// skipped, matching ProcessProposal.
+		for _, signer := range fibreEscrowSigners(sdkTx) {
+			changedEscrows[signer] = struct{}{}
 		}
 
 		sdkMessageCount += execMsgCount
@@ -290,7 +288,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs, changedEscrows)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
@@ -443,7 +441,7 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) [][]byte {
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx, changedEscrows map[string]struct{}) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
@@ -462,6 +460,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			continue
 		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
+		if _, changed := changedEscrows[payForFibreEscrowSigner(fibretypes.PayForFibreMsg(sdkTx))]; changed {
+			logger.Debug("skipping pay-for-fibre tx because its escrow changed earlier in the block", "tx", lazyTxHash(rawTx))
+			continue
+		}
 		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
 			if _, ok := settled[entry.decoded.PromiseKey]; ok {
 				continue
