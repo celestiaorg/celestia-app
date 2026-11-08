@@ -1,10 +1,11 @@
 package keeper
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestPreverificationDeclaredGas(t *testing.T) {

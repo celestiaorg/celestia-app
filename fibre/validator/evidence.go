@@ -1,9 +1,10 @@
 package validator
 
 import (
+	"sync"
+
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	"github.com/cometbft/cometbft/crypto"
-	"sync"
 )
 
 // SignatureEvidence is positive cryptographic evidence scoped to one ABCI call.

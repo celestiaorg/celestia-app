@@ -2,13 +2,14 @@ package ante
 
 import (
 	"context"
+	"testing"
+
 	txsigning "cosmossdk.io/x/tx/signing"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestCarriedSignatureInputs(t *testing.T) {

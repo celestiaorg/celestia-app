@@ -66,7 +66,7 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx, rawTxs ...[][]byte) (evidence []*TxSigEvidence) {
 	evidence = make([]*TxSigEvidence, len(txs))
 	if sigCache == nil {
-		return
+		return evidence
 	}
 	verify := cachedVerifier(sigCache)
 	type workItem struct {

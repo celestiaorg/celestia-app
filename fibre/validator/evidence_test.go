@@ -1,10 +1,11 @@
 package validator
 
 import (
+	"testing"
+
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestSignatureEvidenceExactInputs(t *testing.T) {
