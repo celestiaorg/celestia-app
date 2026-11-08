@@ -9,19 +9,32 @@ import (
 // DecodePayForFibre decodes a MsgPayForFibre tx once and derives its signature
 // cache keys. Returns nil if raw is not a decodable pay-for-fibre tx.
 func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
+	return decodePayForFibre(raw, true)
+}
+
+// decodePayForFibre omits the certificate key when the caller will not verify it.
+func decodePayForFibre(raw []byte, certificate bool) *types.DecodedPayForFibre {
 	msg, isPFF, err := types.ParsePayForFibreTx(raw)
 	if !isPFF || err != nil {
 		return nil
 	}
-	return DerivePayForFibre(raw, msg)
+	return derivePayForFibre(raw, msg, certificate)
 }
 
 // DerivePayForFibre is DecodePayForFibre for a caller that already holds the
 // non-nil message decoded from raw.
 func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
-	certKey, err := msg.SigCacheKey()
+	return derivePayForFibre(raw, msg, true)
+}
+
+func derivePayForFibre(raw []byte, msg *types.MsgPayForFibre, certificate bool) *types.DecodedPayForFibre {
+	var certKey sigcache.Key
+	var err error
+	if certificate {
+		certKey, err = msg.SigCacheKey()
+	}
 	d := DecodedFromMsg(msg, certKey)
-	d.Raw, d.CertKeyed = raw, err == nil
+	d.Raw, d.CertKeyed = raw, certificate && err == nil
 	return d
 }
 

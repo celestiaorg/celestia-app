@@ -39,7 +39,7 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	}
 	decoded := make([]*types.DecodedPayForFibre, 0, len(txs))
 	for _, rawTx := range txs {
-		if d := DecodePayForFibre(rawTx); d != nil {
+		if d := decodePayForFibre(rawTx, opts.Certificates); d != nil {
 			decoded = append(decoded, d)
 		}
 	}
