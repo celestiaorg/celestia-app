@@ -15,6 +15,8 @@ for arm,ref in refs.items():
   target=dest/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(pathlib.Path(name).read_bytes())
  if arm=='main':
   (dest/'app/pff_recheck_campaign.go').write_text('//go:build pffcampaign\n\npackage app\nfunc (app *App) campaignPurgeRecheck() {}\nfunc (app *App) campaignRecheckStats(stats map[string]int) { stats["decoded_capacity"]=0;stats["decoded_entries"]=0 }\n')
+ if arm!='complete':
+  (dest/'x/fibre/keeper/pff_evidence_campaign_test.go').write_text('//go:build pffcampaign\n\npackage keeper_test\nimport sdk "github.com/cosmos/cosmos-sdk/types"\nfunc campaignEvidence(ctx sdk.Context) sdk.Context {return ctx}\n')
  manifest[arm]={'sha':sha,'tree':subprocess.check_output(['git','rev-parse',sha+'^{tree}'],text=True).strip(),'go_mod_sha256':hashlib.sha256((dest/'go.mod').read_bytes()).hexdigest(),'harness':{name:hashlib.sha256((dest/name).read_bytes()).hexdigest() for name in harness}}
 for name in ['run.py','build.sh']:(root/name).write_bytes((pathlib.Path('tools/pffcampaign')/name).read_bytes())
 (root/'source-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
