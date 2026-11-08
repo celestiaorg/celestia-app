@@ -36,8 +36,8 @@ import (
 )
 
 // numPreverifyValidators is chosen so the 2/3 quorum is reached before the last
-// signature: with four equal validators the prefix is three, leaving index 3
-// outside it.
+// signature. Each validator has 1 consensus power, so four of them need 2
+// signatures and index 3 stays outside the prefix.
 const numPreverifyValidators = 4
 
 type preverifyFixture struct {
@@ -327,8 +327,9 @@ func TestPreverifySignaturesIsSafeToSkip(t *testing.T) {
 	}
 }
 
-// batchBoundaryValidators makes the 2/3 quorum prefix 134 signatures, so a
-// certificate is split across a full 128-signature batch and a short one.
+// batchBoundaryValidators makes the 2/3 quorum prefix 133 signatures (200
+// validators of 1 consensus power: floor(400/3) = 133), so a certificate is
+// split across a full 128-signature batch and a short one.
 const batchBoundaryValidators = 200
 
 // newMessage returns a valid message for the same validator set, set apart

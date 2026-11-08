@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"cosmossdk.io/math"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
@@ -1334,7 +1333,9 @@ func (suite *MsgServerTestSuite) setupValidatorSet() {
 	val := stakingtypes.Validator{
 		OperatorAddress: sdk.ValAddress(valPubKey.Address()).String(),
 		ConsensusPubkey: nil, // Will be set below
-		Tokens:          math.NewInt(1000000),
+		// One million consensus power, so a missing signature stays under floor(2/3).
+		// 1_000_000 utia is only 1 consensus power, and floor(2/3) of that is 0.
+		Tokens: sdk.TokensFromConsensusPower(1_000_000, sdk.DefaultPowerReduction),
 	}
 
 	// Convert CometBFT pubkey to SDK pubkey

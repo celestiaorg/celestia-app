@@ -63,8 +63,8 @@ func TestValidatorSetAtHeightKeysOnHeight(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotSame(t, seven, eight)
-	require.Equal(t, int64(1_000_000), seven.set.TotalVotingPower())
-	require.Equal(t, int64(5_000_000), eight.set.TotalVotingPower())
+	require.Equal(t, int64(1), seven.set.TotalVotingPower())
+	require.Equal(t, int64(5), eight.set.TotalVotingPower())
 }
 
 // TestValidatorSetAtHeightPreservesOrderAndPower pins what the conversion owes
@@ -87,9 +87,29 @@ func TestValidatorSetAtHeightPreservesOrderAndPower(t *testing.T) {
 		consPubKey, err := val.ConsPubKey()
 		require.NoError(t, err)
 		require.Equal(t, consPubKey.Bytes(), converted.validators[i].PubKey.Bytes())
-		require.Equal(t, val.Tokens.Int64(), converted.validators[i].VotingPower)
+		require.Equal(t, val.Tokens.QuoRaw(1_000_000).Int64(), converted.validators[i].VotingPower)
 	}
-	require.Equal(t, int64(6_000_000), converted.set.TotalVotingPower())
+	require.Equal(t, int64(6), converted.set.TotalVotingPower())
+}
+
+// TestValidatorSetAtHeightUsesConsensusPower checks that reward dust below one
+// consensus-power unit does not change the weight, and that a balance too
+// small to be in the CometBFT set is rejected instead of panicking.
+func TestValidatorSetAtHeightUsesConsensusPower(t *testing.T) {
+	k := Keeper{valSetCache: newValidatorSetCache()}
+	valset := []stakingtypes.Validator{
+		newStakingValidator(t, 1_000_002),
+		newStakingValidator(t, 2_999_999),
+	}
+
+	converted, err := k.validatorSetAtHeight(7, valset)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), converted.validators[0].VotingPower)
+	require.Equal(t, int64(2), converted.validators[1].VotingPower)
+	require.Equal(t, int64(3), converted.set.TotalVotingPower())
+
+	_, err = k.validatorSetAtHeight(8, []stakingtypes.Validator{newStakingValidator(t, 999_999)})
+	require.Error(t, err)
 }
 
 // TestValidatorSetAtHeightRejectsNonEd25519 covers the size guard: consensus
