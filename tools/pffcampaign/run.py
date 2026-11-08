@@ -46,7 +46,7 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
     rows=json.loads(out.read_text())
     assert len(rows)==operations
     for row in rows:
-        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile,Smoke=operations==1 and sample_label is None,Sampling=sample_label or 'original')
+        row.update(Hardware=hardware,CPUs=cpus,Repetition=rep,Profile=profile,Smoke=operations==1 and sample_label is None and not profile,Sampling=sample_label or 'original')
         assert row['Validators']==100 and row['SignaturesPerPFF']==67
     out.write_text(json.dumps(rows,indent=2)+'\n')
 
