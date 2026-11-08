@@ -42,9 +42,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type campaignSpec struct {
+	Duration time.Duration
+	Finished time.Time
+}
+
 type campaignLogger struct {
 	log.Logger
-	finished chan time.Duration
+	finished chan campaignSpec
 }
 
 func (l campaignLogger) With(...any) log.Logger { return l }
@@ -56,7 +61,7 @@ func (l campaignLogger) Debug(msg string, args ...any) {
 		if args[i] == "duration" {
 			d, err := time.ParseDuration(fmt.Sprint(args[i+1]))
 			if err == nil {
-				l.finished <- d
+				l.finished <- campaignSpec{Duration: d, Finished: time.Now()}
 			}
 			return
 		}
@@ -71,11 +76,11 @@ type campaignFixture struct {
 	initial []byte
 }
 
-func campaignApp(t *testing.T, dir string, optimistic bool) (*app.App, chan time.Duration) {
+func campaignApp(t *testing.T, dir string, optimistic bool) (*app.App, chan campaignSpec) {
 	t.Helper()
 	db, err := dbm.NewDB("application", dbm.PebbleDBBackend, dir)
 	require.NoError(t, err)
-	done := make(chan time.Duration, 4)
+	done := make(chan campaignSpec, 4)
 	opts := []func(*baseapp.BaseApp){baseapp.SetChainID(testutil.ChainID), baseapp.SetIAVLCacheSize(781250), baseapp.SetInterBlockCache(store.NewCommitKVStoreCacheManager())}
 	if !optimistic {
 		opts = append(opts, baseapp.DisableOptimisticExecution())
@@ -182,7 +187,7 @@ func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 	}
 	return f
 }
-func (f *campaignFixture) fresh(t *testing.T, optimistic bool) (*app.App, chan time.Duration, string) {
+func (f *campaignFixture) fresh(t *testing.T, optimistic bool) (*app.App, chan campaignSpec, string) {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.CopyFS(dir, os.DirFS(f.dir)))
@@ -313,7 +318,7 @@ func TestPFFCampaign(t *testing.T) {
 		}
 		var wireBytes int
 		for _, tx := range proposal.Txs {
-			wireBytes += len(tx)
+			wireBytes += int(core.ComputeProtoSizeForTxs([]core.Tx{tx}))
 		}
 		sample := campaignSample{WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
 		var before, after runtime.MemStats
@@ -349,7 +354,7 @@ func TestPFFCampaign(t *testing.T) {
 		case "OEImmediate", "OEComplete":
 			campaignAccept(t, a, process)
 			sample.ProcessNS = time.Since(start).Nanoseconds()
-			var spec time.Duration
+			var spec campaignSpec
 			if method == "OEComplete" {
 				select {
 				case spec = <-done:
@@ -360,7 +365,7 @@ func TestPFFCampaign(t *testing.T) {
 			finalStart := time.Now()
 			result = campaignFinalize(t, a, finalize, n)
 			sample.FinalizeNS = time.Since(finalStart).Nanoseconds()
-			sample.ResidualNS = sample.FinalizeNS
+
 			if method == "OEImmediate" {
 				select {
 				case spec = <-done:
@@ -368,7 +373,8 @@ func TestPFFCampaign(t *testing.T) {
 					t.Fatal("OE did not complete")
 				}
 			}
-			sample.SpeculativeNS = spec.Nanoseconds()
+			sample.SpeculativeNS = spec.Duration.Nanoseconds()
+			sample.ResidualNS = max(int64(0), spec.Finished.Sub(finalStart).Nanoseconds())
 			commitStart := time.Now()
 			_, err = a.Commit()
 			require.NoError(t, err)
