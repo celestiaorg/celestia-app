@@ -1,11 +1,29 @@
 #!/usr/bin/env python3
 """Sequential, resumable interleaved campaign. Run from the campaign root."""
-import argparse, csv, hashlib, itertools, json, math, os, pathlib, statistics, subprocess, time
+import argparse, csv, hashlib, itertools, json, math, os, pathlib, re, statistics, subprocess, time
 
 ROOT = pathlib.Path.cwd()
 METHODS = ['PrepareProposal','ProcessProposal','ProcessProposalProposer','FinalizeBlock','CheckTx','ReCheckTx','Commit']
 OE = ['OEImmediate','OEComplete']
 ARMS = ['main','pr-stack','complete']
+
+def load_rows(path):
+    """Recover orchestration metadata if interrupted after the binary wrote JSON."""
+    rows=json.loads(path.read_text())
+    match=re.fullmatch(r'(.+)-cpu(\d+)-(.+)-(production|override)-cgo([01])-n(\d+)-(.+)-(cold|warm)-r(\d+)-(main|pr-stack|complete)(.*)\.json',path.name)
+    if not match:raise ValueError(f'unrecognized campaign result filename: {path}')
+    hardware,cpus,variant,limits,cgo,count,method,cache,rep,arm,suffix=match.groups()
+    sampling=suffix[1:] if suffix.startswith('-budget60') else 'original'
+    metadata=dict(Hardware=hardware,CPUs=int(cpus),Repetition=int(rep),Profile=suffix=='-profile',Smoke=suffix=='-smoke',Sampling=sampling)
+    changed=False
+    for row in rows:
+        for key,value in dict(Checkpoint=arm,CGO=cgo,Count=int(count),Method=method,Cache=cache,Limits=limits,Variant=variant).items():
+            assert row[key]==value,(path,key,row[key],value)
+        for key,value in metadata.items():
+            if key in row:assert row[key]==value,(path,key,row[key],value)
+            else:row[key]=value;changed=True
+    if changed:path.write_text(json.dumps(rows,indent=2)+'\n')
+    return rows
 
 def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operations=5, profile=False,variant="valid",sample_label=None,timeout=1800):
     name = f'{hardware}-cpu{cpus}-{variant}-{limits}-cgo{cgo}-n{count}-{method}-{cache}-r{rep}-{arm}'
@@ -14,7 +32,7 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
     elif operations==1: name+='-smoke'
     out = ROOT/'results'/f'{name}.json'
     if out.exists() and not profile:
-        rows=json.loads(out.read_text())
+        rows=load_rows(out)
         if len(rows)==operations: return
     env=dict(os.environ, GOMAXPROCS=str(cpus), PFF_CAMPAIGN='1', PFF_COUNT=str(count), PFF_METHOD=method,
         PFF_CACHE=cache, PFF_VARIANT=variant, PFF_CHECKPOINT=arm, PFF_LIMITS=limits, PFF_CGO=str(cgo),
@@ -35,7 +53,7 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
 def verify_results():
     groups={}
     for path in (ROOT/'results').glob('*.json'):
-        for row in json.loads(path.read_text()):
+        for row in load_rows(path):
             if row.get('Profile'):continue
             # OE responses equal ordinary FinalizeBlock; total wall times differ.
             method='FinalizeBlock' if row['Method'].startswith('OE') else row['Method']
@@ -51,7 +69,7 @@ def verify_results():
 def summarize():
     raw=[]
     for path in (ROOT/'results').glob('*.json'):
-        raw.extend(r for r in json.loads(path.read_text()) if not r.get('Profile') and not r.get('Smoke'))
+        raw.extend(r for r in load_rows(path) if not r.get('Profile') and not r.get('Smoke'))
     keys=['Hardware','CPUs','Limits','CGO','Count','Method','Cache','Checkpoint','Variant']
     groups={}
     for row in raw: groups.setdefault(tuple(row[k] for k in keys),[]).append(row)
