@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
 // Test shape — small values so tests stay fast.
@@ -14,9 +15,20 @@ const (
 	testMaxRow             = 4096
 )
 
+// newPool returns a Pool with its own free list, so tests can count slabs
+// without seeing other tests' memory.
 func newPool(t testing.TB) *Pool {
 	t.Helper()
-	return NewPool(testMaxRow, testAssemblerBatchRows)
+	p := NewPool(testMaxRow, testAssemblerBatchRows)
+	p.a = newAllocator()
+	return p
+}
+
+// Slabs counts in-use plus free slabs.
+func (p *Pool) Slabs() int {
+	p.a.mu.Lock()
+	defer p.a.mu.Unlock()
+	return len(p.a.inUse) + len(p.a.free)
 }
 
 // Primary row count used by most tests (assembler slab).
@@ -119,223 +131,6 @@ func TestPool_GetZeroPanics(t *testing.T) {
 	p.Get(0, 64)
 }
 
-// A free slab of a larger class serves a smaller request within slack.
-func TestPool_FallbackWithinSlack(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	big := p.Get(rc, 320)
-	p.Put(big)
-
-	// request 256: reqIdx=3, maxIdx=reqIdx+slack=5 (size 384). 320 fits → reuse.
-	small := p.Get(rc, 256)
-	if got := p.Slabs(); got != 1 {
-		t.Fatalf("Slabs=%d after slack fallback, want 1 (reused 320 slab)", got)
-	}
-	if len(small[0]) != 256 {
-		t.Fatalf("returned len=%d, want 256 (requested)", len(small[0]))
-	}
-	p.Put(small)
-
-	// on return, slab goes back to its backing bucket (320), not 256.
-	again := p.Get(rc, 320)
-	if got := p.Slabs(); got != 1 {
-		t.Fatalf("Slabs=%d after backing-bucket reuse, want 1", got)
-	}
-	p.Put(again)
-}
-
-// A free slab outside the slack window is NOT a fallback candidate.
-func TestPool_FallbackOutsideSlack(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	big := p.Get(rc, 512)
-	p.Put(big)
-
-	// request 64: reqIdx=0, maxIdx=reqIdx+slack=2 (size 192). 512 is above → grow.
-	small := p.Get(rc, 64)
-	if got := p.Slabs(); got != 2 {
-		t.Fatalf("Slabs=%d after out-of-slack grow, want 2", got)
-	}
-	p.Put(small)
-}
-
-// Fallback never triggers a new allocation at a larger key.
-func TestPool_FallbackNeverAllocates(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	// no 320 slab exists; request 256 → grows new 256 slab (exact key).
-	a := p.Get(rc, 256)
-	if got := p.Slabs(); got != 1 {
-		t.Fatalf("Slabs=%d, want 1", got)
-	}
-	p.Put(a)
-	// request 320 now: allocate new.
-	b := p.Get(rc, 320)
-	if got := p.Slabs(); got != 2 {
-		t.Fatalf("Slabs=%d, want 2 (separate 256 and 320 slabs)", got)
-	}
-	p.Put(b)
-}
-
-// Free slabs are reused LIFO: the most recently Put slab is the next
-// one served by Get.
-func TestPool_LIFOReuse(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	a := p.Get(rc, 64)
-	b := p.Get(rc, 64)
-	aAddr := &a[0][0]
-	bAddr := &b[0][0]
-	if aAddr == bAddr {
-		t.Fatal("distinct Gets should return distinct backing memory")
-	}
-	p.Put(a)
-	p.Put(b) // most recently freed
-
-	next := p.Get(rc, 64)
-	if &next[0][0] != bAddr {
-		t.Fatal("LIFO reuse: expected most-recently-freed slab")
-	}
-	p.Put(next)
-}
-
-// Consuming from a larger bucket via fallback advances that bucket's
-// generation and runs its aged eviction, so its other free slabs age
-// and evict under fallback-driven demand (not only direct Gets).
-func TestPool_FallbackAgesLargerBucket(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	// populate the 320-rowSize bucket with two free slabs via direct Gets.
-	a := p.Get(rc, 320)
-	b := p.Get(rc, 320)
-	p.Put(a)
-	p.Put(b)
-	if got := p.Slabs(); got != 2 {
-		t.Fatalf("Slabs=%d before aging, want 2", got)
-	}
-
-	// drive fallback Gets at a smaller in-slack rowSize. LIFO pop means
-	// the most-recently-Put 320 slab cycles; the other sits at the head
-	// of the free queue with a frozen lastPut and ages out.
-	for range evictionThreshold {
-		x := p.Get(rc, 256)
-		p.Put(x)
-	}
-	if got := p.Slabs(); got != 1 {
-		t.Fatalf("Slabs=%d after fallback-driven aging, want 1", got)
-	}
-}
-
-// A free slab aged past evictionThreshold is evicted on the next Get to
-// its bucket.
-func TestPool_AgedEviction(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	a := p.Get(rc, 64)
-	b := p.Get(rc, 64)
-	p.Put(a)
-	p.Put(b)
-	if got := p.Slabs(); got != 2 {
-		t.Fatalf("Slabs=%d before age, want 2", got)
-	}
-
-	// drive enough Gets to age both free slabs past evictionThreshold.
-	for range evictionThreshold + 1 {
-		more := p.Get(rc, 64)
-		p.Put(more)
-	}
-	_ = p.Get(rc, 64)
-	if got := p.Slabs(); got > 2 {
-		t.Fatalf("Slabs=%d, want <= 2 (aged eviction)", got)
-	}
-}
-
-// The per-bucket idle timer, when fired, drops every free slab in that
-// bucket. The timer callback is invoked directly to avoid waiting
-// idleGrace in tests.
-func TestPool_IdleDropsBucket(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	a := p.Get(rc, 64)
-	b := p.Get(rc, 64)
-	p.Put(a)
-	p.Put(b)
-
-	if got := p.Slabs(); got != 2 {
-		t.Fatalf("Slabs=%d before idle, want 2", got)
-	}
-	bucketAt(p, 64).dropIdle()
-	if got := p.Slabs(); got != 0 {
-		t.Fatalf("Slabs=%d after idle drop, want 0", got)
-	}
-}
-
-// Per-bucket idle timer regression: a dormant bucket gets cleaned up
-// independently of other buckets' activity. Pool-wide idle previously
-// pinned aged free slabs in dormant buckets while any other bucket
-// had in-use slabs, leaking memory until the entire pool went idle.
-func TestPool_IdleDropsDormantBucketIndependently(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-
-	// bucket A (rowSize 64): allocate and return — has free slabs, no in-use.
-	x := p.Get(rc, 64)
-	p.Put(x)
-
-	// bucket B (rowSize 128): keep one slab in-use perpetually.
-	y := p.Get(rc, 128)
-	defer p.Put(y)
-
-	// trigger A's idle timer specifically. Even though B is non-idle,
-	// A must drop its free slabs.
-	bucketAt(p, 64).dropIdle()
-
-	if got := p.Slabs(); got != 1 {
-		t.Fatalf("Slabs=%d, want 1 (only B's in-use slab survives)", got)
-	}
-}
-
-// The per-bucket idle timer arms on transition to fully-free and is
-// stopped on the next Get to that bucket. The timer object itself is
-// retained for reuse, so the test asserts on its armed/stopped state
-// (via Stop's return) rather than nil-ness.
-func TestPool_IdleTimerArmedAndCancelled(t *testing.T) {
-	p := newPool(t)
-	rc := assemblerRowCount()
-	bk := bucketAt(p, 64)
-
-	if bk.idleTimer != nil {
-		t.Fatal("idle timer should not exist before first idle transition")
-	}
-
-	a := p.Get(rc, 64)
-	p.Put(a)
-	if bk.idleTimer == nil {
-		t.Fatal("idle timer should be created when bucket goes fully free")
-	}
-
-	b := p.Get(rc, 64)
-	defer p.Put(b)
-	// Get's cancelIdle should have stopped the timer; a redundant Stop
-	// returns false because the timer is no longer active.
-	if bk.idleTimer.Stop() {
-		t.Fatal("idle timer should already be stopped after Get")
-	}
-}
-
-// bucketAt returns the bucket pointer for the given rowSize so tests
-// can poke at bucket-level state directly.
-func bucketAt(p *Pool, size int) *bucket {
-	return &p.buckets[size/rowSizeAlign-1]
-}
-
 // Write-aliasing check: data written through one carved view must not land
 // in a neighbor.
 func TestPool_NoAliasWrites(t *testing.T) {
@@ -357,12 +152,9 @@ func TestPool_NoAliasWrites(t *testing.T) {
 	}
 }
 
-// TestPool_GCAnchor verifies that an in-use slab survives GC cycles.
-// While in use, the only Go-heap reference to *slab is its bucket's
-// used slice — the header back-pointer is an unsafe store GC doesn't
-// trace, and the caller's bufs share the region's backing array, not
-// the slab struct. Without the anchor, GC could reap *slab between
-// Get and Put and Put would read a dangling pointer.
+// TestPool_GCAnchor verifies that an in-use Go-heap slab survives GC cycles
+// and is still recognized by Put: the allocator's in-use map, not the
+// caller's row views, is what keeps the whole slab tracked.
 func TestPool_GCAnchor(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
@@ -445,4 +237,147 @@ func TestPool_Concurrent(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+// A free slab up to maxWaste times the request is reused; the caller sees
+// exactly the size it asked for.
+func TestPool_ReusesLargerFreeSlab(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+
+	big := p.Get(rc, 128)
+	p.Put(big)
+	small := p.Get(rc, 64)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d, want 1 (128-byte rows reused for 64)", got)
+	}
+	if len(small[0]) != 64 || &small[0][0] != &big[0][0] {
+		t.Fatal("expected the freed slab, carved at the requested size")
+	}
+	p.Put(small)
+}
+
+// A free slab more than maxWaste times the request is not reused.
+func TestPool_LargeWasteAllocates(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+
+	p.Put(p.Get(rc, 192))
+	small := p.Get(rc, 64)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d, want 2 (192 > 2x64 must not be reused)", got)
+	}
+	p.Put(small)
+}
+
+// Get takes the smallest fitting slab, the most recently freed among equals.
+func TestPool_BestFit(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+
+	a, b, c, d := p.Get(rc, 256), p.Get(rc, 192), p.Get(rc, 192), p.Get(rc, 128)
+	p.Put(a)
+	p.Put(b)
+	p.Put(c)
+	p.Put(d)
+
+	got := p.Get(rc, 192) // d too small, a fits but is larger, c freed after b
+	if &got[0][0] != &c[0][0] {
+		t.Fatal("expected the most recently freed 192-byte slab")
+	}
+	p.Put(got)
+}
+
+// Slabs from any Pool share one free list.
+func TestPool_SharedAcrossPools(t *testing.T) {
+	a := newPool(t)
+	b := NewPool(testMaxRow, 2*testAssemblerBatchRows)
+	b.a = a.a
+
+	rows := a.Get(testAssemblerBatchRows, 128)
+	a.Put(rows)
+	got := b.Get(2*testAssemblerBatchRows, 64) // same bytes, other shape
+	if &got[0][0] != &rows[0][0] {
+		t.Fatal("expected b to reuse the slab a freed")
+	}
+	b.Put(got)
+}
+
+// Free slabs beyond maxFreeBytes are released, oldest first.
+func TestPool_MaxFreeBytes(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+	p.a.maxFree = 2 * rc * 64
+
+	x, y, z := p.Get(rc, 64), p.Get(rc, 64), p.Get(rc, 64)
+	p.Put(x)
+	p.Put(y)
+	p.Put(z)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d, want 2", got)
+	}
+	if got := p.Get(rc, 64); &got[0][0] != &z[0][0] {
+		t.Fatal("expected the newest slab to survive")
+	}
+}
+
+// Free slabs idle for idleTTL are released.
+func TestPool_IdleTTL(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+
+	p.Put(p.Get(rc, 64))
+	keep := p.Get(rc, 128)
+	p.a.mu.Lock()
+	expired := p.a.trimLocked(time.Now().Add(idleTTL))
+	p.a.mu.Unlock()
+	if len(expired) != 1 || p.Slabs() != 1 {
+		t.Fatalf("expired=%d Slabs=%d, want 1 and 1 (only the in-use slab)", len(expired), p.Slabs())
+	}
+	p.Put(keep)
+}
+
+// The background trim releases idle slabs without further Puts.
+func TestPool_TrimLoop(t *testing.T) {
+	p := newPool(t)
+	p.a.ttl = 20 * time.Millisecond
+
+	p.Put(p.Get(assemblerRowCount(), 64))
+	deadline := time.Now().Add(5 * time.Second)
+	for p.Slabs() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("idle slab was not released")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// Put rejects a buffer that is not the start of an in-use slab.
+func TestPool_PutForeignPanics(t *testing.T) {
+	p := newPool(t)
+	rows := p.Get(assemblerRowCount(), 64)
+	defer p.Put(rows)
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Put of a row other than the first should panic")
+		}
+	}()
+	p.PutRegion(rows[1])
+}
+
+// GetRegion and PutRegion round-trip through the same free list as Get/Put.
+func TestPool_Region(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+
+	region := p.GetRegion(rc, 64)
+	if len(region) != rc*64 || cap(region) != rc*64 {
+		t.Fatalf("len=%d cap=%d, want %d", len(region), cap(region), rc*64)
+	}
+	p.PutRegion(region[:0])
+	rows := p.Get(rc, 64)
+	if &rows[0][0] != &region[0] {
+		t.Fatal("expected the region's slab to be reused")
+	}
+	p.Put(rows)
 }

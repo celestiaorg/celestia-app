@@ -14,8 +14,8 @@ const (
 )
 
 // BenchmarkPool_GetPut_Reuse measures the hot-path steady-state cost
-// when an exact-match bucket is primed: every iteration pops a free
-// slab and puts it back, exercising the common case after startup.
+// when a slab of the exact size is free: every iteration reuses it and
+// puts it back, exercising the common case after startup.
 func BenchmarkPool_GetPut_Reuse(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)
 	p.Put(p.Get(benchRowCount, 64)) // seed
@@ -27,13 +27,11 @@ func BenchmarkPool_GetPut_Reuse(b *testing.B) {
 	}
 }
 
-// BenchmarkPool_GetPut_Fallback measures the upward-slack fallback path.
-// The 64-byte bucket is never populated; the 128-byte bucket holds the
-// reusable slab, so every Get scans within the slack window before
-// popping. Put routes back to the 128 bucket via slab.bucket.
+// BenchmarkPool_GetPut_Fallback measures reuse of a larger free slab:
+// the only free slab has 128-byte rows and every Get asks for 64.
 func BenchmarkPool_GetPut_Fallback(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)
-	p.Put(p.Get(benchRowCount, 128)) // seed the fallback-target bucket
+	p.Put(p.Get(benchRowCount, 128)) // seed a larger free slab
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -42,7 +40,7 @@ func BenchmarkPool_GetPut_Fallback(b *testing.B) {
 	}
 }
 
-// BenchmarkPool_Concurrent stresses bucket-level lock contention.
+// BenchmarkPool_Concurrent stresses lock contention on the free list.
 func BenchmarkPool_Concurrent(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)
 	p.Put(p.Get(benchRowCount, 64)) // seed
@@ -56,20 +54,17 @@ func BenchmarkPool_Concurrent(b *testing.B) {
 	})
 }
 
-// BenchmarkPool_EvictMmappedTouched measures Pool throughput under
-// sustained eviction of touched mmapped slabs. Pre-seeds the free queue
-// with touched slabs, then hammers Get/Put in parallel. Each Get
-// advances the bucket generation and evicts the oldest aged slab; the
-// per-eviction munmap fires inside the bucket lock until we move it
-// out. Touching every page on each Get ensures evicted slabs always
-// hit the slow munmap path.
+// BenchmarkPool_EvictMmappedTouched measures Pool throughput with
+// touched mmapped slabs: pre-seeds the free list with touched slabs, then
+// hammers Get/Put in parallel. Touching every page on each Get ensures
+// any slab released past the cap takes the slow munmap path.
 func BenchmarkPool_EvictMmappedTouched(b *testing.B) {
 	const rowCount = 256
 	const rowSize = 4096 // 1 MiB → mmap path
 	const seed = 16
 	p := NewPool(rowSize, rowCount)
 
-	// pre-seed the free queue with touched slabs.
+	// pre-seed the free list with touched slabs.
 	bufs := make([][][]byte, seed)
 	for i := range bufs {
 		bufs[i] = p.Get(rowCount, rowSize)
@@ -101,8 +96,8 @@ func BenchmarkPool_EvictMmappedTouched(b *testing.B) {
 
 // BenchmarkPool_AllocContentionTail measures the tail-latency penalty
 // reuse-path Gets pay while another goroutine is doing a fresh
-// allocation. Worker 0 periodically asks for a novel size (no bucket
-// → alloc+mmap); the others hammer the reuse path. Reports
+// allocation. Worker 0 periodically asks for a novel size (no free slab
+// fits → alloc+mmap); the others hammer the reuse path. Reports
 // p50/p99/p99.99/max — a bimodal distribution (p50 ≪ p99) signals
 // lock-held alloc tail.
 //
@@ -116,7 +111,7 @@ func BenchmarkPool_AllocContentionTail(b *testing.B) {
 	const workers = 16
 
 	p := NewPool(maxRow, rowCount)
-	p.Put(p.Get(rowCount, baseSize)) // seed the reuse bucket
+	p.Put(p.Get(rowCount, baseSize)) // seed the free list
 
 	workerLat := make([][]time.Duration, workers)
 	for i := range workerLat {
@@ -137,7 +132,7 @@ func BenchmarkPool_AllocContentionTail(b *testing.B) {
 				}
 				size := baseSize
 				if id == 0 && i > 0 && i%allocEveryN == 0 {
-					// novel size → exact bucket empty, outside slack → fresh alloc+mmap
+					// novel size → no free slab fits → fresh alloc+mmap
 					size = baseSize + rowSizeAlign*int(1+(i/allocEveryN)%32)
 					if size > maxRow {
 						size = baseSize
