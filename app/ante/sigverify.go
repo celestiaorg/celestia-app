@@ -242,6 +242,7 @@ func WithTxSigEvidenceHolder(ctx sdk.Context, holder *TxSigEvidenceHolder) sdk.C
 	}
 	return ctx.WithValue(txSigEvidenceContextKey{}, holder)
 }
+
 func carriedTxSigKey(ctx context.Context, pub cryptotypes.PubKey, signer txsigning.SignerData, sig signing.SignatureData, handler *txsigning.HandlerMap, tx txsigning.TxData) (sigcache.Key, bool) {
 	sdkCtx, ok := ctx.(sdk.Context)
 	if !ok {

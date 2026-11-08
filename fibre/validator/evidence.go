@@ -22,9 +22,11 @@ func (e *SignatureEvidence) RecordVerified(message []byte, keys []crypto.PubKey,
 		e.valid.Store(evidenceKey(message, key, signatures[i]), struct{}{})
 	}
 }
+
 func evidenceKey(message []byte, key crypto.PubKey, signature []byte) sigcache.Key {
 	return sigcache.NewKey(sigcache.PffCertificate, message, []byte(key.Type()), key.Bytes(), signature)
 }
+
 func (e *SignatureEvidence) has(message []byte, key crypto.PubKey, signature []byte) bool {
 	if e == nil {
 		return false

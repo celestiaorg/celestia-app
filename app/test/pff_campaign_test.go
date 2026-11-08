@@ -188,6 +188,13 @@ func (f *campaignFixture) fresh(t *testing.T, optimistic bool) (*app.App, chan t
 	require.NoError(t, os.CopyFS(dir, os.DirFS(f.dir)))
 	a, done := campaignApp(t, dir, optimistic)
 	require.Equal(t, f.initial, a.LastCommitID().Hash)
+	// A reopened BaseApp has a height-zero CheckTx context until Commit.
+	// Advance every arm through the same empty block before warming or timing.
+	_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{Height: a.LastBlockHeight() + 1, Time: f.now, NextValidatorsHash: f.vals.Hash()})
+	require.NoError(t, err)
+	_, err = a.Commit()
+	require.NoError(t, err)
+
 	return a, done, dir
 }
 func (f *campaignFixture) prepare(a *app.App) *abci.RequestPrepareProposal {
@@ -308,7 +315,7 @@ func TestPFFCampaign(t *testing.T) {
 		for _, tx := range proposal.Txs {
 			wireBytes += len(tx)
 		}
-		sample := campaignSample{WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(f.initial), CacheBefore: a.CampaignCacheStats()}
+		sample := campaignSample{WireMiB: float64(wireBytes) / (1 << 20), SquareMiB: float64(proposal.SquareSize*proposal.SquareSize*512) / (1 << 20), Validators: 100, SignaturesPerPFF: 67, Method: method, Cache: cache, Count: n, Iteration: iteration, Checkpoint: os.Getenv("PFF_CHECKPOINT"), Limits: os.Getenv("PFF_LIMITS"), CGO: os.Getenv("PFF_CGO"), InitialHash: hex.EncodeToString(a.LastCommitID().Hash), CacheBefore: a.CampaignCacheStats()}
 		var before, after runtime.MemStats
 		profile := os.Getenv("PFF_PROFILE")
 		if profile != "" && iteration == 0 {

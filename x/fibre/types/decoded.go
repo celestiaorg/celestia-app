@@ -3,8 +3,8 @@ package types
 import (
 	"bytes"
 	"context"
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -92,6 +92,7 @@ func WithVerificationEvidence(ctx sdk.Context) sdk.Context {
 	}
 	return ctx.WithValue(verificationEvidenceContextKey{}, &validator.SignatureEvidence{})
 }
+
 func VerificationEvidence(ctx sdk.Context) *validator.SignatureEvidence {
 	if ctx.Context() == nil {
 		return nil
