@@ -286,7 +286,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				for _, signer := range fibreEscrowSigners(sdkTx) {
+				for _, signer := range fibreEscrowSigners(ctx, sdkTx, app.FibreKeeper.PaymentPromiseTimeoutCanSettle) {
 					changedEscrows[signer] = struct{}{}
 				}
 			}

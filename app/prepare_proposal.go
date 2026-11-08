@@ -38,6 +38,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	fsb.validateBlobTx = app.ValidateBlobTxWithCache
 
 	fsb.decodePFF = fibrekeeper.DecodePayForFibre
+	fsb.timeoutCanSettle = app.FibreKeeper.PaymentPromiseTimeoutCanSettle
 	fsb.preverifyPFF = func(ctx sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
 		app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{Certificates: true})
 	}

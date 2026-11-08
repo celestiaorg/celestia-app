@@ -121,6 +121,24 @@ func TestProcessProposalRejectsPayForFibreAfterEscrowChange(t *testing.T) {
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, status)
 	})
 
+	t.Run("forged timeout does not block the owner's PFF", func(t *testing.T) {
+		f := setup(t)
+		seedFibreEscrow(t, f.testApp, f.addrs[0], 2*payment)
+		// Account 1 submits a timeout for an expired promise that names the
+		// owner's key but carries a forged owner signature.
+		forged := timeout(t, f, 0)
+		forged.Signer = f.addrs[1].String()
+		forged.PaymentPromise.Signature = make([]byte, 64)
+		txs := [][]byte{
+			tx(t, f, 1, forged),
+			newSignedPayForFibreTxAt(t, f.signers[0], f.accounts[0], true, f.blockTime.Add(-time.Second), opts...),
+		}
+		status, codes := run(t, f, txs)
+		require.NotEqual(t, abci.CodeTypeOK, codes[0], "the forged timeout cannot settle")
+		require.Equal(t, abci.CodeTypeOK, codes[1])
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, status)
+	})
+
 	t.Run("timeout before a PFF on another escrow", func(t *testing.T) {
 		f := setup(t)
 		seedFibreEscrow(t, f.testApp, f.addrs[0], payment)

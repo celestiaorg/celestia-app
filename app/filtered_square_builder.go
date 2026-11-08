@@ -32,6 +32,9 @@ type FilteredSquareBuilder struct {
 	// preverifyPFF warms the signature cache. Both are optional.
 	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
+	// timeoutCanSettle filters the timeouts that mark an escrow as changed;
+	// see fibreEscrowSigners. Optional.
+	timeoutCanSettle func(sdk.Context, *fibretypes.PaymentPromise) bool
 }
 
 func NewFilteredSquareBuilder(
@@ -205,7 +208,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 		// A later pay-for-fibre tx against an escrow this tx may change is
 		// skipped, matching ProcessProposal.
-		for _, signer := range fibreEscrowSigners(sdkTx) {
+		for _, signer := range fibreEscrowSigners(ctx, sdkTx, fsb.timeoutCanSettle) {
 			changedEscrows[signer] = struct{}{}
 		}
 
@@ -438,6 +441,25 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 	return count
 }
 
+// admitFibreTx reports whether a pay-for-fibre tx may be tried for the square:
+// it decodes, its promise has not settled earlier in this Fill, and no deposit
+// or timeout earlier in the block touched its escrow.
+func (fsb *FilteredSquareBuilder) admitFibreTx(logger log.Logger, dec sdk.TxDecoder, entry *decodedFibreTx, settled map[sigcache.Key]struct{}, changedEscrows map[string]struct{}) bool {
+	if !fsb.decodeFibreTx(logger, dec, entry) {
+		return false
+	}
+	if _, changed := changedEscrows[payForFibreEscrowSigner(fibretypes.PayForFibreMsg(entry.sdkTx))]; changed {
+		logger.Debug("skipping pay-for-fibre tx because its escrow changed earlier in the block", "tx", lazyTxHash(entry.raw))
+		return false
+	}
+	if entry.decoded != nil && entry.decoded.PromiseKeyed() {
+		if _, ok := settled[entry.decoded.PromiseKey]; ok {
+			return false
+		}
+	}
+	return true
+}
+
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
@@ -456,19 +478,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			break
 		}
 		entry := &payForFibreTxs[i]
-		if !fsb.decodeFibreTx(logger, dec, entry) {
+		if !fsb.admitFibreTx(logger, dec, entry, settled, changedEscrows) {
 			continue
 		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
-		if _, changed := changedEscrows[payForFibreEscrowSigner(fibretypes.PayForFibreMsg(sdkTx))]; changed {
-			logger.Debug("skipping pay-for-fibre tx because its escrow changed earlier in the block", "tx", lazyTxHash(rawTx))
-			continue
-		}
-		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
-			if _, ok := settled[entry.decoded.PromiseKey]; ok {
-				continue
-			}
-		}
 
 		// The system blob comes from the decoded view, or from parsing when there is none. Only txs
 		// with a MsgPayForFibre are routed here and the shape check allows no other message,

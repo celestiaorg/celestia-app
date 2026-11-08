@@ -222,7 +222,13 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 // drains the depositor first. So proposal excludes a later MsgPayForFibre
 // against any of these escrows instead of guessing its balance. The ante
 // handler rejects these msgs when nested, so top-level msgs are enough.
-func fibreEscrowSigners(tx sdk.Tx) []string {
+//
+// A timeout counts only if timeoutCanSettle accepts it, so a forged or stale
+// timeout cannot hold back another owner's PFFs. Proposal executes no fibre msg
+// before the PFFs, so only an earlier deposit could raise the escrow balance
+// and make a rejected timeout settle in FinalizeBlock, and a deposit already
+// marks the escrow. A nil timeoutCanSettle counts every timeout.
+func fibreEscrowSigners(ctx sdk.Context, tx sdk.Tx, timeoutCanSettle func(sdk.Context, *fibretypes.PaymentPromise) bool) []string {
 	var signers []string
 	for _, msg := range tx.GetMsgs() {
 		switch m := msg.(type) {
@@ -232,9 +238,14 @@ func fibreEscrowSigners(tx sdk.Tx) []string {
 			}
 		case *fibretypes.MsgPaymentPromiseTimeout:
 			// Address panics on a key of the wrong size; such a msg cannot execute.
-			if key := m.PaymentPromise.SignerPublicKey; len(key.Key) == secp256k1.PubKeySize {
-				signers = append(signers, sdk.AccAddress(key.Address()).String())
+			key := m.PaymentPromise.SignerPublicKey
+			if len(key.Key) != secp256k1.PubKeySize {
+				continue
 			}
+			if timeoutCanSettle != nil && !timeoutCanSettle(ctx, &m.PaymentPromise) {
+				continue
+			}
+			signers = append(signers, sdk.AccAddress(key.Address()).String())
 		}
 	}
 	return signers

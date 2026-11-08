@@ -541,6 +541,27 @@ func (k Keeper) ValidatePaymentPromiseStatefulForTimeout(ctx sdk.Context, promis
 	return k.validatePaymentPromiseStatefulInternal(ctx, promise, isTimeout)
 }
 
+// PaymentPromiseTimeoutCanSettle reports whether a MsgPaymentPromiseTimeout
+// for promise passes every check against the current state: owner signature,
+// freshness, not yet processed, timed out, and escrow balance. Proposal uses it
+// so that a timeout that cannot settle does not hold back the escrow owner's
+// pay-for-fibre txs.
+func (k Keeper) PaymentPromiseTimeoutCanSettle(ctx sdk.Context, promise *types.PaymentPromise) bool {
+	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	pp := fibre.PaymentPromise{}
+	if err := pp.FromProto(promise); err != nil {
+		return false
+	}
+	if err := k.ValidatePromiseStateless(&pp); err != nil {
+		return false
+	}
+	expiration, err := k.ValidatePaymentPromiseStatefulForTimeout(ctx, promise)
+	if err != nil {
+		return false
+	}
+	return !ctx.BlockTime().Before(expiration)
+}
+
 // ReduceWithdrawalsForPayment reduces pending withdrawal amounts for a signer by the given shortfall.
 // It iterates withdrawals in order (oldest first) and either partially reduces a withdrawal's
 // amount or fully consumes (deletes) it.
