@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"sync"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -92,8 +93,11 @@ type countingTxConfig struct {
 
 func (c countingTxConfig) TxDecoder() sdk.TxDecoder {
 	dec := c.TxConfig.TxDecoder()
+	var mu sync.Mutex
 	return func(bz []byte) (sdk.Tx, error) {
+		mu.Lock()
 		*c.calls++
+		mu.Unlock()
 		return dec(bz)
 	}
 }

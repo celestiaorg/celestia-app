@@ -30,7 +30,7 @@ type FilteredSquareBuilder struct {
 	keptBlobTxs []*tx.BlobTx
 	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
 	// preverifyPFF warms the signature cache. Both are optional.
-	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
+	decodePFF    func([]byte, *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
 }
 
@@ -107,13 +107,20 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// not recorded, so the fill still performs and decides each check itself.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
-		for i := range payForFibreTxs {
-			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
-				break
+		for start := 0; start < len(payForFibreTxs) && len(decoded) < appconsts.MaxPayForFibreCandidates; {
+			// Decode at most the remaining number of valid candidates. Even if
+			// some fail, this never passes the original serial stopping point.
+			end := min(len(payForFibreTxs), start+appconsts.MaxPayForFibreCandidates-len(decoded))
+			wait := forEachParallel(end-start, func(i int) {
+				fsb.decodeFibreTx(logger, dec, &payForFibreTxs[start+i])
+			})
+			wait()
+			for i := start; i < end; i++ {
+				if payForFibreTxs[i].valid {
+					decoded = append(decoded, payForFibreTxs[i].decoded)
+				}
 			}
-			if fsb.decodeFibreTx(logger, dec, &payForFibreTxs[i]) {
-				decoded = append(decoded, payForFibreTxs[i].decoded)
-			}
+			start = end
 		}
 		fsb.preverifyPFF(ctx, decoded)
 	}
@@ -345,7 +352,7 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 		return false
 	}
 	if fsb.decodePFF != nil {
-		e.decoded = fsb.decodePFF(e.raw)
+		e.decoded = fsb.decodePFF(e.raw, e.sdkTx.GetMsgs()[0].(*fibretypes.MsgPayForFibre))
 	}
 	e.valid = true
 	return true

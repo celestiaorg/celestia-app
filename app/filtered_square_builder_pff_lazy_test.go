@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"sync"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -49,9 +50,12 @@ func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 	}
 	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
-	fsb.decodePFF = func(raw []byte) *fibretypes.DecodedPayForFibre {
+	var mu sync.Mutex
+	fsb.decodePFF = func(raw []byte, msg *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre {
+		mu.Lock()
 		p.pffDecodes++
-		return fibrekeeper.DecodePayForFibre(raw)
+		mu.Unlock()
+		return fibrekeeper.DerivePayForFibre(raw, msg)
 	}
 	if p.preverify {
 		fsb.preverifyPFF = func(_ sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
