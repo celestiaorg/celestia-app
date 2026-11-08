@@ -15,7 +15,7 @@ def execute(arm, cgo, limits, count, method, cache, rep, cpus, hardware, operati
         if len(rows)==operations: return
     env=dict(os.environ, GOMAXPROCS=str(cpus), PFF_CAMPAIGN='1', PFF_COUNT=str(count), PFF_METHOD=method,
         PFF_CACHE=cache, PFF_CHECKPOINT=arm, PFF_LIMITS=limits, PFF_CGO=str(cgo),
-        PFF_OPERATIONS=str(operations), PFF_OUTPUT=str(out), TMPDIR=str(ROOT/'tmp'))
+        PFF_OPERATIONS=str(operations), PFF_OUTPUT=str(out), TMPDIR=str(ROOT/'tmp'),PFF_FIXTURES=str(ROOT/'fixtures'/arm))
     if profile: env['PFF_PROFILE']=str(ROOT/'profiles'/name)
     binary=ROOT/'bin'/f'{arm}-cgo{cgo}-{limits}.test'
     cmd=['taskset','-c',f'0-{cpus-1}',str(binary),'-test.run=^TestPFFCampaign$','-test.timeout=30m']

@@ -88,7 +88,6 @@ func campaignApp(t *testing.T, dir string, optimistic bool) (*app.App, chan time
 func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 	t.Helper()
 	f := &campaignFixture{dir: t.TempDir(), now: testutil.GenesisTime.Add(time.Minute)}
-	a, _ := campaignApp(t, f.dir, false)
 	keys := make(map[string]ed25519.PrivKey)
 	vals := make([]*core.Validator, 100)
 	for i := range vals {
@@ -97,6 +96,26 @@ func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 		vals[i] = core.NewValidator(key.PubKey(), 1)
 	}
 	f.vals = core.NewValidatorSet(vals)
+	var fixturePath string
+	if parent := os.Getenv("PFF_FIXTURES"); parent != "" {
+		fixturePath = filepath.Join(parent, strconv.Itoa(n), "fixture.json")
+		f.dir = filepath.Join(filepath.Dir(fixturePath), "database")
+		if bz, err := os.ReadFile(fixturePath); err == nil {
+			var saved struct {
+				Txs     [][]byte
+				Initial []byte
+			}
+			require.NoError(t, json.Unmarshal(bz, &saved))
+			require.Len(t, saved.Txs, n)
+			f.txs, f.initial = saved.Txs, saved.Initial
+			return f
+		} else {
+			require.True(t, os.IsNotExist(err), "%v", err)
+		}
+		require.NoError(t, os.MkdirAll(f.dir, 0755))
+	}
+	a, _ := campaignApp(t, f.dir, false)
+
 	names := testfactory.GenerateDeterministicAccounts(n)
 	genesis, kr := testutil.CampaignGenesis(a, f.vals, names...)
 	a = testutil.InitialiseTestAppWithGenesis(a, app.DefaultConsensusParams(), genesis)
@@ -152,6 +171,15 @@ func newCampaignFixture(t *testing.T, n int) *campaignFixture {
 	}
 	f.initial = bytes.Clone(a.LastCommitID().Hash)
 	require.NoError(t, a.Close())
+	if fixturePath != "" {
+		bz, err := json.Marshal(struct {
+			Txs     [][]byte
+			Initial []byte
+		}{f.txs, f.initial})
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(fixturePath+".tmp", bz, 0644))
+		require.NoError(t, os.Rename(fixturePath+".tmp", fixturePath))
+	}
 	return f
 }
 func (f *campaignFixture) fresh(t *testing.T, optimistic bool) (*app.App, chan time.Duration, string) {
