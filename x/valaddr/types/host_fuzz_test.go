@@ -26,6 +26,10 @@ func FuzzValidateHost(f *testing.F) {
 		"host",
 		"a:b:80",
 		"",
+		"unix:9090",
+		"[host]:80",
+		"host:+80",
+		"host:080",
 	} {
 		f.Add(host)
 	}
@@ -44,10 +48,6 @@ func FuzzValidateHost(f *testing.F) {
 		if h == "" {
 			t.Fatalf("accepted %q with an empty host", host)
 		}
-		// Excluded pending a fix: https://linear.app/celestia/issue/PROTOCO-3525.
-		if excludedHostSpelling(host, h, p) {
-			return
-		}
 		port, err := strconv.ParseUint(p, 10, 16)
 		if err != nil || port == 0 {
 			t.Fatalf("accepted %q with port %q", host, p)
@@ -55,12 +55,14 @@ func FuzzValidateHost(f *testing.F) {
 		if joined := net.JoinHostPort(h, strconv.FormatUint(port, 10)); joined != host {
 			t.Fatalf("accepted non-canonical %q (canonical %q)", host, joined)
 		}
+		if net.ParseIP(h) == nil {
+			if strings.Trim(h, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.") != "" {
+				t.Fatalf("accepted %q whose host is neither an IP nor a host name", host)
+			}
+			switch strings.ToLower(h) {
+			case "dns", "passthrough", "unix", "unix-abstract", "xds", "google-c2p":
+				t.Fatalf("accepted %q whose host is a gRPC resolver scheme", host)
+			}
+		}
 	})
-}
-
-// excludedHostSpelling reports host strings excluded above: brackets around a
-// host part that needs none, or a port not spelled as a plain decimal.
-func excludedHostSpelling(host, h, p string) bool {
-	port, err := strconv.Atoi(p)
-	return (strings.HasPrefix(host, "[") && !strings.Contains(h, ":")) || (err == nil && strconv.Itoa(port) != p)
 }

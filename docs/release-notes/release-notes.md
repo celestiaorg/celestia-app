@@ -10,6 +10,10 @@ This guide provides notes for major version releases. These notes may be helpful
 
 - The 5/6 upgrade threshold is computed exactly as `ceil(total_power * 5 / 6)`. The previous 18-digit decimal 5/6 could round the threshold one or more below the exact ceiling once total voting power reached 5e17; at current voting power the threshold is unchanged.
 
+**`x/valaddr`**:
+
+- `MsgSetFibreProviderInfo` only accepts a host in canonical `host:port` form whose host is an IP literal or a host name. Hosts such as `unix:9090`, `passthrough:9090`, `[host]:80`, `host:+80` and `host:080` are rejected.
+
 **`x/zkism`**:
 
 - Messages are verified against a proven source chain merkle tree root instead of a proven list of message ids. `SubmitMessages` stores the root and leaf count from fixed 101-byte public values (`version (u8) || state_root || merkle_tree_address || tree_root || count (u32)`), and each message is delivered with merkle proof metadata (`leaf_index (u32, big-endian) || 32 x 32-byte branch`). Proofs produced by the previous membership program are rejected.
