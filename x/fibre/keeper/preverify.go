@@ -14,10 +14,13 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // PreverifyOptions selects what a pre-verification pass covers.
 type PreverifyOptions struct {
+	// admitted is set only by the CheckTx entry point after its ante gas checks.
+	admitted bool
 	// Certificates also verifies validator signature sets. FinalizeBlock never
 	// checks them, so it leaves this off.
 	Certificates bool
@@ -90,7 +93,7 @@ func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFib
 		return
 	}
 	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
-		PreverifyOptions{Certificates: true, StopOnFirstFailure: true, splitCertificates: true})
+		PreverifyOptions{Certificates: true, StopOnFirstFailure: true, splitCertificates: true, admitted: true})
 }
 
 // batchSize is how many validator signatures one work item batch-verifies: 128
@@ -214,7 +217,7 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 	}
 
 	for _, d := range decoded {
-		if d == nil || !d.PromiseKeyed() {
+		if d == nil || !d.PromiseKeyed() || (!opts.admitted && !canPayForPreverification(d)) {
 			continue
 		}
 		if covered >= appconsts.MaxPayForFibreCandidates {
@@ -431,4 +434,26 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 		}
 	}
 	return false
+}
+
+// canPayForPreverification reads declared gas without trusting a partial parse.
+// A miss only defers verification to the authoritative ordered ante handler.
+func canPayForPreverification(d *types.DecodedPayForFibre) bool {
+	if d == nil || d.Msg == nil || len(d.Raw) == 0 || len(d.Raw) > appconsts.MaxTxSize {
+		return false
+	}
+	var raw cosmostx.TxRaw
+	if raw.Unmarshal(d.Raw) != nil {
+		return false
+	}
+	var auth cosmostx.AuthInfo
+	if auth.Unmarshal(raw.AuthInfoBytes) != nil || auth.Fee == nil {
+		return false
+	}
+	count := uint64(len(d.Msg.ValidatorSignatures))
+	// Explicit overflow guard, independent of the wire-size bound above.
+	if count > (^uint64(0)-appconsts.PFFibreTxGasFixedCost)/appconsts.PFFibreGasPerValidatorSignature {
+		return false
+	}
+	return auth.Fee.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(count)
 }

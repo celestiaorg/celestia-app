@@ -231,7 +231,9 @@ func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) [
 		Value:   value,
 	}}}).Marshal()
 	require.NoError(t, err)
-	raw, err := (&cosmostx.TxRaw{BodyBytes: body}).Marshal()
+	auth, err := (&cosmostx.AuthInfo{Fee: &cosmostx.Fee{GasLimit: 10_000_000}}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&cosmostx.TxRaw{BodyBytes: body, AuthInfoBytes: auth}).Marshal()
 	require.NoError(t, err)
 	return raw
 }

@@ -65,7 +65,7 @@ func (m *pffMutator) signedTxBy(t *testing.T, msg *types.MsgPayForFibre, key int
 	t.Helper()
 	pubKey, err := codectypes.NewAnyWithValue(m.signers[key].PubKey())
 	require.NoError(t, err)
-	p := &pffTx{msg: *msg, auth: cosmostx.AuthInfo{SignerInfos: []*cosmostx.SignerInfo{{
+	p := &pffTx{msg: *msg, auth: cosmostx.AuthInfo{Fee: &cosmostx.Fee{GasLimit: 10_000_000}, SignerInfos: []*cosmostx.SignerInfo{{
 		PublicKey: pubKey,
 		ModeInfo:  &cosmostx.ModeInfo{Sum: &cosmostx.ModeInfo_Single_{Single: &cosmostx.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT}}},
 	}}}}
