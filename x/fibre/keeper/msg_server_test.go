@@ -453,26 +453,32 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 // the gas does not depend on state that earlier txs in a block can change.
 func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
 	suite.setupValidatorSet()
-	settle := func(withdrawal bool, gasLimit uint64) uint64 {
+	// settle pays one promise from an escrow whose whole balance is locked in
+	// pending withdrawals of the given fractions of the payment, oldest first,
+	// and returns the gas it used. With no withdrawals the balance is available.
+	settle := func(gasLimit uint64, withdrawalHalves ...int64) uint64 {
 		privKey := secp256k1.GenPrivKey()
 		pubKey := *privKey.PubKey().(*secp256k1.PubKey)
 		signer := sdk.AccAddress(pubKey.Address()).String()
 		promise := suite.createPaymentPromise(pubKey, privKey)
 		payment := types.PaymentAmount(promise.BlobSize).Amount.Int64()
 
-		// With a withdrawal, all of the escrow is locked in it, so settlement
-		// reduces it to cover the payment.
 		balance := sdk.NewInt64Coin(appconsts.BondDenom, payment)
 		available := balance
-		if withdrawal {
-			available = sdk.NewInt64Coin(appconsts.BondDenom, 0)
-			requested := suite.ctx.BlockTime().Add(-time.Minute)
-			suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
-				Signer:             signer,
-				Amount:             balance,
-				RequestedTimestamp: requested,
-				AvailableTimestamp: requested.Add(24 * time.Hour),
-			})
+		if len(withdrawalHalves) > 0 {
+			balance = sdk.NewInt64Coin(appconsts.BondDenom, 0)
+			available = balance
+			for i, halves := range withdrawalHalves {
+				amount := sdk.NewInt64Coin(appconsts.BondDenom, halves*payment/2)
+				requested := suite.ctx.BlockTime().Add(-time.Duration(len(withdrawalHalves)-i) * time.Minute)
+				suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
+					Signer:             signer,
+					Amount:             amount,
+					RequestedTimestamp: requested,
+					AvailableTimestamp: requested.Add(24 * time.Hour),
+				})
+				balance = balance.Add(amount)
+			}
 		}
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: available})
 
@@ -483,16 +489,19 @@ func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
 			ValidatorSignatures: suite.generateValidatorSignatures(&promise),
 		})
 		suite.Require().NoError(err)
-		suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer))
 		return ctx.GasMeter().GasConsumed()
 	}
 
-	suite.Equal(appconsts.PayForFibreSettlementGas, settle(false, 10_000_000))
-	suite.Equal(appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal, settle(true, 10_000_000))
+	const unlimited = 10_000_000
+	suite.Equal(appconsts.PayForFibreSettlementGas, settle(unlimited))
+	// One withdrawal of the whole payment is deleted.
+	suite.Equal(appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal, settle(unlimited, 2))
+	// A half-payment withdrawal is deleted and a full-payment one is reduced.
+	suite.Equal(appconsts.PayForFibreSettlementGas+2*appconsts.PayForFibreGasPerWithdrawal, settle(unlimited, 1, 2))
 	// The withdrawal visit is charged before it is done, so a limit one short
 	// of it runs out of gas instead of reducing the withdrawal for free.
 	suite.PanicsWithValue(storetypes.ErrorOutOfGas{Descriptor: "pay for fibre withdrawal reduction"}, func() {
-		settle(true, appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal-1)
+		settle(appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal-1, 2)
 	})
 }
 
