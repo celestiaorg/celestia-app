@@ -566,14 +566,8 @@ func (k Keeper) PaymentPromiseTimeoutCanSettle(ctx sdk.Context, promise *types.P
 // It iterates withdrawals in order (oldest first) and either partially reduces a withdrawal's
 // amount or fully consumes (deletes) it.
 // Precondition: expects the escrow.Balance >= remaining. Otherwise, returns an error.
-func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) error {
-	_, err := k.reduceWithdrawalsForPayment(ctx, signer, remaining)
-	return err
-}
-
-// reduceWithdrawalsForPayment is ReduceWithdrawalsForPayment that also returns
-// how many withdrawals it reduced or deleted.
-func (k Keeper) reduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) (visited uint64, err error) {
+// It returns how many withdrawals it reduced or deleted.
+func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) (visited uint64, err error) {
 	store := ctx.KVStore(k.storeKey)
 	prefix := types.WithdrawalsBySignerPrefix(signer)
 	iterator := storetypes.KVStorePrefixIterator(store, prefix)

@@ -8,7 +8,6 @@ import (
 	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
@@ -137,14 +136,18 @@ func TestPayForFibreSettlesAfterEarlierFeeSpend(t *testing.T) {
 // The deposit grows the fibre module balance that settlement writes, so
 // metered settlement gas would differ between the two.
 func TestPayForFibreSettlementGasIndependentOfEarlierTxs(t *testing.T) {
-	f := newPhasedFixture(t, 3)
+	f := newPhasedFixture(t, 2)
 	payment := fibretypes.PaymentAmount(100).Amount.Int64()
 	seedFibreEscrow(t, f.testApp, f.addrs[0], 10*payment)
 	blockTime := time.Now()
 
-	balance := f.testApp.BankKeeper.GetBalance(f.ctx(), f.addrs[2], appconsts.BondDenom)
-	deposit := f.tx(t, 2, &fibretypes.MsgDepositToEscrow{Signer: f.addrs[2].String(), Amount: balance.SubAmount(math.NewInt(100_000))})
-	pffWithGas := newPayForFibreFromSubmitter(t, f, 0, 1, blockTime)
+	balance := f.testApp.BankKeeper.GetBalance(f.ctx(), f.addrs[1], appconsts.BondDenom)
+	deposit := f.tx(t, 1, &fibretypes.MsgDepositToEscrow{Signer: f.addrs[1].String(), Amount: balance.SubAmount(math.NewInt(100_000))})
+	// A fixed creation time keeps the tx bytes, and so its ante gas, stable
+	// across the gas limits tried below.
+	pffWithGas := func(gas uint64) []byte {
+		return newSignedPayForFibreTxAt(t, f.signers[0], f.accounts[0], true, blockTime.Add(-time.Second), user.SetGasLimit(gas), user.SetFee(4_000))
+	}
 
 	accepts := func(gas uint64) bool {
 		resp, err := f.testApp.ProcessProposal(processProposalRequestAt(t, f.testApp, [][]byte{deposit, pffWithGas(gas)}, blockTime))
@@ -167,42 +170,4 @@ func TestPayForFibreSettlementGasIndependentOfEarlierTxs(t *testing.T) {
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, status)
 	require.Equal(t, abci.CodeTypeOK, results[0].Code, results[0].Log)
 	require.Equal(t, abci.CodeTypeOK, results[1].Code, "the pay-for-fibre must settle with the gas proposal accepted: %s", results[1].Log)
-}
-
-// TestPayForFibreAfterWithdrawalRequest checks that proposal leaves out a
-// pay-for-fibre whose escrow owner requests a withdrawal earlier in the
-// block. The request changes the pending withdrawals settlement charges gas
-// for, and proposal does not execute it.
-func TestPayForFibreAfterWithdrawalRequest(t *testing.T) {
-	f := newPhasedFixture(t, 2)
-	payment := fibretypes.PaymentAmount(100).Amount.Int64()
-	seedFibreEscrow(t, f.testApp, f.addrs[0], 10*payment)
-	blockTime := time.Now()
-
-	withdraw := f.tx(t, 0, &fibretypes.MsgRequestWithdrawal{Signer: f.addrs[0].String(), Amount: sdk.NewInt64Coin(appconsts.BondDenom, 10*payment)})
-	pff := newPayForFibreFromSubmitter(t, f, 0, 1, blockTime)(1_000_000)
-
-	prepared, status, _ := f.run(t, [][]byte{withdraw, pff}, blockTime)
-	require.Equal(t, [][]byte{withdraw}, prepared)
-	require.Equal(t, abci.ResponseProcessProposal_REJECT, status)
-}
-
-// newPayForFibreFromSubmitter returns a builder of pay-for-fibre txs that
-// account submitter sends for a promise signed by escrow owner, with the
-// given gas limit.
-func newPayForFibreFromSubmitter(t *testing.T, f phasedFixture, owner, submitter int, blockTime time.Time) func(gas uint64) []byte {
-	t.Helper()
-	promise := signedPromise(t, f.signers[owner], f.accounts[owner], blockTime.Add(-time.Second))
-	pp := fibre.PaymentPromise{}
-	require.NoError(t, pp.FromProto(&promise))
-	signBytes, err := pp.SignBytes()
-	require.NoError(t, err)
-	validatorSig, err := testutil.GenesisValidatorPrivateKey().Sign(signBytes)
-	require.NoError(t, err)
-	return func(gas uint64) []byte {
-		msg := &fibretypes.MsgPayForFibre{Signer: f.addrs[submitter].String(), PaymentPromise: promise, ValidatorSignatures: [][]byte{validatorSig}}
-		raw, _, err := f.signers[submitter].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gas), user.SetFee(4_000))
-		require.NoError(t, err)
-		return raw
-	}
 }

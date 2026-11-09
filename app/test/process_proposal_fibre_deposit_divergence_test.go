@@ -121,6 +121,20 @@ func TestProcessProposalRejectsPayForFibreAfterEscrowChange(t *testing.T) {
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, status)
 	})
 
+	t.Run("withdrawal request before a PFF", func(t *testing.T) {
+		// The request changes the pending withdrawals the PFF's settlement
+		// charges gas for, and proposal does not execute it.
+		f := setup(t)
+		seedFibreEscrow(t, f.testApp, f.addrs[0], 10*payment)
+		withdraw := tx(t, f, 0, &fibretypes.MsgRequestWithdrawal{Signer: f.addrs[0].String(), Amount: sdk.NewInt64Coin(appconsts.BondDenom, 10*payment)})
+		pff := newSignedPayForFibreTxAt(t, f.signers[0], f.accounts[0], true, f.blockTime.Add(-time.Second), opts...)
+		prep, err := f.testApp.PrepareProposal(&abci.RequestPrepareProposal{Txs: [][]byte{withdraw, pff}, Height: f.testApp.LastBlockHeight() + 1, Time: f.blockTime})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{withdraw}, prep.Txs)
+		status, _ := run(t, f, [][]byte{withdraw, pff})
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, status)
+	})
+
 	t.Run("forged timeout does not block the owner's PFF", func(t *testing.T) {
 		f := setup(t)
 		seedFibreEscrow(t, f.testApp, f.addrs[0], 2*payment)

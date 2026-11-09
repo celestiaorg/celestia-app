@@ -352,7 +352,7 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	// by the shortfall amount so that Balance and AvailableBalance stay consistent.
 	shortfall := paymentAmount.Sub(availableDeduction)
 	if shortfall.IsPositive() {
-		withdrawalsVisited, err = ms.reduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall)
+		withdrawalsVisited, err = ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall)
 		if err != nil {
 			return withdrawalsVisited, err
 		}
