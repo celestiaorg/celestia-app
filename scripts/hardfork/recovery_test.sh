@@ -155,7 +155,13 @@ new_chain_node() {
     echo key >"$NODE_HOME/config/priv_validator_key.json"
     echo old >"$NODE_HOME/config/genesis.json"
     echo '{}' >"$NODE_HOME/config/addrbook.json"
-    echo 'persistent_peers = "old@1.2.3.4:26656"' >>"$NODE_HOME/config/config.toml"
+    cat >>"$NODE_HOME/config/config.toml" <<'EOF2'
+persistent_peers = "old@1.2.3.4:26656"
+db_dir = "data"
+genesis_file = "config/genesis.json"
+addr_book_file = "config/addrbook.json"
+wal_file = "data/cs.wal/wal"
+EOF2
     printf '{"chain_id":"test-1","initial_height":"%s","genesis_time":"2026-01-01T00:00:00.123Z"}\n' "${1:-31}" \
         >"$STUB_STATE/genesis.json"
     GENESIS_SHA=$(sha "$STUB_STATE/genesis.json")
@@ -440,6 +446,12 @@ recovery new-chain --home "$TMP/node//home/" --genesis "$STUB_STATE/genesis.json
     --chain-id test-1 || fail "new-chain with // paths failed"
 [ -f "$NODE_HOME/data/priv_validator_state.json" ] || fail "new-chain with // paths moved the signer state"
 
+# new-chain accepts default paths written another way.
+new_chain_node
+sed -i.bak "s|^db_dir = .*|db_dir = \"$NODE_HOME/data/\"|" "$NODE_HOME/config/config.toml"
+echo 'blockstore_dir = ""' >>"$NODE_HOME/config/config.toml"
+new_chain || fail "new-chain refused default paths written another way"
+
 # new-chain: the node signs the initial height while it stops; nothing is replaced.
 new_chain_node
 echo "$NODE_HOME/data/priv_validator_state.json" >"$STUB_STATE/sign-on-stop"
@@ -472,8 +484,9 @@ recovery new-chain --home "$NODE_HOME" --genesis https://example.com/genesis.jso
 cmp -s "$STUB_STATE/genesis.json" "$NODE_HOME/config/genesis.json" || fail "downloaded genesis not in place"
 
 # new-chain refusals before the node is stopped: wrong hash, wrong chain-id,
-# signer state at the initial height, bad peers.
-for c in sha chain-id signer peers; do
+# signer state at the initial height, bad peers, a custom or empty db_dir, a
+# custom blockstore_dir, a wal_file outside data/ or in a kept entry.
+for c in sha chain-id signer peers db_dir empty-db_dir blockstore_dir wal wal-kept; do
     new_chain_node
     args=()
     case "$c" in
@@ -481,6 +494,11 @@ for c in sha chain-id signer peers; do
     chain-id) sed -i.bak 's/test-1/test-2/' "$STUB_STATE/genesis.json"; GENESIS_SHA=$(sha "$STUB_STATE/genesis.json"); want="genesis chain-id is test-2" ;;
     signer) new_chain_node 20; want="signer state is at height 20" ;;
     peers) args=(--peers 'x@y:1"'); want="--peers must be" ;;
+    db_dir) sed -i.bak 's|^db_dir = .*|db_dir = "/srv/db"|' "$NODE_HOME/config/config.toml"; want="only the default db_dir" ;;
+    empty-db_dir) sed -i.bak 's|^db_dir = .*|db_dir = ""|' "$NODE_HOME/config/config.toml"; want="only the default db_dir" ;;
+    blockstore_dir) echo 'blockstore_dir = "/srv/blocks"' >>"$NODE_HOME/config/config.toml"; want="only the default blockstore_dir" ;;
+    wal) sed -i.bak 's|^wal_file = .*|wal_file = "/srv/wal"|' "$NODE_HOME/config/config.toml"; want="needs wal_file in data/" ;;
+    wal-kept) sed -i.bak 's|^wal_file = .*|wal_file = "data/tx_index.db/wal"|' "$NODE_HOME/config/config.toml"; want="needs wal_file in data/" ;;
     esac
     if new_chain ${args[@]+"${args[@]}"}; then
         fail "new-chain accepted: $c"

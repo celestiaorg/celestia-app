@@ -523,7 +523,7 @@ home_path() {
     /*) ;;
     *) path=$NODE_HOME/$path ;;
     esac
-    [[ "$path/" != *"/../"* ]] || die "key or signer path with .. is not supported: $1"
+    [[ "$path/" != *"/../"* ]] || die "config path with .. is not supported: $1"
     while [[ "$path" == *"//"* ]]; do
         path=${path//\/\//\/}
     done
@@ -551,6 +551,40 @@ load_keys() {
     NODE_KEY=$(home_path "${NODE_KEY:-config/node_key.json}")
     PV_STATE=$(home_path "$PV_STATE")
     KEEP=(tx_index.db "$(data_entry "$PV_STATE")" "$(data_entry "$PV_KEY")" "$(data_entry "$NODE_KEY")")
+}
+
+# toml_has succeeds if config.toml sets the key, even to "".
+toml_has() {
+    grep -Eq "^[[:space:]]*$1[[:space:]]*=" <<<"$CONFIG"
+}
+
+# check_layout refuses config.toml paths that replace_data does not handle.
+# It runs after load_keys: the WAL must not be in a kept entry.
+check_layout() {
+    local key want value entry k
+    for key in db_dir=data blockstore_dir=data genesis_file=config/genesis.json addr_book_file=config/addrbook.json; do
+        want=${key#*=}
+        key=${key%%=*}
+        toml_has "$key" || continue
+        value=$(toml_value "$key")
+        # An empty blockstore_dir means db_dir.
+        if [ -z "$value" ] && [ "$key" = blockstore_dir ]; then
+            continue
+        fi
+        value=$(home_path "$value")
+        [ "${value%/}" = "$NODE_HOME/$want" ] || die "new-chain supports only the default $key, not \"$(toml_value "$key")\""
+    done
+    value=data/cs.wal/wal
+    if toml_has wal_file; then
+        value=$(toml_value wal_file)
+    fi
+    entry=$(data_entry "$(home_path "$value")")
+    for k in "${KEEP[@]}"; do
+        if [ "$entry" = "$k" ]; then
+            entry=""
+        fi
+    done
+    [ -n "$entry" ] || die "new-chain needs wal_file in data/, apart from the keys and the signer state, not \"$value\""
 }
 
 # require_keys aborts if the node key, or the key and state of a local signer,
@@ -606,6 +640,7 @@ mode_new_chain() {
     local done=0
     fetch_genesis
     load_keys
+    check_layout
     precheck
     require_keys
     if in_node test -f "$BACKUP/.done"; then
