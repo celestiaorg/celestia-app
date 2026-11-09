@@ -349,10 +349,13 @@ func TestDelayedInfoDoesNotReachRestartedEmbeddedApp(t *testing.T) {
 	serving.Store(v4Listener)
 	v3Server.Stop()
 	// Wait until the client sees the dropped connection, so later calls
-	// redial the next app instead of racing an in-flight EOF.
-	for conn.GetState() == connectivity.Ready {
-		conn.WaitForStateChange(t.Context(), connectivity.Ready)
+	// redial the next app instead of racing an in-flight EOF. Bound the wait:
+	// if the client has already reconnected to the next app, it is Ready again
+	// and there is nothing left to wait for.
+	waitCtx, cancelWait := context.WithTimeout(t.Context(), 5*time.Second)
+	for conn.GetState() == connectivity.Ready && conn.WaitForStateChange(waitCtx, connectivity.Ready) {
 	}
+	cancelWait()
 	close(release)
 	select {
 	case <-infoErr:
