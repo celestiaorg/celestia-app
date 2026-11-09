@@ -31,49 +31,66 @@ func (gs GenesisState) Validate() error {
 // state, so it must reject every record set InitGenesis cannot store and
 // migrate.
 func (gs GenesisState) ValidateRecords() error {
+	escrowDenoms, err := validateGenesisEscrows(gs.EscrowAccounts)
+	if err != nil {
+		return err
+	}
+	if err := validateGenesisWithdrawals(gs.Withdrawals, escrowDenoms); err != nil {
+		return err
+	}
+	return validateGenesisProcessedPayments(gs.ProcessedPayments)
+}
+
+// validateGenesisEscrows validates escrow accounts and returns each raw
+// signer's escrow denomination.
+func validateGenesisEscrows(accounts []EscrowAccount) (map[string]string, error) {
 	// Validate escrow accounts. Signers need not be canonical: InitGenesis
 	// stores records under their raw signer and Migrate1to2 canonicalizes them,
 	// merging case variants of the same address and refunding non-utia escrows.
 	// An exact duplicate would overwrite the earlier record, so reject it.
 	// Merged utia balances must fit in a math.Int, or the merge fails.
-	escrowDenoms := make(map[string]string, len(gs.EscrowAccounts))
-	mergedBalances := make(map[string]math.Int, len(gs.EscrowAccounts))
-	for _, account := range gs.EscrowAccounts {
+	escrowDenoms := make(map[string]string, len(accounts))
+	mergedBalances := make(map[string]math.Int, len(accounts))
+	for _, account := range accounts {
 		canonical, err := canonicalGenesisSigner(account.Signer)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, ok := escrowDenoms[account.Signer]; ok {
-			return ErrDuplicateSigner
+			return nil, ErrDuplicateSigner
 		}
 		escrowDenoms[account.Signer] = account.Balance.Denom
 
 		if !account.Balance.IsValid() {
-			return ErrInvalidBalance
+			return nil, ErrInvalidBalance
 		}
 		if !account.AvailableBalance.IsValid() {
-			return ErrInvalidBalance
+			return nil, ErrInvalidBalance
 		}
 		if account.Balance.Denom != account.AvailableBalance.Denom {
-			return errorsmod.Wrapf(ErrInvalidBalance, "escrow %s balance and available balance denominations differ", account.Signer)
+			return nil, errorsmod.Wrapf(ErrInvalidBalance, "escrow %s balance and available balance denominations differ", account.Signer)
 		}
 		if account.AvailableBalance.Amount.GT(account.Balance.Amount) {
-			return ErrInvalidBalance
+			return nil, ErrInvalidBalance
 		}
 		// AvailableBalance never exceeds Balance, so its merged sum fits too.
 		if account.Balance.Denom == appconsts.BondDenom {
 			merged, err := addMerged(mergedBalances, canonical, account.Balance.Amount)
 			if err != nil {
-				return errorsmod.Wrapf(ErrInvalidBalance, "merged escrow balance for %s: %s", canonical, err)
+				return nil, errorsmod.Wrapf(ErrInvalidBalance, "merged escrow balance for %s: %s", canonical, err)
 			}
 			mergedBalances[canonical] = merged
 		}
 	}
+	return escrowDenoms, nil
+}
 
-	// Validate withdrawals with the same rules Migrate1to2 applies in InitGenesis.
-	withdrawalKeys := make(map[string]bool, len(gs.Withdrawals))
-	mergedWithdrawals := make(map[string]math.Int, len(gs.Withdrawals))
-	for _, withdrawal := range gs.Withdrawals {
+// validateGenesisWithdrawals validates withdrawals with the same rules
+// Migrate1to2 applies in InitGenesis.
+func validateGenesisWithdrawals(withdrawals []Withdrawal, escrowDenoms map[string]string) error {
+	withdrawalKeys := make(map[string]bool, len(withdrawals))
+	mergedWithdrawals := make(map[string]math.Int, len(withdrawals))
+	for _, withdrawal := range withdrawals {
 		canonical, err := canonicalGenesisSigner(withdrawal.Signer)
 		if err != nil {
 			return err
@@ -102,10 +119,14 @@ func (gs GenesisState) ValidateRecords() error {
 			return errorsmod.Wrapf(ErrInvalidBalance, "withdrawal for %s has no escrow account in %s", withdrawal.Signer, withdrawal.Amount.Denom)
 		}
 	}
+	return nil
+}
 
-	// Validate processed payments
+// validateGenesisProcessedPayments rejects empty or duplicate hashes and
+// missing timestamps.
+func validateGenesisProcessedPayments(payments []ProcessedPayment) error {
 	hashMap := make(map[string]bool)
-	for _, payment := range gs.ProcessedPayments {
+	for _, payment := range payments {
 		if len(payment.PaymentPromiseHash) == 0 {
 			return ErrInvalidHash
 		}
