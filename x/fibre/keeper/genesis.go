@@ -9,10 +9,11 @@ import (
 )
 
 // InitGenesis initializes the module's state from a provided genesis state.
-// InitChainer does not run ValidateGenesis, so validate here before writing
-// any state: the store writes and Migrate1to2 below assume valid input.
+// InitChainer does not run ValidateGenesis, so validate the records here
+// before writing any state: the store writes and Migrate1to2 below assume
+// valid input. Params are stored as given, as before.
 func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
-	if err := genesisState.Validate(); err != nil {
+	if err := genesisState.ValidateRecords(); err != nil {
 		panic(fmt.Errorf("invalid %s genesis state: %w", types.ModuleName, err))
 	}
 	k.SetParams(ctx, genesisState.Params)

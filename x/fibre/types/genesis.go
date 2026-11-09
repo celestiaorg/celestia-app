@@ -18,14 +18,19 @@ func DefaultGenesis() *GenesisState {
 }
 
 // Validate performs basic genesis state validation returning an error upon any
-// failure. InitGenesis calls it before writing state, so it must reject every
-// state InitGenesis cannot store and migrate.
+// failure.
 func (gs GenesisState) Validate() error {
-	// Validate params
 	if err := gs.Params.Validate(); err != nil {
 		return err
 	}
+	return gs.ValidateRecords()
+}
 
+// ValidateRecords validates the genesis escrow accounts, withdrawals and
+// processed payments, but not params. InitGenesis calls it before writing
+// state, so it must reject every record set InitGenesis cannot store and
+// migrate.
+func (gs GenesisState) ValidateRecords() error {
 	// Validate escrow accounts. Signers need not be canonical: InitGenesis
 	// stores records under their raw signer and Migrate1to2 canonicalizes them,
 	// merging case variants of the same address and refunding non-utia escrows.
