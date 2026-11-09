@@ -564,19 +564,21 @@ func (k Keeper) PaymentPromiseTimeoutCanSettle(ctx sdk.Context, promise *types.P
 
 // ReduceWithdrawalsForPayment reduces pending withdrawal amounts for a signer by the given shortfall.
 // It iterates withdrawals in order (oldest first) and either partially reduces a withdrawal's
-// amount or fully consumes (deletes) it.
+// amount or fully consumes (deletes) it. A non-nil chargeVisit is called before each withdrawal
+// is visited, so a caller can charge gas for the visit before the work is done.
 // Precondition: expects the escrow.Balance >= remaining. Otherwise, returns an error.
-// It returns how many withdrawals it reduced or deleted.
-func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) (visited uint64, err error) {
+func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin, chargeVisit func()) error {
 	store := ctx.KVStore(k.storeKey)
 	prefix := types.WithdrawalsBySignerPrefix(signer)
 	iterator := storetypes.KVStorePrefixIterator(store, prefix)
 	defer iterator.Close()
 
 	for ; iterator.Valid() && remaining.IsPositive(); iterator.Next() {
+		if chargeVisit != nil {
+			chargeVisit()
+		}
 		var withdrawal types.Withdrawal
 		k.cdc.MustUnmarshal(iterator.Value(), &withdrawal)
-		visited++
 
 		if remaining.IsGTE(withdrawal.Amount) {
 			remaining = remaining.Sub(withdrawal.Amount)
@@ -589,8 +591,8 @@ func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, rema
 	}
 
 	if remaining.IsPositive() {
-		return visited, fmt.Errorf("pending withdrawals for signer %s do not cover the shortfall of %s", signer, remaining)
+		return fmt.Errorf("pending withdrawals for signer %s do not cover the shortfall of %s", signer, remaining)
 	}
 
-	return visited, nil
+	return nil
 }

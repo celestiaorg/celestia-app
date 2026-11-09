@@ -291,7 +291,7 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 		}
 		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
 
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 500))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 500), nil)
 		suite.NoError(err)
 
 		withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
@@ -308,7 +308,7 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 		}
 		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
 
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 200))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 200), nil)
 		suite.NoError(err)
 
 		got, found := suite.keeper.GetWithdrawal(suite.ctx, signer, requestedAt)
@@ -338,7 +338,7 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 		suite.keeper.SetWithdrawal(suite.ctx, w2)
 
 		// Consume 500: should fully consume w1 (300) and partially reduce w2 (200 remaining)
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 500))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 500), nil)
 		suite.NoError(err)
 
 		_, found := suite.keeper.GetWithdrawal(suite.ctx, signer, requestedAt1)
@@ -362,7 +362,7 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 		}
 		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
 
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 0))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 0), nil)
 		suite.NoError(err)
 
 		got, found := suite.keeper.GetWithdrawal(suite.ctx, signer, requestedAt)
@@ -383,14 +383,14 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 		}
 		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
 
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 200))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, signer, sdk.NewInt64Coin("utia", 200), nil)
 		suite.Error(err)
 		suite.Contains(err.Error(), "do not cover the shortfall")
 	})
 
 	suite.T().Run("error when no withdrawals exist", func(t *testing.T) {
 		unknownSigner := "celestia1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq0fr2sh"
-		_, err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, unknownSigner, sdk.NewInt64Coin("utia", 100))
+		err := suite.keeper.ReduceWithdrawalsForPayment(suite.ctx, unknownSigner, sdk.NewInt64Coin("utia", 100), nil)
 		suite.Error(err)
 		suite.Contains(err.Error(), "do not cover the shortfall")
 	})

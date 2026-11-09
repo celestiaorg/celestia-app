@@ -182,12 +182,14 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// Calculate payment amount based on blob size and gas per byte
 	paymentAmount := ms.calculatePaymentAmount(ctx, msg.PaymentPromise.BlobSize)
 
-	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
-	withdrawalsVisited, err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount)
-	if err != nil {
+	// Deduct payment from escrow account (may reduce pending withdrawals if
+	// needed). Each withdrawal visit is charged to the tx before it is done.
+	chargeVisit := func() {
+		gasMeter.ConsumeGas(appconsts.PayForFibreGasPerWithdrawal, "pay for fibre withdrawal reduction")
+	}
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount, chargeVisit); err != nil {
 		return nil, err
 	}
-	gasMeter.ConsumeGas(withdrawalsVisited*appconsts.PayForFibreGasPerWithdrawal, "pay for fibre withdrawal reduction")
 
 	// Record processed payment
 	processedPayment := types.ProcessedPayment{
@@ -281,7 +283,7 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 	}
 
 	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
-	if _, err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount); err != nil {
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount, nil); err != nil {
 		return nil, err
 	}
 
@@ -329,11 +331,11 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 
 // deductPaymentFromEscrow deducts the payment amount from an escrow account.
 // If AvailableBalance is not enough but Balance covers the payment, it reduces pending
-// withdrawals (FIFO) by the shortfall amount. It returns how many pending
-// withdrawals it reduced or deleted.
-func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *types.EscrowAccount, paymentAmount sdk.Coin) (withdrawalsVisited uint64, err error) {
+// withdrawals (FIFO) by the shortfall amount. chargeVisit is passed to
+// ReduceWithdrawalsForPayment.
+func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *types.EscrowAccount, paymentAmount sdk.Coin, chargeVisit func()) error {
 	if escrowAccount.Balance.IsLT(paymentAmount) {
-		return 0, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+		return errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
 	}
 
 	// availableDeduction = min(AvailableBalance, paymentAmount)
@@ -352,9 +354,8 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	// by the shortfall amount so that Balance and AvailableBalance stay consistent.
 	shortfall := paymentAmount.Sub(availableDeduction)
 	if shortfall.IsPositive() {
-		withdrawalsVisited, err = ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall)
-		if err != nil {
-			return withdrawalsVisited, err
+		if err := ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall, chargeVisit); err != nil {
+			return err
 		}
 	}
 
@@ -365,10 +366,10 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	// paid to no one. The full payment leaves the module account regardless of
 	// how it was split between available balance and pending withdrawals.
 	if err := ms.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, authtypes.FeeCollectorName, sdk.NewCoins(paymentAmount)); err != nil {
-		return withdrawalsVisited, errorsmod.Wrap(err, "failed to send fibre payment to fee collector")
+		return errorsmod.Wrap(err, "failed to send fibre payment to fee collector")
 	}
 
-	return withdrawalsVisited, nil
+	return nil
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.

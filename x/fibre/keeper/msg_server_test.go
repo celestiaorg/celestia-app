@@ -453,7 +453,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 // the gas does not depend on state that earlier txs in a block can change.
 func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
 	suite.setupValidatorSet()
-	settle := func(withdrawal bool) uint64 {
+	settle := func(withdrawal bool, gasLimit uint64) uint64 {
 		privKey := secp256k1.GenPrivKey()
 		pubKey := *privKey.PubKey().(*secp256k1.PubKey)
 		signer := sdk.AccAddress(pubKey.Address()).String()
@@ -476,7 +476,7 @@ func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
 		}
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: available})
 
-		ctx := suite.ctx.WithGasMeter(storetypes.NewGasMeter(10_000_000))
+		ctx := suite.ctx.WithGasMeter(storetypes.NewGasMeter(gasLimit))
 		_, err := suite.msgServer.PayForFibre(ctx, &types.MsgPayForFibre{
 			Signer:              signer,
 			PaymentPromise:      promise,
@@ -487,8 +487,13 @@ func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
 		return ctx.GasMeter().GasConsumed()
 	}
 
-	suite.Equal(appconsts.PayForFibreSettlementGas, settle(false))
-	suite.Equal(appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal, settle(true))
+	suite.Equal(appconsts.PayForFibreSettlementGas, settle(false, 10_000_000))
+	suite.Equal(appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal, settle(true, 10_000_000))
+	// The withdrawal visit is charged before it is done, so a limit one short
+	// of it runs out of gas instead of reducing the withdrawal for free.
+	suite.PanicsWithValue(storetypes.ErrorOutOfGas{Descriptor: "pay for fibre withdrawal reduction"}, func() {
+		settle(true, appconsts.PayForFibreSettlementGas+appconsts.PayForFibreGasPerWithdrawal-1)
+	})
 }
 
 func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
