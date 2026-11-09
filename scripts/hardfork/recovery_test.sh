@@ -439,6 +439,17 @@ EOF
 new_chain || fail "new-chain with keys in data failed"
 [[ -f "$NODE_HOME/data/signer keys/state.json" && -f "$NODE_HOME/data/node_key.json" ]] || fail "new-chain moved a key or the signer state"
 
+# new-chain keeps the targets of a linked signer state and key inside data/.
+new_chain_node
+mkdir -p "$NODE_HOME/data/signer" "$NODE_HOME/data/keys"
+mv "$NODE_HOME/data/priv_validator_state.json" "$NODE_HOME/data/signer/state.json"
+ln -s signer/state.json "$NODE_HOME/data/priv_validator_state.json"
+mv "$NODE_HOME/config/priv_validator_key.json" "$NODE_HOME/data/keys/key.json"
+ln -s ../data/keys/key.json "$NODE_HOME/config/priv_validator_key.json"
+new_chain || fail "new-chain with linked signer files failed"
+[[ -f "$NODE_HOME/data/signer/state.json" && -f "$NODE_HOME/data/keys/key.json" ]] ||
+    fail "new-chain moved the target of a linked signer file"
+
 # new-chain keeps a signer state given with "//" in the path or the home.
 new_chain_node
 echo 'priv_validator_state_file = "data//priv_validator_state.json"' >"$NODE_HOME/config/config.toml"

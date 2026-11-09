@@ -550,7 +550,25 @@ load_keys() {
     NODE_KEY=$(toml_value node_key_file)
     NODE_KEY=$(home_path "${NODE_KEY:-config/node_key.json}")
     PV_STATE=$(home_path "$PV_STATE")
-    KEEP=(tx_index.db "$(data_entry "$PV_STATE")" "$(data_entry "$PV_KEY")" "$(data_entry "$NODE_KEY")")
+    REAL_DATA=$(in_node readlink -f "$NODE_HOME/data") || die "cannot resolve $NODE_HOME/data"
+    KEEP=(tx_index.db)
+    local path entry
+    for path in "$PV_STATE" "$PV_KEY" "$NODE_KEY"; do
+        while IFS= read -r entry; do
+            KEEP+=("$entry")
+        done < <(keep_entries "$path")
+    done
+}
+
+# keep_entries prints the data/ entries that hold path, as written and with
+# links resolved.
+keep_entries() {
+    local real
+    data_entry "$1"
+    real=$(in_node readlink -f "$1" 2>/dev/null) || return 0
+    case "$real" in
+    "$REAL_DATA/"*) real=${real#"$REAL_DATA/"}; echo "${real%%/*}" ;;
+    esac
 }
 
 # toml_has succeeds if config.toml sets the key, even to "".
