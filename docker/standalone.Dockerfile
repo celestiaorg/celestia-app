@@ -4,10 +4,9 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine
-ARG RUNTIME_IMAGE=docker.io/alpine:3.22
-ARG TARGETOS
-ARG TARGETARCH
+# celestia-appd links musl dynamically, so the runtime's Alpine must be at least the builder's.
+ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine3.24
+ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 
 # xx cross-compiles the cgo build for the target platform without emulation.
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx:1.10.0@sha256:40fe21f44bb8cddf1eb1226db190d0a984118f62ee02a91b77d99448d28264a6 AS xx

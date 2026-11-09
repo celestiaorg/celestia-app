@@ -53,7 +53,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # place.
 COMMIT_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null)
 LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown) $(LDFLAGS_STATIC)
-BUILD_FLAGS_FIBRE := -tags='$(BUILD_TAGS_STATIC)' -ldflags '$(LDFLAGS_FIBRE)'
+BUILD_FLAGS_FIBRE := $(if $(BUILD_TAGS_STATIC),-tags=$(BUILD_TAGS_STATIC)) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -213,8 +213,7 @@ docker-build: build-docker-multiplexer
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
-		--build-arg TARGETOS=$(DOCKER_GOOS) \
-		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
+		--platform $(DOCKER_GOOS)/$(DOCKER_GOARCH) \
 		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
@@ -378,7 +377,7 @@ latency-monitor-build-docker:
 
 # TALIS_CGO_BUILD builds celestia-appd and fibre with cgo in a linux/amd64 Alpine
 # container. The static musl link runs on any VM regardless of its glibc.
-TALIS_CGO_BUILD = docker run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
+TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
 	-v celestia-app-talis-gomod:/go/pkg/mod -v celestia-app-talis-gocache:/root/.cache/go-build \
 	-e GOFLAGS=-buildvcs=false docker.io/golang:1.26.10-alpine sh -c ' \
 	apk add -q --no-cache gcc linux-headers make musl-dev && \

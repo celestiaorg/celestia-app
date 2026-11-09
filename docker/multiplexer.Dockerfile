@@ -4,8 +4,9 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine
-ARG RUNTIME_IMAGE=docker.io/alpine:3.22
+# celestia-appd links musl dynamically, so the runtime's Alpine must be at least the builder's.
+ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine3.24
+ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 ARG TARGETOS
 ARG TARGETARCH
 # the docker registry used for the embedded v3 binary.
