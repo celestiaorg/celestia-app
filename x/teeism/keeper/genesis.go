@@ -8,7 +8,6 @@ import (
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 )
 
 // InitGenesis initialises the module genesis state.
@@ -54,19 +53,13 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 	}
 
 	genesisRoots := make([]types.GenesisRoots, 0, len(isms))
-	transform := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
-		return types.EncodeHex(key.K2()), nil
-	}
-
 	for _, ism := range isms {
-		roots, _, err := query.CollectionPaginate(
-			ctx,
-			k.roots,
-			nil,
-			transform,
-			query.WithCollectionPaginationPairPrefix[uint64, []byte](ism.Id.GetInternalId()),
-		)
-		if err != nil {
+		var roots []string
+		rng := collections.NewPrefixedPairRange[uint64, []byte](ism.Id.GetInternalId())
+		if err := k.roots.Walk(ctx, rng, func(key collections.Pair[uint64, []byte]) (bool, error) {
+			roots = append(roots, types.EncodeHex(key.K2()))
+			return false, nil
+		}); err != nil {
 			return nil, errorsmod.Wrapf(err, "collecting roots for ism %s", ism.Id.String())
 		}
 		if len(roots) == 0 {

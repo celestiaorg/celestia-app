@@ -28,6 +28,9 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 // auditable at creation time, so an ISM nobody trusts is simply an ISM nobody
 // routes to.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	// ValidateBasic checked the set against the initial state; this stores it in
 	// canonical order.
 	identities, err := types.SortIdentities(msg.Identities)
@@ -68,6 +71,9 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 // Replay is prevented by the state chain itself: an attestation names the state it
 // starts from and the transition rules require the height to advance.
 func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAttestation) (*types.MsgSubmitAttestationResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
@@ -163,6 +169,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 // the enclave copies forward into every state it attests. So nothing in flight is
 // lost, and no new ISM or router change is needed.
 func (m msgServer) SetEnclaveIdentities(ctx context.Context, msg *types.MsgSetEnclaveIdentities) (*types.MsgSetEnclaveIdentitiesResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
@@ -186,6 +195,9 @@ func (m msgServer) SetEnclaveIdentities(ctx context.Context, msg *types.MsgSetEn
 // Hands the ism, and with it every owner control (re-pinning, verifier
 // overrides), to a new owner, typically a multisig.
 func (m msgServer) UpdateOwner(ctx context.Context, msg *types.MsgUpdateOwner) (*types.MsgUpdateOwnerResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
@@ -210,6 +222,9 @@ func (m msgServer) UpdateOwner(ctx context.Context, msg *types.MsgUpdateOwner) (
 // something Intel publishes or anchors breaks while the ism is live. Every change
 // is an event, so an override is never silent.
 func (m msgServer) SetVerifierOverrides(ctx context.Context, msg *types.MsgSetVerifierOverrides) (*types.MsgSetVerifierOverridesResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())

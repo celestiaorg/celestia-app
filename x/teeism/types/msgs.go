@@ -53,6 +53,9 @@ func (msg *MsgSetEnclaveIdentities) ValidateBasic() error {
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "creator: %s", err)
+	}
 	if len(msg.State) < MinStateBytes {
 		return errorsmod.Wrapf(ErrInvalidTrustedState, "initial trusted state must be at least %d bytes", MinStateBytes)
 	}
@@ -91,6 +94,9 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 	if msg.Id.IsZeroAddress() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}
+	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "signer: %s", err)
+	}
 	for _, f := range []struct {
 		name  string
 		size  int
@@ -106,6 +112,10 @@ func (msg *MsgSubmitAttestation) ValidateBasic() error {
 		if f.size > f.limit {
 			return errorsmod.Wrapf(ErrMessageTooLarge, "%s is %d bytes, limit is %d", f.name, f.size, f.limit)
 		}
+	}
+	// Collateral is optional on the wire; check it is there before reading its fields.
+	if msg.Collateral == nil {
+		return ErrInvalidCollateral.Wrap("collateral is required")
 	}
 	for _, f := range []struct {
 		name string

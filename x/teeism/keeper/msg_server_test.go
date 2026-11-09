@@ -448,3 +448,98 @@ func (s *KeeperTestSuite) TestCreateWithASet() {
 		}
 	}
 }
+
+// More roots than one page of a paginated query: an export must carry every one,
+// or a fresh import loses roots that messages were proven against.
+func (s *KeeperTestSuite) TestGenesisExportsEveryRoot() {
+	id := s.createIsm()
+	const n = types.MaxPaginationLimit + 50
+	roots := make([][]byte, n)
+	for i := range roots {
+		r := make([]byte, 32)
+		r[0], r[1] = byte(i>>8), byte(i)
+		r[31] = 1
+		roots[i] = r
+	}
+	s.attest(id, roots...)
+
+	gs, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Len(gs.Roots, 1)
+	s.Require().Len(gs.Roots[0].Roots, n)
+
+	s.SetupTest()
+	s.Require().NoError(s.keeper.InitGenesis(s.ctx, gs))
+	again, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(gs.Roots, again.Roots)
+}
+
+// Every handler checks its message itself, whether or not ValidateBasic ran first,
+// and refuses before reading state, allocating an id or metering verification.
+func (s *KeeperTestSuite) TestHandlersValidateTheirMessages() {
+	id := s.createIsm()
+	before, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+
+	state := &types.IsmState{OriginDomain: 7, Height: 100, Timestamp: 1000, IdentityDigest: identity(1).Digest()}
+	_, err = s.msgServer.CreateInterchainSecurityModule(s.ctx, &types.MsgCreateInterchainSecurityModule{
+		Creator:           s.owner,
+		State:             types.EncodeIsmState(state)[:types.IsmStateBytes-1],
+		MerkleTreeAddress: bytes.Repeat([]byte{9}, 32),
+		Identities:        []*types.EnclaveIdentity{identity(1)},
+	})
+	s.Require().ErrorIs(err, types.ErrInvalidTrustedState)
+
+	_, err = s.msgServer.CreateInterchainSecurityModule(s.ctx, &types.MsgCreateInterchainSecurityModule{
+		Creator:           "not-an-address",
+		State:             types.EncodeIsmState(state),
+		MerkleTreeAddress: bytes.Repeat([]byte{9}, 32),
+		Identities:        []*types.EnclaveIdentity{identity(1)},
+	})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidAddress)
+
+	// Collateral is optional on the wire; leaving it out is an error, not a panic.
+	_, err = s.msgServer.SubmitAttestation(s.ctx, &types.MsgSubmitAttestation{
+		Id:       id,
+		Signer:   s.owner,
+		Quote:    []byte{1},
+		EventLog: []byte{1},
+		Payload:  make([]byte, types.AttestedUpdateBytes),
+	})
+	s.Require().ErrorIs(err, types.ErrInvalidCollateral)
+
+	_, err = s.msgServer.SubmitAttestation(s.ctx, &types.MsgSubmitAttestation{
+		Id:       id,
+		Signer:   "not-an-address",
+		Quote:    []byte{1},
+		EventLog: []byte{1},
+		Payload:  make([]byte, types.AttestedUpdateBytes),
+	})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidAddress)
+
+	gasBefore := s.ctx.GasMeter().GasConsumed()
+	_, err = s.msgServer.SubmitAttestation(s.ctx, &types.MsgSubmitAttestation{
+		Id:       id,
+		Signer:   s.owner,
+		Quote:    make([]byte, types.MaxQuoteBytes+1),
+		EventLog: []byte{1},
+		Payload:  make([]byte, types.AttestedUpdateBytes),
+	})
+	s.Require().ErrorIs(err, types.ErrMessageTooLarge)
+	s.Require().Less(s.ctx.GasMeter().GasConsumed()-gasBefore, uint64(types.DefaultAttestationVerifyCost),
+		"refused before metering verification")
+
+	_, err = s.msgServer.UpdateOwner(s.ctx, &types.MsgUpdateOwner{Owner: s.owner, Id: id, NewOwner: "not-an-address"})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidAddress)
+
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: "not-an-address", Id: id, Identities: []*types.EnclaveIdentity{identity(2)}})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidAddress)
+
+	_, err = s.msgServer.SetVerifierOverrides(s.ctx, &types.MsgSetVerifierOverrides{Owner: "not-an-address", Id: id})
+	s.Require().ErrorIs(err, sdkerrors.ErrInvalidAddress)
+
+	after, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(before, after, "nothing was written")
+}
