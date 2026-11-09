@@ -23,8 +23,8 @@ func TestAminoJSONSigning(t *testing.T) {
 	ismID := util.CreateMockHexAddress("teeism", 1)
 
 	for name, msg := range map[string]gogoproto.Message{
-		"MsgUpdateEnclaveIdentity": &types.MsgUpdateEnclaveIdentity{Owner: owner, Id: ismID, Identity: identityFor(1)},
-		"MsgUpdateOwner":           &types.MsgUpdateOwner{Owner: owner, Id: ismID, NewOwner: owner},
+		"MsgSetEnclaveIdentities": &types.MsgSetEnclaveIdentities{Owner: owner, Id: ismID, Identities: []*types.EnclaveIdentity{identityFor(1), identityFor(2)}},
+		"MsgUpdateOwner":          &types.MsgUpdateOwner{Owner: owner, Id: ismID, NewOwner: owner},
 		"MsgSetVerifierOverrides": &types.MsgSetVerifierOverrides{Owner: owner, Id: ismID, Overrides: &types.VerifierOverrides{
 			TrustedRootCerts: [][]byte{{0x30, 0x01}},
 		}},

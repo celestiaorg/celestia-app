@@ -12,7 +12,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		(*sdk.Msg)(nil),
 		&MsgCreateInterchainSecurityModule{},
 		&MsgSubmitAttestation{},
-		&MsgUpdateEnclaveIdentity{},
+		&MsgSetEnclaveIdentities{},
 		&MsgUpdateOwner{},
 		&MsgSetVerifierOverrides{},
 	)

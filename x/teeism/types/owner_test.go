@@ -30,9 +30,9 @@ func TestOnlyTheOwnerTransfersOwnership(t *testing.T) {
 	require.Equal(t, "celestia1next", ism.Owner)
 
 	// Every owner control moves with the ism.
-	_, err = ism.Repin("celestia1owner", identityFor(2))
+	_, err = ism.SetIdentities("celestia1owner", []*types.EnclaveIdentity{identityFor(2)})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized, "the previous owner keeps no control")
-	_, err = ism.Repin("celestia1next", identityFor(2))
+	_, err = ism.SetIdentities("celestia1next", []*types.EnclaveIdentity{identityFor(2)})
 	require.NoError(t, err)
 	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{TrustedRootCerts: [][]byte{selfSignedRoot(t)}})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)

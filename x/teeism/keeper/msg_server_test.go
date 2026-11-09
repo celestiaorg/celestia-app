@@ -74,7 +74,7 @@ func (s *KeeperTestSuite) createIsm() util.HexAddress {
 		Creator:           s.owner,
 		State:             types.EncodeIsmState(state),
 		MerkleTreeAddress: bytes.Repeat([]byte{9}, 32),
-		Identity:          id,
+		Identities:        []*types.EnclaveIdentity{id},
 	})
 	s.Require().NoError(err)
 	return res.Id
@@ -107,9 +107,9 @@ func (s *KeeperTestSuite) TestUpdateOwner() {
 	s.Require().True(s.hasEvent(&types.EventUpdateOwner{}))
 
 	// The previous owner can no longer re-pin; the new one can.
-	_, err = s.msgServer.UpdateEnclaveIdentity(s.ctx, &types.MsgUpdateEnclaveIdentity{Owner: s.owner, Id: id, Identity: identity(2)})
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.owner, Id: id, Identities: []*types.EnclaveIdentity{identity(2)}})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
-	_, err = s.msgServer.UpdateEnclaveIdentity(s.ctx, &types.MsgUpdateEnclaveIdentity{Owner: s.next, Id: id, Identity: identity(2)})
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.next, Id: id, Identities: []*types.EnclaveIdentity{identity(2)}})
 	s.Require().NoError(err)
 
 	_, err = s.msgServer.UpdateOwner(s.ctx, &types.MsgUpdateOwner{Owner: s.next, Id: util.CreateMockHexAddress("missing", 9), NewOwner: s.owner})
@@ -372,4 +372,79 @@ func (s *KeeperTestSuite) TestGenesisCarriesRoots() {
 	ok, err := s.keeper.Verify(s.ctx, id, s.metadata(v, 0, root), msg)
 	s.Require().NoError(err)
 	s.Require().False(ok, "known root, but not this message")
+}
+
+// A rotation through the msg server: {1} -> {1, 2} -> {2}. The state keeps its
+// root and height, carries the set digest, and the set is queryable in canonical
+// order.
+func (s *KeeperTestSuite) TestSetEnclaveIdentities() {
+	id := s.createIsm()
+	before, err := types.DecodeIsmState(s.getIsm(id).State)
+	s.Require().NoError(err)
+
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.stranger, Id: id, Identities: []*types.EnclaveIdentity{identity(2)}})
+	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
+
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.owner, Id: id, Identities: []*types.EnclaveIdentity{identity(2), identity(1)}})
+	s.Require().NoError(err)
+	s.Require().True(s.hasEvent(&types.EventSetEnclaveIdentities{}))
+
+	ism := s.getIsm(id)
+	s.Require().Len(ism.Identities, 2)
+	want, err := types.IdentitySetDigest([]*types.EnclaveIdentity{identity(1), identity(2)})
+	s.Require().NoError(err)
+	got, err := ism.IdentityDigest()
+	s.Require().NoError(err)
+	s.Require().Equal(want, got)
+	after, err := types.DecodeIsmState(ism.State)
+	s.Require().NoError(err)
+	s.Require().Equal(want, after.IdentityDigest)
+	s.Require().Equal(before.StateRoot, after.StateRoot)
+	s.Require().Equal(before.Height, after.Height)
+
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.owner, Id: id, Identities: []*types.EnclaveIdentity{identity(2)}})
+	s.Require().NoError(err)
+	ism = s.getIsm(id)
+	s.Require().Equal([]*types.EnclaveIdentity{identity(2)}, ism.Identities)
+	final, err := types.DecodeIsmState(ism.State)
+	s.Require().NoError(err)
+	s.Require().Equal(identity(2).Digest(), final.IdentityDigest)
+
+	_, err = s.msgServer.SetEnclaveIdentities(s.ctx, &types.MsgSetEnclaveIdentities{Owner: s.owner, Id: id, Identities: []*types.EnclaveIdentity{identity(3), identity(3)}})
+	s.Require().ErrorIs(err, types.ErrInvalidEnclaveIdentity)
+}
+
+// An ism can be created pinning several enclaves at once; the state must carry
+// their set digest, not any one member's.
+func (s *KeeperTestSuite) TestCreateWithASet() {
+	set := []*types.EnclaveIdentity{identity(4), identity(5)}
+	digest, err := types.IdentitySetDigest(set)
+	s.Require().NoError(err)
+
+	for _, tc := range []struct {
+		name   string
+		digest [32]byte
+		ok     bool
+	}{
+		{"the set digest", digest, true},
+		{"one member's digest", identity(4).Digest(), false},
+	} {
+		state := &types.IsmState{OriginDomain: 7, Height: 100, Timestamp: 1000, IdentityDigest: tc.digest}
+		state.StateRoot[0] = 1
+		msg := &types.MsgCreateInterchainSecurityModule{
+			Creator:           s.owner,
+			State:             types.EncodeIsmState(state),
+			MerkleTreeAddress: bytes.Repeat([]byte{9}, 32),
+			Identities:        set,
+		}
+		err := msg.ValidateBasic()
+		if tc.ok {
+			s.Require().NoError(err, tc.name)
+			res, err := s.msgServer.CreateInterchainSecurityModule(s.ctx, msg)
+			s.Require().NoError(err)
+			s.Require().Len(s.getIsm(res.Id).Identities, 2)
+		} else {
+			s.Require().ErrorIs(err, types.ErrInvalidEnclaveIdentity, tc.name)
+		}
+	}
 }

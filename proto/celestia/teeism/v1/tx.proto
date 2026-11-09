@@ -20,8 +20,9 @@ service Msg {
   // in a single step.
   rpc SubmitAttestation(MsgSubmitAttestation) returns (MsgSubmitAttestationResponse);
 
-  // UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
-  rpc UpdateEnclaveIdentity(MsgUpdateEnclaveIdentity) returns (MsgUpdateEnclaveIdentityResponse);
+  // SetEnclaveIdentities replaces the set of enclaves that may advance an ism.
+  // Owner only.
+  rpc SetEnclaveIdentities(MsgSetEnclaveIdentities) returns (MsgSetEnclaveIdentitiesResponse);
 
   // UpdateOwner transfers an ism to a new owner. Owner only.
   rpc UpdateOwner(MsgUpdateOwner) returns (MsgUpdateOwnerResponse);
@@ -41,8 +42,13 @@ message MsgCreateInterchainSecurityModule {
   bytes state = 2;
   // origin merkle tree hook address in bytes32 format
   bytes merkle_tree_address = 3;
-  // the enclave permitted to advance this ism
-  EnclaveIdentity identity = 4;
+  // Field 4 held a single pinned identity before an ism pinned a set.
+  reserved 4;
+  reserved "identity";
+  // every enclave permitted to advance this ism; any one may attest. 1 to
+  // MaxEnclaveIdentities, no duplicates. The initial state must carry their set
+  // digest.
+  repeated EnclaveIdentity identities = 5;
 }
 
 // MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
@@ -95,14 +101,15 @@ message MsgSubmitAttestationResponse {
   uint32 tree_count = 5;
 }
 
-// MsgUpdateEnclaveIdentity is the request type for UpdateEnclaveIdentity.
+// MsgSetEnclaveIdentities is the request type for SetEnclaveIdentities.
 //
-// The owner's emergency control: when the enclave's platform changes under it (a
-// new OS image, new firmware), or the enclave has to be replaced, the owner points
-// the ism at the new identity in place. The trusted state keeps its root, height
-// and light client store; only the identity digest it carries is swapped, so
-// nothing in flight is lost.
-message MsgUpdateEnclaveIdentity {
+// The owner's control over which enclaves advance an ism: when the enclave's
+// platform changes under it (a new OS image, new firmware), when an enclave is
+// added for redundancy, or when one is retired. The whole set is replaced at once,
+// so a rotation is: pin {old, new}, move the relayer, pin {new}. The trusted state
+// keeps its root, height and light client store; only the identity digest it
+// carries is swapped for the new set digest, so nothing in flight is lost.
+message MsgSetEnclaveIdentities {
   option (cosmos.msg.v1.signer) = "owner";
 
   // the ism owner
@@ -112,12 +119,13 @@ message MsgUpdateEnclaveIdentity {
     (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
     (gogoproto.nullable)   = false
   ];
-  // the enclave permitted to advance this ism from now on
-  EnclaveIdentity identity = 3;
+  // every enclave permitted to advance this ism from now on; any one may attest.
+  // 1 to MaxEnclaveIdentities, no duplicates.
+  repeated EnclaveIdentity identities = 3;
 }
 
-// MsgUpdateEnclaveIdentityResponse is the response type for UpdateEnclaveIdentity.
-message MsgUpdateEnclaveIdentityResponse {}
+// MsgSetEnclaveIdentitiesResponse is the response type for SetEnclaveIdentities.
+message MsgSetEnclaveIdentitiesResponse {}
 
 // MsgUpdateOwner is the request type for UpdateOwner.
 message MsgUpdateOwner {

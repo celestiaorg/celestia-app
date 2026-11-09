@@ -9,7 +9,7 @@ import (
 var (
 	_ sdk.HasValidateBasic = (*MsgCreateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitAttestation)(nil)
-	_ sdk.HasValidateBasic = (*MsgUpdateEnclaveIdentity)(nil)
+	_ sdk.HasValidateBasic = (*MsgSetEnclaveIdentities)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateOwner)(nil)
 	_ sdk.HasValidateBasic = (*MsgSetVerifierOverrides)(nil)
 )
@@ -40,14 +40,15 @@ func (msg *MsgSetVerifierOverrides) ValidateBasic() error {
 }
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
-func (msg *MsgUpdateEnclaveIdentity) ValidateBasic() error {
+func (msg *MsgSetEnclaveIdentities) ValidateBasic() error {
 	if msg.Id.IsZeroAddress() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}
 	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "owner: %s", err)
 	}
-	return msg.Identity.Validate()
+	_, err := IdentitySetDigest(msg.Identities)
+	return err
 }
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
@@ -66,20 +67,21 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 	if len(msg.MerkleTreeAddress) != 32 {
 		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
 	}
-	if err := msg.Identity.Validate(); err != nil {
+	digest, err := IdentitySetDigest(msg.Identities)
+	if err != nil {
 		return err
 	}
 
-	// The state names the enclave it was created for, so a mismatch here would
+	// The state names the enclaves it was created for, so a mismatch here would
 	// leave an ISM that rejects the very first attestation.
 	state, err := DecodeIsmState(msg.State)
 	if err != nil {
 		return errorsmod.Wrap(ErrInvalidTrustedState, err.Error())
 	}
-	if state.IdentityDigest != msg.Identity.Digest() {
+	if state.IdentityDigest != digest {
 		return errorsmod.Wrapf(ErrInvalidEnclaveIdentity,
-			"state names enclave %x but the pinned identity digests to %x",
-			state.IdentityDigest[:], msg.Identity.Digest())
+			"state names enclaves %x but the pinned identities digest to %x",
+			state.IdentityDigest[:], digest[:])
 	}
 	return nil
 }

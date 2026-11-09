@@ -11,7 +11,7 @@ var (
 	ErrInvalidQuote             = errorsmod.Register(ModuleName, 3, "invalid tdx quote")
 	ErrInvalidCollateral        = errorsmod.Register(ModuleName, 4, "invalid attestation collateral")
 	ErrMalformedEventLog        = errorsmod.Register(ModuleName, 5, "malformed dstack event log")
-	ErrIdentityMismatch         = errorsmod.Register(ModuleName, 6, "quote does not come from the pinned enclave")
+	ErrIdentityMismatch         = errorsmod.Register(ModuleName, 6, "quote does not come from a pinned enclave")
 	ErrInvalidEnclaveIdentity   = errorsmod.Register(ModuleName, 7, "invalid enclave identity")
 	ErrMalformedPayload         = errorsmod.Register(ModuleName, 8, "malformed attested payload")
 	ErrPayloadNotAttested       = errorsmod.Register(ModuleName, 9, "report data does not commit to the payload")

@@ -32,7 +32,8 @@ func (gs GenesisState) Validate() error {
 		if len(ism.MerkleTreeAddress) != 32 {
 			return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
 		}
-		if err := ism.Identity.Validate(); err != nil {
+		digest, err := IdentitySetDigest(ism.Identities)
+		if err != nil {
 			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
 		}
 		if ism.Owner != "" {
@@ -48,8 +49,8 @@ func (gs GenesisState) Validate() error {
 		if err != nil {
 			return errorsmod.Wrapf(ErrInvalidTrustedState, "ism %s: %v", ism.Id.String(), err)
 		}
-		if state.IdentityDigest != ism.Identity.Digest() {
-			return errorsmod.Wrapf(ErrInvalidEnclaveIdentity, "ism %s state names a different enclave than the one it pins", ism.Id.String())
+		if state.IdentityDigest != digest {
+			return errorsmod.Wrapf(ErrInvalidEnclaveIdentity, "ism %s state names different enclaves than the ones it pins", ism.Id.String())
 		}
 		// Empty until the first attestation, 32 bytes after it.
 		if len(ism.TreeRoot) != 0 && len(ism.TreeRoot) != 32 {

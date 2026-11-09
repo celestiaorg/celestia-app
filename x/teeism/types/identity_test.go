@@ -3,6 +3,7 @@ package types_test
 import (
 	"bytes"
 	"crypto/sha512"
+	"encoding/hex"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
@@ -61,5 +62,38 @@ func TestDstack06EventLogVerifies(t *testing.T) {
 		m := &types.Measurements{MrTd: measured.MrTd, Rtmrs: types.ReplayEventLogs(short)}
 		err := types.VerifyEnclaveIdentity(id, m, short, types.ReplayEventLogs(short))
 		require.ErrorIs(t, err, types.ErrIdentityMismatch)
+	})
+
+	// Any pinned enclave may attest; one that matches none is refused.
+	other := *id
+	other.KeyProvider = []byte(`{"name":"kms","id":"3060"}`)
+	another := *id
+	another.ComposeHash = bytes.Repeat([]byte{0x0d}, 32)
+
+	t.Run("a quote from any pinned enclave is accepted", func(t *testing.T) {
+		for _, set := range [][]*types.EnclaveIdentity{
+			{id},
+			{&other, id},
+			{id, &other, &another},
+		} {
+			require.NoError(t, types.VerifyEnclaveIdentities(set, measured, log, types.ReplayEventLogs(log)))
+		}
+	})
+	t.Run("a quote from no pinned enclave is refused, naming each", func(t *testing.T) {
+		err := types.VerifyEnclaveIdentities([]*types.EnclaveIdentity{&other, &another}, measured, log, types.ReplayEventLogs(log))
+		require.ErrorIs(t, err, types.ErrIdentityMismatch)
+		require.Contains(t, err.Error(), "none of the 2 pinned enclaves matches")
+		d := other.Digest()
+		require.Contains(t, err.Error(), hex.EncodeToString(d[:4]))
+	})
+	t.Run("an empty set is refused", func(t *testing.T) {
+		err := types.VerifyEnclaveIdentities(nil, measured, log, types.ReplayEventLogs(log))
+		require.ErrorIs(t, err, types.ErrInvalidEnclaveIdentity)
+	})
+	t.Run("a log that does not replay is refused before any identity is tried", func(t *testing.T) {
+		var wrong [types.RtmrCount]types.Digest
+		err := types.VerifyEnclaveIdentities([]*types.EnclaveIdentity{id}, measured, log, wrong)
+		require.ErrorIs(t, err, types.ErrIdentityMismatch)
+		require.Contains(t, err.Error(), "does not replay")
 	})
 }

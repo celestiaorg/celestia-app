@@ -54,12 +54,25 @@ func (spec identitySpec) decode() (*types.EnclaveIdentity, error) {
 // ismSpec is the JSON an ISM is created from.
 //
 // A file rather than positional arguments: an enclave identity is seven
-// measurements, and the tooling that reads them off a running CVM can write this
-// file directly.
+// measurements, an ism pins up to eight of them, and the tooling that reads them
+// off running CVMs can write this file directly.
 type ismSpec struct {
-	State             string       `json:"state"`
-	MerkleTreeAddress string       `json:"merkle_tree_address"`
-	Identity          identitySpec `json:"identity"`
+	State             string         `json:"state"`
+	MerkleTreeAddress string         `json:"merkle_tree_address"`
+	Identities        []identitySpec `json:"identities"`
+}
+
+// decodeIdentities decodes each identity, naming the one that fails.
+func decodeIdentities(specs []identitySpec) ([]*types.EnclaveIdentity, error) {
+	out := make([]*types.EnclaveIdentity, len(specs))
+	for i, spec := range specs {
+		id, err := spec.decode()
+		if err != nil {
+			return nil, fmt.Errorf("identities[%d]: %w", i, err)
+		}
+		out[i] = id
+	}
+	return out, nil
 }
 
 // attestationSpec is the JSON an attestation is submitted from, as the enclave
@@ -87,21 +100,25 @@ func NewCreateInterchainSecurityModuleCmd() *cobra.Command {
 		Long: strings.TrimSpace(`Create a Hyperlane TEE interchain security module (ISM).
 
 The spec file is JSON holding the initial trusted state, the origin merkle tree
-hook address, and the measurements of the enclave permitted to advance the ism.
-Every value is hex, with or without a 0x prefix.
+hook address, and the measurements of every enclave permitted to advance the
+ism: 1 to 8 of them, any one of which may attest. The state must carry their set
+digest (teeism-identity prints it). Every value is hex, with or without a 0x
+prefix.
 
   {
     "state": "0x...",
     "merkle_tree_address": "0x...",
-    "identity": {
-      "mr_td": "0x...",
-      "rtmr0": "0x...",
-      "rtmr1": "0x...",
-      "rtmr2": "0x...",
-      "os_image_hash": "0x...",
-      "compose_hash": "0x...",
-      "key_provider": "0x..."
-    }
+    "identities": [
+      {
+        "mr_td": "0x...",
+        "rtmr0": "0x...",
+        "rtmr1": "0x...",
+        "rtmr2": "0x...",
+        "os_image_hash": "0x...",
+        "compose_hash": "0x...",
+        "key_provider": "0x..."
+      }
+    ]
   }`),
 		Example: fmt.Sprintf("%s tx %s create ./ism.json --from mykey", version.AppName, types.ModuleName),
 		Args:    cobra.ExactArgs(1),
@@ -125,7 +142,7 @@ Every value is hex, with or without a 0x prefix.
 				return fmt.Errorf("merkle_tree_address: %w", err)
 			}
 
-			identity, err := spec.Identity.decode()
+			identities, err := decodeIdentities(spec.Identities)
 			if err != nil {
 				return err
 			}
@@ -134,7 +151,7 @@ Every value is hex, with or without a 0x prefix.
 				Creator:           clientCtx.GetFromAddress().String(),
 				State:             state,
 				MerkleTreeAddress: merkleTreeAddress,
-				Identity:          identity,
+				Identities:        identities,
 			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
@@ -145,16 +162,20 @@ Every value is hex, with or without a 0x prefix.
 	return cmd
 }
 
-// NewUpdateEnclaveIdentityCmd creates and returns the cmd that re-pins an ism.
-func NewUpdateEnclaveIdentityCmd() *cobra.Command {
+// NewSetEnclaveIdentitiesCmd creates and returns the cmd that replaces the set of
+// enclaves an ism pins.
+func NewSetEnclaveIdentitiesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update-identity [ism-id] [identity-file]",
-		Short: "Re-pin a TEE ism to a different enclave (owner only)",
-		Long: strings.TrimSpace(`Point a Hyperlane TEE ism at a different enclave identity.
+		Use:   "set-identities [ism-id] [identity-file]...",
+		Short: "Replace the set of enclaves that may advance a TEE ism (owner only)",
+		Long: strings.TrimSpace(`Pin a Hyperlane TEE ism to a set of enclave identities, one file per enclave.
 
-Only the ism's owner may. The trusted state keeps its root, height and light
-client store, so nothing in flight is lost. The identity file is JSON, every
-value hex, with or without a 0x prefix:
+Any one of them may attest from now on; 1 to 8 identities, no duplicates. The
+whole set is replaced, so a rotation is: pin the old and new enclave, move the
+relayer to the new one, then pin the new one alone. Only the ism's owner may.
+The trusted state keeps its root, height and light client store, so nothing in
+flight is lost. Each identity file is JSON, every value hex, with or without a
+0x prefix:
 
   {
     "mr_td": "0x...",
@@ -165,8 +186,8 @@ value hex, with or without a 0x prefix:
     "compose_hash": "0x...",
     "key_provider": "0x..."
   }`),
-		Example: fmt.Sprintf("%s tx %s update-identity 0x...2b ./identity.json --from owner", version.AppName, types.ModuleName),
-		Args:    cobra.ExactArgs(2),
+		Example: fmt.Sprintf("%s tx %s set-identities 0x...2b ./old.json ./new.json --from owner", version.AppName, types.ModuleName),
+		Args:    cobra.RangeArgs(2, 1+types.MaxEnclaveIdentities),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
@@ -176,18 +197,20 @@ value hex, with or without a 0x prefix:
 			if err != nil {
 				return err
 			}
-			var spec identitySpec
-			if err := readJSONFile(args[1], &spec); err != nil {
-				return err
+			specs := make([]identitySpec, len(args)-1)
+			for i, path := range args[1:] {
+				if err := readJSONFile(path, &specs[i]); err != nil {
+					return err
+				}
 			}
-			identity, err := spec.decode()
+			identities, err := decodeIdentities(specs)
 			if err != nil {
 				return err
 			}
-			msg := types.MsgUpdateEnclaveIdentity{
-				Owner:    clientCtx.GetFromAddress().String(),
-				Id:       ismId,
-				Identity: identity,
+			msg := types.MsgSetEnclaveIdentities{
+				Owner:      clientCtx.GetFromAddress().String(),
+				Id:         ismId,
+				Identities: identities,
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 		},

@@ -10,7 +10,7 @@ import "github.com/cosmos/gogoproto/proto"
 // (EnclaveIdentity, VerifierOverrides, Collateral, InterchainSecurityModule)
 // become placeholders with no fields. Amino JSON signing then rejects every field
 // of those messages as unknown, so a Ledger or multisig could not sign
-// MsgUpdateEnclaveIdentity, MsgSetVerifierOverrides or MsgSubmitAttestation.
+// MsgSetEnclaveIdentities, MsgSetVerifierOverrides or MsgSubmitAttestation.
 //
 // This file ("descriptor_init.go") sorts before all of them, so its init() runs
 // first and registers types.proto. The same fix as hyperlane-cosmos'

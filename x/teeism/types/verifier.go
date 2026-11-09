@@ -44,8 +44,9 @@ type AttestationResult struct {
 //  1. Intel's signature chain over the quote, against collateral, at block time.
 //     Answers "did genuine, current hardware sign this?".
 //  2. The TD is not in debug mode.
-//  3. The dstack event log replays to the RTMRs in the quote, and the pinned
-//     measurements match. Answers "is this our enclave?".
+//  3. The dstack event log replays to the RTMRs in the quote, and the
+//     measurements match one of the pinned identities. Answers "is this one of
+//     our enclaves?".
 //  4. The payload really rides in report_data, the transition is legal, and the
 //     clock is anchored to attested chain time.
 //
@@ -64,7 +65,7 @@ func VerifyAttestation(
 	eventLogRaw []byte,
 	collateral *Collateral,
 	payload []byte,
-	identity *EnclaveIdentity,
+	identities []*EnclaveIdentity,
 	blockTime time.Time,
 	overrides *VerifierOverrides,
 ) (*AttestationResult, error) {
@@ -72,7 +73,7 @@ func VerifyAttestation(
 	if err != nil {
 		return nil, err
 	}
-	return VerifyAttestedPayload(measured, reportData, eventLogRaw, payload, identity, blockTime)
+	return VerifyAttestedPayload(measured, reportData, eventLogRaw, payload, identities, blockTime)
 }
 
 // VerifyAttestedPayload runs steps 3 and 4 of VerifyAttestation on a quote
@@ -86,7 +87,7 @@ func VerifyAttestedPayload(
 	reportData []byte,
 	eventLogRaw []byte,
 	payload []byte,
-	identity *EnclaveIdentity,
+	identities []*EnclaveIdentity,
 	blockTime time.Time,
 ) (*AttestationResult, error) {
 	if len(reportData) != 64 {
@@ -94,12 +95,12 @@ func VerifyAttestedPayload(
 	}
 
 	// Step 3. Our verdict on the software stack, as opposed to Intel's on the
-	// hardware.
+	// hardware: the quote must come from one of the pinned enclaves.
 	eventLog, err := ParseEventLog(eventLogRaw)
 	if err != nil {
 		return nil, err
 	}
-	if err := VerifyEnclaveIdentity(identity, measured, eventLog, ReplayEventLogs(eventLog)); err != nil {
+	if err := VerifyEnclaveIdentities(identities, measured, eventLog, ReplayEventLogs(eventLog)); err != nil {
 		return nil, err
 	}
 

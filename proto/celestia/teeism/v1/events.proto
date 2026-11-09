@@ -23,8 +23,11 @@ message EventCreateInterchainSecurityModule {
   string state = 3;
   // origin merkle tree hook address (hex-encoded)
   string merkle_tree_address = 4;
-  // digest of the pinned enclave identity (hex-encoded)
+  // set digest of the pinned enclave identities, as the state carries it
+  // (hex-encoded)
   string identity_digest = 5;
+  // digest of each pinned enclave identity, sorted ascending (hex-encoded)
+  repeated string identity_digests = 6;
 }
 
 // EventSubmitAttestation is emitted when an attestation advances the ism.
@@ -51,8 +54,9 @@ message EventSubmitAttestation {
   uint32 tree_count = 7;
 }
 
-// EventUpdateEnclaveIdentity is emitted when an owner re-pins an ism.
-message EventUpdateEnclaveIdentity {
+// EventSetEnclaveIdentities is emitted when an owner replaces an ism's set of
+// enclaves.
+message EventSetEnclaveIdentities {
   option (gogoproto.goproto_getters) = false;
 
   // unique hyperlane identifier
@@ -62,10 +66,12 @@ message EventUpdateEnclaveIdentity {
   ];
   // the owner who made the change
   string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  // digest of the identity pinned before (hex-encoded)
+  // set digest pinned before (hex-encoded)
   string previous_identity_digest = 3;
-  // digest of the identity pinned now (hex-encoded)
+  // set digest pinned now (hex-encoded)
   string identity_digest = 4;
+  // digest of each enclave identity pinned now, sorted ascending (hex-encoded)
+  repeated string identity_digests = 5;
 }
 
 // EventUpdateOwner is emitted when an ism changes owner.

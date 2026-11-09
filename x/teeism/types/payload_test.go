@@ -45,7 +45,7 @@ func TestAttestedPayloadIsAccepted(t *testing.T) {
 	u := update(id)
 	payload := types.EncodeAttestedUpdate(u)
 
-	res, err := types.VerifyAttestedPayload(measured, reportDataFor(payload), log, payload, id, time.Unix(1_100, 0))
+	res, err := types.VerifyAttestedPayload(measured, reportDataFor(payload), log, payload, []*types.EnclaveIdentity{id}, time.Unix(1_100, 0))
 	require.NoError(t, err)
 	require.Equal(t, u, res.Update)
 	require.Equal(t, measured, res.Measurements)
@@ -116,7 +116,7 @@ func TestAttestedPayloadIsRefused(t *testing.T) {
 			if !tc.now.IsZero() {
 				now = tc.now
 			}
-			_, err := types.VerifyAttestedPayload(measured, report, log, payload, id, now)
+			_, err := types.VerifyAttestedPayload(measured, report, log, payload, []*types.EnclaveIdentity{id}, now)
 			require.ErrorIs(t, err, tc.want)
 		})
 	}
@@ -130,7 +130,7 @@ func TestAttestedPayloadDoesNotJudgeCadence(t *testing.T) {
 	u.NewState.Timestamp = u.PrevState.Timestamp
 	u.AttestedAt = u.NewState.Timestamp
 	payload := types.EncodeAttestedUpdate(u)
-	_, err := types.VerifyAttestedPayload(measured, reportDataFor(payload), log, payload, id, time.Unix(1_100, 0))
+	_, err := types.VerifyAttestedPayload(measured, reportDataFor(payload), log, payload, []*types.EnclaveIdentity{id}, time.Unix(1_100, 0))
 	require.NoError(t, err)
 	require.True(t, bytes.Equal(u.TreeRoot[:], u.TreeRoot[:]))
 }

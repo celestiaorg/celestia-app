@@ -45,26 +45,44 @@ func (ism *InterchainSecurityModule) Verify(ctx context.Context, metadata []byte
 	return false, sdkerrors.ErrNotSupported
 }
 
-// IdentityDigest returns the digest of the enclave this ISM pins.
+// IdentityDigest returns the set digest of the enclaves this ISM pins, which its
+// state carries (IdentitySetDigest).
 func (ism *InterchainSecurityModule) IdentityDigest() ([32]byte, error) {
-	if ism.Identity == nil {
+	if len(ism.Identities) == 0 {
 		return [32]byte{}, ErrInvalidEnclaveIdentity.Wrap("ism has no pinned enclave identity")
 	}
-	return ism.Identity.Digest(), nil
+	return IdentitySetDigest(ism.Identities)
 }
 
-// Repin points the ism at a different enclave on behalf of `owner`, and returns the
-// identity digest it pinned before.
+// IdentityDigests returns the digest of each pinned enclave, in the stored
+// (ascending) order, hex-encoded.
+func (ism *InterchainSecurityModule) IdentityDigests() []string {
+	out := make([]string, len(ism.Identities))
+	for i, id := range ism.Identities {
+		d := id.Digest()
+		out[i] = EncodeHex(d[:])
+	}
+	return out
+}
+
+// SetIdentities replaces the set of enclaves that may advance the ism on behalf of
+// `owner`, and returns the set digest it pinned before.
 //
-// Only the owner may, and only to an identity that could match a real quote. The
+// Only the owner may, and only to a set of 1 to MaxEnclaveIdentities identities
+// that could each match a real quote. The set is stored in canonical order. The
 // trusted state keeps its root, height and light client store; the identity digest
-// it carries is swapped too, because the enclave copies it forward into every state
-// it attests and the next attestation is checked against the new pin.
-func (ism *InterchainSecurityModule) Repin(owner string, identity *EnclaveIdentity) ([32]byte, error) {
+// it carries becomes the new set digest, because the enclave copies it forward into
+// every state it attests and the next attestation is checked against the new set.
+func (ism *InterchainSecurityModule) SetIdentities(owner string, identities []*EnclaveIdentity) ([32]byte, error) {
 	if err := ism.authorize(owner); err != nil {
 		return [32]byte{}, err
 	}
-	if err := identity.Validate(); err != nil {
+	sorted, err := SortIdentities(identities)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	digest, err := IdentitySetDigest(sorted)
+	if err != nil {
 		return [32]byte{}, err
 	}
 	state, err := DecodeIsmState(ism.State)
@@ -72,9 +90,9 @@ func (ism *InterchainSecurityModule) Repin(owner string, identity *EnclaveIdenti
 		return [32]byte{}, errorsmod.Wrap(ErrInvalidTrustedState, err.Error())
 	}
 	previous := state.IdentityDigest
-	state.IdentityDigest = identity.Digest()
+	state.IdentityDigest = digest
 	ism.State = EncodeIsmState(state)
-	ism.Identity = identity
+	ism.Identities = sorted
 	return previous, nil
 }
 
@@ -90,8 +108,9 @@ func (ism *InterchainSecurityModule) authorize(owner string) error {
 // TransferOwnership hands the ism to `newOwner` on behalf of `owner`, and returns
 // the owner before.
 //
-// There is no renouncing: an ism without an owner could never again be re-pinned
-// or have its verifier overridden, which are the controls an emergency needs.
+// There is no renouncing: an ism without an owner could never again have its
+// enclaves replaced or its verifier overridden, which are the controls an
+// emergency needs.
 func (ism *InterchainSecurityModule) TransferOwnership(owner, newOwner string) (string, error) {
 	if err := ism.authorize(owner); err != nil {
 		return "", err

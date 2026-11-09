@@ -7,7 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-// EnclaveIdentity pins which enclave may advance an ISM.
+// EnclaveIdentity pins one enclave that may advance an ISM. An ISM pins a set of
+// them (InterchainSecurityModule.identities); any one may attest.
 //
 // A DCAP quote on its own proves only that some genuine, non-debug TDX machine
 // signed a payload; anyone renting any TDX host can produce one. These fields are
@@ -58,8 +59,9 @@ message InterchainSecurityModule {
   bytes state = 3;
   // origin merkle tree hook address in bytes32 format
   bytes merkle_tree_address = 4;
-  // the enclave permitted to advance this ism
-  EnclaveIdentity identity = 5;
+  // Field 5 held a single pinned identity before an ism pinned a set.
+  reserved 5;
+  reserved "identity";
   // the owner's overrides of Intel's side of verification. Unset means none.
   VerifierOverrides verifier_overrides = 6;
   // the origin merkle tree hook's root at the current trusted state, as the
@@ -68,13 +70,17 @@ message InterchainSecurityModule {
   bytes tree_root = 7;
   // the hook's leaf count at tree_root.
   uint32 tree_count = 8;
+  // every enclave permitted to advance this ism, sorted ascending by digest.
+  // Any one of them may attest (1-of-N); at most MaxEnclaveIdentities. The
+  // state carries their set digest (IdentitySetDigest).
+  repeated EnclaveIdentity identities = 9;
 }
 
 // VerifierOverrides lets the owner update what Intel can change over time and
 // the verifier would otherwise have built in. It never relaxes verification:
 // every attestation must carry a quote that fully verifies, with unexpired
 // collateral, against a trusted root. Re-pinning the enclave identity is separate
-// (MsgUpdateEnclaveIdentity).
+// (MsgSetEnclaveIdentities).
 message VerifierOverrides {
   // Fields removed before release. Their numbers stay reserved.
   reserved 2, 3;

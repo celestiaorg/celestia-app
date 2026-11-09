@@ -27,8 +27,8 @@ func NewUpdateOwnerCmd() *cobra.Command {
 		Short: "Transfer a TEE ism to a new owner (owner only)",
 		Long: strings.TrimSpace(`Hand a Hyperlane TEE ism to a new owner, typically a multisig.
 
-The new owner gets every owner control: re-pinning the enclave
-(update-identity) and overriding Intel's side of verification
+The new owner gets every owner control: replacing the set of enclaves
+(set-identities) and overriding Intel's side of verification
 (set-verifier-overrides). The current owner keeps none of them. There is no
 renouncing: an ism always has an owner who can act in an emergency.`),
 		Example: fmt.Sprintf("%s tx %s update-owner 0x...2b celestia1... --from owner", version.AppName, types.ModuleName),

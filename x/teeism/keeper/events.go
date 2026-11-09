@@ -17,17 +17,23 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 		State:             types.EncodeHex(ism.State),
 		MerkleTreeAddress: types.EncodeHex(ism.MerkleTreeAddress),
 		IdentityDigest:    types.EncodeHex(digest[:]),
+		IdentityDigests:   ism.IdentityDigests(),
 	})
 }
 
-// EmitUpdateEnclaveIdentityEvent emits a typed event when an owner re-pins an ISM.
-func EmitUpdateEnclaveIdentityEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous [32]byte) error {
-	digest := ism.Identity.Digest()
-	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateEnclaveIdentity{
+// EmitSetEnclaveIdentitiesEvent emits a typed event when an owner replaces an ISM's
+// set of enclaves.
+func EmitSetEnclaveIdentitiesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous [32]byte) error {
+	digest, err := ism.IdentityDigest()
+	if err != nil {
+		return err
+	}
+	return ctx.EventManager().EmitTypedEvent(&types.EventSetEnclaveIdentities{
 		Id:                     ism.Id,
 		Owner:                  ism.Owner,
 		PreviousIdentityDigest: types.EncodeHex(previous[:]),
 		IdentityDigest:         types.EncodeHex(digest[:]),
+		IdentityDigests:        ism.IdentityDigests(),
 	})
 }
 

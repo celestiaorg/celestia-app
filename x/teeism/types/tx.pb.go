@@ -38,8 +38,10 @@ type MsgCreateInterchainSecurityModule struct {
 	State []byte `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	// origin merkle tree hook address in bytes32 format
 	MerkleTreeAddress []byte `protobuf:"bytes,3,opt,name=merkle_tree_address,json=merkleTreeAddress,proto3" json:"merkle_tree_address,omitempty"`
-	// the enclave permitted to advance this ism
-	Identity *EnclaveIdentity `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
+	// every enclave permitted to advance this ism; any one may attest. 1 to
+	// MaxEnclaveIdentities, no duplicates. The initial state must carry their set
+	// digest.
+	Identities []*EnclaveIdentity `protobuf:"bytes,5,rep,name=identities,proto3" json:"identities,omitempty"`
 }
 
 func (m *MsgCreateInterchainSecurityModule) Reset()         { *m = MsgCreateInterchainSecurityModule{} }
@@ -96,9 +98,9 @@ func (m *MsgCreateInterchainSecurityModule) GetMerkleTreeAddress() []byte {
 	return nil
 }
 
-func (m *MsgCreateInterchainSecurityModule) GetIdentity() *EnclaveIdentity {
+func (m *MsgCreateInterchainSecurityModule) GetIdentities() []*EnclaveIdentity {
 	if m != nil {
-		return m.Identity
+		return m.Identities
 	}
 	return nil
 }
@@ -308,34 +310,36 @@ func (m *MsgSubmitAttestationResponse) GetTreeCount() uint32 {
 	return 0
 }
 
-// MsgUpdateEnclaveIdentity is the request type for UpdateEnclaveIdentity.
+// MsgSetEnclaveIdentities is the request type for SetEnclaveIdentities.
 //
-// The owner's emergency control: when the enclave's platform changes under it (a
-// new OS image, new firmware), or the enclave has to be replaced, the owner points
-// the ism at the new identity in place. The trusted state keeps its root, height
-// and light client store; only the identity digest it carries is swapped, so
-// nothing in flight is lost.
-type MsgUpdateEnclaveIdentity struct {
+// The owner's control over which enclaves advance an ism: when the enclave's
+// platform changes under it (a new OS image, new firmware), when an enclave is
+// added for redundancy, or when one is retired. The whole set is replaced at once,
+// so a rotation is: pin {old, new}, move the relayer, pin {new}. The trusted state
+// keeps its root, height and light client store; only the identity digest it
+// carries is swapped for the new set digest, so nothing in flight is lost.
+type MsgSetEnclaveIdentities struct {
 	// the ism owner
 	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
 	// ism identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,2,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
-	// the enclave permitted to advance this ism from now on
-	Identity *EnclaveIdentity `protobuf:"bytes,3,opt,name=identity,proto3" json:"identity,omitempty"`
+	// every enclave permitted to advance this ism from now on; any one may attest.
+	// 1 to MaxEnclaveIdentities, no duplicates.
+	Identities []*EnclaveIdentity `protobuf:"bytes,3,rep,name=identities,proto3" json:"identities,omitempty"`
 }
 
-func (m *MsgUpdateEnclaveIdentity) Reset()         { *m = MsgUpdateEnclaveIdentity{} }
-func (m *MsgUpdateEnclaveIdentity) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateEnclaveIdentity) ProtoMessage()    {}
-func (*MsgUpdateEnclaveIdentity) Descriptor() ([]byte, []int) {
+func (m *MsgSetEnclaveIdentities) Reset()         { *m = MsgSetEnclaveIdentities{} }
+func (m *MsgSetEnclaveIdentities) String() string { return proto.CompactTextString(m) }
+func (*MsgSetEnclaveIdentities) ProtoMessage()    {}
+func (*MsgSetEnclaveIdentities) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d625093ca1fb7e5b, []int{4}
 }
-func (m *MsgUpdateEnclaveIdentity) XXX_Unmarshal(b []byte) error {
+func (m *MsgSetEnclaveIdentities) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateEnclaveIdentity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgSetEnclaveIdentities) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateEnclaveIdentity.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgSetEnclaveIdentities.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -345,48 +349,48 @@ func (m *MsgUpdateEnclaveIdentity) XXX_Marshal(b []byte, deterministic bool) ([]
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateEnclaveIdentity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateEnclaveIdentity.Merge(m, src)
+func (m *MsgSetEnclaveIdentities) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetEnclaveIdentities.Merge(m, src)
 }
-func (m *MsgUpdateEnclaveIdentity) XXX_Size() int {
+func (m *MsgSetEnclaveIdentities) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateEnclaveIdentity) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateEnclaveIdentity.DiscardUnknown(m)
+func (m *MsgSetEnclaveIdentities) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetEnclaveIdentities.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateEnclaveIdentity proto.InternalMessageInfo
+var xxx_messageInfo_MsgSetEnclaveIdentities proto.InternalMessageInfo
 
-func (m *MsgUpdateEnclaveIdentity) GetOwner() string {
+func (m *MsgSetEnclaveIdentities) GetOwner() string {
 	if m != nil {
 		return m.Owner
 	}
 	return ""
 }
 
-func (m *MsgUpdateEnclaveIdentity) GetIdentity() *EnclaveIdentity {
+func (m *MsgSetEnclaveIdentities) GetIdentities() []*EnclaveIdentity {
 	if m != nil {
-		return m.Identity
+		return m.Identities
 	}
 	return nil
 }
 
-// MsgUpdateEnclaveIdentityResponse is the response type for UpdateEnclaveIdentity.
-type MsgUpdateEnclaveIdentityResponse struct {
+// MsgSetEnclaveIdentitiesResponse is the response type for SetEnclaveIdentities.
+type MsgSetEnclaveIdentitiesResponse struct {
 }
 
-func (m *MsgUpdateEnclaveIdentityResponse) Reset()         { *m = MsgUpdateEnclaveIdentityResponse{} }
-func (m *MsgUpdateEnclaveIdentityResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateEnclaveIdentityResponse) ProtoMessage()    {}
-func (*MsgUpdateEnclaveIdentityResponse) Descriptor() ([]byte, []int) {
+func (m *MsgSetEnclaveIdentitiesResponse) Reset()         { *m = MsgSetEnclaveIdentitiesResponse{} }
+func (m *MsgSetEnclaveIdentitiesResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgSetEnclaveIdentitiesResponse) ProtoMessage()    {}
+func (*MsgSetEnclaveIdentitiesResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d625093ca1fb7e5b, []int{5}
 }
-func (m *MsgUpdateEnclaveIdentityResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgSetEnclaveIdentitiesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateEnclaveIdentityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgSetEnclaveIdentitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateEnclaveIdentityResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgSetEnclaveIdentitiesResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -396,17 +400,17 @@ func (m *MsgUpdateEnclaveIdentityResponse) XXX_Marshal(b []byte, deterministic b
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateEnclaveIdentityResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateEnclaveIdentityResponse.Merge(m, src)
+func (m *MsgSetEnclaveIdentitiesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetEnclaveIdentitiesResponse.Merge(m, src)
 }
-func (m *MsgUpdateEnclaveIdentityResponse) XXX_Size() int {
+func (m *MsgSetEnclaveIdentitiesResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateEnclaveIdentityResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateEnclaveIdentityResponse.DiscardUnknown(m)
+func (m *MsgSetEnclaveIdentitiesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetEnclaveIdentitiesResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateEnclaveIdentityResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgSetEnclaveIdentitiesResponse proto.InternalMessageInfo
 
 // MsgUpdateOwner is the request type for UpdateOwner.
 type MsgUpdateOwner struct {
@@ -601,8 +605,8 @@ func init() {
 	proto.RegisterType((*MsgCreateInterchainSecurityModuleResponse)(nil), "celestia.teeism.v1.MsgCreateInterchainSecurityModuleResponse")
 	proto.RegisterType((*MsgSubmitAttestation)(nil), "celestia.teeism.v1.MsgSubmitAttestation")
 	proto.RegisterType((*MsgSubmitAttestationResponse)(nil), "celestia.teeism.v1.MsgSubmitAttestationResponse")
-	proto.RegisterType((*MsgUpdateEnclaveIdentity)(nil), "celestia.teeism.v1.MsgUpdateEnclaveIdentity")
-	proto.RegisterType((*MsgUpdateEnclaveIdentityResponse)(nil), "celestia.teeism.v1.MsgUpdateEnclaveIdentityResponse")
+	proto.RegisterType((*MsgSetEnclaveIdentities)(nil), "celestia.teeism.v1.MsgSetEnclaveIdentities")
+	proto.RegisterType((*MsgSetEnclaveIdentitiesResponse)(nil), "celestia.teeism.v1.MsgSetEnclaveIdentitiesResponse")
 	proto.RegisterType((*MsgUpdateOwner)(nil), "celestia.teeism.v1.MsgUpdateOwner")
 	proto.RegisterType((*MsgUpdateOwnerResponse)(nil), "celestia.teeism.v1.MsgUpdateOwnerResponse")
 	proto.RegisterType((*MsgSetVerifierOverrides)(nil), "celestia.teeism.v1.MsgSetVerifierOverrides")
@@ -612,58 +616,59 @@ func init() {
 func init() { proto.RegisterFile("celestia/teeism/v1/tx.proto", fileDescriptor_d625093ca1fb7e5b) }
 
 var fileDescriptor_d625093ca1fb7e5b = []byte{
-	// 815 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0x4f, 0x6f, 0xe3, 0x44,
-	0x14, 0x8f, 0x93, 0xb4, 0x24, 0xaf, 0x0b, 0x62, 0x4d, 0xd8, 0xb5, 0x5c, 0xd6, 0xcd, 0x1a, 0x21,
-	0x85, 0x42, 0x6d, 0xb6, 0x0b, 0x97, 0x45, 0x80, 0x76, 0x23, 0x24, 0x16, 0x6d, 0xb4, 0x92, 0x0b,
-	0x1c, 0x90, 0x50, 0xe4, 0xd8, 0x0f, 0x77, 0x84, 0xed, 0x31, 0x33, 0x93, 0x34, 0x11, 0x97, 0x15,
-	0x9f, 0x80, 0x13, 0x37, 0xc4, 0x85, 0x0f, 0xb0, 0x1f, 0x63, 0x8f, 0x15, 0x12, 0x12, 0xe2, 0x50,
-	0xa1, 0xf6, 0xd0, 0x0b, 0x1f, 0x02, 0x79, 0xfc, 0xa7, 0x29, 0x71, 0x08, 0xad, 0xd8, 0xde, 0xe6,
-	0xcd, 0xfb, 0xbd, 0x3f, 0xbf, 0xf7, 0x67, 0x34, 0xb0, 0xe9, 0x61, 0x88, 0x5c, 0x10, 0xd7, 0x16,
-	0x88, 0x84, 0x47, 0xf6, 0xe4, 0x8e, 0x2d, 0xa6, 0x56, 0xc2, 0xa8, 0xa0, 0xaa, 0x5a, 0x28, 0xad,
-	0x4c, 0x69, 0x4d, 0xee, 0xe8, 0x46, 0x95, 0xc1, 0x2c, 0x41, 0x9e, 0xd9, 0xe8, 0x37, 0x3d, 0xca,
-	0x23, 0xca, 0xed, 0x88, 0x07, 0xa9, 0x2a, 0xe2, 0x41, 0xae, 0xe8, 0x04, 0x34, 0xa0, 0xf2, 0x68,
-	0xa7, 0xa7, 0xec, 0xd6, 0xfc, 0x55, 0x81, 0xdb, 0x03, 0x1e, 0xf4, 0x19, 0xba, 0x02, 0x1f, 0xc6,
-	0x02, 0x99, 0xb7, 0xef, 0x92, 0x78, 0x0f, 0xbd, 0x31, 0x23, 0x62, 0x36, 0xa0, 0xfe, 0x38, 0x44,
-	0x55, 0x83, 0x17, 0xbc, 0x14, 0x41, 0x99, 0xa6, 0x74, 0x95, 0x5e, 0xdb, 0x29, 0x44, 0xb5, 0x03,
-	0x6b, 0x5c, 0xb8, 0x02, 0xb5, 0x7a, 0x57, 0xe9, 0x5d, 0x73, 0x32, 0x41, 0xb5, 0xe0, 0x95, 0x08,
-	0xd9, 0x37, 0x21, 0x0e, 0x05, 0x43, 0x1c, 0xba, 0xbe, 0xcf, 0x90, 0x73, 0xad, 0x21, 0x31, 0xd7,
-	0x33, 0xd5, 0x67, 0x0c, 0xf1, 0x7e, 0xa6, 0x50, 0x3f, 0x82, 0x16, 0xf1, 0x31, 0x16, 0x44, 0xcc,
-	0xb4, 0x66, 0x57, 0xe9, 0x6d, 0xec, 0xbe, 0x6e, 0x2d, 0x72, 0xb7, 0x3e, 0x8e, 0xbd, 0xd0, 0x9d,
-	0xe0, 0xc3, 0x1c, 0xea, 0x94, 0x46, 0xf7, 0xae, 0x7d, 0x7f, 0xfa, 0x74, 0xbb, 0x48, 0xca, 0x7c,
-	0xa2, 0xc0, 0x9b, 0x2b, 0x49, 0x39, 0xc8, 0x13, 0x1a, 0x73, 0x54, 0xf7, 0xa0, 0x4e, 0xfc, 0x8c,
-	0xd7, 0x83, 0xfe, 0xb3, 0xa3, 0xad, 0xda, 0x1f, 0x47, 0x5b, 0xef, 0x07, 0x44, 0xec, 0x8f, 0x47,
-	0x96, 0x47, 0x23, 0x7b, 0xe4, 0x25, 0x3b, 0x24, 0x8e, 0xe9, 0xc4, 0x15, 0x84, 0xc6, 0xdc, 0xde,
-	0x9f, 0x25, 0xc8, 0x42, 0x37, 0xc6, 0x9d, 0xbc, 0xd4, 0x63, 0x41, 0x42, 0xeb, 0x13, 0x9c, 0xe6,
-	0x6c, 0x9c, 0x3a, 0xf1, 0xcd, 0x9f, 0xea, 0xd0, 0x19, 0xf0, 0x60, 0x6f, 0x3c, 0x8a, 0x88, 0xb8,
-	0x2f, 0x04, 0xa6, 0x85, 0x21, 0x34, 0x7e, 0x2e, 0xd1, 0xd2, 0x2e, 0x7c, 0x3b, 0xa6, 0x67, 0x5d,
-	0x90, 0x82, 0xba, 0x09, 0x6d, 0x9c, 0x60, 0x2c, 0x86, 0x21, 0x0d, 0xf2, 0xda, 0xb7, 0xe4, 0xc5,
-	0x23, 0x1a, 0xa8, 0x1f, 0x02, 0x78, 0x34, 0x0c, 0x5d, 0x81, 0xcc, 0x0d, 0xf3, 0xa2, 0x1b, 0x55,
-	0x45, 0xef, 0x97, 0x28, 0x67, 0xce, 0x22, 0x1d, 0x89, 0xc4, 0x9d, 0x85, 0xd4, 0xf5, 0xb5, 0x35,
-	0xe9, 0xba, 0x10, 0xd5, 0x1b, 0xb0, 0xce, 0x49, 0x10, 0x23, 0xd3, 0xd6, 0xe5, 0xac, 0xe4, 0xd2,
-	0xbd, 0x8d, 0xb4, 0x47, 0xb9, 0x60, 0xfe, 0xac, 0xc0, 0x6b, 0x55, 0xf5, 0x29, 0xbb, 0x52, 0x0e,
-	0x56, 0x36, 0x70, 0xf9, 0x60, 0xdd, 0x02, 0x90, 0x87, 0x21, 0xa3, 0x54, 0x48, 0xb6, 0x6d, 0xa7,
-	0x2d, 0x6f, 0x1c, 0x4a, 0x45, 0xca, 0x58, 0x0e, 0x9c, 0xd4, 0x36, 0xa5, 0xb6, 0x95, 0x5e, 0x48,
-	0xe5, 0x2d, 0x00, 0xa9, 0xf4, 0xe8, 0x38, 0x16, 0x32, 0xe9, 0x17, 0x1d, 0x09, 0xef, 0xa7, 0x17,
-	0x9f, 0x36, 0x5b, 0x8d, 0x97, 0x9b, 0x4e, 0x2b, 0x42, 0xce, 0xdd, 0x00, 0x79, 0xba, 0x19, 0xda,
-	0x80, 0x07, 0x9f, 0x27, 0xbe, 0x2b, 0xf0, 0x1f, 0x93, 0x97, 0x66, 0x47, 0x0f, 0x52, 0x8a, 0x79,
-	0x76, 0x52, 0xc8, 0x7b, 0x5b, 0xff, 0x7f, 0x7b, 0x3b, 0xbf, 0x1b, 0x8d, 0xcb, 0xec, 0x06, 0xa4,
-	0x75, 0xcf, 0x32, 0x34, 0x4d, 0xe8, 0x2e, 0xe3, 0x54, 0x54, 0xde, 0xfc, 0x45, 0x81, 0x97, 0x4a,
-	0xd0, 0x63, 0x49, 0xec, 0x0a, 0xe9, 0x6e, 0x42, 0x3b, 0xc6, 0x83, 0x61, 0x16, 0xae, 0x91, 0xb5,
-	0x30, 0xc6, 0x03, 0x99, 0xc7, 0x39, 0x2a, 0x1a, 0xdc, 0x38, 0x9f, 0x65, 0x49, 0xe0, 0x37, 0x05,
-	0x6e, 0xa6, 0xb3, 0x85, 0xe2, 0x0b, 0x64, 0xe4, 0x6b, 0x82, 0xec, 0xf1, 0x04, 0x19, 0x23, 0x3e,
-	0xf2, 0xab, 0x64, 0xd2, 0x87, 0x36, 0x2d, 0xe2, 0xe6, 0x9d, 0x7b, 0xa3, 0xaa, 0x73, 0x0b, 0x49,
-	0x3a, 0x67, 0x76, 0xe7, 0x18, 0xdf, 0x86, 0xad, 0x25, 0xb4, 0x0a, 0xea, 0xbb, 0x7f, 0x35, 0xa1,
-	0x31, 0xe0, 0x81, 0xfa, 0xa3, 0x02, 0xc6, 0x8a, 0x37, 0xfd, 0xbd, 0xaa, 0x5c, 0x56, 0xbe, 0x9a,
-	0xfa, 0x07, 0x97, 0x32, 0x2b, 0xd7, 0x9a, 0xc2, 0xf5, 0xc5, 0x37, 0xb1, 0xb7, 0xc4, 0xe7, 0x02,
-	0x52, 0x7f, 0xe7, 0xbf, 0x22, 0xcb, 0x80, 0xdf, 0xc1, 0xab, 0xd5, 0x2b, 0xfc, 0xf6, 0x12, 0x57,
-	0x95, 0x68, 0xfd, 0xdd, 0x8b, 0xa0, 0xcb, 0xe0, 0x5f, 0xc1, 0xc6, 0xfc, 0x1a, 0x99, 0xff, 0xea,
-	0x44, 0x62, 0xf4, 0xed, 0xd5, 0x98, 0xd2, 0xfd, 0x14, 0x3a, 0x95, 0x43, 0xfe, 0xd6, 0xb2, 0x2a,
-	0x55, 0x80, 0xf5, 0xbb, 0x17, 0x00, 0x17, 0x91, 0xf5, 0xb5, 0x27, 0xa7, 0x4f, 0xb7, 0x95, 0x07,
-	0x8f, 0x9e, 0x1d, 0x1b, 0xca, 0xe1, 0xb1, 0xa1, 0xfc, 0x79, 0x6c, 0x28, 0x3f, 0x9c, 0x18, 0xb5,
-	0xc3, 0x13, 0xa3, 0xf6, 0xfb, 0x89, 0x51, 0xfb, 0x72, 0x77, 0x6e, 0x7b, 0x0a, 0xff, 0x94, 0x05,
-	0xe5, 0x79, 0xc7, 0x4d, 0x12, 0x7b, 0x5a, 0xfc, 0x61, 0xe4, 0x07, 0x66, 0xb4, 0x2e, 0xbf, 0x24,
-	0x77, 0xff, 0x0e, 0x00, 0x00, 0xff, 0xff, 0xd6, 0x6f, 0xd6, 0x3d, 0x14, 0x09, 0x00, 0x00,
+	// 819 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0xcd, 0x6e, 0xeb, 0x44,
+	0x14, 0x8e, 0xf3, 0x53, 0x92, 0xc9, 0x05, 0xdd, 0x6b, 0xa2, 0x7b, 0xad, 0x94, 0xba, 0xa9, 0x11,
+	0x52, 0x28, 0xaa, 0x4d, 0x53, 0xb1, 0x29, 0x02, 0xa9, 0x8d, 0x90, 0x68, 0xd5, 0xa8, 0x92, 0x0b,
+	0x2c, 0x90, 0x50, 0xe4, 0xd8, 0x07, 0x77, 0x84, 0xed, 0x31, 0x33, 0x93, 0x34, 0xd9, 0x55, 0x3c,
+	0x01, 0x2b, 0x76, 0x88, 0x0d, 0x0f, 0xd0, 0xc7, 0xe8, 0xb2, 0x1b, 0x24, 0xc4, 0xa2, 0x42, 0xad,
+	0x44, 0xc5, 0x5b, 0x20, 0x8f, 0x7f, 0x9a, 0x10, 0xa7, 0x81, 0x0a, 0xba, 0x9b, 0x33, 0xdf, 0x77,
+	0x66, 0xce, 0x37, 0xdf, 0x39, 0x96, 0xd1, 0xaa, 0x0d, 0x1e, 0x30, 0x8e, 0x2d, 0x83, 0x03, 0x60,
+	0xe6, 0x1b, 0xa3, 0x6d, 0x83, 0x8f, 0xf5, 0x90, 0x12, 0x4e, 0x64, 0x39, 0x05, 0xf5, 0x18, 0xd4,
+	0x47, 0xdb, 0x4d, 0x35, 0x2f, 0x61, 0x12, 0x02, 0x8b, 0x73, 0x9a, 0xaf, 0x6c, 0xc2, 0x7c, 0xc2,
+	0x0c, 0x9f, 0xb9, 0x11, 0xe4, 0x33, 0x37, 0x01, 0x1a, 0x2e, 0x71, 0x89, 0x58, 0x1a, 0xd1, 0x2a,
+	0xde, 0xd5, 0xfe, 0x90, 0xd0, 0x46, 0x8f, 0xb9, 0x5d, 0x0a, 0x16, 0x87, 0x83, 0x80, 0x03, 0xb5,
+	0x4f, 0x2d, 0x1c, 0x9c, 0x80, 0x3d, 0xa4, 0x98, 0x4f, 0x7a, 0xc4, 0x19, 0x7a, 0x20, 0x2b, 0xe8,
+	0x35, 0x3b, 0x62, 0x10, 0xaa, 0x48, 0x2d, 0xa9, 0x5d, 0x33, 0xd3, 0x50, 0x6e, 0xa0, 0x0a, 0xe3,
+	0x16, 0x07, 0xa5, 0xd8, 0x92, 0xda, 0xcf, 0xcc, 0x38, 0x90, 0x75, 0xf4, 0xa6, 0x0f, 0xf4, 0x1b,
+	0x0f, 0xfa, 0x9c, 0x02, 0xf4, 0x2d, 0xc7, 0xa1, 0xc0, 0x98, 0x52, 0x12, 0x9c, 0x17, 0x31, 0xf4,
+	0x19, 0x05, 0xd8, 0x8b, 0x01, 0xb9, 0x8b, 0x10, 0x76, 0x20, 0xe0, 0x98, 0x63, 0x60, 0x4a, 0xa5,
+	0x55, 0x6a, 0xd7, 0x3b, 0x6f, 0xeb, 0xf3, 0xea, 0xf5, 0x4f, 0x02, 0xdb, 0xb3, 0x46, 0x70, 0x10,
+	0x93, 0x27, 0xe6, 0x54, 0xda, 0xee, 0xb3, 0xef, 0xee, 0x2e, 0x36, 0xd3, 0xc2, 0x0e, 0xcb, 0xd5,
+	0xf2, 0xf3, 0x8a, 0x59, 0x4d, 0xf0, 0x89, 0x76, 0x2e, 0xa1, 0x77, 0x97, 0x0a, 0x35, 0x81, 0x85,
+	0x24, 0x60, 0x20, 0x9f, 0xa0, 0x22, 0x76, 0x62, 0xad, 0xfb, 0xdd, 0xcb, 0xeb, 0xf5, 0xc2, 0x6f,
+	0xd7, 0xeb, 0x1f, 0xba, 0x98, 0x9f, 0x0e, 0x07, 0xba, 0x4d, 0x7c, 0x63, 0x60, 0x87, 0x5b, 0x38,
+	0x08, 0xc8, 0xc8, 0xe2, 0x98, 0x04, 0xcc, 0x38, 0x9d, 0x84, 0x40, 0x3d, 0x2b, 0x80, 0xad, 0xe4,
+	0xf9, 0x87, 0x1c, 0x7b, 0xfa, 0xa7, 0x30, 0x4e, 0x14, 0x9a, 0x45, 0xec, 0x68, 0x3f, 0x16, 0x51,
+	0xa3, 0xc7, 0xdc, 0x93, 0xe1, 0xc0, 0xc7, 0x7c, 0x8f, 0x73, 0x88, 0x1e, 0x0b, 0x93, 0xe0, 0x7f,
+	0xb9, 0x2d, 0x72, 0xe6, 0xdb, 0x21, 0xb9, 0x77, 0x46, 0x04, 0xf2, 0x2a, 0xaa, 0xc1, 0x08, 0x02,
+	0xde, 0xf7, 0x88, 0x9b, 0xf8, 0x51, 0x15, 0x1b, 0x47, 0xc4, 0x95, 0x3f, 0x46, 0xc8, 0x26, 0x9e,
+	0x67, 0x71, 0xa0, 0x96, 0xa7, 0x94, 0x5b, 0x52, 0xbb, 0xde, 0x51, 0xf3, 0x6c, 0xe8, 0x66, 0x2c,
+	0x73, 0x2a, 0x23, 0x6a, 0x93, 0xd0, 0x9a, 0x78, 0xc4, 0x72, 0x94, 0x8a, 0x38, 0x3a, 0x0d, 0xe5,
+	0x97, 0x68, 0x85, 0x61, 0x37, 0x00, 0xaa, 0xac, 0x88, 0xfe, 0x49, 0xa2, 0xdd, 0x7a, 0xe4, 0x59,
+	0x12, 0x68, 0x3f, 0x49, 0xe8, 0xad, 0xbc, 0xf7, 0xc9, 0x5c, 0xc9, 0x9a, 0x2d, 0x6e, 0xc2, 0xa4,
+	0xd9, 0xd6, 0x10, 0x12, 0x8b, 0x3e, 0x25, 0x84, 0x0b, 0xb5, 0x35, 0xb3, 0x26, 0x76, 0x4c, 0x42,
+	0x78, 0xa4, 0x58, 0x34, 0xa1, 0x40, 0xcb, 0x02, 0xad, 0x46, 0x1b, 0x02, 0x5c, 0x43, 0x48, 0x80,
+	0x36, 0x19, 0x06, 0x5c, 0x14, 0xfd, 0xba, 0x29, 0xe8, 0xdd, 0x68, 0xe3, 0xb0, 0x5c, 0x2d, 0x3d,
+	0x2f, 0x9b, 0x55, 0x1f, 0x18, 0xb3, 0x5c, 0x60, 0xda, 0x2f, 0x12, 0x7a, 0x15, 0x55, 0x08, 0x7c,
+	0xb6, 0x11, 0x31, 0xb0, 0xa8, 0x38, 0x72, 0x16, 0x29, 0x4c, 0x8a, 0x13, 0x41, 0x62, 0x6d, 0xf1,
+	0xbf, 0xb5, 0x76, 0x76, 0x5c, 0x4a, 0x8f, 0x1b, 0x17, 0x14, 0x3d, 0x7d, 0x5c, 0xa5, 0xb6, 0x81,
+	0xd6, 0x17, 0xc8, 0x4a, 0xdf, 0x5e, 0xfb, 0x59, 0x42, 0x6f, 0xf4, 0x98, 0xfb, 0x79, 0xe8, 0x58,
+	0x1c, 0x8e, 0x85, 0xb6, 0x27, 0x54, 0xbc, 0x8a, 0x6a, 0x01, 0x9c, 0xf5, 0xe3, 0xeb, 0x4a, 0xb1,
+	0x89, 0x01, 0x9c, 0x89, 0x3a, 0x66, 0x94, 0x28, 0xe8, 0xe5, 0x6c, 0x95, 0x99, 0x80, 0x7b, 0xef,
+	0xbe, 0x00, 0x8a, 0xbf, 0xc6, 0x40, 0x8f, 0x47, 0x40, 0x29, 0x76, 0x9e, 0xda, 0xbb, 0x1a, 0x49,
+	0xef, 0x15, 0x4a, 0xea, 0x9d, 0x77, 0xf2, 0xac, 0x9b, 0x2b, 0xd2, 0xbc, 0xcf, 0xcb, 0xf7, 0x6e,
+	0x3e, 0x23, 0x91, 0xde, 0xf9, 0xb3, 0x8c, 0x4a, 0x3d, 0xe6, 0xca, 0x3f, 0x48, 0x48, 0x5d, 0xf2,
+	0xa5, 0xff, 0x20, 0xaf, 0x96, 0xa5, 0xdf, 0xcd, 0xe6, 0x47, 0x8f, 0x4a, 0xcb, 0x06, 0x9b, 0xa0,
+	0x17, 0xf3, 0x5f, 0xc5, 0xf6, 0x82, 0x33, 0xe7, 0x98, 0xcd, 0xf7, 0xff, 0x29, 0x33, 0xbb, 0x70,
+	0x8c, 0x1a, 0xb9, 0x43, 0xfc, 0xde, 0xa2, 0x93, 0x72, 0xc8, 0xcd, 0x9d, 0x7f, 0x41, 0xce, 0x6e,
+	0xfe, 0x0a, 0xd5, 0xa7, 0x67, 0x48, 0x5b, 0x70, 0xc6, 0x14, 0xa7, 0xb9, 0xb9, 0x9c, 0xf3, 0x37,
+	0x61, 0xf3, 0x1d, 0xfe, 0x80, 0xb0, 0x39, 0xf2, 0x43, 0xc2, 0x16, 0x36, 0x59, 0xb3, 0x72, 0x7e,
+	0x77, 0xb1, 0x29, 0xed, 0x1f, 0x5d, 0xde, 0xa8, 0xd2, 0xd5, 0x8d, 0x2a, 0xfd, 0x7e, 0xa3, 0x4a,
+	0xdf, 0xdf, 0xaa, 0x85, 0xab, 0x5b, 0xb5, 0xf0, 0xeb, 0xad, 0x5a, 0xf8, 0xb2, 0x33, 0x35, 0x3a,
+	0xe9, 0xf9, 0x84, 0xba, 0xd9, 0x7a, 0xcb, 0x0a, 0x43, 0x63, 0x9c, 0xfe, 0xd6, 0x88, 0x7f, 0x9a,
+	0xc1, 0x8a, 0xf8, 0x4b, 0xd9, 0xf9, 0x2b, 0x00, 0x00, 0xff, 0xff, 0x41, 0xdf, 0x30, 0xaa, 0x27,
+	0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -683,8 +688,9 @@ type MsgClient interface {
 	// SubmitAttestation advances the ism state and authorizes a batch of messages
 	// in a single step.
 	SubmitAttestation(ctx context.Context, in *MsgSubmitAttestation, opts ...grpc.CallOption) (*MsgSubmitAttestationResponse, error)
-	// UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
-	UpdateEnclaveIdentity(ctx context.Context, in *MsgUpdateEnclaveIdentity, opts ...grpc.CallOption) (*MsgUpdateEnclaveIdentityResponse, error)
+	// SetEnclaveIdentities replaces the set of enclaves that may advance an ism.
+	// Owner only.
+	SetEnclaveIdentities(ctx context.Context, in *MsgSetEnclaveIdentities, opts ...grpc.CallOption) (*MsgSetEnclaveIdentitiesResponse, error)
 	// UpdateOwner transfers an ism to a new owner. Owner only.
 	UpdateOwner(ctx context.Context, in *MsgUpdateOwner, opts ...grpc.CallOption) (*MsgUpdateOwnerResponse, error)
 	// SetVerifierOverrides sets or clears an ism's overrides of Intel's side of
@@ -718,9 +724,9 @@ func (c *msgClient) SubmitAttestation(ctx context.Context, in *MsgSubmitAttestat
 	return out, nil
 }
 
-func (c *msgClient) UpdateEnclaveIdentity(ctx context.Context, in *MsgUpdateEnclaveIdentity, opts ...grpc.CallOption) (*MsgUpdateEnclaveIdentityResponse, error) {
-	out := new(MsgUpdateEnclaveIdentityResponse)
-	err := c.cc.Invoke(ctx, "/celestia.teeism.v1.Msg/UpdateEnclaveIdentity", in, out, opts...)
+func (c *msgClient) SetEnclaveIdentities(ctx context.Context, in *MsgSetEnclaveIdentities, opts ...grpc.CallOption) (*MsgSetEnclaveIdentitiesResponse, error) {
+	out := new(MsgSetEnclaveIdentitiesResponse)
+	err := c.cc.Invoke(ctx, "/celestia.teeism.v1.Msg/SetEnclaveIdentities", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -752,8 +758,9 @@ type MsgServer interface {
 	// SubmitAttestation advances the ism state and authorizes a batch of messages
 	// in a single step.
 	SubmitAttestation(context.Context, *MsgSubmitAttestation) (*MsgSubmitAttestationResponse, error)
-	// UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
-	UpdateEnclaveIdentity(context.Context, *MsgUpdateEnclaveIdentity) (*MsgUpdateEnclaveIdentityResponse, error)
+	// SetEnclaveIdentities replaces the set of enclaves that may advance an ism.
+	// Owner only.
+	SetEnclaveIdentities(context.Context, *MsgSetEnclaveIdentities) (*MsgSetEnclaveIdentitiesResponse, error)
 	// UpdateOwner transfers an ism to a new owner. Owner only.
 	UpdateOwner(context.Context, *MsgUpdateOwner) (*MsgUpdateOwnerResponse, error)
 	// SetVerifierOverrides sets or clears an ism's overrides of Intel's side of
@@ -771,8 +778,8 @@ func (*UnimplementedMsgServer) CreateInterchainSecurityModule(ctx context.Contex
 func (*UnimplementedMsgServer) SubmitAttestation(ctx context.Context, req *MsgSubmitAttestation) (*MsgSubmitAttestationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitAttestation not implemented")
 }
-func (*UnimplementedMsgServer) UpdateEnclaveIdentity(ctx context.Context, req *MsgUpdateEnclaveIdentity) (*MsgUpdateEnclaveIdentityResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateEnclaveIdentity not implemented")
+func (*UnimplementedMsgServer) SetEnclaveIdentities(ctx context.Context, req *MsgSetEnclaveIdentities) (*MsgSetEnclaveIdentitiesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetEnclaveIdentities not implemented")
 }
 func (*UnimplementedMsgServer) UpdateOwner(ctx context.Context, req *MsgUpdateOwner) (*MsgUpdateOwnerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateOwner not implemented")
@@ -821,20 +828,20 @@ func _Msg_SubmitAttestation_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateEnclaveIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateEnclaveIdentity)
+func _Msg_SetEnclaveIdentities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgSetEnclaveIdentities)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateEnclaveIdentity(ctx, in)
+		return srv.(MsgServer).SetEnclaveIdentities(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/celestia.teeism.v1.Msg/UpdateEnclaveIdentity",
+		FullMethod: "/celestia.teeism.v1.Msg/SetEnclaveIdentities",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateEnclaveIdentity(ctx, req.(*MsgUpdateEnclaveIdentity))
+		return srv.(MsgServer).SetEnclaveIdentities(ctx, req.(*MsgSetEnclaveIdentities))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -889,8 +896,8 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Msg_SubmitAttestation_Handler,
 		},
 		{
-			MethodName: "UpdateEnclaveIdentity",
-			Handler:    _Msg_UpdateEnclaveIdentity_Handler,
+			MethodName: "SetEnclaveIdentities",
+			Handler:    _Msg_SetEnclaveIdentities_Handler,
 		},
 		{
 			MethodName: "UpdateOwner",
@@ -925,17 +932,19 @@ func (m *MsgCreateInterchainSecurityModule) MarshalToSizedBuffer(dAtA []byte) (i
 	_ = i
 	var l int
 	_ = l
-	if m.Identity != nil {
-		{
-			size, err := m.Identity.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
+	if len(m.Identities) > 0 {
+		for iNdEx := len(m.Identities) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Identities[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTx(dAtA, i, uint64(size))
 			}
-			i -= size
-			i = encodeVarintTx(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x2a
 		}
-		i--
-		dAtA[i] = 0x22
 	}
 	if len(m.MerkleTreeAddress) > 0 {
 		i -= len(m.MerkleTreeAddress)
@@ -1116,7 +1125,7 @@ func (m *MsgSubmitAttestationResponse) MarshalToSizedBuffer(dAtA []byte) (int, e
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateEnclaveIdentity) Marshal() (dAtA []byte, err error) {
+func (m *MsgSetEnclaveIdentities) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1126,27 +1135,29 @@ func (m *MsgUpdateEnclaveIdentity) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateEnclaveIdentity) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgSetEnclaveIdentities) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateEnclaveIdentity) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgSetEnclaveIdentities) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Identity != nil {
-		{
-			size, err := m.Identity.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
+	if len(m.Identities) > 0 {
+		for iNdEx := len(m.Identities) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Identities[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTx(dAtA, i, uint64(size))
 			}
-			i -= size
-			i = encodeVarintTx(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x1a
 		}
-		i--
-		dAtA[i] = 0x1a
 	}
 	{
 		size := m.Id.Size()
@@ -1168,7 +1179,7 @@ func (m *MsgUpdateEnclaveIdentity) MarshalToSizedBuffer(dAtA []byte) (int, error
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateEnclaveIdentityResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgSetEnclaveIdentitiesResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1178,12 +1189,12 @@ func (m *MsgUpdateEnclaveIdentityResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateEnclaveIdentityResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgSetEnclaveIdentitiesResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateEnclaveIdentityResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgSetEnclaveIdentitiesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1365,9 +1376,11 @@ func (m *MsgCreateInterchainSecurityModule) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	if m.Identity != nil {
-		l = m.Identity.Size()
-		n += 1 + l + sovTx(uint64(l))
+	if len(m.Identities) > 0 {
+		for _, e := range m.Identities {
+			l = e.Size()
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
 	return n
 }
@@ -1438,7 +1451,7 @@ func (m *MsgSubmitAttestationResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateEnclaveIdentity) Size() (n int) {
+func (m *MsgSetEnclaveIdentities) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1450,14 +1463,16 @@ func (m *MsgUpdateEnclaveIdentity) Size() (n int) {
 	}
 	l = m.Id.Size()
 	n += 1 + l + sovTx(uint64(l))
-	if m.Identity != nil {
-		l = m.Identity.Size()
-		n += 1 + l + sovTx(uint64(l))
+	if len(m.Identities) > 0 {
+		for _, e := range m.Identities {
+			l = e.Size()
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
 	return n
 }
 
-func (m *MsgUpdateEnclaveIdentityResponse) Size() (n int) {
+func (m *MsgSetEnclaveIdentitiesResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1657,9 +1672,9 @@ func (m *MsgCreateInterchainSecurityModule) Unmarshal(dAtA []byte) error {
 				m.MerkleTreeAddress = []byte{}
 			}
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Identity", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Identities", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1686,10 +1701,8 @@ func (m *MsgCreateInterchainSecurityModule) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Identity == nil {
-				m.Identity = &EnclaveIdentity{}
-			}
-			if err := m.Identity.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Identities = append(m.Identities, &EnclaveIdentity{})
+			if err := m.Identities[len(m.Identities)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2217,7 +2230,7 @@ func (m *MsgSubmitAttestationResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateEnclaveIdentity) Unmarshal(dAtA []byte) error {
+func (m *MsgSetEnclaveIdentities) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2240,10 +2253,10 @@ func (m *MsgUpdateEnclaveIdentity) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateEnclaveIdentity: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgSetEnclaveIdentities: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateEnclaveIdentity: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgSetEnclaveIdentities: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2314,7 +2327,7 @@ func (m *MsgUpdateEnclaveIdentity) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Identity", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Identities", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -2341,10 +2354,8 @@ func (m *MsgUpdateEnclaveIdentity) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Identity == nil {
-				m.Identity = &EnclaveIdentity{}
-			}
-			if err := m.Identity.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Identities = append(m.Identities, &EnclaveIdentity{})
+			if err := m.Identities[len(m.Identities)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2369,7 +2380,7 @@ func (m *MsgUpdateEnclaveIdentity) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateEnclaveIdentityResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgSetEnclaveIdentitiesResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2392,10 +2403,10 @@ func (m *MsgUpdateEnclaveIdentityResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateEnclaveIdentityResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgSetEnclaveIdentitiesResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateEnclaveIdentityResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgSetEnclaveIdentitiesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

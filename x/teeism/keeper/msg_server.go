@@ -24,9 +24,16 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 // CreateInterchainSecurityModule implements types.MsgServer.
 //
 // Creation is permissionless. The initial state pins the origin light client
-// checkpoint and the enclave identity, both of which are public and auditable at
-// creation time, so an ISM nobody trusts is simply an ISM nobody routes to.
+// checkpoint and the set of enclave identities, all of which are public and
+// auditable at creation time, so an ISM nobody trusts is simply an ISM nobody
+// routes to.
 func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *types.MsgCreateInterchainSecurityModule) (*types.MsgCreateInterchainSecurityModuleResponse, error) {
+	// ValidateBasic checked the set against the initial state; this stores it in
+	// canonical order.
+	identities, err := types.SortIdentities(msg.Identities)
+	if err != nil {
+		return nil, err
+	}
 	ismId, err := m.coreKeeper.IsmRouter().GetNextSequence(ctx, types.ModuleTypeTeeISM)
 	if err != nil {
 		return nil, err
@@ -37,7 +44,7 @@ func (m msgServer) CreateInterchainSecurityModule(ctx context.Context, msg *type
 		Owner:             msg.Creator,
 		State:             msg.State,
 		MerkleTreeAddress: msg.MerkleTreeAddress,
-		Identity:          msg.Identity,
+		Identities:        identities,
 	}
 
 	if err := m.isms.Set(ctx, ismId.GetInternalId(), newIsm); err != nil {
@@ -67,8 +74,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
-	if ism.Identity == nil {
-		return nil, types.ErrInvalidEnclaveIdentity.Wrapf("ism %s has no pinned enclave identity", ism.Id.String())
+	pinned, err := ism.IdentityDigest()
+	if err != nil {
+		return nil, errorsmod.Wrapf(err, "ism %s", ism.Id.String())
 	}
 
 	// Meter before verifying, so a submission that fails verification still pays
@@ -80,7 +88,7 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		msg.EventLog,
 		msg.Collateral,
 		msg.Payload,
-		ism.Identity,
+		ism.Identities,
 		sdkCtx.BlockTime(),
 		ism.VerifierOverrides,
 	)
@@ -97,11 +105,11 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		return nil, errorsmod.Wrapf(types.ErrInvalidTrustedState, "expected %x, got %x", ism.State, prev)
 	}
 
-	// The enclave pins its own identity into the state it produces. Checking the
-	// new state still names this ISM's enclave stops an attestation from quietly
-	// re-pointing the ISM at a different one.
-	if update.NewState.IdentityDigest != ism.Identity.Digest() {
-		return nil, types.ErrIdentityMismatch.Wrap("attested state names a different enclave than this ism pins")
+	// The enclave copies the identity digest forward from the state it was handed.
+	// Checking the new state still names this ISM's set of enclaves stops an
+	// attestation from quietly re-pointing the ISM at a different set.
+	if update.NewState.IdentityDigest != pinned {
+		return nil, types.ErrIdentityMismatch.Wrap("attested state names different enclaves than this ism pins")
 	}
 
 	if !bytes.Equal(update.MerkleTreeAddress[:], ism.MerkleTreeAddress) {
@@ -144,20 +152,22 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	}, nil
 }
 
-// UpdateEnclaveIdentity implements types.MsgServer.
+// SetEnclaveIdentities implements types.MsgServer.
 //
-// The owner's emergency control over which enclave advances an ISM, for when the
-// enclave's platform changes under it (a new OS image, new firmware) or the
-// enclave has to be replaced. The trusted state keeps its root, height and light
-// client store; only the identity digest it carries is swapped, which is what the
-// enclave copies forward into every state it attests. So nothing in flight is
+// The owner's control over which enclaves advance an ISM: for when the enclave's
+// platform changes under it (a new OS image, new firmware), an enclave is added for
+// redundancy, or one is retired. The whole set is replaced at once, so a rotation
+// is: pin {old, new}, move the relayer, pin {new}, and no attestation is refused in
+// between. The trusted state keeps its root, height and light client store; only
+// the identity digest it carries is swapped for the new set digest, which is what
+// the enclave copies forward into every state it attests. So nothing in flight is
 // lost, and no new ISM or router change is needed.
-func (m msgServer) UpdateEnclaveIdentity(ctx context.Context, msg *types.MsgUpdateEnclaveIdentity) (*types.MsgUpdateEnclaveIdentityResponse, error) {
+func (m msgServer) SetEnclaveIdentities(ctx context.Context, msg *types.MsgSetEnclaveIdentities) (*types.MsgSetEnclaveIdentitiesResponse, error) {
 	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
 	if err != nil {
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
-	previous, err := ism.Repin(msg.Owner, msg.Identity)
+	previous, err := ism.SetIdentities(msg.Owner, msg.Identities)
 	if err != nil {
 		return nil, err
 	}
@@ -165,10 +175,10 @@ func (m msgServer) UpdateEnclaveIdentity(ctx context.Context, msg *types.MsgUpda
 		return nil, err
 	}
 
-	if err := EmitUpdateEnclaveIdentityEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
+	if err := EmitSetEnclaveIdentitiesEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
 		return nil, err
 	}
-	return &types.MsgUpdateEnclaveIdentityResponse{}, nil
+	return &types.MsgSetEnclaveIdentitiesResponse{}, nil
 }
 
 // UpdateOwner implements types.MsgServer.
