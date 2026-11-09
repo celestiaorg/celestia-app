@@ -26,35 +26,8 @@ func (gs GenesisState) Validate() error {
 		}
 		isms[internalID] = struct{}{}
 
-		if len(ism.State) != IsmStateBytes {
-			return errorsmod.Wrapf(ErrInvalidTrustedState, "ism %s state must be exactly %d bytes", ism.Id.String(), IsmStateBytes)
-		}
-		if len(ism.MerkleTreeAddress) != 32 {
-			return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
-		}
-		digest, err := IdentitySetDigest(ism.Identities)
-		if err != nil {
-			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
-		}
-		if ism.Owner != "" {
-			if _, err := sdk.AccAddressFromBech32(ism.Owner); err != nil {
-				return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "ism %s owner: %s", ism.Id.String(), err)
-			}
-		}
-		if err := ism.VerifierOverrides.Validate(); err != nil {
-			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
-		}
-
-		state, err := DecodeIsmState(ism.State)
-		if err != nil {
-			return errorsmod.Wrapf(ErrInvalidTrustedState, "ism %s: %v", ism.Id.String(), err)
-		}
-		if state.IdentityDigest != digest {
-			return errorsmod.Wrapf(ErrInvalidEnclaveIdentity, "ism %s state names different enclaves than the ones it pins", ism.Id.String())
-		}
-		// Empty until the first attestation, 32 bytes after it.
-		if len(ism.TreeRoot) != 0 && len(ism.TreeRoot) != 32 {
-			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s tree root must be empty or 32 bytes, got %d", ism.Id.String(), len(ism.TreeRoot))
+		if err := validateGenesisIsm(ism); err != nil {
+			return err
 		}
 	}
 
@@ -74,16 +47,59 @@ func (gs GenesisState) Validate() error {
 		}
 		roots[internalID] = struct{}{}
 
-		for _, root := range entry.Roots {
-			raw, err := DecodeHex(root)
-			if err != nil {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root %q for ism %s: %v", root, entry.Id.String(), err)
-			}
-			if len(raw) != 32 {
-				return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(raw))
-			}
+		if err := validateGenesisRoots(entry); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// validateGenesisIsm checks one ism's own fields, everything but its id.
+func validateGenesisIsm(ism InterchainSecurityModule) error {
+	if len(ism.State) != IsmStateBytes {
+		return errorsmod.Wrapf(ErrInvalidTrustedState, "ism %s state must be exactly %d bytes", ism.Id.String(), IsmStateBytes)
+	}
+	if len(ism.MerkleTreeAddress) != 32 {
+		return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
+	}
+	digest, err := IdentitySetDigest(ism.Identities)
+	if err != nil {
+		return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
+	}
+	if ism.Owner != "" {
+		if _, err := sdk.AccAddressFromBech32(ism.Owner); err != nil {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "ism %s owner: %s", ism.Id.String(), err)
+		}
+	}
+	if err := ism.VerifierOverrides.Validate(); err != nil {
+		return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
+	}
+
+	state, err := DecodeIsmState(ism.State)
+	if err != nil {
+		return errorsmod.Wrapf(ErrInvalidTrustedState, "ism %s: %v", ism.Id.String(), err)
+	}
+	if state.IdentityDigest != digest {
+		return errorsmod.Wrapf(ErrInvalidEnclaveIdentity, "ism %s state names different enclaves than the ones it pins", ism.Id.String())
+	}
+	// Empty until the first attestation, 32 bytes after it.
+	if len(ism.TreeRoot) != 0 && len(ism.TreeRoot) != 32 {
+		return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s tree root must be empty or 32 bytes, got %d", ism.Id.String(), len(ism.TreeRoot))
+	}
+	return nil
+}
+
+// validateGenesisRoots checks that every root of one entry is a 32-byte hex value.
+func validateGenesisRoots(entry GenesisRoots) error {
+	for _, root := range entry.Roots {
+		raw, err := DecodeHex(root)
+		if err != nil {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root %q for ism %s: %v", root, entry.Id.String(), err)
+		}
+		if len(raw) != 32 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(raw))
+		}
+	}
 	return nil
 }
