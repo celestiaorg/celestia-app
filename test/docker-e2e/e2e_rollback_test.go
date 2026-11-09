@@ -42,50 +42,10 @@ func (s *CelestiaTestSuite) TestRollback() {
 	}
 
 	ctx := context.TODO()
-	// A retry runs in a new process with the same container and volume names, and
-	// a failed run can leave its volumes and host keyring copies behind, so the
-	// new full node would find the old keyring.
-	suiteName := strings.ReplaceAll(t.Name(), "/", "_")
-	s.removeLeftovers(ctx, suiteName+"-", "-"+suiteName)
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	// Write the validators' files before they start: WriteFile chowns the whole
-	// volume, which fails if a running node deletes a file mid-walk.
-	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).WithPostInit(prepareRollbackValidator).Build(ctx)
-	s.Require().NoError(err, "failed to get chain")
-
-	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
-
-	t.Cleanup(func() {
-		if err := celestia.Remove(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
-		}
-	})
-
-	// The full node never halts and is never rolled back; it serves the deleted blocks.
-	err = celestia.AddNode(ctx, cosmos.NewChainNodeConfigBuilder().
-		WithNodeType(tastoratypes.NodeTypeConsensusFull).
-		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			// Tastora enables REST, which requires the Cosmos SDK gRPC server.
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.GRPC.Enable = true
-			})
-		}).
-		Build())
-	s.Require().NoError(err, "failed to add full node")
-
+	celestia, fullNode, fullNodePeer := s.startRecoveryChain(ctx, dockerchain.DefaultConfig(s.client, s.network))
 	validators := celestia.Validators
-	fullNode := celestia.FullNodes[0]
 	allNodes := celestia.Nodes()
 
-	// Restarted validators get new IPs, so they must dial the full node themselves.
-	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
-	s.Require().NoError(err, "failed to get the full node peer address")
-
-	err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
-		return !info.CatchingUp && info.LatestBlockHeight > 0
-	})
-	s.Require().NoError(err, "full node failed to sync")
 	startHeight, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 
@@ -192,6 +152,55 @@ func prepareRollbackValidator(ctx context.Context, node *cosmos.ChainNode) error
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 		cfg.StateSync.SnapshotInterval = 2
 	})
+}
+
+// startRecoveryChain starts the validators with recovery.sh and snapshots, and a
+// full node that never halts, and returns the chain, the full node and its peer address.
+func (s *CelestiaTestSuite) startRecoveryChain(ctx context.Context, cfg *dockerchain.Config) (*cosmos.Chain, *cosmos.ChainNode, string) {
+	t := s.T()
+	// A retry runs in a new process with the same container and volume names, and
+	// a failed run can leave its volumes and host keyring copies behind, so the
+	// new full node would find the old keyring.
+	suiteName := strings.ReplaceAll(t.Name(), "/", "_")
+	s.removeLeftovers(ctx, suiteName+"-", "-"+suiteName)
+	// Write the validators' files before they start: WriteFile chowns the whole
+	// volume, which fails if a running node deletes a file mid-walk.
+	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).WithPostInit(prepareRollbackValidator).Build(ctx)
+	s.Require().NoError(err, "failed to get chain")
+
+	err = celestia.Start(ctx)
+	s.Require().NoError(err, "failed to start chain")
+
+	t.Cleanup(func() {
+		if err := celestia.Remove(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
+
+	// The full node never halts and is never rolled back; it serves the deleted blocks.
+	err = celestia.AddNode(ctx, cosmos.NewChainNodeConfigBuilder().
+		WithNodeType(tastoratypes.NodeTypeConsensusFull).
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			// Tastora enables REST, which requires the Cosmos SDK gRPC server.
+			// The validators' gas price lets transactions be sent through this node.
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				cfg.GRPC.Enable = true
+				cfg.MinGasPrices = "0.025utia"
+			})
+		}).
+		Build())
+	s.Require().NoError(err, "failed to add full node")
+
+	fullNode := celestia.FullNodes[0]
+	// Restarted validators get new IPs, so they must dial the full node themselves.
+	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
+	s.Require().NoError(err, "failed to get the full node peer address")
+
+	err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight > 0
+	})
+	s.Require().NoError(err, "full node failed to sync")
+	return celestia, fullNode, fullNodePeer
 }
 
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
