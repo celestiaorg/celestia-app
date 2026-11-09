@@ -17,6 +17,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -347,6 +348,11 @@ func TestDelayedInfoDoesNotReachRestartedEmbeddedApp(t *testing.T) {
 	// The next app now serves the address.
 	serving.Store(v4Listener)
 	v3Server.Stop()
+	// Wait until the client sees the dropped connection, so later calls
+	// redial the next app instead of racing an in-flight EOF.
+	for conn.GetState() == connectivity.Ready {
+		conn.WaitForStateChange(t.Context(), connectivity.Ready)
+	}
 	close(release)
 	select {
 	case <-infoErr:
