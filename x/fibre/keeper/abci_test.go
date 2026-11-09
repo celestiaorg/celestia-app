@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ type ABCITestSuite struct {
 	msgServer  types.MsgServer
 	cdc        codec.Codec
 	bankKeeper *MockBankKeeper
+	storeKey   *storetypes.KVStoreKey
 }
 
 func TestABCITestSuite(t *testing.T) {
@@ -55,6 +57,7 @@ func (suite *ABCITestSuite) SetupTest() {
 	suite.cdc = codec.NewProtoCodec(registry)
 
 	suite.bankKeeper = &MockBankKeeper{}
+	suite.storeKey = storeKey
 	mockStakingKeeper := &MockStakingKeeper{}
 	authority := authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now().UTC()}, false, log.NewNopLogger())
@@ -851,6 +854,82 @@ func (suite *ABCITestSuite) TestInitGenesisMigratesLegacyEscrows() {
 	suite.Equal([]sdk.Coins{sdk.NewCoins(sdk.NewInt64Coin("stake", 70))}, refunds)
 
 	suite.Require().NoError(suite.keeper.ExportGenesis(suite.ctx).Validate())
+}
+
+// TestInitGenesisCanonicalStateUnchanged checks that the unconditional
+// Migrate1to2 call leaves canonical utia-only genesis state exactly as plain
+// imports would store it, and that it exports unchanged.
+func (suite *ABCITestSuite) TestInitGenesisCanonicalStateUnchanged() {
+	requested := suite.ctx.BlockTime()
+	genesis := types.DefaultGenesis()
+	for i, seed := range []string{"genesis_signer_a____", "genesis_signer_b____", "genesis_signer_c____"} {
+		signer := sdk.AccAddress([]byte(seed)).String()
+		genesis.EscrowAccounts = append(genesis.EscrowAccounts, types.EscrowAccount{
+			Signer: signer, Balance: sdk.NewInt64Coin("utia", 1000), AvailableBalance: sdk.NewInt64Coin("utia", int64(900-i)),
+		})
+		genesis.Withdrawals = append(genesis.Withdrawals, types.Withdrawal{
+			Signer: signer, Amount: sdk.NewInt64Coin("utia", int64(100+i)), RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour),
+		})
+	}
+	// Export iterates in store key order.
+	slices.SortFunc(genesis.EscrowAccounts, func(a, b types.EscrowAccount) int { return strings.Compare(a.Signer, b.Signer) })
+	slices.SortFunc(genesis.Withdrawals, func(a, b types.Withdrawal) int { return strings.Compare(a.Signer, b.Signer) })
+	genesis.ProcessedPayments = []types.ProcessedPayment{{PaymentPromiseHash: []byte("hash"), ProcessedAt: requested}}
+	genesis.PromiseFreshnessFloor = requested.Add(-time.Hour)
+	suite.Require().NoError(genesis.Validate())
+
+	dump := func() (keys, values [][]byte) {
+		iterator := suite.ctx.KVStore(suite.storeKey).Iterator(nil, nil)
+		defer iterator.Close()
+		for ; iterator.Valid(); iterator.Next() {
+			keys = append(keys, iterator.Key())
+			values = append(values, iterator.Value())
+		}
+		return keys, values
+	}
+
+	suite.SetupTest()
+	suite.keeper.InitGenesis(suite.ctx, *genesis)
+	gotKeys, gotValues := dump()
+	suite.JSONEq(string(suite.cdc.MustMarshalJSON(genesis)), string(suite.cdc.MustMarshalJSON(suite.keeper.ExportGenesis(suite.ctx))))
+
+	// Store the same records without the migration.
+	genesisHeight := suite.ctx.KVStore(suite.storeKey).Get(types.GenesisHeightKey)
+	suite.SetupTest()
+	suite.keeper.SetParams(suite.ctx, genesis.Params)
+	suite.ctx.KVStore(suite.storeKey).Set(types.GenesisHeightKey, genesisHeight)
+	for _, account := range genesis.EscrowAccounts {
+		suite.keeper.SetEscrowAccount(suite.ctx, account)
+	}
+	for _, withdrawal := range genesis.Withdrawals {
+		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
+	}
+	for _, entry := range genesis.ProcessedPayments {
+		suite.keeper.SetProcessedPayment(suite.ctx, entry)
+	}
+	suite.keeper.SetPromiseFreshnessFloor(suite.ctx, genesis.PromiseFreshnessFloor)
+	wantKeys, wantValues := dump()
+
+	suite.Equal(wantKeys, gotKeys)
+	suite.Equal(wantValues, gotValues)
+}
+
+// TestInitGenesisRejectsWithdrawalWithoutEscrow documents that InitGenesis
+// now always runs Migrate1to2, whose validation rejects a pending withdrawal
+// that no escrow of the same denomination backs, even when every signer is
+// canonical. Validate rejects the same genesis.
+func (suite *ABCITestSuite) TestInitGenesisRejectsWithdrawalWithoutEscrow() {
+	requested := suite.ctx.BlockTime()
+	genesis := types.DefaultGenesis()
+	genesis.Withdrawals = []types.Withdrawal{{
+		Signer:             sdk.AccAddress([]byte("genesis_signer______")).String(),
+		Amount:             sdk.NewInt64Coin("utia", 100),
+		RequestedTimestamp: requested,
+		AvailableTimestamp: requested.Add(time.Hour),
+	}}
+
+	suite.Error(genesis.Validate())
+	suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {
