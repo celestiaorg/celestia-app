@@ -34,6 +34,8 @@ const tdAttributesDebug = 0x01
 type AttestationResult struct {
 	Update       *AttestedUpdate
 	Measurements *Measurements
+	// When the collateral the quote was verified against was issued.
+	CollateralIssuedAt time.Time
 }
 
 // VerifyAttestation checks a quote and everything it must say before its payload
@@ -73,7 +75,17 @@ func VerifyAttestation(
 	if err != nil {
 		return nil, err
 	}
-	return VerifyAttestedPayload(measured, reportData, eventLogRaw, payload, identities, blockTime)
+	result, err := VerifyAttestedPayload(measured, reportData, eventLogRaw, payload, identities, blockTime)
+	if err != nil {
+		return nil, err
+	}
+	// Checked against the age bound by VerifyQuoteWith already; the ism compares
+	// it with the newest it has accepted.
+	result.CollateralIssuedAt, err = collateral.IssuedAt()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // VerifyAttestedPayload runs steps 3 and 4 of VerifyAttestation on a quote
@@ -158,6 +170,17 @@ func VerifyQuote(quote []byte, collateral *Collateral, blockTime time.Time) (*Me
 // otherwise unchanged.
 func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, overrides *VerifierOverrides) (*Measurements, []byte, error) {
 	if err := collateral.Validate(); err != nil {
+		return nil, nil, err
+	}
+	// Each artifact is valid until its own nextUpdate, 30 days for the ones Intel
+	// reissues on request. Bounding the age as well limits how long a platform
+	// Intel has since revoked or downgraded can attest with the collateral from
+	// before; the relayer fetches current collateral for every attestation.
+	issued, err := collateral.IssuedAt()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := CheckCollateralFreshness(issued, blockTime, 0); err != nil {
 		return nil, nil, err
 	}
 

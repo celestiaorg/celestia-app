@@ -74,8 +74,10 @@ func TestExpiredCollateralNeverVerifies(t *testing.T) {
 		"intel root": {TrustedRootCerts: [][]byte{intelRootFrom(t, collateral)}},
 	} {
 		t.Run(name, func(t *testing.T) {
+			// Lapsed collateral is older than MaxCollateralAgeSecs too, and that
+			// bound is checked first, before any signature work is spent on it.
 			_, _, err := types.VerifyQuoteWith(quote, collateral, lapsed, overrides)
-			require.ErrorIs(t, err, types.ErrInvalidQuote)
+			require.ErrorIs(t, err, types.ErrInvalidCollateral)
 		})
 	}
 }

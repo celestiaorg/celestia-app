@@ -118,6 +118,13 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		return nil, types.ErrIdentityMismatch.Wrap("attested state names different enclaves than this ism pins")
 	}
 
+	// Collateral may only get newer than what this ism has accepted: once an
+	// honest attestation lands, the collateral from before a revocation or a TCB
+	// downgrade is refused, whatever its own validity window says.
+	if err := types.CheckCollateralFreshness(result.CollateralIssuedAt, sdkCtx.BlockTime(), ism.CollateralIssuedAt); err != nil {
+		return nil, err
+	}
+
 	if !bytes.Equal(update.MerkleTreeAddress[:], ism.MerkleTreeAddress) {
 		return nil, errorsmod.Wrapf(types.ErrInvalidMerkleTreeAddress, "expected %x, got %x",
 			ism.MerkleTreeAddress, update.MerkleTreeAddress[:])
@@ -142,6 +149,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	ism.State = types.EncodeIsmState(update.NewState)
 	ism.TreeRoot = update.TreeRoot[:]
 	ism.TreeCount = update.TreeCount
+	if issued := uint64(result.CollateralIssuedAt.Unix()); issued > ism.CollateralIssuedAt {
+		ism.CollateralIssuedAt = issued
+	}
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err
 	}
@@ -163,11 +173,13 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 // The owner's control over which enclaves advance an ISM: for when the enclave's
 // platform changes under it (a new OS image, new firmware), an enclave is added for
 // redundancy, or one is retired. The whole set is replaced at once, so a rotation
-// is: pin {old, new}, move the relayer, pin {new}, and no attestation is refused in
-// between. The trusted state keeps its root, height and light client store; only
-// the identity digest it carries is swapped for the new set digest, which is what
-// the enclave copies forward into every state it attests. So nothing in flight is
-// lost, and no new ISM or router change is needed.
+// is: pin {old, new}, move the relayer, pin {new}, and whichever enclave the
+// relayer asks is accepted throughout. The trusted state keeps its root, height
+// and light client store; only the identity digest it carries is swapped for the
+// new set digest, which is what the enclave copies forward into every state it
+// attests. An attestation already built against the old bytes is refused as a
+// trusted-state mismatch and the relayer rebuilds it from the new state, so
+// nothing is lost, and no new ISM or router change is needed.
 func (m msgServer) SetEnclaveIdentities(ctx context.Context, msg *types.MsgSetEnclaveIdentities) (*types.MsgSetEnclaveIdentitiesResponse, error) {
 	if err := msg.ValidateBasic(); err != nil {
 		return nil, err

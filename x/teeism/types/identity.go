@@ -99,6 +99,19 @@ func VerifyEnclaveIdentity(
 	if replayedRtmrs != measured.Rtmrs {
 		return ErrIdentityMismatch.Wrap("event log does not replay to the RTMRs in the quote")
 	}
+	if err := id.verifyMeasurements(measured); err != nil {
+		return err
+	}
+	events, err := IndexApplicationEvents(eventlog)
+	if err != nil {
+		return ErrIdentityMismatch.Wrap(err.Error())
+	}
+	return id.verifyEvents(events)
+}
+
+// verifyMeasurements is the quote half of VerifyEnclaveIdentity: the firmware
+// and the boot chain, which the hardware signed directly.
+func (id *EnclaveIdentity) verifyMeasurements(measured *Measurements) error {
 	if !bytes.Equal(id.MrTd, measured.MrTd[:]) {
 		return ErrIdentityMismatch.Wrapf("mr_td does not match the pinned platform measurement: pinned %x, quoted %x",
 			id.MrTd, measured.MrTd[:])
@@ -112,8 +125,14 @@ func VerifyEnclaveIdentity(
 				i, rtmr, measured.Rtmrs[i][:])
 		}
 	}
+	return nil
+}
+
+// verifyEvents is the pinned-events half of VerifyEnclaveIdentity, on a log
+// already indexed, so a set of identities shares one pass over the log.
+func (id *EnclaveIdentity) verifyEvents(events *ApplicationEvents) error {
 	for _, ev := range id.pinnedEvents() {
-		got, ok := GetEventValue(eventlog, ev.Name)
+		got, ok := events.Get(ev.Name)
 		if !ok {
 			return ErrIdentityMismatch.Wrapf("event %q is missing, duplicated, or its digest does not commit to its text", ev.Name)
 		}
@@ -143,9 +162,18 @@ func VerifyEnclaveIdentities(
 	if replayedRtmrs != measured.Rtmrs {
 		return ErrIdentityMismatch.Wrap("event log does not replay to the RTMRs in the quote")
 	}
+	// One pass over the log for every identity: the self-commitment checks and
+	// the name rules do not depend on which identity is being tried.
+	events, err := IndexApplicationEvents(eventlog)
+	if err != nil {
+		return ErrIdentityMismatch.Wrap(err.Error())
+	}
 	reasons := make([]string, 0, len(ids))
 	for _, id := range ids {
-		err := VerifyEnclaveIdentity(id, measured, eventlog, replayedRtmrs)
+		err := id.verifyMeasurements(measured)
+		if err == nil {
+			err = id.verifyEvents(events)
+		}
 		if err == nil {
 			return nil
 		}

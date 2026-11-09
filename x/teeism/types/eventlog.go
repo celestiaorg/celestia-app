@@ -93,6 +93,9 @@ func ParseEventLog(raw []byte) ([]EventLog, error) {
 	if err := json.Unmarshal(raw, &log); err != nil {
 		return nil, ErrMalformedEventLog.Wrap(err.Error())
 	}
+	if len(log) > MaxEventLogEntries {
+		return nil, ErrMalformedEventLog.Wrapf("event log has %d entries, limit is %d", len(log), MaxEventLogEntries)
+	}
 	return log, nil
 }
 
@@ -164,46 +167,66 @@ func ReplayEventLogs(eventlog []EventLog) [RtmrCount]Digest {
 	return rtmrs
 }
 
-// GetEventValue reads a pinned value out of the log, refusing any entry whose
-// digest does not commit to the text being read.
+// ApplicationEvents is what IMR 3 of one event log says, indexed in a single
+// pass so that reading several pinned values, for several identities, costs no
+// more than reading one.
 //
-// Without that refusal an attacker keeps every genuine digest, so the RTMR replay
-// still matches, and merely relabels the surrounding text to impersonate a pinned
-// key. A duplicated key never resolves, for the same reason.
-//
-// The value must come from IMR 3, the only register the replay binds it into;
-// an entry anywhere else changes no pinned register. Every other IMR 3 entry
-// with a digest must also commit to its own text, so a measured entry cannot be
-// relabelled out of the way of a forged one.
-//
-// The v1 preimage does not mark where a name ends, so an entry named name with
-// a ':' in its payload hashes the same as one named name+":"+(the payload up to
-// that ':'). No IMR 3 entry may be named that way, or the measured entry could
-// be renamed out of the way without changing the replay.
-func GetEventValue(eventlog []EventLog, name string) ([]byte, bool) {
-	var found *EventLog
+// A value resolves only from an IMR 3 entry, the only register the replay binds
+// it into, that is the single entry of its name in the whole log, and whose name
+// is not the prefix of another IMR 3 entry's name up to a ':'. The v1 preimage
+// does not mark where a name ends, so an entry named name with a ':' in its
+// payload hashes the same as one named name+":"+(the payload up to that ':'),
+// and the measured entry could be renamed out of the way of a forged one.
+type ApplicationEvents struct {
+	values map[string][]byte
+}
+
+// IndexApplicationEvents reads the log once. Every IMR 3 entry with a digest
+// must commit to its own text, or nothing in the log is readable: an attacker
+// could otherwise keep every genuine digest, so the RTMR replay still matches,
+// and merely relabel the surrounding text to impersonate a pinned key.
+func IndexApplicationEvents(eventlog []EventLog) (*ApplicationEvents, error) {
+	count := make(map[string]int, len(eventlog))
+	last := make(map[string]*EventLog, len(eventlog))
+	poisoned := map[string]bool{}
 	for i := range eventlog {
 		e := &eventlog[i]
-		if e.IMR == ApplicationIMR && !e.Digest.IsZero() && !EventDigestMatches(e) {
-			return nil, false
+		if e.IMR == ApplicationIMR {
+			if !e.Digest.IsZero() && !EventDigestMatches(e) {
+				return nil, fmt.Errorf("imr 3 entry %q: digest does not commit to its text", e.Event)
+			}
+			for j := 0; j < len(e.Event); j++ {
+				if e.Event[j] == ':' {
+					poisoned[e.Event[:j]] = true
+				}
+			}
 		}
-		if e.IMR == ApplicationIMR && strings.HasPrefix(e.Event, name+":") {
-			return nil, false
-		}
-		if e.Event != name {
-			continue
-		}
-		if found != nil {
-			return nil, false
-		}
-		found = e
+		count[e.Event]++
+		last[e.Event] = e
 	}
-	// An IMR 3 entry either has no digest, so the replay recomputed one that
-	// binds its text, or passed the self-commitment check above.
-	if found == nil || found.IMR != ApplicationIMR {
+	values := make(map[string][]byte, len(last))
+	for name, e := range last {
+		if count[name] == 1 && e.IMR == ApplicationIMR && !poisoned[name] {
+			values[name] = e.EventPayload
+		}
+	}
+	return &ApplicationEvents{values: values}, nil
+}
+
+// Get returns a pinned value, and whether it resolves at all.
+func (a *ApplicationEvents) Get(name string) ([]byte, bool) {
+	v, ok := a.values[name]
+	return v, ok
+}
+
+// GetEventValue reads one pinned value out of the log under the rules of
+// IndexApplicationEvents. Index the log once instead when reading several.
+func GetEventValue(eventlog []EventLog, name string) ([]byte, bool) {
+	idx, err := IndexApplicationEvents(eventlog)
+	if err != nil {
 		return nil, false
 	}
-	return found.EventPayload, true
+	return idx.Get(name)
 }
 
 func writeJSONString(b *strings.Builder, s string) {

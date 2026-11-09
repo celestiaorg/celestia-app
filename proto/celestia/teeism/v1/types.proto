@@ -74,6 +74,10 @@ message InterchainSecurityModule {
   // Any one of them may attest (1-of-N); at most MaxEnclaveIdentities. The
   // state carries their set digest (IdentitySetDigest).
   repeated EnclaveIdentity identities = 9;
+  // when the newest collateral an attestation of this ism verified against was
+  // issued, unix seconds. A later attestation may not bring collateral more
+  // than MaxCollateralRegressionSecs older. Zero before the first attestation.
+  uint64 collateral_issued_at = 10;
 }
 
 // VerifierOverrides lets the owner update what Intel can change over time and

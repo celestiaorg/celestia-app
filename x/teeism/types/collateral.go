@@ -2,11 +2,13 @@ package types
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/google/go-tdx-guest/pcs"
 )
@@ -143,6 +145,73 @@ func checkSignedKey(body []byte, signed string) error {
 	}
 	if !found {
 		return fmt.Errorf("%q is missing", signed)
+	}
+	return nil
+}
+
+// IssuedAt is when the collateral was issued: the oldest of the TCB info's and
+// QE identity's issueDate and the PCK CRL's thisUpdate. The root CA CRL is left
+// out; Intel issues it about once a year.
+//
+// Read before verification and without checking signatures, so it decides only
+// whether the submission is too old to be looked at; an artifact whose date was
+// forged still has to carry Intel's signature over that date to verify.
+func (c *Collateral) IssuedAt() (time.Time, error) {
+	tcb, err := signedIssueDate(c.TcbInfo, "tcbInfo")
+	if err != nil {
+		return time.Time{}, ErrInvalidCollateral.Wrapf("tcb_info: %s", err)
+	}
+	qe, err := signedIssueDate(c.QeIdentity, "enclaveIdentity")
+	if err != nil {
+		return time.Time{}, ErrInvalidCollateral.Wrapf("qe_identity: %s", err)
+	}
+	crl, err := x509.ParseRevocationList(c.PckCrl)
+	if err != nil {
+		return time.Time{}, ErrInvalidCollateral.Wrapf("pck_crl: %s", err)
+	}
+	oldest := tcb
+	for _, t := range []time.Time{qe, crl.ThisUpdate} {
+		if t.Before(oldest) {
+			oldest = t
+		}
+	}
+	return oldest, nil
+}
+
+// signedIssueDate reads the issueDate of the signed object under key.
+func signedIssueDate(body []byte, key string) (time.Time, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return time.Time{}, err
+	}
+	var signed struct {
+		IssueDate string `json:"issueDate"`
+	}
+	if err := json.Unmarshal(doc[key], &signed); err != nil {
+		return time.Time{}, fmt.Errorf("%s: %w", key, err)
+	}
+	t, err := time.Parse(time.RFC3339, signed.IssueDate)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s.issueDate: %w", key, err)
+	}
+	return t, nil
+}
+
+// CheckCollateralFreshness is the rule every submission's collateral must meet:
+// issued no more than MaxCollateralAgeSecs before block time, and no more than
+// MaxCollateralRegressionSecs older than the newest collateral the ism has
+// accepted (newest, in unix seconds; zero before the first attestation).
+func CheckCollateralFreshness(issued time.Time, blockTime time.Time, newest uint64) error {
+	if blockTime.Sub(issued) > MaxCollateralAgeSecs*time.Second {
+		return ErrInvalidCollateral.Wrapf("collateral issued at %s is more than %ds old at block time %s; fetch current collateral",
+			issued.UTC().Format(time.RFC3339), MaxCollateralAgeSecs, blockTime.UTC().Format(time.RFC3339))
+	}
+	if issued.Unix() < 0 {
+		return ErrInvalidCollateral.Wrap("collateral issue time precedes 1970")
+	}
+	if uint64(issued.Unix())+MaxCollateralRegressionSecs < newest {
+		return ErrInvalidCollateral.Wrapf("collateral issued at %s is older than what this ism last accepted (%s); fetch current collateral",
+			issued.UTC().Format(time.RFC3339), time.Unix(int64(newest), 0).UTC().Format(time.RFC3339))
 	}
 	return nil
 }

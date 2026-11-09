@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -243,6 +244,7 @@ func TestCountZKProofMsgs(t *testing.T) {
 	update := func() sdk.Msg { return &zkismtypes.MsgUpdateInterchainSecurityModule{} }
 	submit := func() sdk.Msg { return &zkismtypes.MsgSubmitMessages{} }
 	updateKeys := func() sdk.Msg { return &zkismtypes.MsgUpdateVerifyingKeys{} }
+	attest := func() sdk.Msg { return &teeismtypes.MsgSubmitAttestation{} }
 	icaPacket := func(msgs []proto.Message, enc string) sdk.Msg { return icaPacket(t, cdc, msgs, enc) }
 
 	tests := []struct {
@@ -259,6 +261,10 @@ func TestCountZKProofMsgs(t *testing.T) {
 		{name: "authz (updateKeys)", msgs: []sdk.Msg{execWith(updateKeys(), &banktypes.MsgSend{}, submit())}, want: 2},
 		{name: "protobuf ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
 		{name: "JSON ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
+		{name: "direct (attestation)", msgs: []sdk.Msg{attest(), &banktypes.MsgSend{}, submit()}, want: TeeAttestationWeight + 1},
+		{name: "authz (attestation)", msgs: []sdk.Msg{execWith(attest(), &banktypes.MsgSend{}, submit())}, want: TeeAttestationWeight + 1},
+		{name: "protobuf ICA (attestation)", msgs: []sdk.Msg{icaPacket([]proto.Message{attest(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: TeeAttestationWeight + 1},
+		{name: "JSON ICA (attestation)", msgs: []sdk.Msg{icaPacket([]proto.Message{attest(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: TeeAttestationWeight + 1},
 		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
 		{name: "ICA authz fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
 		{name: "ICA gov proposal fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
@@ -285,6 +291,23 @@ func TestCountZKProofMsgs(t *testing.T) {
 			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
 			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
 				require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
+			}
+		})
+	}
+
+	// A TDX attestation is a DCAP verification, about two groth16 proofs of work,
+	// and is counted against the same ceiling at that weight through every path.
+	for _, n := range []int{appconsts.MaxZKProofMessages / TeeAttestationWeight, appconsts.MaxZKProofMessages/TeeAttestationWeight + 1} {
+		t.Run("attestation boundary "+strconv.Itoa(n), func(t *testing.T) {
+			msgs := make([]sdk.Msg, n)
+			for i := range msgs {
+				msgs[i] = &teeismtypes.MsgSubmitAttestation{}
+			}
+			want := n * TeeAttestationWeight
+			require.Equal(t, want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
+			require.Equal(t, want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
+			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+				require.Equal(t, want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
 			}
 		})
 	}
