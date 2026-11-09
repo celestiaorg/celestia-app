@@ -84,6 +84,11 @@ const (
 	// MaxMultisigISMValidators bounds the validator set of a Hyperlane multisig
 	// ISM, which every verification decodes in full regardless of threshold.
 	MaxMultisigISMValidators = 100
+
+	// MaxModuleQuerySafeRequests bounds the requests in a MsgModuleQuerySafe.
+	// Each request counts as one message against MaxSDKMessages, so allowing a
+	// single request keeps a query priced like any other message.
+	MaxModuleQuerySafeRequests = 1
 )
 
 // MinCommissionRate is 20%.

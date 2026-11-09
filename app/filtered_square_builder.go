@@ -142,6 +142,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if _, has := hasPFB(sdkTx.GetMsgs()); has || countMsgPayForFibre(sdkTx) > 0 {
 			continue
 		}
+		if err := validateTxMsgs(sdkTx, fsb.msgRouter); err != nil {
+			logger.Debug("dropping tx that fails message validation", "tx", lazyTxHash(tx), "err", err)
+			continue
+		}
 
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
@@ -236,6 +240,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		sdkTx, err := dec(bTx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err)
+			continue
+		}
+		if err := validateTxMsgs(sdkTx, fsb.msgRouter); err != nil {
+			logger.Debug("dropping blob tx that fails message validation", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
 
@@ -342,6 +350,10 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 	// builds a block its own ProcessProposal would reject.
 	if err := validatePayForFibreTxShape(e.sdkTx); err != nil {
 		logger.Debug("dropping invalid pay-for-fibre tx", "tx", lazyTxHash(e.raw), "err", err)
+		return false
+	}
+	if err := validateTxMsgs(e.sdkTx, fsb.msgRouter); err != nil {
+		logger.Debug("dropping pay-for-fibre tx that fails message validation", "tx", lazyTxHash(e.raw), "err", err)
 		return false
 	}
 	if fsb.decodePFF != nil {
