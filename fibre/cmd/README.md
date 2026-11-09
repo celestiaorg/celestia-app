@@ -579,6 +579,37 @@ fibre start \
 
 Profiles are tagged with `version` and `hostname` for filtering in the Grafana UI.
 
+## Performance tuning (Linux)
+
+### Transparent huge pages (row slabs)
+
+The encoder streams hundreds of MiB of row data per blob through `mmap`'d scratch slabs. On Linux the server advises the kernel to back those slabs with transparent huge pages (`MADV_HUGEPAGE`), which cuts TLB misses on that streaming. In the change that introduced it ([#8175](https://github.com/celestiaorg/celestia-app/pull/8175)) this improved throughput by about **10% at 16 concurrent encodes** on a Graviton4 (c8gn.4xlarge); the gain depends on the host.
+
+The advice is a no-op unless the host enables THP in `madvise` (or `always`) mode. With default per-size settings, check it and (as root) enable it if needed:
+
+```sh
+# must print [madvise] or [always]; [never] makes the advice a no-op
+cat /sys/kernel/mm/transparent_hugepage/enabled
+# enable madvise mode for the current boot (persist via grub/tmpfiles)
+echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+```
+
+**Recommended:** `enabled = madvise`, which restricts automatic THP allocation to advised regions — including these slabs — rather than to every anonymous mapping on the host.
+
+Trade-offs to be aware of:
+
+- **Memory:** huge pages are charged to the server's memory cgroup and can round RSS up to the huge-page size (commonly 2 MiB; see `cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size`). Leave headroom in any cgroup memory limit.
+- **Defrag stalls:** the advice makes these slabs `MADV_HUGEPAGE` regions, so with `defrag = always`, `madvise`, or `defer+madvise` the first touch of a slab can synchronously stall while the kernel compacts memory to form a huge page (see `fibre/internal/row/mmap_unix.go`). `defrag = defer` avoids these synchronous THP reclaim/compaction stalls, assembling huge pages in the background (already-available ones can still be used up front); `never` skips direct THP reclaim/compaction, falling back to regular pages when huge pages are not immediately available. Inspect or change it with:
+
+```sh
+cat /sys/kernel/mm/transparent_hugepage/defrag
+echo defer | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
+```
+
+To gauge THP use, read `AnonHugePages` (PMD-sized THP) in `/proc/<pid>/smaps_rollup` while the server is serving — that is a process-level figure; attribute it to specific slab mappings via `/proc/<pid>/smaps`.
+
+**Opt-out:** set `FIBRE_ROW_NO_HUGEPAGE=1` to skip just the huge-page advice (the `mmap` slabs stay enabled), or `FIBRE_ROW_NO_MMAP=1` to route slabs through the Go heap entirely. Both are environment variables read at startup.
+
 ## Troubleshooting
 
 ### `starting server: creating signer: ...`

@@ -60,6 +60,22 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrInvalidMerkleTreeAddress,
 		},
 		{
+			name: "success: legacy SP1 v5 groth16 verifying key",
+			malleate: func(gs *types.GenesisState) {
+				gs.Isms[0].Groth16Vkey = readLegacyGroth16Vkey(t)
+			},
+			expErr: nil,
+		},
+		{
+			name: "legacy groth16 vkey with inflated PublicAndCommitmentCommitted length is rejected before deserialization",
+			malleate: func(gs *types.GenesisState) {
+				malicious := readLegacyGroth16Vkey(t)
+				malicious[388], malicious[389], malicious[390], malicious[391] = 0xFF, 0xFF, 0xFF, 0xFF
+				gs.Isms[0].Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "invalid groth16 verifying key",
 			malleate: func(gs *types.GenesisState) {
 				gs.Isms[0].Groth16Vkey = []byte{0x01}

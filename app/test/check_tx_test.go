@@ -543,6 +543,25 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "MsgModuleQuerySafe with more than MaxModuleQuerySafeRequests requests, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The message weighs exactly MaxSDKMessages, so the count alone
+				// admits it, but it would take a whole block's SDK message budget.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: sdkerrors.ErrInvalidRequest.ABCICode(),
+		},
+		{
 			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -606,6 +625,26 @@ func TestCheckTx(t *testing.T) {
 				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "blob tx whose inner tx is an index wrapper, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				wrapped, err := tx.MarshalIndexWrapper(innerBlobTx.Tx, 12345)
+				require.NoError(t, err)
+				outer, err := tx.MarshalBlobTx(wrapped, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
+			},
+			expectedABCICode: blobtypes.ErrNestedIndexWrapper.ABCICode(),
 		},
 	}
 

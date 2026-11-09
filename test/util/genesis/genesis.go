@@ -280,9 +280,9 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 		mods := g.genOps
 		if g.appVersion < 11 {
 			// Older embedded binaries parse this genesis and reject fields
-			// their zkism module does not know. Apply the strip last so it
-			// also covers zkism state set by earlier modifiers.
-			mods = append(append([]Modifier{}, mods...), StripZkismV11Fields())
+			// their zkism, mint, distribution and ibc modules do not know. Apply
+			// the strips last so they also cover state set by earlier modifiers.
+			mods = append(append([]Modifier{}, mods...), StripZkismV11Fields(), StripMintGenesisFields(), StripForkGenesisFields())
 		}
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),

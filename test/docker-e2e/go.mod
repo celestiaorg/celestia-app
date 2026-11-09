@@ -4,13 +4,14 @@ go 1.26.10
 
 require (
 	cosmossdk.io/math v1.5.3
+	cosmossdk.io/x/feegrant v0.1.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
 	github.com/celestiaorg/celestia-app/v11 v11.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/go-square/v4 v4.3.0
+	github.com/celestiaorg/go-square/v4 v4.3.1
 	github.com/celestiaorg/tastora v0.21.3
 	github.com/cometbft/cometbft v1.0.1
-	github.com/cosmos/cosmos-sdk v0.50.13
+	github.com/cosmos/cosmos-sdk v0.50.14
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/cosmos/ibc-go/v8 v8.7.0
 	github.com/ethereum/go-ethereum v1.17.9
@@ -42,7 +43,6 @@ require (
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
 	cosmossdk.io/x/evidence v0.1.1 // indirect
-	cosmossdk.io/x/feegrant v0.1.1 // indirect
 	cosmossdk.io/x/tx v0.13.8 // indirect
 	cosmossdk.io/x/upgrade v0.1.4 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
@@ -195,7 +195,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.14.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -289,22 +289,23 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.8
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk-archive#705, which closes a data race between
 	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
 	// does not have this fix.
-	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.4
+	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.5
 	cosmossdk.io/x/evidence => github.com/celestiaorg/cosmos-sdk/x/evidence v0.1.2-celestia
+	cosmossdk.io/x/feegrant => github.com/celestiaorg/cosmos-sdk/x/feegrant v0.1.2-celestia
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.3
+	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.4
 	github.com/celestiaorg/celestia-app/v11 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.7
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.0
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.8
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.2
 	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2
-	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
+	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.3
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
 	// This replace can be removed once celestiaorg/cosmos-sdk is updated to use ledger-cosmos-go v0.16.0.

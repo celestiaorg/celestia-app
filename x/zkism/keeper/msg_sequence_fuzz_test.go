@@ -180,9 +180,11 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 		op, sel, form := next()%7, int(next()), next()
 		id, target, alias := zkismFuzzId(isms, sel, form)
 		if alias {
-			// Excluded pending a fix; see the Linear issue for this target.
-			// The keeper resolves an id by its internal id alone, so an id that
-			// differs only in the module type or specifier reaches the same ISM.
+			// Intended: like hyperlane-cosmos's own ISMs, the keeper resolves an
+			// id by its internal id alone, so an id that differs only in the
+			// module type or specifier names the same ISM. Internal ids come
+			// from the ISM router's shared sequence, so an alias can only reach
+			// the ISM that owns that internal id, and every check still applies.
 			target = byInternal[id.GetInternalId()]
 		}
 
@@ -314,8 +316,8 @@ func fuzzZKISMMsgSequence(t *testing.T, fx *zkismFuzzFixture, script []byte) {
 
 // zkismFuzzId picks an id: a modelled ISM's id or an id that differs from it
 // in the module type or the 20-byte module specifier, or an id no ISM has.
-// It returns the modelled ISM the id names, if any, and whether the id is
-// such an alias, which names no ISM.
+// It returns the modelled ISM with that exact id, if any, and whether the id
+// is such an alias; the caller maps an alias to the ISM it resolves to.
 func zkismFuzzId(isms []*zkismModel, sel int, form byte) (util.HexAddress, *zkismModel, bool) {
 	if len(isms) == 0 || form%5 == 4 {
 		var spec [20]byte

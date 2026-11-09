@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -23,6 +24,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/go-bip39"
 )
 
 // portCounter is a global atomic counter for deterministic port allocation
@@ -107,10 +109,51 @@ func RandomAddress() sdk.Address {
 	return addresses[0]
 }
 
+// NewDeterministicKeyring is NewKeyring with each key derived from a mnemonic
+// that is a fixed function of its account name, so the same names yield the
+// same keys, addresses and signatures in every process.
+func NewDeterministicKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	kb := keyring.NewInMemory(cdc)
+
+	addresses := make([]sdk.AccAddress, len(accounts))
+	for idx, acc := range accounts {
+		entropy := sha256.Sum256([]byte("celestia-app deterministic test key: " + acc))
+		mnemonic, err := bip39.NewMnemonic(entropy[:])
+		if err != nil {
+			panic(err)
+		}
+		// Same bip39 passphrase and HD path as NewKeyring.
+		rec, err := kb.NewAccount(acc, mnemonic, "", "", hd.Secp256k1)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := rec.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+		addresses[idx] = addr
+	}
+	return kb, addresses
+}
+
 func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
 	kr, addresses := NewKeyring(accounts...)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
+	genBalances, genAccounts := fundAddresses(addresses)
+	return kr, genBalances, genAccounts
+}
+
+// FundDeterministicKeyringAccounts is FundKeyringAccounts with the keys of
+// NewDeterministicKeyring.
+func FundDeterministicKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
+	kr, addresses := NewDeterministicKeyring(accounts...)
+	genBalances, genAccounts := fundAddresses(addresses)
+	return kr, genBalances, genAccounts
+}
+
+func fundAddresses(addresses []sdk.AccAddress) ([]banktypes.Balance, []authtypes.GenesisAccount) {
+	genAccounts := make([]authtypes.GenesisAccount, len(addresses))
+	genBalances := make([]banktypes.Balance, len(addresses))
 
 	for i, addr := range addresses {
 		balances := sdk.NewCoins(
@@ -120,7 +163,7 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
-	return kr, genBalances, genAccounts
+	return genBalances, genAccounts
 }
 
 // GetFreePort returns a free port and optionally an error.

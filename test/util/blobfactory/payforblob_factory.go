@@ -341,6 +341,9 @@ func NewMsgPayForFibre(t *testing.T, pubKey *secp256k1.PubKey, chainID string) *
 			SignerPublicKey:   *pubKey,
 			Signature:         make([]byte, 64),
 		},
+		// One absent validator signature keeps the message valid under
+		// ValidateBasic, which requires at least one entry.
+		ValidatorSignatures: [][]byte{{}},
 	}
 }
 

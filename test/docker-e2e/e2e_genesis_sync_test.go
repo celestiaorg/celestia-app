@@ -2,6 +2,7 @@ package docker_e2e
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,6 +27,10 @@ const (
 	// Public archive peers often have every inbound slot taken, and CometBFT
 	// backs off between redials, so allow several redial rounds.
 	archivePeerTimeout = 5 * time.Minute
+	// genesisSyncNodeID is the P2P node ID of genesisSyncNodeKey. Celestia's
+	// archive nodes list it in unconditional_peer_ids, which reserves an
+	// inbound connection for this test when their regular slots are full.
+	genesisSyncNodeID = "69d48b54f90ff64bd11196f09a6a19570f401eb7"
 	// mainnetV2UpgradeHeight is the height at which Mainnet Beta upgraded from
 	// app version 1 to 2. The embedded v3 binary needs it to replay v1 blocks.
 	mainnetV2UpgradeHeight = 2371495
@@ -37,14 +42,25 @@ const (
 // TestGenesisSyncMocha starts a full node from the Mocha genesis file and
 // verifies it processes genesis and block syncs the first block from live peers.
 func (s *CelestiaTestSuite) TestGenesisSyncMocha() {
+	// TODO: remove this skip once celestiaorg/infrastructure#1077 is deployed.
+	s.T().Skip("skipping until archive peers reserve a slot for this node: https://github.com/celestiaorg/infrastructure/pull/1077")
 	s.runGenesisSync(networks.NewMochaConfig())
 }
 
 // TestGenesisSyncMainnet starts a full node from the Mainnet Beta genesis file
 // and verifies it processes genesis and block syncs the first block from live peers.
 func (s *CelestiaTestSuite) TestGenesisSyncMainnet() {
+	// TODO: remove this skip once celestiaorg/infrastructure#1077 is deployed.
+	s.T().Skip("skipping until archive peers reserve a slot for this node: https://github.com/celestiaorg/infrastructure/pull/1077")
 	s.runGenesisSync(networks.NewMainnetConfig(), fmt.Sprintf("--v2-upgrade-height=%d", mainnetV2UpgradeHeight))
 }
+
+// genesisSyncNodeKey is the node key of the genesis sync test node. It only
+// identifies the node on the P2P network: holding it grants the reserved
+// inbound slot on Celestia's archive nodes and nothing else.
+//
+//go:embed testdata/genesis_sync_node_key.json
+var genesisSyncNodeKey []byte
 
 // runGenesisSync starts a single full node with the real genesis file of the
 // given network, block syncs from seeds and archive peers, and asserts the
@@ -75,6 +91,9 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	chain, err := networks.NewChainBuilder(t, netCfg, dockerCfg).
 		WithAdditionalStartArgs(startArgs...).
 		WithBlockWaitTimeout(genesisSyncTimeout).
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			return node.WriteFile(ctx, "config/node_key.json", genesisSyncNodeKey)
+		}).
 		WithNodes(cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
 			Build(),

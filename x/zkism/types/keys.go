@@ -62,18 +62,14 @@ const (
 	// Groth16VkeySize is the exact expected size of a serialized Groth16
 	// verifying key for the BN254 curve with 5 public inputs (SP1 v6 scheme).
 	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
-	// 6 × compressed G1 points (192 bytes) + uint32 CommitmentKeys length (4 bytes) +
-	// uint32 PublicAndCommitmentCommitted length (4 bytes) = 492.
+	// 6 × compressed G1 points (192 bytes) + uint32 PublicAndCommitmentCommitted
+	// length (4 bytes) + uint32 CommitmentKeys length (4 bytes) = 492.
 	Groth16VkeySize = 492
 
-	// groth16VkeyCommitmentKeysOffset is the byte offset of the uint32
-	// CommitmentKeys length prefix in a serialized BN254 verifying key.
-	// 288 (curve points) + 4 (G1.K length) + 96 (3 × G1.K elements) = 388.
-	groth16VkeyCommitmentKeysOffset = groth16VkeyCurvePointsSize + 4 + (Groth16VkeyG1KLength * 32)
-
-	// groth16VkeyPubCommittedOffset is the byte offset of the uint32
-	// PublicAndCommitmentCommitted length prefix in a serialized BN254 verifying key.
-	groth16VkeyPubCommittedOffset = groth16VkeyCommitmentKeysOffset + 4
+	// legacyGroth16VkeyG1KLength is the number of G1.K elements in an SP1 v5
+	// verifying key (2 public inputs). Only genesis validation accepts it, for
+	// ISMs created before the SP1 v6 verifier.
+	legacyGroth16VkeyG1KLength = 3
 
 	// DefaultRootHistorySize is used when an ISM's root history size is 0.
 	DefaultRootHistorySize = 64
@@ -106,12 +102,36 @@ var (
 
 // ValidateGroth16Vkey checks that a serialized Groth16 verifying key has the
 // expected total size and that the internal length prefixes (G1.K,
-// CommitmentKeys, and PublicAndCommitmentCommitted) have their expected values.
+// PublicAndCommitmentCommitted, and CommitmentKeys) have their expected values.
 // This must be called before passing the key to gnark's deserializer to
 // prevent OOM from inflated length prefixes.
 func ValidateGroth16Vkey(vkey []byte) error {
-	if len(vkey) != Groth16VkeySize {
-		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(vkey))
+	return validateGroth16VkeyLayout(vkey, Groth16VkeyG1KLength)
+}
+
+// ValidateGenesisGroth16Vkey is ValidateGroth16Vkey for an imported ISM. It
+// also accepts the SP1 v5 layout with legacyGroth16VkeyG1KLength G1.K
+// elements, which ISMs created before the SP1 v6 verifier still hold, with the
+// same checks. MsgCreateInterchainSecurityModule keeps the SP1 v6 layout only.
+func ValidateGenesisGroth16Vkey(vkey []byte) error {
+	if len(vkey) == groth16VkeySize(legacyGroth16VkeyG1KLength) {
+		return validateGroth16VkeyLayout(vkey, legacyGroth16VkeyG1KLength)
+	}
+	return ValidateGroth16Vkey(vkey)
+}
+
+// groth16VkeySize returns the size of a serialized compressed BN254 verifying
+// key with g1kLen G1.K elements and no commitments: the curve points, the G1.K
+// length prefix and elements, and the two empty commitment length prefixes.
+func groth16VkeySize(g1kLen int) int {
+	return groth16VkeyCurvePointsSize + 4 + g1kLen*32 + 4 + 4
+}
+
+// validateGroth16VkeyLayout checks that vkey is a compressed BN254 verifying key
+// with exactly g1kLen G1.K elements and no commitments.
+func validateGroth16VkeyLayout(vkey []byte, g1kLen int) error {
+	if size := groth16VkeySize(g1kLen); len(vkey) != size {
+		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", size, len(vkey))
 	}
 
 	// The length-prefix offsets below are only correct when every leading curve
@@ -125,19 +145,23 @@ func ValidateGroth16Vkey(vkey []byte) error {
 		}
 	}
 
-	g1kLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
-	if g1kLen != Groth16VkeyG1KLength {
-		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", Groth16VkeyG1KLength, g1kLen)
+	gotG1KLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
+	if gotG1KLen != uint32(g1kLen) {
+		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", g1kLen, gotG1KLen)
 	}
 
-	commitmentKeysLen := binary.BigEndian.Uint32(vkey[groth16VkeyCommitmentKeysOffset : groth16VkeyCommitmentKeysOffset+4])
-	if commitmentKeysLen != 0 {
-		return fmt.Errorf("groth16 vkey CommitmentKeys length must be 0, got %d", commitmentKeysLen)
-	}
-
-	pubCommittedLen := binary.BigEndian.Uint32(vkey[groth16VkeyPubCommittedOffset : groth16VkeyPubCommittedOffset+4])
+	// gnark reads PublicAndCommitmentCommitted right after G1.K, then the
+	// CommitmentKeys count.
+	pubCommittedOffset := groth16VkeyCurvePointsSize + 4 + g1kLen*32
+	pubCommittedLen := binary.BigEndian.Uint32(vkey[pubCommittedOffset : pubCommittedOffset+4])
 	if pubCommittedLen != 0 {
 		return fmt.Errorf("groth16 vkey PublicAndCommitmentCommitted length must be 0, got %d", pubCommittedLen)
+	}
+
+	commitmentKeysOffset := pubCommittedOffset + 4
+	commitmentKeysLen := binary.BigEndian.Uint32(vkey[commitmentKeysOffset : commitmentKeysOffset+4])
+	if commitmentKeysLen != 0 {
+		return fmt.Errorf("groth16 vkey CommitmentKeys length must be 0, got %d", commitmentKeysLen)
 	}
 
 	return nil

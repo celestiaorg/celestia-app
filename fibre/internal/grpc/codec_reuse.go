@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"context"
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
@@ -64,11 +63,13 @@ func (p *uploadBuffers) release(req *types.UploadShardRequest) {
 	}
 }
 
-func (p *uploadBuffers) intercept(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if upload, ok := req.(*types.UploadShardRequest); ok {
-		defer p.release(upload)
+// releaseDecoded returns the buffer retained while decoding v, if any. The codec
+// retains it before grpc finishes RecvMsg, so this must run even when RecvMsg or
+// the handler fails.
+func (p *uploadBuffers) releaseDecoded(v any) {
+	if upload, ok := v.(*types.UploadShardRequest); ok {
+		p.release(upload)
 	}
-	return handler(ctx, req)
 }
 
 // RegisterWithUploadBufferReuse installs bounded upload decoding and RPC-scoped
@@ -82,9 +83,9 @@ func (s *Server) RegisterWithUploadBufferReuse(service types.FibreServer, maxMes
 	// gRPC tracing lazily formats messages after the RPC has returned.
 	if !grpc.EnableTracing {
 		codec.uploads = &uploadBuffers{limit: maxMessageSize}
-		// Server options' interceptors do not run under admission, so the
-		// cleanup goes to the admitted handler directly.
-		s.intercept = codec.uploads.intercept
+		// admitHandler releases whatever it decoded, whether or not the
+		// generated handler ran.
+		s.releaseDecoded = codec.uploads.releaseDecoded
 	}
 	opts = append(opts, grpc.MaxRecvMsgSize(maxMessageSize), grpc.ForceServerCodecV2(codec))
 	s.Register(service, opts...)

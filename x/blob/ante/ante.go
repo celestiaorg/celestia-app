@@ -70,6 +70,9 @@ func (d MinGasPFBDecorator) validatePFBHasEnoughGas(msgs []sdk.Msg, gasPerByte u
 // validateEnoughGas returns an error if the gas needed to pay for the blobs is
 // greater than the txGas.
 func validateEnoughGas(msg *types.MsgPayForBlobs, gasPerByte uint32, txGas uint64) error {
+	if err := types.ValidateShareVersionsCoverBlobSizes(msg); err != nil {
+		return err
+	}
 	gasToConsume := msg.Gas(gasPerByte)
 	if gasToConsume > txGas {
 		return errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)

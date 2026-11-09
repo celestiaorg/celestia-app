@@ -141,14 +141,28 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 	return GasToConsume(msg, gasPerByte)
 }
 
+// ValidateShareVersionsCoverBlobSizes returns an error if msg has fewer share
+// versions than blob sizes. ValidateBasic rejects such a msg, but code that
+// may run before ValidateBasic must not index ShareVersions by blob without
+// this check.
+func ValidateShareVersionsCoverBlobSizes(msg *MsgPayForBlobs) error {
+	if len(msg.ShareVersions) < len(msg.BlobSizes) {
+		return errors.Wrapf(ErrMismatchedNumberOfPFBComponent, "%d share versions for %d blob sizes", len(msg.ShareVersions), len(msg.BlobSizes))
+	}
+	return nil
+}
+
 // GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
 // Note that transactions will incur other gas costs, such as the signature verification
 // and reads to the user's account.
+//
+// GasToConsume expects a msg that passed ValidateBasic. It does not panic on
+// one with fewer share versions than blob sizes; it charges a blob without a
+// share version as if it embedded a signer, which never needs fewer shares.
 func GasToConsume(msg *MsgPayForBlobs, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
 	for i, size := range msg.BlobSizes {
-		shareVersion := msg.ShareVersions[i]
-		containsSigner := shareVersion == uint32(share.ShareVersionOne)
+		containsSigner := i >= len(msg.ShareVersions) || msg.ShareVersions[i] == uint32(share.ShareVersionOne)
 		totalSharesUsed += uint64(share.SparseSharesNeeded(size, containsSigner))
 	}
 

@@ -13,8 +13,9 @@ permissions: {}
 
 jobs:
   auto-assign:
-    # Bots (dependabot, mergify backports) cannot be assigned.
-    if: github.event.pull_request.user.type == 'User' && github.event.pull_request.assignees[0] == null
+    # Bots (dependabot, mergify backports) cannot be assigned. Assign the
+    # author even if others are already assigned; addAssignees keeps them.
+    if: github.event.pull_request.user.type == 'User'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

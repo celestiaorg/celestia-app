@@ -20,9 +20,11 @@
 1 ./app/test            FuzzCheckTxPrepareProposal          5m -
 1 ./app/test            FuzzProcessProposalMutatedTxs       5m -
 1 ./app/test            FuzzCheckTxMutatedTxs               5m -
+1 ./app/test            FuzzRecheckMutatedTxs               5m -
 1 ./app/test            FuzzQuerySequence                   2m 100x
 1 ./app/test            FuzzPrepareProposalMalformedBatch   5m 100x
 1 ./app/test            FuzzFinalizeBlockMutatedProposal    5m -
+1 ./app/test            FuzzAnteChainSignedTxs              5m 100x
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
@@ -34,6 +36,7 @@
 1 ./app/ante            FuzzCachedSigVerification           5m 100x
 1 ./app/ante            FuzzValidateTxFee                   2m 100x
 1 ./app/ante            FuzzISMSignatureWeight              2m 100x
+1 ./app/ante            FuzzMultisigISMNestedLimit          2m 100x
 1 ./x/blob/types        FuzzPFBGasEstimation                5m -
 1 ./x/blob/types        FuzzValidateBlobTx                  5m 100x
 1 ./x/blob/types        FuzzMsgPayForBlobsValidateBasic     2m 100x
@@ -57,9 +60,12 @@
 1 ./fibre               FuzzServerUploadShard               5m 100x
 1 ./fibre               FuzzServerDownloadShard             2m 100x
 1 ./fibre/internal/grpc FuzzAdmissionSequence              2m 100x
+1 ./fibre/internal/grpc FuzzLimitedListenerSequence        2m 100x
+1 ./fibre/internal/grpc FuzzUploadBufferReuse              2m 100x
 2 ./fibre/internal/grpc FuzzScatterMarshalParity            5m -
 2 ./fibre/internal/grpc FuzzUploadViewsParity               5m 100x
 2 ./fibre/internal/grpc FuzzDownloadViewsParity             5m 100x
+2 ./fibre/internal/grpc FuzzHostRegistry                   2m 100x
 2 ./fibre               FuzzDownload                        2m 100x
 2 ./fibre               FuzzShardCodecRoundTrip             5m -
 2 ./fibre               FuzzShardCodecReadNoPanic           5m -
@@ -68,6 +74,8 @@
 2 ./fibre/validator     FuzzAssign                          2m 100x
 2 ./fibre               FuzzPaymentPromiseUnmarshal         2m 100x
 2 ./fibre               FuzzPaymentPromiseSignBytes         2m 100x
+2 ./fibre               FuzzCommitmentAndBlobIDParsing      2m 100x
+2 ./x/fibre/keeper      FuzzPromiseCacheReservations        2m 100x
 2 ./pkg/proof           FuzzShareProofValidate              5m 100x
 2 ./pkg/proof           FuzzProofQueries                    5m -
 2 ./pkg/da              FuzzDataAvailabilityHeaderFromProto 2m 100x
@@ -83,3 +91,11 @@
 3 ./pkg/rsema1d/merkle  FuzzRootFromProofs                  2m 100x
 3 ./pkg/rsema1d/rlc     FuzzCompute                         2m 100x
 3 ./pkg/rsema1d/internal/sha256x2 FuzzSum                   2m 100x
+1 ./x/fibre/keeper      FuzzPayForFibreMsgServer            5m 100x
+1 ./app                 FuzzExecuteTxMsgs                   2m 100x
+2 ./x/mint/types       FuzzMinterBlockProvision            2m 100x
+3 ./app/ante            FuzzNetworkMinGasPrice              2m 100x
+3 ./x/blob/keeper       FuzzUpdateBlobParams                2m 100x
+1 ./x/blob/keeper       FuzzPayForBlobsHandler              5m 100x
+3 ./fibre               FuzzShardMarkerDecode               2m 100x
+1 ./app                 FuzzBuildProposalSquareParity       5m -

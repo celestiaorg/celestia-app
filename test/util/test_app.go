@@ -70,6 +70,21 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	return testApp, kr
 }
 
+// SetupDeterministicTestAppWithGenesisValSet is SetupTestAppWithGenesisValSet
+// with keyring keys derived from the account names (see
+// testnode.NewDeterministicKeyring), so the same names yield the same keys and
+// signed tx bytes in every process. Pair it with
+// testfactory.GenerateDeterministicAccounts.
+func SetupDeterministicTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp := NewTestApp()
+	validator := tmtypes.NewValidator(GenesisValidatorPrivateKey().PubKey(), 1)
+	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
+	genesisState, kr := genesisStateWithValidatorSet(testApp, valSet, testnode.FundDeterministicKeyringAccounts, genAccounts...)
+	testApp = InitialiseTestAppWithGenesis(testApp, cparams, genesisState)
+	initialiseTestApp(testApp, valSet)
+	return testApp, kr
+}
+
 func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, keyring.Keyring) {
 	testApp, valSet, kr := NewTestAppWithGenesisSetAndMaxSquareSize(cparams, maxSquareSize, genAccounts...)
 	initialiseTestApp(testApp, valSet)
@@ -177,6 +192,15 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 // validator bonding its voting power, and genesis accounts that also act as
 // delegators.
 func GenesisStateWithValidatorSet(testApp *app.App, valSet *tmtypes.ValidatorSet, genAccounts ...string) (app.GenesisState, keyring.Keyring) {
+	return genesisStateWithValidatorSet(testApp, valSet, testnode.FundKeyringAccounts, genAccounts...)
+}
+
+func genesisStateWithValidatorSet(
+	testApp *app.App,
+	valSet *tmtypes.ValidatorSet,
+	fundAccounts func(...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount),
+	genAccounts ...string,
+) (app.GenesisState, keyring.Keyring) {
 	// generate sender account
 	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
@@ -192,7 +216,7 @@ func GenesisStateWithValidatorSet(testApp *app.App, valSet *tmtypes.ValidatorSet
 		Coins:   sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(100000000000000))),
 	})
 
-	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
+	kr, fundedBankAccs, fundedAuthAccs := fundAccounts(genAccounts...)
 
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)

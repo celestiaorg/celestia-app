@@ -32,6 +32,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -503,6 +504,15 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	gasOverMsg := banktypes.NewMsgSend(addrs[accountIndex], testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
 	gasOverTx, _, err := signer.CreateTx([]sdk.Msg{gasOverMsg}, user.SetGasLimit(appconsts.MaxSDKGas+1), user.SetFee(10000))
 	require.NoError(t, err)
+	accountIndex++
+
+	// A single MsgModuleQuerySafe weighing exactly MaxSDKMessages.
+	querySafeRequests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+	for i := range querySafeRequests {
+		querySafeRequests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+	}
+	querySafeTx, _, err := signer.CreateTx([]sdk.Msg{icahosttypes.NewMsgModuleQuerySafe(addrs[accountIndex].String(), querySafeRequests)}, user.SetGasLimit(1_000_000), user.SetFee(10000))
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name                 string
@@ -549,6 +559,13 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			name:                 "dropping a transaction over the SDK gas budget on its own",
 			inputTransactions:    [][]byte{gasOverTx, halfGasTxs[0]},
 			expectedTransactions: halfGasTxs[:1],
+		},
+		{
+			// A tx whose requests weigh the whole SDK message budget must not
+			// keep the other SDK txs out of the block.
+			name:                 "dropping a MsgModuleQuerySafe over MaxModuleQuerySafeRequests",
+			inputTransactions:    append([][]byte{querySafeTx}, msgSendTxs[:5]...),
+			expectedTransactions: msgSendTxs[:5],
 		},
 		{
 			// Blob txs do not count against MaxSDKGas.

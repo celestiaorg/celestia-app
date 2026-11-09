@@ -99,13 +99,29 @@ func (a *Appd) telemetryDisableEnv() []string {
 	}
 }
 
+// mptcpDisableEnv passes the go.mod multipathtcp=0 default to embedded
+// binaries unless the operator set multipathtcp explicitly.
+func mptcpDisableEnv() []string {
+	godebug := os.Getenv("GODEBUG")
+	for kv := range strings.SplitSeq(godebug, ",") {
+		if strings.HasPrefix(kv, "multipathtcp=") {
+			return nil
+		}
+	}
+	if godebug == "" {
+		return []string{"GODEBUG=multipathtcp=0"}
+	}
+	return []string{"GODEBUG=" + godebug + ",multipathtcp=0"}
+}
+
 // getEnv returns the environment variables for the child process. It
 // starts with the current process's full environment (os.Environ()) and
-// appends the telemetry disable variables. We must explicitly include
+// appends the telemetry and MPTCP disable variables. We must explicitly include
 // os.Environ() because exec.Cmd.Env defaults to nil (inherit parent env),
 // but once set to a non-nil slice it uses ONLY that slice.
 func (a *Appd) getEnv() []string {
-	return append(os.Environ(), a.telemetryDisableEnv()...)
+	env := append(os.Environ(), a.telemetryDisableEnv()...)
+	return append(env, mptcpDisableEnv()...)
 }
 
 // Start starts the appd binary with the given arguments.
@@ -239,6 +255,7 @@ func (a *Appd) CreateExecCommand(args ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 	cmd := exec.Command(a.path, args...)
+	cmd.Env = append(os.Environ(), mptcpDisableEnv()...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr

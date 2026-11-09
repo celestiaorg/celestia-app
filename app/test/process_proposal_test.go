@@ -25,6 +25,7 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4"
+	blobv4 "github.com/celestiaorg/go-square/v4/proto/blob/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -40,6 +41,8 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
+	gproto "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -146,12 +149,18 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
+				// share.NewBlob refuses reserved namespaces, so encode the
+				// blob directly to mimic a malicious proposer.
+				var pbBlobTx blobv4.BlobTx
+				require.NoError(t, gproto.Unmarshal(blobTxs[0], &pbBlobTx))
+				pbBlobTx.Blobs[0] = &blobv4.BlobProto{
+					NamespaceId:      share.TxNamespace.ID(),
+					NamespaceVersion: uint32(share.TxNamespace.Version()),
+					Data:             data,
+					ShareVersion:     uint32(share.ShareVersionZero),
+				}
+				blobTxBytes, err := gproto.Marshal(&pbBlobTx)
 				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.TxNamespace, data, share.ShareVersionZero, nil)
-				require.NoError(t, err)
-				blobTx.Blobs[0] = newBlob
-				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -295,6 +304,32 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "blob tx whose inner tx is an index wrapper",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _, err := tx.UnmarshalBlobTx(d.Txs[0])
+				require.NoError(t, err)
+				wrapped, err := tx.MarshalIndexWrapper(blobTx.Tx, 12345)
+				require.NoError(t, err)
+				d.Txs[0], err = tx.MarshalBlobTx(wrapped, blobTx.Blobs...)
+				require.NoError(t, err)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "blob tx whose inner tx is an index wrapper with a non-UTF-8 type id",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _, err := tx.UnmarshalBlobTx(d.Txs[0])
+				require.NoError(t, err)
+				d.Txs[0], err = tx.MarshalBlobTx(nonUTF8IndexWrapper(blobTx.Tx), blobTx.Blobs...)
+				require.NoError(t, err)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
@@ -414,10 +449,10 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
+	// +2 accounts are grantees for the authz MsgExec txs built below, +4 sign the
 	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +2 sign the ZK
 	// proof txs, +3 sign the ISM signature txs and +2 sign the SDK gas txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 16
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 17
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -594,6 +629,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	accountIndex++
 	querySafeAtLimitTx := buildModuleQuerySafeTx(accountIndex, appconsts.MaxSDKMessages)
 	accountIndex++
+	querySafeOneRequestTx := buildModuleQuerySafeTx(accountIndex, 1+appconsts.MaxModuleQuerySafeRequests)
+	accountIndex++
 
 	// A MsgModuleQuerySafe with no queries dispatches nothing, but the tx still
 	// costs a full ante pass, so it must not be weightless. Per-message
@@ -742,8 +779,16 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
-			name:           "accept MsgModuleQuerySafe queries at exactly MaxSDKMessages",
+			// The count admits it, but MaxModuleQuerySafeRequests does not, so
+			// one tx cannot take a whole block's SDK message budget.
+			name:           "reject MsgModuleQuerySafe queries at exactly MaxSDKMessages",
 			txs:            [][]byte{querySafeAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept MsgModuleQuerySafe with MaxModuleQuerySafeRequests requests",
+			txs:            [][]byte{querySafeOneRequestTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 			validSquare:    true,
 		},
@@ -836,4 +881,18 @@ func seedICAHostChannel(t *testing.T, testApp *app.App) {
 		State:   channeltypes.OPEN,
 		Version: string(icatypes.ModuleCdc.MustMarshalJSON(&metadata)),
 	})
+}
+
+// nonUTF8IndexWrapper encodes an IndexWrapper whose first type_id is invalid
+// UTF-8. gogoproto keeps the last type_id ("INDX"); protobuf-go rejects it.
+func nonUTF8IndexWrapper(inner []byte) []byte {
+	var b []byte
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	b = protowire.AppendBytes(b, inner)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	b = protowire.AppendBytes(b, protowire.AppendVarint(nil, 12345))
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	b = protowire.AppendBytes(b, []byte{0xff})
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	return protowire.AppendBytes(b, []byte("INDX"))
 }
