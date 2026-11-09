@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"google.golang.org/grpc/mem"
 )
 
 func TestScatterMarshalWireParity(t *testing.T) {
@@ -132,7 +133,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical marshal: %v", err)
 			}
-			bs, err := marshalUploadShardRequestScatter(tc.req)
+			bs, err := marshalUploadShardRequestScatter(tc.req, nil)
 			if err != nil {
 				t.Fatalf("scatter marshal: %v", err)
 			}
@@ -168,7 +169,7 @@ func TestScatterMarshalWireParity128MiB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical marshal: %v", err)
 	}
-	scattered, err := marshalUploadShardRequestScatter(req)
+	scattered, err := marshalUploadShardRequestScatter(req, nil)
 	if err != nil {
 		t.Fatalf("scatter marshal: %v", err)
 	}
@@ -250,7 +251,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if err != nil {
 			t.Fatalf("canonical marshal: %v", err)
 		}
-		bs, err := marshalUploadShardRequestScatter(req)
+		bs, err := marshalUploadShardRequestScatter(req, nil)
 		if err != nil {
 			t.Fatalf("scatter marshal: %v", err)
 		}
@@ -277,7 +278,7 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
 
-	bs, err := marshalUploadShardRequestScatter(req)
+	bs, err := marshalUploadShardRequestScatter(req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +332,7 @@ func TestScatterMarshalAllocsConstant(t *testing.T) {
 	allocs := func(rows int) float64 {
 		req := scatterTestRequest(rows, 14)
 		return testing.AllocsPerRun(20, func() {
-			if _, err := marshalUploadShardRequestScatter(req); err != nil {
+			if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -344,9 +345,46 @@ func TestScatterMarshalAllocsConstant(t *testing.T) {
 func BenchmarkScatterMarshal(b *testing.B) {
 	req := scatterTestRequest(168, 14)
 	b.ReportAllocs()
+	pool := mem.DefaultBufferPool()
 	for b.Loop() {
-		if _, err := marshalUploadShardRequestScatter(req); err != nil {
+		bs, err := marshalUploadShardRequestScatter(req, pool)
+		if err != nil {
 			b.Fatal(err)
 		}
+		bs.Free()
+	}
+}
+
+// countingPool counts buffers taken from and returned to a real pool.
+type countingPool struct {
+	mem.BufferPool
+	gets, puts int
+}
+
+func (p *countingPool) Get(n int) *[]byte { p.gets++; return p.BufferPool.Get(n) }
+func (p *countingPool) Put(b *[]byte)     { p.puts++; p.BufferPool.Put(b) }
+
+// Pooled framing produces the same wire bytes and returns to the pool once
+// gRPC frees the last framing slice.
+func TestScatterMarshalPooledFraming(t *testing.T) {
+	req := scatterTestRequest(168, 14)
+	want, err := req.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := &countingPool{BufferPool: mem.DefaultBufferPool()}
+	bs, err := marshalUploadShardRequestScatter(req, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bs.Materialize(), want) {
+		t.Fatal("pooled framing changed the wire bytes")
+	}
+	if pool.gets != 1 || pool.puts != 0 {
+		t.Fatalf("before Free: %d gets, %d puts; want 1, 0", pool.gets, pool.puts)
+	}
+	bs.Free()
+	if pool.puts != 1 {
+		t.Fatalf("after Free: %d puts; want 1", pool.puts)
 	}
 }

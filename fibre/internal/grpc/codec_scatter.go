@@ -82,8 +82,19 @@ func scatterFramingSize(req *types.UploadShardRequest) int {
 	return size
 }
 
-func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.BufferSlice, error) {
-	framing := make([]byte, 0, scatterFramingSize(req))
+// marshalUploadShardRequestScatter takes framing from pool when it is large
+// enough to pool (nil pool: never) and hands it to gRPC as one ref-counted
+// buffer that returns to pool after the write.
+func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.BufferPool) (mem.BufferSlice, error) {
+	size := scatterFramingSize(req)
+	var pooled *[]byte
+	var framing []byte
+	if pool != nil && !mem.IsBelowBufferPoolingThreshold(size) {
+		pooled = pool.Get(size)
+		framing = (*pooled)[:0:size]
+	} else {
+		framing = make([]byte, 0, size)
+	}
 
 	// Segments index byte ranges within framing (not slices) so framing
 	// can grow freely; sliced into mem.SliceBuffer only after all writes.
@@ -111,6 +122,9 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 			base := len(framing)
 			framing = append(framing, make([]byte, promiseSize)...)
 			if _, err := req.Promise.MarshalToSizedBuffer(framing[base : base+promiseSize]); err != nil {
+				if pooled != nil {
+					pool.Put(pooled)
+				}
 				return nil, err
 			}
 		}
@@ -166,13 +180,30 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 		views = append(views, b)
 		bs = append(bs, &views[len(views)-1])
 	}
+	var root mem.Buffer
+	if pooled != nil {
+		if len(framing) == 0 || &framing[0] != &(*pooled)[0] {
+			// Unused, or an inexact size made append reallocate framing.
+			pool.Put(pooled)
+		} else {
+			*pooled = (*pooled)[:len(framing)]
+			root = mem.NewBuffer(pooled, pool)
+		}
+	}
 	for _, seg := range segs {
 		if seg.end > seg.start {
-			add(framing[seg.start:seg.end])
+			if root != nil {
+				bs = append(bs, root.Slice(seg.start, seg.end))
+			} else {
+				add(framing[seg.start:seg.end])
+			}
 		}
 		if seg.data != nil {
 			add(seg.data)
 		}
+	}
+	if root != nil {
+		root.Free() // each framing slice holds its own reference
 	}
 	return bs, nil
 }
