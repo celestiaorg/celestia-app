@@ -9,7 +9,12 @@ import (
 )
 
 // InitGenesis initializes the module's state from a provided genesis state.
+// InitChainer does not run ValidateGenesis, so validate here before writing
+// any state: the store writes and Migrate1to2 below assume valid input.
 func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
+	if err := genesisState.Validate(); err != nil {
+		panic(fmt.Errorf("invalid %s genesis state: %w", types.ModuleName, err))
+	}
 	k.SetParams(ctx, genesisState.Params)
 	// InitChain runs at height 0 for a chain starting at 1, and at InitialHeight otherwise.
 	k.setGenesisHeight(ctx, max(ctx.BlockHeight(), 1))
@@ -17,8 +22,8 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	// InitChainer records the current module version, so Migrate1to2 never runs
 	// on imported state. A v10 export may hold escrows under non-canonical
 	// signers or in other denominations; store them as v10 did, then apply the
-	// same migration. It validates every escrow and withdrawal (InitChainer does
-	// not run ValidateGenesis) and leaves canonical utia-only state unchanged.
+	// same migration, which canonicalizes signers, merges case variants and
+	// refunds non-utia escrows. It leaves canonical utia-only state unchanged.
 	for _, escrowAccount := range genesisState.EscrowAccounts {
 		k.SetEscrowAccount(ctx, escrowAccount)
 	}

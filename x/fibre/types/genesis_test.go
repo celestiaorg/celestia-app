@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -95,6 +96,9 @@ func TestGenesisStateValidateEscrowInvariants(t *testing.T) {
 	requested := time.Unix(1, 0).UTC()
 	escrow := EscrowAccount{Signer: signer, Balance: coin, AvailableBalance: sdk.NewInt64Coin(appconsts.BondDenom, 900)}
 	withdrawal := Withdrawal{Signer: signer, Amount: sdk.NewInt64Coin(appconsts.BondDenom, 100), RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour)}
+	// Two halves sum to 2^256, one past the largest math.Int.
+	half := sdk.NewCoin(appconsts.BondDenom, math.NewIntFromBigInt(new(big.Int).Lsh(big.NewInt(1), 255)))
+	halfMinusOne := sdk.NewCoin(appconsts.BondDenom, half.Amount.SubRaw(1))
 
 	tests := []struct {
 		name    string
@@ -120,6 +124,46 @@ func TestGenesisStateValidateEscrowInvariants(t *testing.T) {
 		{"duplicate withdrawal", func(gs *GenesisState) {
 			gs.Withdrawals = append(gs.Withdrawals, withdrawal)
 		}, ErrDuplicateSigner},
+		{"duplicate withdrawal key with different available time", func(gs *GenesisState) {
+			duplicate := withdrawal
+			duplicate.AvailableTimestamp = withdrawal.AvailableTimestamp.Add(time.Second)
+			gs.Withdrawals = append(gs.Withdrawals, duplicate)
+		}, ErrDuplicateSigner},
+		{"missing available balance", func(gs *GenesisState) {
+			gs.EscrowAccounts[0].AvailableBalance = sdk.Coin{}
+		}, ErrInvalidBalance},
+		{"available balance without amount", func(gs *GenesisState) {
+			gs.EscrowAccounts[0].AvailableBalance = sdk.Coin{Denom: appconsts.BondDenom}
+		}, ErrInvalidBalance},
+		{"merged escrow balance overflows", func(gs *GenesisState) {
+			gs.EscrowAccounts = []EscrowAccount{
+				{Signer: signer, Balance: half, AvailableBalance: half},
+				{Signer: strings.ToUpper(signer), Balance: half, AvailableBalance: half},
+			}
+			gs.Withdrawals = nil
+		}, ErrInvalidBalance},
+		{"merged escrow balance at the limit", func(gs *GenesisState) {
+			gs.EscrowAccounts = []EscrowAccount{
+				{Signer: signer, Balance: half, AvailableBalance: half},
+				{Signer: strings.ToUpper(signer), Balance: halfMinusOne, AvailableBalance: halfMinusOne},
+			}
+			gs.Withdrawals = nil
+		}, nil},
+		{"case variants in other denominations do not merge", func(gs *GenesisState) {
+			stake := sdk.NewCoin("stake", half.Amount)
+			gs.EscrowAccounts = []EscrowAccount{
+				{Signer: signer, Balance: stake, AvailableBalance: stake},
+				{Signer: strings.ToUpper(signer), Balance: stake, AvailableBalance: stake},
+			}
+			gs.Withdrawals = nil
+		}, nil},
+		{"merged withdrawal amount overflows", func(gs *GenesisState) {
+			gs.EscrowAccounts = append(gs.EscrowAccounts, EscrowAccount{Signer: strings.ToUpper(signer), Balance: coin, AvailableBalance: coin})
+			gs.Withdrawals = []Withdrawal{
+				{Signer: signer, Amount: half, RequestedTimestamp: requested, AvailableTimestamp: requested},
+				{Signer: strings.ToUpper(signer), Amount: half, RequestedTimestamp: requested, AvailableTimestamp: requested},
+			}
+		}, ErrInvalidAmount},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
