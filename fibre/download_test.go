@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/rand/v2"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
@@ -367,4 +368,43 @@ func TestAddShard_ReleasesRejectedShard(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, retained)
 	require.Zero(t, released)
+}
+
+// TestDownload_ReconstructWaitsForSlot checks that reconstruction takes one of
+// the config's reconstruct slots, so at most cap(slots) work slabs are held at
+// once, and that a download waiting for a slot gives up with its context.
+func TestDownload_ReconstructWaitsForSlot(t *testing.T) {
+	d, proofs, rlc := newTestDownload(t, testK)
+	d.cfg.reconstructSlots = make(chan struct{}, 1)
+	for from := range d.ShardSources(context.Background()) {
+		// Parity rows only, so the original rows must be reconstructed.
+		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
+	}
+
+	d.cfg.reconstructSlots <- struct{}{} // another download holds the only slot
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := d.Blob(ctx)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Len(t, d.cfg.reconstructSlots, 1, "a waiting download must not take or release a slot")
+}
+
+func TestDownload_ReconstructReleasesSlot(t *testing.T) {
+	d, proofs, rlc := newTestDownload(t, testK)
+	d.cfg.reconstructSlots = make(chan struct{}, 1)
+	for from := range d.ShardSources(context.Background()) {
+		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
+	}
+	blob, err := d.Blob(context.Background())
+	require.NoError(t, err)
+	defer blob.Free()
+	require.Empty(t, d.cfg.reconstructSlots)
+}
+
+func TestMaxConcurrentReconstructs(t *testing.T) {
+	for procs, want := range map[int]int{1: 2, 4: 2, 14: 7, 16: 8, 48: 24} {
+		require.Equal(t, want, maxConcurrentReconstructs(procs), "procs=%d", procs)
+	}
+	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "3")
+	require.Equal(t, 3, maxConcurrentReconstructs(14))
 }
