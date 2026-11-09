@@ -25,6 +25,17 @@ const (
 	// 828 for state reads + crypto.
 	PFFibreGasPerValidatorSignature uint64 = 1_000
 
+	// PayForFibreSettlementGas is the fixed gas a MsgPayForFibre settlement
+	// charges in place of metered store access, so its gas does not depend on
+	// state that earlier txs in the block change. Covers the ~35-40k metered
+	// cost of settling against an escrow with no pending withdrawals.
+	PayForFibreSettlementGas uint64 = 45_000
+
+	// PayForFibreGasPerWithdrawal is the gas a MsgPayForFibre settlement
+	// charges for each pending withdrawal it reduces or deletes to cover a
+	// shortfall in the escrow's available balance.
+	PayForFibreGasPerWithdrawal uint64 = 5_000
+
 	// MaxFibreValidatorSignatures is a stateless ceiling on a MsgPayForFibre's
 	// signatures; keep it >= MaxValidators (the keeper enforces the exact bound).
 	MaxFibreValidatorSignatures = 1_000

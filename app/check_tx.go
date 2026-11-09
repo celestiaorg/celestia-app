@@ -216,7 +216,9 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 }
 
 // fibreEscrowSigners returns the escrow accounts that the tx's
-// MsgDepositToEscrow and MsgPaymentPromiseTimeout msgs can change. Proposal
+// MsgDepositToEscrow, MsgRequestWithdrawal and MsgPaymentPromiseTimeout msgs
+// can change. A withdrawal request leaves the balance a PFF checks unchanged,
+// but it changes the pending withdrawals the PFF's settlement charges gas for. Proposal
 // cannot predict whether these msgs succeed in FinalizeBlock: the outcome can
 // depend on msgs that proposal does not execute, such as a bank send that
 // drains the depositor first. So proposal excludes a later MsgPayForFibre
@@ -233,6 +235,10 @@ func fibreEscrowSigners(ctx sdk.Context, tx sdk.Tx, timeoutCanSettle func(sdk.Co
 	for _, msg := range tx.GetMsgs() {
 		switch m := msg.(type) {
 		case *fibretypes.MsgDepositToEscrow:
+			if addr, err := sdk.AccAddressFromBech32(m.Signer); err == nil {
+				signers = append(signers, addr.String())
+			}
+		case *fibretypes.MsgRequestWithdrawal:
 			if addr, err := sdk.AccAddressFromBech32(m.Signer); err == nil {
 				signers = append(signers, addr.String())
 			}

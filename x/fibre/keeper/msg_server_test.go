@@ -448,6 +448,56 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	})
 }
 
+// TestPayForFibreSettlementGas checks that settlement charges fixed gas plus a
+// fixed amount per pending withdrawal it reduces, not metered store gas, so
+// the gas does not depend on state that earlier txs in a block can change.
+func (suite *MsgServerTestSuite) TestPayForFibreSettlementGas() {
+	suite.setupValidatorSet()
+	settle := func(withdrawals int) uint64 {
+		privKey := secp256k1.GenPrivKey()
+		pubKey := *privKey.PubKey().(*secp256k1.PubKey)
+		signer := sdk.AccAddress(pubKey.Address()).String()
+		promise := suite.createPaymentPromise(pubKey, privKey)
+		payment := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+
+		// With withdrawals, all of the escrow is locked in them, so settlement
+		// reduces each one in turn.
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, payment)
+		available := balance
+		if withdrawals > 0 {
+			available = sdk.NewInt64Coin(appconsts.BondDenom, 0)
+			share := payment / int64(withdrawals)
+			for i := range withdrawals {
+				amount := share
+				if i == withdrawals-1 {
+					amount = payment - share*int64(withdrawals-1)
+				}
+				requested := suite.ctx.BlockTime().Add(-time.Duration(withdrawals-i) * time.Minute)
+				suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
+					Signer:             signer,
+					Amount:             sdk.NewInt64Coin(appconsts.BondDenom, amount),
+					RequestedTimestamp: requested,
+					AvailableTimestamp: requested.Add(24 * time.Hour),
+				})
+			}
+		}
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: available})
+
+		ctx := suite.ctx.WithGasMeter(storetypes.NewGasMeter(10_000_000))
+		_, err := suite.msgServer.PayForFibre(ctx, &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      promise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+		})
+		suite.Require().NoError(err)
+		suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer))
+		return ctx.GasMeter().GasConsumed()
+	}
+
+	suite.Equal(appconsts.PayForFibreSettlementGas, settle(0))
+	suite.Equal(appconsts.PayForFibreSettlementGas+3*appconsts.PayForFibreGasPerWithdrawal, settle(3))
+}
+
 func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 	signerPubKey, privKey, _ := suite.newSigner()
 	suite.setupValidatorSet()
