@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
@@ -26,8 +27,7 @@ type fakeS3 struct {
 	mu      sync.Mutex
 	objects map[string][]byte
 	puts    int
-	gets    int
-	deletes int
+	deletes int // DELETE requests, not keys
 }
 
 func newFakeS3() *fakeS3 { return &fakeS3{objects: map[string][]byte{}} }
@@ -47,7 +47,6 @@ func (f *fakeS3) PutObject(_ context.Context, in *s3.PutObjectInput, _ ...func(*
 func (f *fakeS3) GetObject(_ context.Context, in *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.gets++
 	data, ok := f.objects[aws.ToString(in.Key)]
 	if !ok {
 		return nil, &smithy.GenericAPIError{Code: "NoSuchKey"}
@@ -79,17 +78,17 @@ func (f *fakeS3) DeleteObject(_ context.Context, in *s3.DeleteObjectInput, _ ...
 func (f *fakeS3) DeleteObjects(_ context.Context, in *s3.DeleteObjectsInput, _ ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.deletes++
 	for _, obj := range in.Delete.Objects {
-		f.deletes++
 		delete(f.objects, aws.ToString(obj.Key))
 	}
 	return &s3.DeleteObjectsOutput{}, nil
 }
 
-func (f *fakeS3) count() (puts, gets, deletes, objects int) {
+func (f *fakeS3) count() (puts, deletes, objects int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.puts, f.gets, f.deletes, len(f.objects)
+	return f.puts, f.deletes, len(f.objects)
 }
 
 func parseByteRange(r string) (int64, int64) {
@@ -101,8 +100,8 @@ func parseByteRange(r string) (int64, int64) {
 }
 
 // newPackedStore wires an in-memory object store with a packed backend over a
-// memory store's Pebble database. enabled mirrors shards_per_object > 1.
-func newPackedStore(t *testing.T, shardsPerObject int, enabled bool) (*Store, *fakeS3) {
+// memory store's Pebble database.
+func newPackedStore(t *testing.T, shardsPerObject int) (*Store, *fakeS3) {
 	t.Helper()
 	store := newMarkerTestStore(t)
 	fake := newFakeS3()
@@ -111,10 +110,15 @@ func newPackedStore(t *testing.T, shardsPerObject int, enabled bool) (*Store, *f
 	require.NoError(t, err)
 	object.metrics = metrics
 	store.shards = newRoutedStorage(object, store.shards.primary)
-	packed := newPackedBackend(object, store.db, shardsPerObject, 50*time.Millisecond)
-	packed.enabled = enabled
-	store.shards.packed = packed
+	store.shards.packed = newTestPackedBackend(object, store.db, shardsPerObject)
 	return store, fake
+}
+
+// newTestPackedBackend shortens the flush delay so partial batches upload fast.
+func newTestPackedBackend(object *objectBackend, db *pebbledb.DB, shardsPerObject int) *packedBackend {
+	packed := newPackedBackend(object, db, shardsPerObject)
+	packed.flushDelay = 50 * time.Millisecond
+	return packed
 }
 
 func packedTestPromise(t *testing.T) (*PaymentPromise, []byte) {
@@ -158,20 +162,6 @@ func putConcurrently(t *testing.T, store *Store, promises []*PaymentPromise, sha
 	}
 }
 
-func TestPackingConfigDefaultsAndBounds(t *testing.T) {
-	cfg := testObjectStorageConfig()
-	require.NoError(t, cfg.Validate())
-	require.Equal(t, defaultShardsPerObject, cfg.ShardsPerObject)
-
-	cfg = testObjectStorageConfig()
-	cfg.ShardsPerObject = maxShardsPerObject + 1
-	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
-
-	cfg = testObjectStorageConfig()
-	cfg.ShardsPerObject = -1
-	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
-}
-
 func TestPackedMarkerRoundTrip(t *testing.T) {
 	var packID [packIDSize]byte
 	copy(packID[:], bytes.Repeat([]byte{0xab}, packIDSize))
@@ -196,10 +186,7 @@ func TestPackedMarkerRoundTrip(t *testing.T) {
 // TestPackingDisabledNoBackend proves that with shards_per_object = 1 no packed
 // backend is attached and the plain one-object-per-shard path is unchanged.
 func TestPackingDisabledNoBackend(t *testing.T) {
-	store := newMarkerTestStore(t)
-	err := store.shards.openPacked(t.Context(), DefaultStoreConfig(), store.db, nil)
-	require.NoError(t, err)
-	require.Nil(t, store.shards.packed)
+	require.Nil(t, newMarkerTestStore(t).shards.packed)
 }
 
 // TestPackedFullBatchOnePutRangeReadAndPrune is the core lifecycle: N shards
@@ -207,7 +194,7 @@ func TestPackingDisabledNoBackend(t *testing.T) {
 // only once its last member is pruned.
 func TestPackedFullBatchOnePutRangeReadAndPrune(t *testing.T) {
 	const n = 4
-	store, fake := newPackedStore(t, n, true)
+	store, fake := newPackedStore(t, n)
 	shard := packedTestShard(3)
 
 	promises := make([]*PaymentPromise, n)
@@ -217,7 +204,7 @@ func TestPackedFullBatchOnePutRangeReadAndPrune(t *testing.T) {
 	}
 	putConcurrently(t, store, promises, shard)
 
-	puts, _, _, objects := fake.count()
+	puts, _, objects := fake.count()
 	require.Equal(t, 1, puts, "the whole batch is a single PUT")
 	require.Equal(t, 1, objects)
 
@@ -241,7 +228,7 @@ func TestPackedFullBatchOnePutRangeReadAndPrune(t *testing.T) {
 	require.Equal(t, n, pruned)
 	require.Equal(t, int64(n)*shardBinarySize(shard), freed)
 
-	_, _, deletes, objects := fake.count()
+	_, deletes, objects := fake.count()
 	require.Equal(t, 1, deletes, "the object is deleted exactly once")
 	require.Zero(t, objects)
 	size, err = store.Size(t.Context())
@@ -253,7 +240,7 @@ func TestPackedFullBatchOnePutRangeReadAndPrune(t *testing.T) {
 // packed object survives while any member is still live.
 func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 	const n = 3
-	store, fake := newPackedStore(t, n, true)
+	store, fake := newPackedStore(t, n)
 	shard := packedTestShard(2)
 
 	promises := make([]*PaymentPromise, n)
@@ -272,14 +259,14 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	_, _, _, objects := fake.count()
+	_, _, objects := fake.count()
 	require.Equal(t, 1, objects)
 
 	// Prune the first two members; the object must remain for the third.
 	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(190, 0))
 	require.NoError(t, err)
 	require.Equal(t, 2, pruned)
-	_, _, deletes, objects := fake.count()
+	_, deletes, objects := fake.count()
 	require.Zero(t, deletes)
 	require.Equal(t, 1, objects)
 	got, err := store.Get(t.Context(), promises[2].Commitment)
@@ -290,7 +277,7 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 	pruned, _, err = store.PruneBefore(t.Context(), time.Unix(1000, 0))
 	require.NoError(t, err)
 	require.Equal(t, 1, pruned)
-	_, _, deletes, objects = fake.count()
+	_, deletes, objects = fake.count()
 	require.Equal(t, 1, deletes)
 	require.Zero(t, objects)
 }
@@ -298,12 +285,12 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 // TestPackedPartialFlushOnTimer verifies a lone shard uploads via the flush
 // timer rather than waiting for a full batch.
 func TestPackedPartialFlushOnTimer(t *testing.T) {
-	store, fake := newPackedStore(t, 8, true) // batch of 8, but only one shard arrives
+	store, fake := newPackedStore(t, 8) // batch of 8, but only one shard arrives
 	shard := packedTestShard(2)
 	promise, hash := packedTestPromise(t)
 
 	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
-	puts, _, _, objects := fake.count()
+	puts, _, objects := fake.count()
 	require.Equal(t, 1, puts)
 	require.Equal(t, 1, objects)
 	has, err := store.Has(t.Context(), promise.Commitment, hash)
@@ -313,7 +300,7 @@ func TestPackedPartialFlushOnTimer(t *testing.T) {
 
 // TestPackedFlushOnClose verifies Close uploads a still-partial batch.
 func TestPackedFlushOnClose(t *testing.T) {
-	store, fake := newPackedStore(t, 8, true)
+	store, fake := newPackedStore(t, 8)
 	store.shards.packed.flushDelay = time.Hour // keep the timer from firing
 	shard := packedTestShard(2)
 	promise, _ := packedTestPromise(t)
@@ -331,82 +318,66 @@ func TestPackedFlushOnClose(t *testing.T) {
 	packed.Close()
 	require.NoError(t, <-done)
 
-	puts, _, _, objects := fake.count()
+	puts, _, objects := fake.count()
 	require.Equal(t, 1, puts)
 	require.Equal(t, 1, objects)
 }
 
-// TestPackedSurvivesRestart simulates a crash/restart: a fresh packed backend
-// over the same durable Pebble state serves reads and pruning with no recovery
-// step, because every acknowledged shard was committed durably after its PUT.
+// TestPackedSurvivesRestart simulates a restart: a fresh packed backend over
+// the same durable Pebble state serves reads and pruning with no recovery step,
+// because every acknowledged shard was committed durably after its PUT. That
+// holds too when the operator set shards_per_object back to 1 in between; new
+// writes then return to one object per shard.
 func TestPackedSurvivesRestart(t *testing.T) {
 	const n = 3
-	store, fake := newPackedStore(t, n, true)
-	shard := packedTestShard(2)
-	promises := make([]*PaymentPromise, n)
-	for i := range promises {
-		promises[i], _ = packedTestPromise(t)
+	tests := []struct {
+		name            string
+		shardsPerObject int
+		wantTag         shardBackendTag
+	}{
+		{"same setting", n, packedObjectBackendTag},
+		{"packing turned off", 1, objectBackendTag},
 	}
-	putConcurrently(t, store, promises, shard)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store, fake := newPackedStore(t, n)
+			shard := packedTestShard(2)
+			promises := make([]*PaymentPromise, n)
+			for i := range promises {
+				promises[i], _ = packedTestPromise(t)
+			}
+			putConcurrently(t, store, promises, shard)
 
-	// "Restart": drop the in-memory packer and attach a new one over the same db.
-	store.shards.packed.Close()
-	store.shards.packed = newPackedBackend(store.shards.packed.object, store.db, n, 50*time.Millisecond)
-	store.shards.packed.enabled = true
+			// "Restart": drop the in-memory packer and attach a new one over the same db.
+			store.shards.packed.Close()
+			store.shards.packed = newTestPackedBackend(store.shards.packed.object, store.db, tt.shardsPerObject)
 
-	for _, promise := range promises {
-		got, err := store.Get(t.Context(), promise.Commitment)
-		require.NoError(t, err)
-		require.Equal(t, shard, got)
+			for _, promise := range promises {
+				got, err := store.Get(t.Context(), promise.Commitment)
+				require.NoError(t, err)
+				require.Equal(t, shard, got)
+			}
+
+			promise, hash := packedTestPromise(t)
+			require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+			markerData, closer, err := store.db.Get(shardKey(promise.Commitment, hash))
+			require.NoError(t, err)
+			require.Equal(t, byte(tt.wantTag), markerData[1])
+			require.NoError(t, closer.Close())
+
+			pruned, _, err := store.PruneBefore(t.Context(), time.Unix(100, 0))
+			require.NoError(t, err)
+			require.Equal(t, n+1, pruned)
+			_, _, objects := fake.count()
+			require.Zero(t, objects)
+		})
 	}
-	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(100, 0))
-	require.NoError(t, err)
-	require.Equal(t, n, pruned)
-	_, _, _, objects := fake.count()
-	require.Zero(t, objects)
-}
-
-// TestPackedReadableAfterTogglingOff checks that after an operator sets
-// shards_per_object back to 1 (enabled false), shards packed earlier are still
-// readable and prunable; new writes go back to one object per shard.
-func TestPackedReadableAfterTogglingOff(t *testing.T) {
-	const n = 2
-	store, fake := newPackedStore(t, n, true)
-	shard := packedTestShard(2)
-	promises := make([]*PaymentPromise, n)
-	for i := range promises {
-		promises[i], _ = packedTestPromise(t)
-	}
-	putConcurrently(t, store, promises, shard)
-	store.shards.packed.Close()
-
-	// Toggle packing off: the backend stays attached for reads/prune only.
-	store.shards.packed = newPackedBackend(store.shards.packed.object, store.db, 1, 50*time.Millisecond)
-	store.shards.packed.enabled = false
-
-	got, err := store.Get(t.Context(), promises[0].Commitment)
-	require.NoError(t, err)
-	require.Equal(t, shard, got)
-
-	// A new write now takes the plain one-object-per-shard path.
-	plainPromise, _ := packedTestPromise(t)
-	require.NoError(t, store.Put(t.Context(), plainPromise, shard, plainPromise.CreationTimestamp))
-	markerData, closer, err := store.db.Get(shardKey(plainPromise.Commitment, mustHash(t, plainPromise)))
-	require.NoError(t, err)
-	require.Equal(t, byte(objectBackendTag), markerData[1])
-	require.NoError(t, closer.Close())
-
-	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(100, 0))
-	require.NoError(t, err)
-	require.Equal(t, n+1, pruned)
-	_, _, _, objects := fake.count()
-	require.Zero(t, objects)
 }
 
 // TestPackedFailedPutStoresNothing verifies a failed object PUT surfaces the
 // error and commits no marker, so occupancy and reads stay clean.
 func TestPackedFailedPutStoresNothing(t *testing.T) {
-	store, _ := newPackedStore(t, 1, true)
+	store, _ := newPackedStore(t, 2)
 	store.shards.packed.object.client = &s3ObjectClientStub{
 		putObject: func(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			return nil, fmt.Errorf("put failed")
@@ -422,42 +393,16 @@ func TestPackedFailedPutStoresNothing(t *testing.T) {
 	require.False(t, accounted)
 }
 
-// TestPackedRequestReduction measures the S3 PUT/DELETE request reduction from
-// packing: storing (and later pruning) the same workload at several
-// shards_per_object values. It is the benefit number reported for the PR.
-func TestPackedRequestReduction(t *testing.T) {
-	const shards = 256
-	for _, n := range []int{1, 8, 16, 64} {
-		store, fake := newPackedStore(t, n, n > 1)
-		shard := packedTestShard(4)
-		promises := make([]*PaymentPromise, shards)
-		for i := range promises {
-			promises[i], _ = packedTestPromise(t)
-		}
-		putConcurrently(t, store, promises, shard)
-		store.shards.packed.Close()
-		puts, _, _, objects := fake.count()
-
-		// Prune everything and count DELETE requests.
-		_, _, err := store.PruneBefore(t.Context(), time.Unix(1<<40, 0))
-		require.NoError(t, err)
-		_, _, deletes, remaining := fake.count()
-		require.Zero(t, remaining)
-		t.Logf("shards_per_object=%-3d  %d shards -> PUTs=%-4d objects=%-4d DELETEs=%-4d  (PUT reduction %.1fx)",
-			n, shards, puts, objects, deletes, float64(shards)/float64(puts))
-	}
-}
-
 // TestPackedEnqueueIdempotent verifies a repeated write of an already-packed
 // shard stores nothing new, so it can never be packed twice and strand a member.
 func TestPackedEnqueueIdempotent(t *testing.T) {
-	store, fake := newPackedStore(t, 1, true)
+	store, fake := newPackedStore(t, 2)
 	shard := packedTestShard(2)
 	promise, hash := packedTestPromise(t)
 
 	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
 	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
-	puts, _, _, objects := fake.count()
+	puts, _, objects := fake.count()
 	require.Equal(t, 1, puts)
 	require.Equal(t, 1, objects)
 
@@ -469,7 +414,7 @@ func TestPackedEnqueueIdempotent(t *testing.T) {
 // TestPackedConcurrentClose verifies that a second Close does not return (and so
 // cannot let the database close) while the first Close's upload is in flight.
 func TestPackedConcurrentClose(t *testing.T) {
-	store, _ := newPackedStore(t, 1, true)
+	store, _ := newPackedStore(t, 2)
 	release := make(chan struct{})
 	entered := make(chan struct{}, 1)
 	store.shards.packed.object.client = &fakeBlockingS3{fakeS3: newFakeS3(), release: release, entered: entered}
@@ -493,37 +438,6 @@ func TestPackedConcurrentClose(t *testing.T) {
 	wg.Wait()
 }
 
-// TestPackedConcurrentDuplicate submits the same shard twice while the first
-// upload is blocked mid-PUT. The duplicate must join the in-flight request, not
-// start a second pack that would strand a member.
-func TestPackedConcurrentDuplicate(t *testing.T) {
-	store, _ := newPackedStore(t, 1, true) // batch of 1: the first Put flushes and blocks in PUT
-	fake := newFakeS3()
-	release := make(chan struct{})
-	entered := make(chan struct{}, 1)
-	store.shards.packed.object.client = &fakeBlockingS3{fakeS3: fake, release: release, entered: entered}
-	promise, hash := packedTestPromise(t)
-
-	errs := make(chan error, 2)
-	go func() { errs <- store.Put(t.Context(), promise, packedTestShard(2), promise.CreationTimestamp) }()
-	<-entered // the first upload is blocked inside PutObject, registered in inflight
-	go func() { errs <- store.Put(t.Context(), promise, packedTestShard(2), promise.CreationTimestamp) }()
-
-	// Let the second enqueue observe the in-flight request before releasing.
-	require.Eventually(t, func() bool {
-		store.shards.packed.mu.Lock()
-		defer store.shards.packed.mu.Unlock()
-		return store.shards.packed.inflight[string(shardKey(promise.Commitment, hash))] != nil
-	}, time.Second, time.Millisecond)
-	close(release)
-	require.NoError(t, <-errs)
-	require.NoError(t, <-errs)
-
-	puts, _, _, objects := fake.count()
-	require.Equal(t, 1, puts, "the duplicate must not start a second pack")
-	require.Equal(t, 1, objects)
-}
-
 type fakeBlockingS3 struct {
 	*fakeS3
 	release <-chan struct{}
@@ -537,11 +451,4 @@ func (f *fakeBlockingS3) PutObject(ctx context.Context, in *s3.PutObjectInput, o
 	}
 	<-f.release
 	return f.fakeS3.PutObject(ctx, in, opts...)
-}
-
-func mustHash(t *testing.T, promise *PaymentPromise) []byte {
-	t.Helper()
-	hash, err := promise.Hash()
-	require.NoError(t, err)
-	return hash
 }

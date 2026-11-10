@@ -1,15 +1,12 @@
 package fibre
 
 import (
-	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"path"
 	"slices"
 	"sync"
 	"time"
@@ -20,9 +17,21 @@ import (
 	pebbledb "github.com/cockroachdb/pebble/v2"
 )
 
-// packMetaPrefix keys the per-object member set used to decide when a packed
-// object holds no more live shards and can be deleted.
-const packMetaPrefix = "/pack/"
+const (
+	// packMetaPrefix keys the per-object member set used to decide when a packed
+	// object holds no more live shards and can be deleted.
+	packMetaPrefix = "/pack/"
+	// packsSubdir is the key segment under which packed objects are stored,
+	// parallel to shardsSubdir for one-object-per-shard writes.
+	packsSubdir = "packs"
+	// maxPackedObjectBytes caps a single packed object; a batch flushes before
+	// it would exceed this.
+	maxPackedObjectBytes int64 = 4 << 30
+	// packedFlushDelay bounds the extra latency packing adds: a partial batch
+	// that never fills uploads after this long. It is an internal constant, not
+	// a knob, so packing stays a single setting.
+	packedFlushDelay = 250 * time.Millisecond
+)
 
 var errPackedClosed = errors.New("packed storage closed")
 
@@ -34,28 +43,23 @@ var errPackedClosed = errors.New("packed storage closed")
 // last shard expires so the object can be deleted.
 //
 // It also serves reads, deletes, and pruning for shards packed earlier even
-// when enabled is false, so turning packing off (shards_per_object back to 1)
-// never loses previously-packed shards.
+// when packing is off, so turning it off (shards_per_object back to 1) never
+// loses previously-packed shards.
 type packedBackend struct {
-	object      *objectBackend
-	db          *pebbledb.DB
-	shardsPerPK int
-	flushDelay  time.Duration
-	// enabled routes new writes through packing. When false the backend only
-	// reads, deletes, and prunes shards packed before packing was turned off.
-	enabled bool
+	object *objectBackend
+	db     *pebbledb.DB
+	// shardsPerObject above 1 routes new writes through packing. Otherwise the
+	// backend only reads, deletes, and prunes shards packed earlier.
+	shardsPerObject int
+	flushDelay      time.Duration
 
-	mu    sync.Mutex // guards the pending batch and inflight set below
-	queue []*packedRequest
-	size  int64
-	timer *time.Timer
-	gen   uint64 // identifies the current batch so a stale timer never fires
-	// inflight holds every shard whose batch has not yet committed, keyed by
-	// shard key, so concurrent duplicate uploads of one shard join the same
-	// request instead of landing in two different packs.
-	inflight map[string]*packedRequest
-	closed   bool
-	wg       sync.WaitGroup
+	mu     sync.Mutex // guards the pending batch below
+	queue  []*packedRequest
+	size   int64
+	timer  *time.Timer
+	gen    uint64 // identifies the current batch so a stale timer never fires
+	closed bool
+	wg     sync.WaitGroup
 
 	// deleteMu serializes member-set updates during pruning. It is separate
 	// from mu so a slow object DELETE never blocks uploads.
@@ -65,30 +69,20 @@ type packedBackend struct {
 // packedRequest is one shard awaiting packing. The caller blocks on done and
 // keeps the shard buffers alive until the upload has stopped reading them.
 type packedRequest struct {
-	id          string // shard key, the inflight dedup key
 	commitment  Commitment
 	promiseHash []byte
 	ppData      []byte // marshaled payment promise proto
 	pruneAt     time.Time
 	reader      *shardReader
-	size        int64
 	offset      int64 // byte offset inside the packed object, set at flush
 	done        chan struct{}
 	err         error
 	dispatched  bool
 }
 
-func newPackedBackend(object *objectBackend, db *pebbledb.DB, shardsPerObject int, flushDelay time.Duration) *packedBackend {
-	if shardsPerObject < 1 {
-		shardsPerObject = 1
-	}
-	if flushDelay <= 0 {
-		flushDelay = packedFlushDelay
-	}
-	return &packedBackend{object: object, db: db, shardsPerPK: shardsPerObject, flushDelay: flushDelay, inflight: map[string]*packedRequest{}}
+func newPackedBackend(object *objectBackend, db *pebbledb.DB, shardsPerObject int) *packedBackend {
+	return &packedBackend{object: object, db: db, shardsPerObject: shardsPerObject, flushDelay: packedFlushDelay}
 }
-
-func (*packedBackend) backendTag() shardBackendTag { return packedObjectBackendTag }
 
 func packMetaKey(packID [packIDSize]byte) []byte {
 	return []byte(packMetaPrefix + hex.EncodeToString(packID[:]))
@@ -96,8 +90,7 @@ func packMetaKey(packID [packIDSize]byte) []byte {
 
 // packObjectKey derives the S3 key of a packed object from its identity.
 func (b *packedBackend) packObjectKey(packID [packIDSize]byte) string {
-	n := b.object.namespace
-	return path.Join(n.Prefix, n.ChainID, n.ValidatorAddress, packsSubdir, hex.EncodeToString(packID[:]))
+	return b.object.key(packsSubdir, hex.EncodeToString(packID[:]))
 }
 
 // enqueue adds a shard to the pending batch and blocks until its batch is
@@ -109,22 +102,17 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 	if err != nil {
 		return fmt.Errorf("encoding shard object: %w", err)
 	}
-	if reader.size > maxPackedObjectBytes {
-		return fmt.Errorf("shard size %d exceeds packed object limit %d", reader.size, maxPackedObjectBytes)
-	}
 	ppData, err := marshalPromise(promise)
 	if err != nil {
 		return err
 	}
 	key := shardKey(promise.Commitment, promiseHash)
 	req := &packedRequest{
-		id:          string(key),
 		commitment:  promise.Commitment,
-		promiseHash: slices.Clone(promiseHash),
+		promiseHash: promiseHash,
 		ppData:      ppData,
 		pruneAt:     pruneAt,
 		reader:      reader,
-		size:        reader.size,
 		done:        make(chan struct{}),
 	}
 
@@ -133,11 +121,9 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 		b.mu.Unlock()
 		return errPackedClosed
 	}
-	// Dedup this shard so it is never packed into two objects (which would
-	// strand a member in one and leak it). The committed check and the
-	// in-flight check are both under the lock, and a flush removes a request
-	// from inflight only after its marker commits, so there is no window where
-	// a duplicate sees the shard as neither committed nor in flight.
+	// Keep Put idempotent for a shard that is already stored, as the plain
+	// path is. Concurrent uploads of one shard never get here: the server
+	// serializes them per promise hash and re-checks the store first.
 	if _, closer, err := b.db.Get(key); err == nil {
 		_ = closer.Close()
 		b.mu.Unlock()
@@ -146,26 +132,16 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 		b.mu.Unlock()
 		return err
 	}
-	if old := b.inflight[req.id]; old != nil {
-		b.mu.Unlock()
-		select {
-		case <-old.done:
-			return old.err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-	b.inflight[req.id] = req
 	// Flush the pending batch first if this shard cannot fit the object cap.
-	if len(b.queue) > 0 && b.size+req.size > maxPackedObjectBytes {
+	if len(b.queue) > 0 && b.size+reader.size > maxPackedObjectBytes {
 		b.flushLocked()
 	}
 	b.queue = append(b.queue, req)
-	b.size += req.size
+	b.size += reader.size
 	if len(b.queue) == 1 {
 		b.armTimerLocked()
 	}
-	if len(b.queue) >= b.shardsPerPK || b.size >= maxPackedObjectBytes {
+	if len(b.queue) >= b.shardsPerObject {
 		b.flushLocked()
 	}
 	b.mu.Unlock()
@@ -197,12 +173,11 @@ func (b *packedBackend) removeQueuedLocked(req *packedRequest, err error) {
 		// slices.Delete zeroes the vacated tail slot so the request and its
 		// caller buffers can be garbage collected.
 		b.queue = slices.Delete(b.queue, i, i+1)
-		b.size -= req.size
+		b.size -= req.reader.size
 		if len(b.queue) == 0 && b.timer != nil {
 			b.timer.Stop()
 			b.timer = nil
 		}
-		delete(b.inflight, req.id)
 		req.err = err
 		close(req.done)
 		return
@@ -242,15 +217,10 @@ func (b *packedBackend) flushLocked() {
 	go func() {
 		defer b.wg.Done()
 		err := b.upload(requests)
-		// Remove from inflight only after the marker commit inside upload, so a
-		// concurrent duplicate sees the shard as committed, not absent.
-		b.mu.Lock()
 		for _, r := range requests {
 			r.err = err
-			delete(b.inflight, r.id)
 			close(r.done)
 		}
-		b.mu.Unlock()
 	}()
 }
 
@@ -271,7 +241,7 @@ func (b *packedBackend) upload(requests []*packedRequest) error {
 	for _, r := range requests {
 		r.offset = body.size
 		body.parts = append(body.parts, r.reader.parts...)
-		body.size += r.size
+		body.size += r.reader.size
 	}
 
 	if m := b.object.metrics; m != nil {
@@ -289,95 +259,37 @@ func (b *packedBackend) upload(requests []*packedRequest) error {
 
 	batch := b.db.NewBatch()
 	defer batch.Close()
-	members := make([]byte, 0, 4+len(requests)*packedMemberSize)
-	members = binary.BigEndian.AppendUint32(members, uint32(len(requests)))
-	for _, r := range requests {
-		if err := batch.Set(promiseKey(r.promiseHash), r.ppData, pebbledb.NoSync); err != nil {
+	members := make([][]byte, len(requests))
+	for i, r := range requests {
+		marker := encodePackedShardMarker(r.reader.size, r.offset, packID)
+		if err := setShardMeta(batch, r.commitment, r.promiseHash, r.ppData, marker, r.pruneAt); err != nil {
 			return err
 		}
-		marker := encodePackedShardMarker(r.size, r.offset, packID)
-		if err := batch.Set(shardKey(r.commitment, r.promiseHash), marker, pebbledb.NoSync); err != nil {
-			return err
-		}
-		if err := batch.Set(pruneKey(r.pruneAt, r.commitment, r.promiseHash), nil, pebbledb.NoSync); err != nil {
-			return err
-		}
-		members = append(members, r.promiseHash...)
+		members[i] = r.promiseHash
 	}
-	if err := batch.Set(packMetaKey(packID), members, pebbledb.NoSync); err != nil {
+	if err := batch.Set(packMetaKey(packID), encodePackMembers(members), pebbledb.NoSync); err != nil {
 		return err
 	}
 	return batch.Commit(pebbledb.Sync)
 }
 
-func (b *packedBackend) Put(context.Context, Commitment, []byte, *types.BlobShard) error {
-	// Packed writes go through enqueue, not the routed Put path.
-	return errors.New("packed backend does not store single objects")
-}
-
-func (b *packedBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
-	done := b.object.metrics.observeBackendGet(ctx, storageBackendObject)
-	defer func() { done(err) }()
-
-	packID, offset, size, err := b.markerLocation(commitment, promiseHash)
-	if errors.Is(err, pebbledb.ErrNotFound) {
-		return nil, ErrStoreNotFound
-	}
+// get reads the shard that marker locates with a ranged GET of its object.
+func (b *packedBackend) get(ctx context.Context, marker []byte) (*types.BlobShard, error) {
+	packID, offset, size, err := decodePackedShardMarker(marker)
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, b.object.requestTimeout)
-	defer cancel()
-	out, err := b.object.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(b.object.namespace.Bucket),
-		Key:    aws.String(b.packObjectKey(packID)),
-		Range:  aws.String(fmt.Sprintf("bytes=%d-%d", offset, offset+size-1)),
-	})
-	if isObjectNotFound(err) {
-		return nil, ErrStoreNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("getting packed object: %w", err)
-	}
-	defer out.Body.Close()
-
-	limited := &io.LimitedReader{R: b.object.metrics.backendReader(ctx, storageBackendObject, out.Body), N: size + 1}
-	reader := bufio.NewReaderSize(limited, 1<<20)
-	shard, err := readShardBinary(reader)
-	if err != nil {
-		return nil, fmt.Errorf("decoding packed shard: %w", err)
-	}
-	if _, err := reader.ReadByte(); err != io.EOF || limited.N != 1 {
-		return nil, fmt.Errorf("%w: packed range has unexpected trailing bytes", ErrStoreIntegrity)
-	}
-	return shard, nil
+	rng := fmt.Sprintf("bytes=%d-%d", offset, offset+size-1)
+	return b.object.getShard(ctx, b.packObjectKey(packID), &rng)
 }
 
-// Has reports presence from the committed shard marker alone: a packed marker
-// is committed only after its object's PUT succeeds, so the object exists
-// whenever the marker does. No HEAD request is needed.
-func (b *packedBackend) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
-	_, _, _, err := b.markerLocation(commitment, promiseHash)
-	if errors.Is(err, pebbledb.ErrNotFound) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// Delete removes the shard from its object's member set and deletes the object
+// delete removes the shard from its object's member set and deletes the object
 // once its last shard is gone. It is idempotent: removing a member already
 // absent is a no-op, so a retry after a crash never double-frees or drops an
 // object that still has live shards. It leaves the shard marker in place for
 // the caller (pruning) to delete.
-func (b *packedBackend) Delete(ctx context.Context, commitment Commitment, promiseHash []byte) error {
-	packID, _, _, err := b.markerLocation(commitment, promiseHash)
-	if errors.Is(err, pebbledb.ErrNotFound) {
-		return nil
-	}
+func (b *packedBackend) delete(ctx context.Context, marker, promiseHash []byte) error {
+	packID, _, _, err := decodePackedShardMarker(marker)
 	if err != nil {
 		return err
 	}
@@ -400,40 +312,20 @@ func (b *packedBackend) Delete(ctx context.Context, commitment Commitment, promi
 		return err
 	}
 	members = slices.DeleteFunc(members, func(h []byte) bool { return string(h) == string(promiseHash) })
-
-	batch := b.db.NewBatch()
-	defer batch.Close()
-	if len(members) == 0 {
-		dctx, cancel := context.WithTimeout(ctx, b.object.requestTimeout)
-		defer cancel()
-		_, err = b.object.client.DeleteObject(dctx, &s3.DeleteObjectInput{
-			Bucket: aws.String(b.object.namespace.Bucket),
-			Key:    aws.String(b.packObjectKey(packID)),
-		})
-		if err != nil && !isObjectNotFound(err) {
-			return fmt.Errorf("deleting packed object: %w", err)
-		}
-		if err := batch.Delete(packMetaKey(packID), pebbledb.NoSync); err != nil {
-			return err
-		}
-	} else {
-		if err := batch.Set(packMetaKey(packID), encodePackMembers(members), pebbledb.NoSync); err != nil {
-			return err
-		}
+	if len(members) > 0 {
+		return b.db.Set(packMetaKey(packID), encodePackMembers(members), pebbledb.Sync)
 	}
-	return batch.Commit(pebbledb.Sync)
-}
 
-// markerLocation reads the shard's packed marker from Pebble. Reads and deletes
-// receive only the commitment and promise hash, so the location is recovered
-// from the marker rather than carried in by the caller.
-func (b *packedBackend) markerLocation(commitment Commitment, promiseHash []byte) (packID [packIDSize]byte, offset, size int64, err error) {
-	data, closer, err := b.db.Get(shardKey(commitment, promiseHash))
-	if err != nil {
-		return packID, 0, 0, err
+	dctx, cancel := context.WithTimeout(ctx, b.object.requestTimeout)
+	defer cancel()
+	_, err = b.object.client.DeleteObject(dctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(b.object.namespace.Bucket),
+		Key:    aws.String(b.packObjectKey(packID)),
+	})
+	if err != nil && !isObjectNotFound(err) {
+		return fmt.Errorf("deleting packed object: %w", err)
 	}
-	defer closer.Close()
-	return decodePackedShardMarker(data)
+	return b.db.Delete(packMetaKey(packID), pebbledb.Sync)
 }
 
 // Close flushes any partial batch, uploading it, and waits for every in-flight
@@ -474,27 +366,4 @@ func decodePackMembers(data []byte) ([][]byte, error) {
 		hashes[i] = data[start : start+packedMemberSize]
 	}
 	return hashes, nil
-}
-
-// openPacked attaches a packed backend when packing is enabled, or when
-// previously-packed shards still need reads and pruning. It returns nil without
-// attaching one when packing was never used, leaving the one-object-per-shard
-// path exactly as before.
-func (s *routedStorage) openPacked(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, object shardBackend) error {
-	hasPacked, err := hasBackendMarkers(ctx, db, packedObjectBackendTag)
-	if err != nil {
-		return err
-	}
-	enabled := cfg.StorageBackend == storageBackendObject && cfg.ObjectStorage.ShardsPerObject > 1
-	if !enabled && !hasPacked {
-		return nil
-	}
-	backend, ok := object.(*objectBackend)
-	if !ok {
-		return fmt.Errorf("%w: packed shards require object storage", ErrStoreIntegrity)
-	}
-	b := newPackedBackend(backend, db, cfg.ObjectStorage.ShardsPerObject, packedFlushDelay)
-	b.enabled = enabled
-	s.packed = b
-	return nil
 }

@@ -24,16 +24,6 @@ const (
 	defaultShardsPerObject = 1
 	// maxShardsPerObject bounds how many shards one packed object may hold.
 	maxShardsPerObject = 1024
-	// maxPackedObjectBytes caps a single packed object; a batch flushes before
-	// it would exceed this.
-	maxPackedObjectBytes int64 = 4 << 30
-	// packedFlushDelay bounds the extra latency packing adds: a partial batch
-	// that never fills uploads after this long. It is an internal constant, not
-	// a knob, so packing stays a single setting.
-	packedFlushDelay = 250 * time.Millisecond
-	// packsSubdir is the key segment under which packed objects are stored,
-	// parallel to shardsSubdir for one-object-per-shard writes.
-	packsSubdir = "packs"
 )
 
 type objectStorageCredentialsError struct {
@@ -55,8 +45,8 @@ type ObjectStorageConfig struct {
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
-	// ShardsPerObject batches several shards into one S3 PUT. See the comment below.
-	ShardsPerObject int `toml:"shards_per_object" comment:"Shards packed into one S3 object (default 1 = one object per shard, same as before).\nRaise it only on a high-throughput server that S3 rate-limits (HTTP 503 SlowDown, per-prefix PUT/s caps): N shards become one PUT, cutting request rate ~Nx.\nTrade-offs: up to a few hundred ms more upload latency while a batch fills, larger objects, and coarser deletion (a packed object is freed only once its last shard expires). Default 1 is right for most validators."`
+	// ShardsPerObject batches several shards into one S3 PUT; 1 disables packing.
+	ShardsPerObject int `toml:"shards_per_object" comment:"Shards packed into one S3 object. Default 1 writes one object per shard. See \"Packing shards into one S3 object\" in fibre/README.md before raising it."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -115,36 +105,33 @@ func (cfg ObjectStorageConfig) endpointHost() string {
 
 // openObjectBackend opens the backend for object mode or existing object markers.
 // Local mode still needs it to read and prune shards written before a mode change.
-func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (shardBackend, bool, error) {
-	hasObjects, err := hasObjectMarkers(ctx, db)
+// It also reports whether plain and packed object markers exist.
+func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (_ shardBackend, hasObjects, hasPacked bool, _ error) {
+	hasObjects, hasPacked, err := hasObjectMarkers(ctx, db)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	// Packed shards also live in object storage, so their markers require the
 	// backend to be attached for reads and pruning even after a switch to
 	// local mode, exactly like plain object markers.
-	hasPacked, err := hasBackendMarkers(ctx, db, packedObjectBackendTag)
-	if err != nil {
-		return nil, false, err
-	}
 	hasStored := hasObjects || hasPacked
 	saved, recorded, err := readObjectNamespace(db)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	if hasStored && !recorded {
-		return nil, false, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
+		return nil, false, false, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
 	}
 	if !hasStored && cfg.StorageBackend != storageBackendObject {
-		return nil, false, nil
+		return nil, false, false, nil
 	}
 	cfg.Log.Warn("Changing storage_backend only affects new shards. Keep object storage configured and accessible until all object shards are pruned.",
 		"storage_backend", cfg.StorageBackend)
 	if err := cfg.ObjectStorage.Validate(); err != nil {
-		return nil, false, fmt.Errorf("object storage must remain configured until all object shards are pruned: %w", err)
+		return nil, false, false, fmt.Errorf("object storage must remain configured until all object shards are pruned: %w", err)
 	}
 	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
-		return nil, false, fmt.Errorf("chain ID and validator address are required for object storage")
+		return nil, false, false, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
 	namespace := cfg.ObjectStorage.canonical()
 	mismatch := hasStored && saved != namespace
@@ -152,21 +139,21 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 		cfg.Log.Warn("Object storage namespace changed", "old", saved, "new", namespace,
 			"override", cfg.ObjectStorage.OverrideNamespace)
 		if !cfg.ObjectStorage.OverrideNamespace {
-			return nil, false, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
+			return nil, false, false, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
 		}
 	}
 	client, err := newObjectClient(ctx, cfg.ObjectStorage)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	if !recorded || saved != namespace {
 		if err := saveObjectNamespace(db, namespace); err != nil {
-			return nil, false, err
+			return nil, false, false, err
 		}
 	}
 	backend := newObjectBackend(client, namespace)
 	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
-	return backend, hasObjects, nil
+	return backend, hasObjects, hasPacked, nil
 }
 
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
@@ -207,31 +194,29 @@ func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, aws.
 	return client, credentials, nil
 }
 
-// hasObjectMarkers stops at the first valid object marker without reading payloads.
-func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (bool, error) {
-	return hasBackendMarkers(ctx, db, objectBackendTag)
-}
-
-// hasBackendMarkers stops at the first valid marker for tag without reading payloads.
-func hasBackendMarkers(ctx context.Context, db *pebbledb.DB, tag shardBackendTag) (bool, error) {
+// hasObjectMarkers reports whether plain and packed object markers exist. It
+// reads no payloads and stops once it has seen both.
+func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (hasObjects, hasPacked bool, _ error) {
 	prefix := []byte(shardKeyPrefix)
 	iter, err := db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
 	})
 	if err != nil {
-		return false, fmt.Errorf("creating shard iterator: %w", err)
+		return false, false, fmt.Errorf("creating shard iterator: %w", err)
 	}
 	defer iter.Close()
 
-	for valid := iter.First(); valid; valid = iter.Next() {
+	for valid := iter.First(); valid && (!hasObjects || !hasPacked); valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
-			return false, err
+			return false, false, err
 		}
 		backend, _, err := decodeShardMarkerBackend(iter.Value())
-		if err == nil && backend == tag {
-			return true, nil
+		if err != nil {
+			continue
 		}
+		hasObjects = hasObjects || backend == objectBackendTag
+		hasPacked = hasPacked || backend == packedObjectBackendTag
 	}
-	return false, iter.Error()
+	return hasObjects, hasPacked, iter.Error()
 }

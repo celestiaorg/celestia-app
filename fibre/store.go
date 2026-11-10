@@ -129,8 +129,8 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	// With packing enabled, batch this shard into a shared object instead of
 	// writing one object per shard. enqueue blocks until the shard is durably
 	// stored, so the caller's occupancy reservation matches what is stored.
-	if s.shards.packed != nil && s.shards.packed.enabled {
-		return s.shards.packed.enqueue(ctx, promise, promiseHash, shard, pruneAt)
+	if packed := s.shards.packed; packed != nil && packed.shardsPerObject > 1 {
+		return packed.enqueue(ctx, promise, promiseHash, shard, pruneAt)
 	}
 	marker := s.shards.marker(size)
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
@@ -152,14 +152,8 @@ func (s *Store) commitAndStore(
 
 	batch := s.db.NewBatch()
 	defer batch.Close()
-	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting payment promise: %w", err)
-	}
-	if err := batch.Set(shardKey(promise.Commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting shard marker: %w", err)
-	}
-	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting prune index: %w", err)
+	if err := setShardMeta(batch, promise.Commitment, promiseHash, ppData, marker, pruneAt); err != nil {
+		return err
 	}
 
 	// Last safe point to honour cancellation before the durable payload write.
@@ -182,6 +176,20 @@ func (s *Store) commitAndStore(
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 
+	return nil
+}
+
+// setShardMeta adds one shard's promise, marker, and prune index to batch.
+func setShardMeta(batch *pebbledb.Batch, commitment Commitment, promiseHash, ppData, marker []byte, pruneAt time.Time) error {
+	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting payment promise: %w", err)
+	}
+	if err := batch.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting shard marker: %w", err)
+	}
+	if err := batch.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting prune index: %w", err)
+	}
 	return nil
 }
 

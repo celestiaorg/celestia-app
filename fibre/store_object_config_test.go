@@ -139,6 +139,20 @@ func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
 	require.Equal(t, want, cfg)
 }
 
+func TestObjectStorageConfigShardsPerObject(t *testing.T) {
+	cfg := testObjectStorageConfig()
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, defaultShardsPerObject, cfg.ShardsPerObject)
+
+	cfg = testObjectStorageConfig()
+	cfg.ShardsPerObject = maxShardsPerObject + 1
+	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
+
+	cfg = testObjectStorageConfig()
+	cfg.ShardsPerObject = -1
+	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
+}
+
 func TestStoreRejectsUnstablePrefix(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
