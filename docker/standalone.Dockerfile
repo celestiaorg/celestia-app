@@ -4,29 +4,29 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine
-ARG RUNTIME_IMAGE=docker.io/alpine:3.22
-ARG TARGETOS
-ARG TARGETARCH
+ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine3.24
+ARG RUNTIME_IMAGE=docker.io/alpine:3.24
+
+# xx cross-compiles the cgo build for the target platform without emulation.
+FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx:1.10.0@sha256:40fe21f44bb8cddf1eb1226db190d0a984118f62ee02a91b77d99448d28264a6 AS xx
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
-ARG TARGETOS
-ARG TARGETARCH
+# xx is a set of helper scripts meant to be copied over the root filesystem.
+# hadolint ignore=DL3067
+COPY --from=xx / /
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
-    gcc \
+    clang \
     git \
-    # linux-headers are needed for Ledger support
-    linux-headers \
-    make \
-    musl-dev
+    lld \
+    make
 WORKDIR /celestia-app
 
 # cache go module dependencies
@@ -37,9 +37,19 @@ RUN sh /usr/local/bin/download-go-modules.sh
 # copy source code after downloading modules (to leverage caching)
 COPY . .
 
-RUN uname -a &&\
-    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make -o mod build-standalone
+ARG TARGETPLATFORM
+# The C toolchain for the target platform; linux-headers are needed for Ledger support.
+# hadolint ignore=DL3018
+RUN xx-apk add --no-cache gcc linux-headers musl-dev
+
+# xx-go --wrap cross-compiles for TARGETPLATFORM with the target's C toolchain. STATIC=true links
+# musl in, so the binary runs outside this image; the grep fails a build without cgo.
+# hadolint ignore=DL4006
+RUN uname -a && \
+    xx-go --wrap && \
+    make -o mod build-standalone STATIC=true && \
+    xx-verify --static build/celestia-appd && \
+    go version -m build/celestia-appd | grep -q CGO_ENABLED=1
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
