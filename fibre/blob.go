@@ -52,14 +52,14 @@ type BlobConfig struct {
 	reconstructSlots chan struct{}
 }
 
-// maxConcurrentReconstructs returns the reconstruction limit for a process
-// with procs schedulable CPUs: FIBRE_MAX_CONCURRENT_RECONSTRUCTS when set to
-// a positive integer, otherwise one per two CPUs, at least two.
-func maxConcurrentReconstructs(procs int) int {
+// maxConcurrentReconstructs returns the reconstruction limit:
+// FIBRE_MAX_CONCURRENT_RECONSTRUCTS when set to a positive integer, otherwise
+// one per two schedulable CPUs, at least two.
+func maxConcurrentReconstructs() int {
 	if n, err := strconv.Atoi(os.Getenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS")); err == nil && n > 0 {
 		return n
 	}
-	return max(2, procs/2)
+	return max(2, runtime.GOMAXPROCS(0)/2)
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -128,7 +128,7 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		Assembler:     assembler,
 		DataPool:      dataPool,
 
-		reconstructSlots: make(chan struct{}, maxConcurrentReconstructs(runtime.GOMAXPROCS(0))),
+		reconstructSlots: make(chan struct{}, maxConcurrentReconstructs()),
 	}, nil
 }
 

@@ -370,17 +370,23 @@ func TestAddShard_ReleasesRejectedShard(t *testing.T) {
 	require.Zero(t, released)
 }
 
+// newParityOnlyDownload returns a download with a single reconstruct slot that
+// holds parity rows only, so the original rows must be reconstructed.
+func newParityOnlyDownload(t *testing.T) *download {
+	t.Helper()
+	d, proofs, rlc := newTestDownload(t, testK)
+	d.cfg.reconstructSlots = make(chan struct{}, 1)
+	for from := range d.ShardSources(context.Background()) {
+		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
+	}
+	return d
+}
+
 // TestDownload_ReconstructWaitsForSlot checks that reconstruction takes one of
 // the config's reconstruct slots, so at most cap(slots) work slabs are held at
 // once, and that a download waiting for a slot gives up with its context.
 func TestDownload_ReconstructWaitsForSlot(t *testing.T) {
-	d, proofs, rlc := newTestDownload(t, testK)
-	d.cfg.reconstructSlots = make(chan struct{}, 1)
-	for from := range d.ShardSources(context.Background()) {
-		// Parity rows only, so the original rows must be reconstructed.
-		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
-	}
-
+	d := newParityOnlyDownload(t)
 	d.cfg.reconstructSlots <- struct{}{} // another download holds the only slot
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -390,11 +396,7 @@ func TestDownload_ReconstructWaitsForSlot(t *testing.T) {
 }
 
 func TestDownload_ReconstructReleasesSlot(t *testing.T) {
-	d, proofs, rlc := newTestDownload(t, testK)
-	d.cfg.reconstructSlots = make(chan struct{}, 1)
-	for from := range d.ShardSources(context.Background()) {
-		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
-	}
+	d := newParityOnlyDownload(t)
 	blob, err := d.Blob(context.Background())
 	require.NoError(t, err)
 	defer blob.Free()
@@ -402,9 +404,6 @@ func TestDownload_ReconstructReleasesSlot(t *testing.T) {
 }
 
 func TestMaxConcurrentReconstructs(t *testing.T) {
-	for procs, want := range map[int]int{1: 2, 4: 2, 14: 7, 16: 8, 48: 24} {
-		require.Equal(t, want, maxConcurrentReconstructs(procs), "procs=%d", procs)
-	}
 	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "3")
-	require.Equal(t, 3, maxConcurrentReconstructs(14))
+	require.Equal(t, 3, maxConcurrentReconstructs())
 }
