@@ -132,7 +132,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical marshal: %v", err)
 			}
-			bs, err := marshalUploadShardRequestScatter(tc.req)
+			bs, err := marshalUploadShardRequestScatter(tc.req, nil)
 			if err != nil {
 				t.Fatalf("scatter marshal: %v", err)
 			}
@@ -168,7 +168,7 @@ func TestScatterMarshalWireParity128MiB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical marshal: %v", err)
 	}
-	scattered, err := marshalUploadShardRequestScatter(req)
+	scattered, err := marshalUploadShardRequestScatter(req, nil)
 	if err != nil {
 		t.Fatalf("scatter marshal: %v", err)
 	}
@@ -250,7 +250,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if err != nil {
 			t.Fatalf("canonical marshal: %v", err)
 		}
-		bs, err := marshalUploadShardRequestScatter(req)
+		bs, err := marshalUploadShardRequestScatter(req, nil)
 		if err != nil {
 			t.Fatalf("scatter marshal: %v", err)
 		}
@@ -277,7 +277,7 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
 
-	bs, err := marshalUploadShardRequestScatter(req)
+	bs, err := marshalUploadShardRequestScatter(req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestScatterMarshalAllocsConstant(t *testing.T) {
 	allocs := func(rows int) float64 {
 		req := scatterTestRequest(rows, 14)
 		return testing.AllocsPerRun(20, func() {
-			if _, err := marshalUploadShardRequestScatter(req); err != nil {
+			if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -345,7 +345,7 @@ func BenchmarkScatterMarshal(b *testing.B) {
 	req := scatterTestRequest(168, 14)
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := marshalUploadShardRequestScatter(req); err != nil {
+		if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
 			b.Fatal(err)
 		}
 	}
