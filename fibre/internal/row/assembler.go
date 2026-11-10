@@ -23,7 +23,6 @@ type Assembler struct {
 	treeBufferSize int
 
 	rowsPool *Pool
-	treePool *Pool
 	// zeroRow is the shared, immutable all-zeros row that empty trailing
 	// original rows alias. Sized to maxRowSize; aliased sub-slices are
 	// used for each blob's rowSize.
@@ -31,9 +30,9 @@ type Assembler struct {
 }
 
 // NewAssembler creates an Assembler for originalRows original rows and
-// parityRows parity rows. It constructs internal [Pool]s sized for the
-// assembler's slab shape (parityRows + partialRows) bounded by maxRowSize
-// and a tree pool for per-blob Merkle-tree node storage sized by treeBufferSize.
+// parityRows parity rows. It constructs an internal [Pool] sized for the
+// assembler's slab shape (parityRows + partialRows) bounded by maxRowSize;
+// per-blob Merkle-tree node storage is treeBufferSize bytes.
 func NewAssembler(originalRows, parityRows, maxRowSize, treeBufferSize int) (*Assembler, error) {
 	if originalRows <= 0 || parityRows <= 0 {
 		return nil, fmt.Errorf("originalRows=%d parityRows=%d must be positive", originalRows, parityRows)
@@ -42,7 +41,6 @@ func NewAssembler(originalRows, parityRows, maxRowSize, treeBufferSize int) (*As
 		originalRows:   originalRows,
 		parityRows:     parityRows,
 		rowsPool:       NewPool(maxRowSize, parityRows+partialRows),
-		treePool:       NewPool(treeBufferSize, 1),
 		treeBufferSize: treeBufferSize,
 		zeroRow:        reedsolomon.AllocAligned(1, maxRowSize)[0],
 	}, nil
@@ -109,7 +107,7 @@ func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly
 	return &Assembly{
 		asm:     a,
 		slots:   pooled,
-		treeBuf: a.treePool.GetRegion(1, a.treeBufferSize),
+		treeBuf: Alloc(a.treeBufferSize),
 		rows:    rows,
 	}
 }
@@ -164,7 +162,7 @@ func (a *Assembly) Free() {
 		return
 	}
 	a.asm.rowsPool.Put(a.slots)
-	a.asm.treePool.PutRegion(a.treeBuf)
+	Free(a.treeBuf)
 	a.slots, a.treeBuf, a.rows = nil, nil, nil
 }
 

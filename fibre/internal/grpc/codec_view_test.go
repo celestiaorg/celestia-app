@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/mem"
@@ -328,11 +329,11 @@ func TestDownloadCodecRecyclesBuffers(t *testing.T) {
 	})
 }
 
-// Shard buffers of at least largeDownloadThreshold live off the Go heap until
+// Shard buffers of at least row.MmapThreshold live off the Go heap until
 // Release, and decode the same as a plain unmarshal.
 func TestDownloadCodecLargeBuffersOffHeap(t *testing.T) {
 	resp := makeDownloadShard(2, 2)
-	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, largeDownloadThreshold)
+	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, row.MmapThreshold)
 	wire := marshalDownloadShard(t, resp)
 	var want types.DownloadShardResponse
 	require.NoError(t, want.Unmarshal(wire))
@@ -343,5 +344,5 @@ func TestDownloadCodecLargeBuffersOffHeap(t *testing.T) {
 	require.Equal(t, want, got)
 	require.True(t, codec.large)
 	codec.Release()
-	codec.Release() // the row pool panics on a double free
+	codec.Release() // the row allocator panics on a double free
 }

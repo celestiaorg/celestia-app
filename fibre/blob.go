@@ -30,8 +30,8 @@ type BlobConfig struct {
 	// MaxDataSize is the maximum data size that can be passed to NewBlob.
 	MaxDataSize int
 	// MaxRowSize is the maximum allowed size of a single row in bytes. It bounds
-	// the DataPool/Assembler allocations, so rows larger than this must be
-	// rejected before they reach the pool (which would otherwise panic).
+	// the download and Assembler allocations, so rows larger than this must be
+	// rejected before they are allocated.
 	MaxRowSize int
 	// CodingWorkers is the number of workers to use for encoding and decoding rsema1d.
 	CodingWorkers int
@@ -40,8 +40,6 @@ type BlobConfig struct {
 	Coder *rsema1d.Coder
 	// Assembler builds pooled row layouts for encoding blobs.
 	Assembler *row.Assembler
-	// DataPool pools blob downloads allocations.
-	DataPool *row.Pool
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -94,7 +92,6 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
 	}
-	dataPool := row.NewPool(maxRowSize, params.Rows)
 
 	return BlobConfig{
 		BlobVersion:  blobVersion,
@@ -108,7 +105,6 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		CodingWorkers: runtime.GOMAXPROCS(0),
 		Coder:         coder,
 		Assembler:     assembler,
-		DataPool:      dataPool,
 	}, nil
 }
 

@@ -23,8 +23,9 @@ var disableHugePage = os.Getenv("FIBRE_ROW_NO_HUGEPAGE") != ""
 
 // mmapAlloc allocates size bytes via mmap, invisible to Go's GC.
 // The returned slice is page-aligned (and therefore SIMD-aligned).
-// Caller must call mmapFree when done.
-func mmapAlloc(size int) ([]byte, error) {
+// Caller must call mmapFree when done. Panics if the mapping fails, like a
+// failed Go heap allocation, which is fatal.
+func mmapAlloc(size int) []byte {
 	pageSize := unix.Getpagesize()
 	size = (size + pageSize - 1) &^ (pageSize - 1)
 
@@ -32,7 +33,7 @@ func mmapAlloc(size int) ([]byte, error) {
 		unix.PROT_READ|unix.PROT_WRITE,
 		unix.MAP_PRIVATE|unix.MAP_ANON)
 	if err != nil {
-		return nil, fmt.Errorf("mmap(%d): %w", size, err)
+		panic(fmt.Errorf("mmap(%d): %w", size, err))
 	}
 	if runtime.GOOS == "linux" {
 		// exclude large scratch buffers from core dumps; failure is non-fatal.
@@ -49,7 +50,7 @@ func mmapAlloc(size int) ([]byte, error) {
 			_ = unix.Madvise(data, linuxMadvHugePageCode)
 		}
 	}
-	return data, nil
+	return data
 }
 
 // mmapFree releases mmap'd memory off-thread via a single drain

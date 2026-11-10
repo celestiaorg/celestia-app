@@ -16,7 +16,7 @@ import (
 type DownloadCodec struct {
 	pooledCodec
 	buf   []byte
-	large bool // buf came from largeDownloadBuffers
+	large bool // buf came from row.Alloc
 }
 
 func NewDownloadCodec(maxShardRows, maxProofSegments int) *DownloadCodec {
@@ -50,32 +50,27 @@ func (c *DownloadCodec) Release() {
 	}
 }
 
-// largeDownloadThreshold routes shard buffers of at least this size off the
-// Go heap.
-const largeDownloadThreshold = 1 << 20
-
-// largeDownloadBuffers holds shard response buffers (~50 MiB each for a
-// 128 MiB blob over 10 validators) off the Go heap. Their lifetime is
-// explicit — [DownloadCodec.Release] — so they need no garbage collection:
-// in a sync.Pool they counted as live heap, raised the GC goal by as much
-// again, and stayed resident for two GC cycles after their last use. The
-// row pool keeps a freed buffer for reuse only while it is reused soon.
-var largeDownloadBuffers = row.NewPool(1<<31, 1)
-
 // downloadBuffers recycles small response buffers through the GC-managed
 // sync.Pool, which keeps their zeroing and collection off the download path.
 var downloadBuffers bufferPool
 
+// getDownloadBuffer takes shard response buffers the row allocator would mmap
+// (~50 MiB each for a 128 MiB blob over 10 validators) from it, off the Go
+// heap. Their lifetime is explicit — [DownloadCodec.Release] — so they need
+// no garbage collection: in a sync.Pool they counted as live heap, raised the
+// GC goal by as much again, and stayed resident for two GC cycles after their
+// last use. The row allocator keeps a freed buffer for reuse only while it is
+// reused soon.
 func getDownloadBuffer(n int) (buf []byte, large bool) {
-	if n < largeDownloadThreshold {
+	if n < row.MmapThreshold {
 		return downloadBuffers.get(n), false
 	}
-	return largeDownloadBuffers.GetRegion(1, (n+63)&^63)[:n], true
+	return row.Alloc(n), true
 }
 
 func putDownloadBuffer(buf []byte, large bool) {
 	if large {
-		largeDownloadBuffers.PutRegion(buf)
+		row.Free(buf)
 		return
 	}
 	downloadBuffers.put(buf)

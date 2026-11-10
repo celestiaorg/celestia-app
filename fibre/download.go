@@ -7,6 +7,7 @@ import (
 	"iter"
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
@@ -125,7 +126,7 @@ func (s *download) ready() bool {
 }
 
 // AddShard verifies a worker's shard and stores its novel rows. On the first
-// successful shard it also pre-backs the K original-row slots from DataPool
+// successful shard it also pre-backs the K original-row slots from a pooled slab
 // using the wire rowSize. Concurrent calls return disjoint Index sets, so
 // [download.store] writes to disjoint slots without further locking. Callers
 // must invoke [download.SkipShard] on error; successful adds release the
@@ -138,9 +139,9 @@ func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.
 	if len(novel) > 0 {
 		rowLn := len(novel[0].Row)
 		// Reject rows larger than the reader's configured maximum before they
-		// reach the DataPool, which is sized for MaxRowSize and would otherwise
-		// panic. A malicious or custom uploader can serve an oversized row whose
-		// proof still verifies against the (attacker-chosen) commitment.
+		// size the download slab. A malicious or custom uploader can serve an
+		// oversized row whose proof still verifies against the
+		// (attacker-chosen) commitment.
 		if s.cfg.MaxRowSize > 0 && rowLn > s.cfg.MaxRowSize {
 			return fmt.Errorf("row size %d exceeds maximum %d", rowLn, s.cfg.MaxRowSize)
 		}
@@ -268,13 +269,13 @@ func (s *download) dropInvalidRows(err error) bool {
 	return true
 }
 
-// acquireSlab grabs a K*rowSize region from DataPool and points the
+// acquireSlab grabs a K*rowSize region from the row allocator and points the
 // original-row slots at it. Runs at most once per download; concurrent
 // AddShards racing for the first successful shard converge on the same slab
 // before reaching [download.store].
 func (s *download) acquireSlab(rowSize int) {
 	s.slabOnce.Do(func() {
-		s.slab = s.cfg.DataPool.GetRegion(s.cfg.OriginalRows, rowSize)
+		s.slab = row.Alloc(s.cfg.OriginalRows * rowSize)
 		for i := 0; i < s.cfg.OriginalRows; i++ {
 			off := i * rowSize
 			s.rows[i] = s.slab[off : off : off+rowSize]
@@ -288,7 +289,7 @@ func (s *download) freeSlab() {
 	if s.slab == nil {
 		return
 	}
-	s.cfg.DataPool.PutRegion(s.slab)
+	row.Free(s.slab)
 	s.slab = nil
 }
 
