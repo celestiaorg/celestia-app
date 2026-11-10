@@ -85,8 +85,8 @@ func scatterFramingSize(req *types.UploadShardRequest) int {
 }
 
 // marshalUploadShardRequestScatter takes framing from pool when it is large
-// enough to pool (nil pool: never) and hands it to gRPC as one ref-counted
-// buffer that returns to pool after the write.
+// enough to pool and hands it to gRPC as one ref-counted buffer that returns
+// to pool after the write.
 //
 // With a nil owner every other view is a plain mem.SliceBuffer. Otherwise each
 // row data view holds a reference on owner until gRPC frees it; rows below the
@@ -96,9 +96,9 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 	size := scatterFramingSize(req)
 	var pooled *[]byte
 	var framing []byte
-	if pool != nil && !mem.IsBelowBufferPoolingThreshold(size) {
+	if !mem.IsBelowBufferPoolingThreshold(size) {
 		pooled = pool.Get(size)
-		framing = (*pooled)[:0:size]
+		framing = (*pooled)[:0]
 	} else {
 		framing = make([]byte, 0, size)
 	}
@@ -188,23 +188,16 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 		views = append(views, b)
 		bs = append(bs, &views[len(views)-1])
 	}
-	var root mem.Buffer
+	addFraming := func(start, end int) { add(framing[start:end]) }
 	if pooled != nil {
-		if len(framing) == 0 || &framing[0] != &(*pooled)[0] {
-			// Unused, or an inexact size made append reallocate framing.
-			pool.Put(pooled)
-		} else {
-			*pooled = (*pooled)[:len(framing)]
-			root = mem.NewBuffer(pooled, pool)
-		}
+		*pooled = framing
+		root := mem.NewBuffer(pooled, pool)
+		defer root.Free() // each framing slice holds its own reference
+		addFraming = func(start, end int) { bs = append(bs, root.Slice(start, end)) }
 	}
 	for _, seg := range segs {
 		if seg.end > seg.start {
-			if root != nil {
-				bs = append(bs, root.Slice(seg.start, seg.end))
-			} else {
-				add(framing[seg.start:seg.end])
-			}
+			addFraming(seg.start, seg.end)
 		}
 		switch {
 		case seg.data == nil:
@@ -214,17 +207,11 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 			add(bytes.Clone(seg.data))
 		case !owner.retain():
 			bs.Free()
-			if root != nil {
-				root.Free()
-			}
 			return nil, errUploadReleased
 		default:
 			data := seg.data // escapes: one allocation per ref-counted view
 			bs = append(bs, mem.NewBuffer(&data, owner))
 		}
-	}
-	if root != nil {
-		root.Free() // each framing slice holds its own reference
 	}
 	return bs, nil
 }
