@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"bytes"
+
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -85,7 +87,12 @@ func scatterFramingSize(req *types.UploadShardRequest) int {
 // marshalUploadShardRequestScatter takes framing from pool when it is large
 // enough to pool (nil pool: never) and hands it to gRPC as one ref-counted
 // buffer that returns to pool after the write.
-func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.BufferPool) (mem.BufferSlice, error) {
+//
+// With a nil owner every other view is a plain mem.SliceBuffer. Otherwise each
+// row data view holds a reference on owner until gRPC frees it; rows below the
+// pooling threshold are copied instead, since gRPC would not ref-count them.
+// RLC views are GC-owned either way.
+func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.BufferPool, owner *rowOwner) (mem.BufferSlice, error) {
 	size := scatterFramingSize(req)
 	var pooled *[]byte
 	var framing []byte
@@ -101,14 +108,15 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 	type segment struct {
 		start, end int
 		data       []byte // zero-copy slice to append after framing[start:end]; nil = none
+		row        bool   // data is row data
 	}
 	var segs []segment
 	if req.Shard != nil {
 		segs = make([]segment, 0, len(req.Shard.Rows)+2)
 	}
 	flushFrom := 0
-	pushFraming := func(end int, data []byte) {
-		segs = append(segs, segment{start: flushFrom, end: end, data: data})
+	pushFraming := func(end int, data []byte, row bool) {
+		segs = append(segs, segment{start: flushFrom, end: end, data: data, row: row})
 		flushFrom = end
 	}
 
@@ -151,7 +159,7 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 			if len(row.Data) > 0 {
 				framing = protowire.AppendTag(framing, blobRowFieldData, protowire.BytesType)
 				framing = protowire.AppendVarint(framing, uint64(len(row.Data)))
-				pushFraming(len(framing), row.Data)
+				pushFraming(len(framing), row.Data, true)
 			}
 			for _, seg := range row.Proof {
 				framing = protowire.AppendTag(framing, blobRowFieldProof, protowire.BytesType)
@@ -162,7 +170,7 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 		if len(req.Shard.Rlcs) > 0 {
 			framing = protowire.AppendTag(framing, blobShardFieldRlcs, protowire.BytesType)
 			framing = protowire.AppendVarint(framing, uint64(len(req.Shard.Rlcs)))
-			pushFraming(len(framing), req.Shard.Rlcs)
+			pushFraming(len(framing), req.Shard.Rlcs, false)
 		}
 	}
 
@@ -198,8 +206,21 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.Bu
 				add(framing[seg.start:seg.end])
 			}
 		}
-		if seg.data != nil {
+		switch {
+		case seg.data == nil:
+		case owner == nil || !seg.row:
 			add(seg.data)
+		case mem.IsBelowBufferPoolingThreshold(cap(seg.data)):
+			add(bytes.Clone(seg.data))
+		case !owner.retain():
+			bs.Free()
+			if root != nil {
+				root.Free()
+			}
+			return nil, errUploadReleased
+		default:
+			data := seg.data // escapes: one allocation per ref-counted view
+			bs = append(bs, mem.NewBuffer(&data, owner))
 		}
 	}
 	if root != nil {
