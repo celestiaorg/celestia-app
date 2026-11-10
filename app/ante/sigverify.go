@@ -43,7 +43,11 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 		if keyed && sigCache != nil && sigCache.Has(key) {
 			return nil
 		}
-		if err := authsigning.VerifySignature(ctx, secpverify.PubKey(pubKey), signerData, sigData, handler, txData); err != nil {
+		if _, single := sigData.(*signing.SingleSignatureData); single {
+			// Single signatures only: the SDK multisig error prints the key's Go type.
+			pubKey = secpverify.PubKey(pubKey)
+		}
+		if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, handler, txData); err != nil {
 			return err
 		}
 		if keyed && sigCache != nil {
