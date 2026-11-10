@@ -17,7 +17,27 @@ import (
 const (
 	stepLoad  = "load"
 	stepInput = "input"
+	// maxDepth is the whole-document nesting limit of encoding/json.
+	maxDepth = 10000
 )
+
+// errMaxDepth has the text that encoding/json v2 uses for the same limit.
+var errMaxDepth = errors.New("exceeded max depth")
+
+// errReader records the first read error other than io.EOF.
+type errReader struct {
+	r   io.Reader
+	err error
+}
+
+func (e *errReader) Read(p []byte) (int, error) {
+	n, err := e.r.Read(p)
+	// Only the exact io.EOF sentinel is a clean end.
+	if err != nil && err != io.EOF && e.err == nil {
+		e.err = err
+	}
+	return n, err
+}
 
 // LoadExport streams an export file and checks it against the sorted modules and opts.
 func LoadExport(r io.Reader, modules []string, opts Options) (*Export, error) {
@@ -26,8 +46,9 @@ func LoadExport(r io.Reader, modules []string, opts Options) (*Export, error) {
 		return nil, &CheckError{Step: stepLoad, Field: "export-sha256", Want: "64 hex characters", Got: opts.ExportSHA256}
 	}
 
+	src := &errReader{r: r}
 	hash := sha256.New()
-	tee := io.TeeReader(r, hash)
+	tee := io.TeeReader(src, hash)
 	dec := json.NewDecoder(tee)
 	g, consensus, err := decodeGenesis(dec, modules)
 	if err != nil {
@@ -36,6 +57,9 @@ func LoadExport(r io.Reader, modules []string, opts Options) (*Export, error) {
 	// Reading the rest through the tee also puts it into the hash.
 	if err := checkEnd(io.MultiReader(dec.Buffered(), tee)); err != nil {
 		return nil, err
+	}
+	if src.err != nil {
+		return nil, loadError("", src.err)
 	}
 
 	exp := &Export{Genesis: *g}
@@ -88,7 +112,9 @@ func decodeGenesis(dec *json.Decoder, modules []string) (*Genesis, json.RawMessa
 		case "app_state":
 			g.Modules, err = decodeAppState(dec, modules)
 		case "consensus":
-			err = dec.Decode(&consensus)
+			if err = dec.Decode(&consensus); err == nil && depth(consensus)+1 > maxDepth {
+				err = errMaxDepth
+			}
 		default:
 			return nil, nil, &CheckError{Step: stepLoad, Field: key, Want: "an AppGenesis key", Got: "unknown key"}
 		}
@@ -126,6 +152,10 @@ func decodeAppState(dec *json.Decoder, modules []string) ([]Module, error) {
 		if err := dec.Decode(&raw); err != nil {
 			return nil, err
 		}
+		// The outer object and app_state add two levels.
+		if depth(raw)+2 > maxDepth {
+			return nil, errMaxDepth
+		}
 		mods = append(mods, Module{Name: name, Raw: raw})
 	}
 	if err := expectDelim(dec, '}'); err != nil {
@@ -138,6 +168,29 @@ func decodeAppState(dec *json.Decoder, modules []string) ([]Module, error) {
 		}
 	}
 	return mods, nil
+}
+
+// depth returns the deepest array or object nesting in a valid JSON value.
+func depth(raw []byte) int {
+	cur, deepest := 0, 0
+	inString, escaped := false, false
+	for _, c := range raw {
+		switch {
+		case escaped:
+			escaped = false
+		case inString:
+			escaped = c == '\\'
+			inString = c != '"'
+		case c == '"':
+			inString = true
+		case c == '[' || c == '{':
+			cur++
+			deepest = max(deepest, cur)
+		case c == ']' || c == '}':
+			cur--
+		}
+	}
+	return deepest
 }
 
 func expectDelim(dec *json.Decoder, want json.Delim) error {
@@ -219,6 +272,9 @@ func checkInput(g *Genesis, exportHeight int64) error {
 		if v.Power <= 0 {
 			return &CheckError{Step: stepInput, Field: fmt.Sprintf("consensus.validators[%d].power", i), Want: "> 0", Got: fmt.Sprint(v.Power)}
 		}
+	}
+	if err := checkValidators(params, g.Consensus.Validators); err != nil {
+		return err
 	}
 	if len(g.AppHash) != 0 {
 		return &CheckError{Step: stepInput, Field: "app_hash", Want: "empty", Got: hex.EncodeToString(g.AppHash)}

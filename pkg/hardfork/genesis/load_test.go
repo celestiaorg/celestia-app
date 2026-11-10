@@ -106,11 +106,24 @@ func setModules(t *testing.T, g *genutiltypes.AppGenesis, mods []genesis.Module)
 	g.AppState = b.Bytes()
 }
 
+// nested returns a JSON array value of the given depth.
+func nested(depth int) string {
+	return strings.Repeat("[", depth) + strings.Repeat("]", depth)
+}
+
 // withVesting replaces the empty vesting payload with raw.
 func (f fixture) withVesting(t *testing.T, raw string) []byte {
 	t.Helper()
 	require.Equal(t, 1, bytes.Count(f.file, []byte(`"vesting":{}`)))
 	return bytes.Replace(f.file, []byte(`"vesting":{}`), []byte(`"vesting":`+raw), 1)
+}
+
+// withConsensusField adds an unknown field to consensus, so its depth is the value's + 1.
+func (f fixture) withConsensusField(t *testing.T, raw string) []byte {
+	t.Helper()
+	old := []byte(`"consensus":{"validators":`)
+	require.Equal(t, 1, bytes.Count(f.file, old))
+	return bytes.Replace(f.file, old, []byte(`"consensus":{"x":`+raw+`,"validators":`), 1)
 }
 
 // emptyReads returns (0, nil) the given number of times, then EOF.
@@ -122,6 +135,23 @@ func (e *emptyReads) Read([]byte) (int, error) {
 	}
 	*e--
 	return 0, nil
+}
+
+// errAtEnd returns the last bytes of data together with err, then EOF.
+type errAtEnd struct {
+	data []byte
+	err  error
+}
+
+func (r *errAtEnd) Read(p []byte) (int, error) {
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	if len(r.data) > 0 {
+		return n, nil
+	}
+	err := r.err
+	r.err = io.EOF
+	return n, err
 }
 
 // requireCheckError compares err with want, except that Got only has to contain got.
@@ -190,8 +220,48 @@ func TestLoadExportRejects(t *testing.T) {
 			got:  "no data or error",
 		},
 		{
+			name: "joined EOF error with the last bytes",
+			reader: func(data []byte) io.Reader {
+				return &errAtEnd{data: data, err: errors.Join(io.EOF, io.ErrUnexpectedEOF)}
+			},
+			want: genesis.CheckError{Step: "load"},
+			got:  "unexpected EOF",
+		},
+		{
+			name: "joined EOF error after the document",
+			reader: func(data []byte) io.Reader {
+				return io.MultiReader(bytes.NewReader(data), &errAtEnd{err: errors.Join(io.EOF, io.ErrUnexpectedEOF)})
+			},
+			want: genesis.CheckError{Step: "load"},
+			got:  "unexpected EOF",
+		},
+		{
+			name:   "plain EOF with the last bytes accepted",
+			reader: func(data []byte) io.Reader { return &errAtEnd{data: data, err: io.EOF} },
+		},
+		{
 			name: "large integer and escaped string kept byte for byte",
 			file: func(t *testing.T) []byte { return f.withVesting(t, `{"n":9007199254740993,"s":"\"\\"}`) },
+		},
+		{
+			name: "brackets in strings do not count toward depth",
+			file: func(t *testing.T) []byte { return f.withVesting(t, nested(9998)[:9998]+`"\"[{\\"`+nested(9998)[9998:]) },
+		},
+		{
+			name: "consensus depth 10000 accepted",
+			file: func(t *testing.T) []byte { return f.withConsensusField(t, nested(9998)) },
+		},
+		{
+			name: "consensus depth 10001",
+			file: func(t *testing.T) []byte { return f.withConsensusField(t, nested(9999)) },
+			want: genesis.CheckError{Step: "load", Field: "consensus"},
+			got:  "exceeded max depth",
+		},
+		{
+			name: "document depth 10001",
+			file: func(t *testing.T) []byte { return f.withVesting(t, nested(9999)) },
+			want: genesis.CheckError{Step: "load", Field: "app_state"},
+			got:  "exceeded max depth",
 		},
 		{
 			name: "missing app_state",
