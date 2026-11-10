@@ -379,7 +379,7 @@ latency-monitor-build-docker:
 # container. The static musl link runs on any VM regardless of its glibc.
 TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
 	-v celestia-app-talis-gomod:/go/pkg/mod -v celestia-app-talis-gocache:/root/.cache/go-build \
-	-e GOFLAGS=-buildvcs=false docker.io/golang:1.26.10-alpine sh -c ' \
+	-e GOFLAGS=-buildvcs=false docker.io/golang:1.26.10-alpine3.24 sh -c ' \
 	apk add -q --no-cache gcc linux-headers make musl-dev && \
 	make -o mod build-standalone build-fibre-server STATIC=true \
 		VERSION=$(VERSION) COMMIT=$(COMMIT) COMMIT_DATE=$(COMMIT_DATE) CELESTIA_TAG=$(CELESTIA_TAG) && \

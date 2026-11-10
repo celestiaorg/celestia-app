@@ -4,7 +4,6 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-# celestia-appd links musl dynamically, so the runtime's Alpine must be at least the builder's.
 ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine3.24
 ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 
@@ -43,11 +42,14 @@ ARG TARGETPLATFORM
 # hadolint ignore=DL3018
 RUN xx-apk add --no-cache gcc linux-headers musl-dev
 
-# xx-go --wrap makes go cross-compile for TARGETPLATFORM with the target's C toolchain.
+# xx-go --wrap cross-compiles for TARGETPLATFORM with the target's C toolchain. STATIC=true links
+# musl in, so the binary runs outside this image; the grep fails a build without cgo.
+# hadolint ignore=DL4006
 RUN uname -a && \
     xx-go --wrap && \
-    make -o mod build-standalone && \
-    xx-verify build/celestia-appd
+    make -o mod build-standalone STATIC=true && \
+    xx-verify --static build/celestia-appd && \
+    go version -m build/celestia-appd | grep -q CGO_ENABLED=1
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
