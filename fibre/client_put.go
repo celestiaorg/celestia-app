@@ -100,10 +100,11 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 // before or after PutOwned returns; the caller must not modify or free data
 // until then. A nil release behaves like Put.
 func PutOwned(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, release func()) (result PutResult, err error) {
+	if release == nil {
+		release = func() {}
+	}
 	if c.keyring == nil {
-		if release != nil {
-			release()
-		}
+		release()
 		return result, ErrNoKeyring
 	}
 
@@ -167,25 +168,26 @@ func PutOwned(ctx context.Context, c *Client, txClient *user.TxClient, ns share.
 }
 
 // uploadPut releases its blob ownership before transaction settlement.
-// dataRelease, if not nil, runs once the blob no longer references data.
+// dataRelease runs once the blob no longer references data.
 func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, dataRelease func()) (BlobID, SignedPaymentPromise, error) {
 	span := trace.SpanFromContext(ctx)
-	if dataRelease == nil {
-		dataRelease = func() {}
-	}
+	// Until the blob takes data over, every return hands it back.
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			dataRelease()
+		}
+	}()
 	// Check lifecycle before admission so an unusable client fails fast instead
 	// of waiting for capacity.
 	if !c.started.Load() {
-		dataRelease()
 		return nil, SignedPaymentPromise{}, errClientNotStarted
 	}
 	if c.closed.Load() {
-		dataRelease()
 		return nil, SignedPaymentPromise{}, ErrClientClosed
 	}
 	release, err := c.acquirePutMemory(ctx)
 	if err != nil {
-		dataRelease()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Put memory admission failed")
 		return nil, SignedPaymentPromise{}, err
@@ -195,7 +197,6 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
 		release()
-		dataRelease()
 		return nil, SignedPaymentPromise{}, err
 	}
 	// Release admission with the encoded storage, after the last upload reader.
@@ -205,6 +206,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 		release()
 		dataRelease()
 	}
+	handedOff = true
 	defer blob.Free()
 
 	blobID := blob.ID()
