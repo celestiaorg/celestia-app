@@ -27,19 +27,6 @@ func BenchmarkPool_GetPut_Reuse(b *testing.B) {
 	}
 }
 
-// BenchmarkPool_GetPut_Fallback measures reuse of a larger free slab:
-// the only free slab has 128-byte rows and every Get asks for 64.
-func BenchmarkPool_GetPut_Fallback(b *testing.B) {
-	p := NewPool(benchMaxRow, benchRowCount)
-	p.Put(p.Get(benchRowCount, 128)) // seed a larger free slab
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		p.Put(p.Get(benchRowCount, 64))
-	}
-}
-
 // BenchmarkPool_Concurrent stresses lock contention on the free list.
 func BenchmarkPool_Concurrent(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)

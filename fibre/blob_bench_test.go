@@ -27,7 +27,7 @@ func BenchmarkNewBlob(b *testing.B) {
 			b.ResetTimer()
 			runBlobs(b, workers, b.N, func(int) int { return len(data) }, data, cfg)
 			b.StopTimer()
-			reportRSS(b)
+			reportRSS(b, "VmHWM:", "peak-rss-MiB")
 		})
 	}
 }
@@ -51,9 +51,9 @@ func BenchmarkNewBlobMixedSizes(b *testing.B) {
 	b.ResetTimer()
 	runBlobs(b, 16, b.N, func(i int) int { return sizes[i] }, data, cfg)
 	b.StopTimer()
-	reportRSS(b)
+	reportRSS(b, "VmHWM:", "peak-rss-MiB")
 	time.Sleep(5 * time.Second)
-	reportMetricRSS(b, "idle5s-rss-MiB")
+	reportRSS(b, "VmRSS:", "idle5s-rss-MiB")
 }
 
 // runBlobs encodes n blobs, sizes from size(i), using workers goroutines.
@@ -93,15 +93,10 @@ func resetPeakRSS() {
 	_ = os.WriteFile("/proc/self/clear_refs", []byte("5"), 0)
 }
 
-func reportRSS(b *testing.B) {
-	if hwm := procStatusMiB("VmHWM:"); hwm > 0 {
-		b.ReportMetric(hwm, "peak-rss-MiB")
-	}
-}
-
-func reportMetricRSS(b *testing.B, name string) {
-	if rss := procStatusMiB("VmRSS:"); rss > 0 {
-		b.ReportMetric(rss, name)
+// reportRSS reports a /proc/self/status memory field as metric name.
+func reportRSS(b *testing.B, field, name string) {
+	if mib := procStatusMiB(field); mib > 0 {
+		b.ReportMetric(mib, name)
 	}
 }
 

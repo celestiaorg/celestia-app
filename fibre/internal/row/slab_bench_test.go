@@ -18,9 +18,8 @@ var slabShapes = []struct {
 }
 
 // BenchmarkSlabTouch measures a Get, a first write to every page, and a Put of
-// a codec-sized slab: reusing a warm slab from the pool costs nothing here.
-// Compare with BenchmarkMmapTouch, which pays a page fault and kernel zeroing
-// per page on every iteration — the cost the pool removes.
+// a codec-sized slab: reusing a warm slab from the pool saves the page fault
+// and kernel zeroing per page that a fresh mapping pays.
 func BenchmarkSlabTouch(b *testing.B) {
 	for _, s := range slabShapes {
 		for _, workers := range []int{1, 16} {
@@ -36,29 +35,6 @@ func BenchmarkSlabTouch(b *testing.B) {
 						}
 					}
 					p.Put(rows)
-				})
-			})
-		}
-	}
-}
-
-// BenchmarkMmapTouch is BenchmarkSlabTouch without a pool: mmap, first write to
-// every page, munmap.
-func BenchmarkMmapTouch(b *testing.B) {
-	for _, s := range slabShapes {
-		for _, workers := range []int{1, 16} {
-			b.Run(s.name+"/workers="+strconv.Itoa(workers), func(b *testing.B) {
-				b.SetBytes(int64(s.rows * s.size))
-				parallelN(b.N, workers, func() {
-					buf, err := mmapAlloc(s.rows * s.size)
-					if err != nil {
-						b.Error(err)
-						return
-					}
-					for i := 0; i < len(buf); i += 4096 {
-						buf[i] = 1
-					}
-					munmap(buf)
 				})
 			})
 		}
