@@ -43,6 +43,9 @@ func (h *txHandoff) decoder(base sdk.TxDecoder) sdk.TxDecoder {
 type recheckTxCache struct {
 	entries    map[string]*recheckTxEntry
 	maxEntries int
+	// maxBytes bounds the raw bytes kept (each held twice, as key and decode),
+	// so txs padded up to MaxTxSize cannot multiply the mempool's byte budget.
+	maxBytes, bytes int
 	// commits counts Commits. Rechecks visit every pending tx after each one,
 	// so an entry unused since the previous Commit has left the mempool.
 	commits uint64
@@ -53,8 +56,16 @@ type recheckTxEntry struct {
 	used uint64
 }
 
+// recheckTxBytesPerEntry is the raw-byte budget per entry; a PFF with 100
+// validator signatures is ~4.9 KB.
+const recheckTxBytesPerEntry = 8 << 10
+
 func newRecheckTxCache(maxEntries int) *recheckTxCache {
-	return &recheckTxCache{entries: make(map[string]*recheckTxEntry), maxEntries: maxEntries}
+	return &recheckTxCache{
+		entries:    make(map[string]*recheckTxEntry),
+		maxEntries: maxEntries,
+		maxBytes:   maxEntries * recheckTxBytesPerEntry,
+	}
 }
 
 // add records tx, the decode of raw, once raw passed CheckTx.
@@ -63,8 +74,9 @@ func (c *recheckTxCache) add(raw []byte, tx sdk.Tx) {
 		e.used = c.commits
 		return
 	}
-	if len(c.entries) < c.maxEntries {
+	if len(c.entries) < c.maxEntries && c.bytes+len(raw) <= c.maxBytes {
 		c.entries[string(raw)] = &recheckTxEntry{tx: tx, used: c.commits}
+		c.bytes += len(raw)
 	}
 }
 
@@ -79,7 +91,10 @@ func (c *recheckTxCache) get(raw []byte) (sdk.Tx, bool) {
 
 // drop removes raw's entry; a failed recheck evicts the tx from the mempool.
 func (c *recheckTxCache) drop(raw []byte) {
-	delete(c.entries, string(raw))
+	if _, ok := c.entries[string(raw)]; ok {
+		delete(c.entries, string(raw))
+		c.bytes -= len(raw)
+	}
 }
 
 // sweep runs at Commit and drops the entries no CheckTx used since the last one.
@@ -87,6 +102,7 @@ func (c *recheckTxCache) sweep() {
 	for k, e := range c.entries {
 		if e.used < c.commits {
 			delete(c.entries, k)
+			c.bytes -= len(k)
 		}
 	}
 	c.commits++
