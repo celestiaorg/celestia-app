@@ -23,16 +23,19 @@ func (gs GenesisState) Validate() error {
 		return err
 	}
 
-	// Validate escrow accounts
-	signerMap := make(map[string]bool)
+	// Validate escrow accounts. Signers need not be canonical: InitGenesis
+	// stores records under their raw signer and Migrate1to2 canonicalizes them,
+	// merging case variants of the same address and refunding non-utia escrows.
+	// An exact duplicate would overwrite the earlier record, so reject it.
+	escrowDenoms := make(map[string]string, len(gs.EscrowAccounts))
 	for _, account := range gs.EscrowAccounts {
 		if err := ValidateGenesisSigner(account.Signer); err != nil {
 			return err
 		}
-		if signerMap[account.Signer] {
+		if _, ok := escrowDenoms[account.Signer]; ok {
 			return ErrDuplicateSigner
 		}
-		signerMap[account.Signer] = true
+		escrowDenoms[account.Signer] = account.Balance.Denom
 
 		if !account.Balance.IsValid() {
 			return ErrInvalidBalance
@@ -40,12 +43,16 @@ func (gs GenesisState) Validate() error {
 		if !account.AvailableBalance.IsValid() {
 			return ErrInvalidBalance
 		}
+		if account.Balance.Denom != account.AvailableBalance.Denom {
+			return errorsmod.Wrapf(ErrInvalidBalance, "escrow %s balance and available balance denominations differ", account.Signer)
+		}
 		if account.AvailableBalance.Amount.GT(account.Balance.Amount) {
 			return ErrInvalidBalance
 		}
 	}
 
-	// Validate withdrawals
+	// Validate withdrawals with the same rules Migrate1to2 applies in InitGenesis.
+	withdrawalKeys := make(map[string]bool, len(gs.Withdrawals))
 	for _, withdrawal := range gs.Withdrawals {
 		if err := ValidateGenesisSigner(withdrawal.Signer); err != nil {
 			return err
@@ -53,8 +60,17 @@ func (gs GenesisState) Validate() error {
 		if !withdrawal.Amount.IsValid() || !withdrawal.Amount.IsPositive() {
 			return ErrInvalidAmount
 		}
-		if withdrawal.RequestedTimestamp.IsZero() {
+		if withdrawal.RequestedTimestamp.IsZero() || withdrawal.AvailableTimestamp.Before(withdrawal.RequestedTimestamp) {
 			return ErrInvalidTimestamp
+		}
+		key := string(WithdrawalsBySignerKey(withdrawal.Signer, withdrawal.RequestedTimestamp))
+		if withdrawalKeys[key] {
+			return errorsmod.Wrapf(ErrDuplicateSigner, "duplicate withdrawal for %s requested at %s", withdrawal.Signer, withdrawal.RequestedTimestamp)
+		}
+		withdrawalKeys[key] = true
+		// Pending withdrawals are reserved from the owning escrow's balance.
+		if denom, ok := escrowDenoms[withdrawal.Signer]; !ok || denom != withdrawal.Amount.Denom {
+			return errorsmod.Wrapf(ErrInvalidBalance, "withdrawal for %s has no escrow account in %s", withdrawal.Signer, withdrawal.Amount.Denom)
 		}
 	}
 
@@ -78,16 +94,12 @@ func (gs GenesisState) Validate() error {
 	return nil
 }
 
-// ValidateGenesisSigner requires a signer in the canonical bech32 form, which is
-// what the keeper uses as the store key. The uppercase form of the same address
-// would be stored under a different key that settlement never reads.
+// ValidateGenesisSigner requires a well-formed bech32 signer. Upper case is
+// accepted because v10 stored such signers verbatim; InitGenesis migrates them
+// to the canonical lowercase form the keeper uses as its store key.
 func ValidateGenesisSigner(signer string) error {
-	addr, err := sdk.AccAddressFromBech32(signer)
-	if err != nil {
+	if _, err := sdk.AccAddressFromBech32(signer); err != nil {
 		return errorsmod.Wrapf(ErrInvalidSigner, "%q: %s", signer, err)
-	}
-	if addr.String() != signer {
-		return errorsmod.Wrapf(ErrInvalidSigner, "%q is not in canonical form %q", signer, addr.String())
 	}
 	return nil
 }
