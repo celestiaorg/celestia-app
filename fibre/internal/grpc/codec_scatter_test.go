@@ -133,7 +133,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical marshal: %v", err)
 			}
-			bs, err := marshalUploadShardRequestScatter(tc.req, nil)
+			bs, err := marshalUploadShardRequestScatter(tc.req, nil, nil)
 			if err != nil {
 				t.Fatalf("scatter marshal: %v", err)
 			}
@@ -169,7 +169,7 @@ func TestScatterMarshalWireParity128MiB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical marshal: %v", err)
 	}
-	scattered, err := marshalUploadShardRequestScatter(req, nil)
+	scattered, err := marshalUploadShardRequestScatter(req, nil, nil)
 	if err != nil {
 		t.Fatalf("scatter marshal: %v", err)
 	}
@@ -251,7 +251,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if err != nil {
 			t.Fatalf("canonical marshal: %v", err)
 		}
-		bs, err := marshalUploadShardRequestScatter(req, nil)
+		bs, err := marshalUploadShardRequestScatter(req, nil, nil)
 		if err != nil {
 			t.Fatalf("scatter marshal: %v", err)
 		}
@@ -278,7 +278,7 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
 
-	bs, err := marshalUploadShardRequestScatter(req, nil)
+	bs, err := marshalUploadShardRequestScatter(req, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +332,7 @@ func TestScatterMarshalAllocsConstant(t *testing.T) {
 	allocs := func(rows int) float64 {
 		req := scatterTestRequest(rows, 14)
 		return testing.AllocsPerRun(20, func() {
-			if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
+			if _, err := marshalUploadShardRequestScatter(req, nil, nil); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -347,7 +347,7 @@ func BenchmarkScatterMarshal(b *testing.B) {
 	b.ReportAllocs()
 	pool := mem.DefaultBufferPool()
 	for b.Loop() {
-		bs, err := marshalUploadShardRequestScatter(req, pool)
+		bs, err := marshalUploadShardRequestScatter(req, pool, nil)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -373,7 +373,7 @@ func TestScatterMarshalPooledFraming(t *testing.T) {
 		t.Fatal(err)
 	}
 	pool := &countingPool{BufferPool: mem.DefaultBufferPool()}
-	bs, err := marshalUploadShardRequestScatter(req, pool)
+	bs, err := marshalUploadShardRequestScatter(req, pool, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
