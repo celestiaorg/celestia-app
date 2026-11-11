@@ -251,11 +251,11 @@ func countICAPacketMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.P
 	return count
 }
 
-// countICAPacketMsgsAnyEncoding returns how many messages the ICA host would
-// dispatch from packet under whichever encoding its payload parses as, or zero
-// if it parses as neither, since the host then dispatches nothing. A proto3json
-// payload starts with '{', which reads as a protobuf group and fails
-// countProtoMsgs, so at most one encoding parses.
+// countICAPacketMsgsAnyEncoding returns the most messages the ICA host could
+// dispatch from packet under either encoding, or zero if the payload parses as
+// neither, since the host then dispatches nothing. Taking the larger count
+// matters: leading JSON whitespace can form proto fields, so one payload can
+// walk as a single proto entry yet hold hundreds of proto3json messages.
 func countICAPacketMsgsAnyEncoding(packet channeltypes.Packet) int {
 	if packet.DestinationPort != icatypes.HostPortID {
 		return 0
@@ -264,13 +264,8 @@ func countICAPacketMsgsAnyEncoding(packet channeltypes.Packet) int {
 	if err := data.UnmarshalJSON(packet.Data); err != nil || data.Type != icatypes.EXECUTE_TX {
 		return 0
 	}
-	if count := countProtoMsgs(data.Data); count >= 0 {
-		return count
-	}
-	if count := countJSONMsgs(data.Data); count >= 0 {
-		return count
-	}
-	return 0
+	// Both counters return -1 when the payload does not parse.
+	return max(0, countProtoMsgs(data.Data), countJSONMsgs(data.Data))
 }
 
 // countICAPacketZKProofMsgs returns how many ZK proof messages the ICA host
