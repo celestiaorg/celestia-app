@@ -60,7 +60,7 @@ const (
 	EvidenceMaxAgeV8Blocks  = 242640
 	EvidenceMaxAgeV9Blocks  = 559940
 	EvidenceMaxAgeV10Blocks = 404400
-	EvidenceMaxAgeV11Blocks = 1348000
+	EvidenceMaxAgeV11Blocks = 1011000
 
 	// IBC MaxExpectedTimePerBlock for v11: 5x the 0.8s block (in nanoseconds)
 	MaxExpectedTimePerBlockV11Ns = uint64(4 * time.Second)

@@ -172,6 +172,6 @@ func TestEvidenceParams(t *testing.T) {
 	mebibyte := int64(1048576)
 
 	assert.Equal(t, appconsts.MaxAgeDuration, got.MaxAgeDuration)
-	assert.Equal(t, int64(1_348_000), got.MaxAgeNumBlocks)
+	assert.Equal(t, int64(1_011_000), got.MaxAgeNumBlocks)
 	assert.Equal(t, mebibyte, got.MaxBytes)
 }

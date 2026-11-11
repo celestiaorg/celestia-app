@@ -64,9 +64,9 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, moduleVersions, gotModuleVersions)
 
-	// Each rescaled parameter is v10 x3.25 (MaxAgeNumBlocks: 337h / 0.9s);
+	// Each rescaled parameter is v10 x3.25 (MaxAgeNumBlocks: 337h / 1.2s);
 	// nothing else in its params changes.
-	consensusParams.Evidence.MaxAgeNumBlocks = 1_348_000
+	consensusParams.Evidence.MaxAgeNumBlocks = 1_011_000
 	gotConsensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
 	require.NoError(t, err)
 	require.Equal(t, consensusParams, gotConsensusParams)
