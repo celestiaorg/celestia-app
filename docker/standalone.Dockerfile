@@ -4,7 +4,7 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine3.24
+ARG BUILDER_IMAGE=docker.io/golang:1.26.11-alpine3.24
 ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 
 # xx cross-compiles the cgo build for the target platform without emulation.
