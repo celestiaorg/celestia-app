@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"slices"
 	"strings"
 	"testing"
@@ -915,9 +916,8 @@ func (suite *ABCITestSuite) TestInitGenesisCanonicalStateUnchanged() {
 }
 
 // TestInitGenesisRejectsWithdrawalWithoutEscrow documents that InitGenesis
-// now always runs Migrate1to2, whose validation rejects a pending withdrawal
-// that no escrow of the same denomination backs, even when every signer is
-// canonical. Validate rejects the same genesis.
+// rejects a pending withdrawal that no escrow of the same denomination backs,
+// even when every signer is canonical.
 func (suite *ABCITestSuite) TestInitGenesisRejectsWithdrawalWithoutEscrow() {
 	requested := suite.ctx.BlockTime()
 	genesis := types.DefaultGenesis()
@@ -930,6 +930,78 @@ func (suite *ABCITestSuite) TestInitGenesisRejectsWithdrawalWithoutEscrow() {
 
 	suite.Error(genesis.Validate())
 	suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
+}
+
+// TestInitGenesisRejectsInvalidGenesis checks that InitGenesis rejects every
+// state Validate rejects before writing it, since InitChainer does not run
+// ValidateGenesis. Each case would otherwise be stored inconsistently or panic
+// mid-migration.
+func (suite *ABCITestSuite) TestInitGenesisRejectsInvalidGenesis() {
+	lower := sdk.AccAddress([]byte("genesis_signer______")).String()
+	requested := suite.ctx.BlockTime()
+	coin := sdk.NewInt64Coin("utia", 1000)
+	escrow := types.EscrowAccount{Signer: lower, Balance: coin, AvailableBalance: coin}
+	withdrawal := types.Withdrawal{Signer: lower, Amount: sdk.NewInt64Coin("utia", 10), RequestedTimestamp: requested, AvailableTimestamp: requested.Add(time.Hour)}
+	half := sdk.NewCoin("utia", math.NewIntFromBigInt(new(big.Int).Lsh(big.NewInt(1), 255)))
+
+	tests := []struct {
+		name   string
+		mutate func(gs *types.GenesisState)
+	}{
+		{"duplicate escrow", func(gs *types.GenesisState) {
+			gs.EscrowAccounts = append(gs.EscrowAccounts, escrow)
+		}},
+		{"duplicate withdrawal key", func(gs *types.GenesisState) {
+			// Same signer index key, distinct by-available key.
+			duplicate := withdrawal
+			duplicate.AvailableTimestamp = withdrawal.AvailableTimestamp.Add(time.Second)
+			gs.Withdrawals = append(gs.Withdrawals, duplicate)
+		}},
+		{"missing available balance", func(gs *types.GenesisState) {
+			gs.EscrowAccounts[0].AvailableBalance = sdk.Coin{}
+		}},
+		{"available balance without amount", func(gs *types.GenesisState) {
+			gs.EscrowAccounts[0].AvailableBalance = sdk.Coin{Denom: "utia"}
+		}},
+		{"merged escrow balance overflows", func(gs *types.GenesisState) {
+			gs.EscrowAccounts = []types.EscrowAccount{
+				{Signer: lower, Balance: half, AvailableBalance: half},
+				{Signer: strings.ToUpper(lower), Balance: half, AvailableBalance: half},
+			}
+			gs.Withdrawals = nil
+		}},
+		{"merged withdrawal amount overflows", func(gs *types.GenesisState) {
+			upper := strings.ToUpper(lower)
+			gs.EscrowAccounts = append(gs.EscrowAccounts, types.EscrowAccount{Signer: upper, Balance: coin, AvailableBalance: coin})
+			gs.Withdrawals = []types.Withdrawal{
+				{Signer: lower, Amount: half, RequestedTimestamp: requested, AvailableTimestamp: requested},
+				{Signer: upper, Amount: half, RequestedTimestamp: requested, AvailableTimestamp: requested},
+			}
+		}},
+	}
+	for _, tc := range tests {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			genesis := types.DefaultGenesis()
+			genesis.EscrowAccounts = []types.EscrowAccount{escrow}
+			genesis.Withdrawals = []types.Withdrawal{withdrawal}
+			tc.mutate(genesis)
+
+			dump := func() (entries [][2][]byte) {
+				iterator := suite.ctx.KVStore(suite.storeKey).Iterator(nil, nil)
+				defer iterator.Close()
+				for ; iterator.Valid(); iterator.Next() {
+					entries = append(entries, [2][]byte{iterator.Key(), iterator.Value()})
+				}
+				return entries
+			}
+			before := dump()
+
+			suite.Error(genesis.Validate())
+			suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
+			suite.Equal(before, dump(), "InitGenesis must not write state before rejecting genesis")
+		})
+	}
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {
