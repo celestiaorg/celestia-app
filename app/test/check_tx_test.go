@@ -555,7 +555,8 @@ func TestCheckTx(t *testing.T) {
 					requests[i] = &icahosttypes.QueryRequest{Path: "/x"}
 				}
 				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
-				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				// Pay for every request so the request limit, not gas, rejects it.
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
 				require.NoError(t, err)
 				return tx
 			},

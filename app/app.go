@@ -813,10 +813,12 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 	)
 }
 
-// CountSDKMessages returns how much of the per-block MaxSDKMessages budget msgs
-// take, counting the messages that MsgExec and ICA packets dispatch.
-func (app *App) CountSDKMessages(ctx sdk.Context, msgs []sdk.Msg) int {
-	return countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+// CountSDKMessages returns how many messages msgs execute, counting the
+// messages that MsgExec and ICA packets dispatch. Unlike the per-block budget
+// count, it reads no state, so the ante handler charges the same gas for it in
+// every phase.
+func (app *App) CountSDKMessages(msgs []sdk.Msg) int {
+	return countSDKMessageGasWeight(msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.

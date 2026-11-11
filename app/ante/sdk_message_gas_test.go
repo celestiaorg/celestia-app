@@ -31,7 +31,7 @@ func TestSDKMessageGasDecorator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// The decorator charges for the weight the counter reports, not
 			// for the number of top-level messages.
-			decorator := ante.NewSDKMessageGasDecorator(func(sdk.Context, []sdk.Msg) int { return tc.weight })
+			decorator := ante.NewSDKMessageGasDecorator(func([]sdk.Msg) int { return tc.weight })
 			txBuilder := cdc.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(&banktypes.MsgSend{}))
 			ctx := sdk.Context{}.WithGasMeter(storetypes.NewInfiniteGasMeter())

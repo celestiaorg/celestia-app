@@ -584,3 +584,31 @@ func TestTxGasLimit(t *testing.T) {
 
 	require.Zero(t, txGasLimit(nonProtoTx{}))
 }
+
+// TestCountSDKMessageGasWeight checks that the gas weight of an ICA packet does
+// not depend on the channel's encoding. A channel upgrade earlier in a block can
+// change that encoding between ProcessProposal and FinalizeBlock, and the ante
+// handler must charge the same gas in both.
+func TestCountSDKMessageGasWeight(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+	sends := []proto.Message{&banktypes.MsgSend{}, &banktypes.MsgSend{}}
+
+	for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+		packet := icaPacket(t, cdc, sends, enc)
+		want := countExecutableMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{packet})
+		require.Equal(t, 3, want)
+		require.Equal(t, want, countSDKMessageGasWeight([]sdk.Msg{packet}), enc)
+	}
+
+	t.Run("undecodable payload weighs only the packet", func(t *testing.T) {
+		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: []byte{0xff}}
+		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
+		msg := channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
+		require.Equal(t, 1, countSDKMessageGasWeight([]sdk.Msg{msg}))
+	})
+
+	t.Run("MsgExec counts its inner messages", func(t *testing.T) {
+		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}, &banktypes.MsgSend{}})
+		require.Equal(t, 3, countSDKMessageGasWeight([]sdk.Msg{&exec}))
+	})
+}

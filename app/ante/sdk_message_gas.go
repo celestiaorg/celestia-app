@@ -7,9 +7,10 @@ import (
 
 var _ sdk.AnteDecorator = SDKMessageGasDecorator{}
 
-// SDKMessageCounter returns how much of the per-block MaxSDKMessages budget msgs
-// take, counting the messages that MsgExec and ICA packets dispatch.
-type SDKMessageCounter func(ctx sdk.Context, msgs []sdk.Msg) int
+// SDKMessageCounter returns how many messages msgs execute, counting the
+// messages that MsgExec and ICA packets dispatch. It must read no state: the
+// gas it prices has to match between ProcessProposal and FinalizeBlock.
+type SDKMessageCounter func(msgs []sdk.Msg) int
 
 // SDKMessageGasDecorator charges GasPerAdditionalSDKMessage for every message a
 // tx counts against MaxSDKMessages beyond the first. A wrapped or ICA message
@@ -28,7 +29,7 @@ func NewSDKMessageGasDecorator(count SDKMessageCounter) SDKMessageGasDecorator {
 func (d SDKMessageGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	// The counter stops just past MaxSDKMessages and a single message weighs at
 	// most what fits in a tx, so the product cannot overflow.
-	if weight := d.count(ctx, tx.GetMsgs()); weight > 1 {
+	if weight := d.count(tx.GetMsgs()); weight > 1 {
 		ctx.GasMeter().ConsumeGas(uint64(weight-1)*appconsts.GasPerAdditionalSDKMessage, "ante: additional sdk messages")
 	}
 	return next(ctx, tx, simulate)
