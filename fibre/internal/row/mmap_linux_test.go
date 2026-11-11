@@ -19,7 +19,10 @@ func TestMmapAllocHugePageEligible(t *testing.T) {
 	if err != nil || strings.Contains(string(mode), "[never]") {
 		t.Skip("transparent huge pages unavailable")
 	}
-	data := mmapAlloc(8 << 20)
+	data, err := mmapAlloc(8 << 20)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer munmap(data)
 
 	f, err := os.Open("/proc/self/smaps")

@@ -1,8 +1,9 @@
 // Package row allocates row buffers for the Fibre codec.
 //
 // Each Alloc returns one slab, a contiguous region that [Pool.Get] carves
-// into rows. Slabs of 1 MiB or more are mmap'd (off the Go heap, advised for transparent huge
-// pages); smaller ones come from the Go heap.
+// into rows. Slabs of at least [MmapThreshold] bytes are mmap'd (off the Go
+// heap, advised for transparent huge pages); smaller ones come from the Go
+// heap.
 //
 // Returned slabs go to one process-wide free list, so a steady stream of blobs
 // reuses memory that is already faulted in instead of having the kernel zero
@@ -20,6 +21,7 @@ package row
 
 import (
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -125,22 +127,24 @@ type allocator struct {
 	mu sync.Mutex
 	// inUse maps a slab's first byte to the whole slab: callers see only the
 	// size they asked for, and put must reject anything else (double frees).
-	inUse     map[*byte][]byte
-	free      []freeSlab // oldest first
-	freeBytes int
+	inUse     map[*byte]slab
+	free      []slab // oldest first
+	freeBytes int64
 	trimmer   sync.Once
+	done      chan struct{} // closed by stop
 
-	maxFree int           // maxFreeBytes outside tests
+	maxFree int64         // maxFreeBytes outside tests
 	ttl     time.Duration // idleTTL outside tests
 }
 
-type freeSlab struct {
-	buf   []byte
-	since time.Time
+type slab struct {
+	buf     []byte
+	mmapped bool      // release must munmap it
+	since   time.Time // when freed
 }
 
 func newAllocator() *allocator {
-	return &allocator{inUse: make(map[*byte][]byte), maxFree: maxFreeBytes, ttl: idleTTL}
+	return &allocator{inUse: make(map[*byte]slab), done: make(chan struct{}), maxFree: maxFreeBytes, ttl: idleTTL}
 }
 
 // get returns size bytes from the smallest free slab that fits within
@@ -153,22 +157,22 @@ func (a *allocator) get(size int) []byte {
 			best = i // <= prefers the most recently freed among equal sizes
 		}
 	}
-	var buf []byte
+	var s slab
 	if best >= 0 {
-		buf = a.free[best].buf
+		s = a.free[best]
 		a.free = slices.Delete(a.free, best, best+1)
-		a.freeBytes -= len(buf)
-		a.inUse[unsafe.SliceData(buf)] = buf
+		a.freeBytes -= int64(len(s.buf))
+		a.inUse[unsafe.SliceData(s.buf)] = s
 	}
 	a.mu.Unlock()
 
-	if buf == nil {
-		buf = alloc(size) // outside the lock: mapping MiBs is slow
+	if s.buf == nil {
+		s = alloc(size) // outside the lock: mapping MiBs is slow
 		a.mu.Lock()
-		a.inUse[unsafe.SliceData(buf)] = buf
+		a.inUse[unsafe.SliceData(s.buf)] = s
 		a.mu.Unlock()
 	}
-	return buf[:size:size]
+	return s.buf[:size:size]
 }
 
 // put moves the slab starting at buf to the free list and releases whatever
@@ -181,14 +185,15 @@ func (a *allocator) put(buf []byte) {
 	now := time.Now()
 
 	a.mu.Lock()
-	slab, ok := a.inUse[key]
+	s, ok := a.inUse[key]
 	if !ok {
 		a.mu.Unlock()
 		panic("row: Put called with a buffer that is not an in-use slab (double free?)")
 	}
 	delete(a.inUse, key)
-	a.free = append(a.free, freeSlab{slab, now})
-	a.freeBytes += len(slab)
+	s.since = now
+	a.free = append(a.free, s)
+	a.freeBytes += int64(len(s.buf))
 	expired := a.trimLocked(now)
 	a.mu.Unlock()
 
@@ -196,22 +201,34 @@ func (a *allocator) put(buf []byte) {
 	a.trimmer.Do(func() { go a.trimLoop() })
 }
 
-// trimLoop releases idle slabs when no Put arrives to do it.
+// trimLoop releases idle slabs when no Put arrives to do it, until stop.
 func (a *allocator) trimLoop() {
-	for now := range time.Tick(a.ttl / 2) {
-		a.mu.Lock()
-		expired := a.trimLocked(now)
-		a.mu.Unlock()
-		release(expired)
+	tick := time.NewTicker(a.ttl / 2)
+	defer tick.Stop()
+	for {
+		select {
+		case now := <-tick.C:
+			a.mu.Lock()
+			expired := a.trimLocked(now)
+			a.mu.Unlock()
+			release(expired)
+		case <-a.done:
+			return
+		}
 	}
+}
+
+// stop ends trimLoop. Tests call it on private allocators.
+func (a *allocator) stop() {
+	close(a.done)
 }
 
 // trimLocked removes free slabs idle for a.ttl or over a.maxFree bytes,
 // oldest first, and returns them for release outside the lock.
-func (a *allocator) trimLocked(now time.Time) []freeSlab {
+func (a *allocator) trimLocked(now time.Time) []slab {
 	n := 0
 	for n < len(a.free) && (a.freeBytes > a.maxFree || now.Sub(a.free[n].since) >= a.ttl) {
-		a.freeBytes -= len(a.free[n].buf)
+		a.freeBytes -= int64(len(a.free[n].buf))
 		n++
 	}
 	if n == 0 {
@@ -223,18 +240,22 @@ func (a *allocator) trimLocked(now time.Time) []freeSlab {
 }
 
 // alloc returns a new 64-byte aligned slab of at least size bytes: mmap'd
-// at or above MmapThreshold, from the Go heap below it.
-func alloc(size int) []byte {
+// at or above MmapThreshold, from the Go heap below it or when mmap fails.
+func alloc(size int) slab {
 	if !disableMmap && size >= MmapThreshold {
-		return mmapAlloc(size)
+		buf, err := mmapAlloc(size)
+		if err == nil {
+			return slab{buf: buf, mmapped: true}
+		}
+		slog.Warn("row: mmap failed, using the Go heap", "size", size, "err", err)
 	}
-	return reedsolomon.AllocAligned(1, size)[0]
+	return slab{buf: reedsolomon.AllocAligned(1, size)[0]}
 }
 
 // release returns mmap'd slabs to the OS; Go-heap slabs are left to the GC.
-func release(slabs []freeSlab) {
-	for _, s := range slabs {
-		if !disableMmap && len(s.buf) >= MmapThreshold {
+func release(expired []slab) {
+	for _, s := range expired {
+		if s.mmapped {
 			mmapFree(s.buf)
 		}
 	}
