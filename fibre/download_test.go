@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math/rand/v2"
+	"runtime"
 	"testing"
 	"time"
 
@@ -404,6 +405,15 @@ func TestDownload_ReconstructReleasesSlot(t *testing.T) {
 }
 
 func TestMaxConcurrentReconstructs(t *testing.T) {
+	// Clear the variable first so a value exported in the developer's shell
+	// cannot leak into the default checks.
+	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "")
+	def := maxConcurrentReconstructs()
+	require.Equal(t, max(2, runtime.GOMAXPROCS(0)/2), def)
+	for _, bad := range []string{"0", "-1", "abc"} {
+		t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", bad)
+		require.Equal(t, def, maxConcurrentReconstructs(), "invalid value %q must fall back to the default", bad)
+	}
 	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "3")
 	require.Equal(t, 3, maxConcurrentReconstructs())
 }
