@@ -2,6 +2,8 @@ package grpc
 
 import (
 	"errors"
+	"runtime"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/mem"
@@ -36,13 +38,46 @@ func (c *UploadCodec) Marshal(v any) (mem.BufferSlice, error) {
 	return c.pooledCodec.Marshal(v)
 }
 
-// rowOwner is the mem.BufferPool backing ref-counted row views: freeing a view
-// releases the reference retained for it.
+// rowOwner retains and releases the storage that upload row views alias.
 type rowOwner struct {
 	retain  func() bool
 	release func()
 }
 
-func (o *rowOwner) Get(int) *[]byte { panic("fibre-proto codec: rowOwner does not allocate") }
+// wrap returns a ref-counted view of data holding one owner reference, or
+// false when the owner is already released.
+//
+// The reference is dropped when gRPC frees the view. That happens only while
+// the connection's writer runs: when the connection dies with frames still
+// queued (grpc-go v1.84 controlbuf.finish drains only its control list, not
+// the data frames queued on established streams), nothing frees them. A GC
+// cleanup on the view's backing pointer drops the reference in that case. The
+// pointer stays reachable from every gRPC reader of the view, so the cleanup
+// cannot run while the bytes are still being sent.
+func (o *rowOwner) wrap(data []byte) (mem.Buffer, bool) {
+	if !o.retain() {
+		return nil, false
+	}
+	ref := &rowRef{release: o.release}
+	backing := new([]byte)
+	*backing = data
+	runtime.AddCleanup(backing, (*rowRef).drop, ref)
+	return mem.NewBuffer(backing, ref), true
+}
 
-func (o *rowOwner) Put(*[]byte) { o.release() }
+// rowRef is the mem.BufferPool backing one row view: freeing the view drops
+// the owner reference retained for it, exactly once.
+type rowRef struct {
+	released atomic.Bool
+	release  func()
+}
+
+func (r *rowRef) Get(int) *[]byte { panic("fibre-proto codec: rowRef does not allocate") }
+
+func (r *rowRef) Put(*[]byte) { r.drop() }
+
+func (r *rowRef) drop() {
+	if r.released.CompareAndSwap(false, true) {
+		r.release()
+	}
+}
