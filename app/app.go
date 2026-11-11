@@ -809,7 +809,14 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.sigCache,
+		app.CountSDKMessages,
 	)
+}
+
+// CountSDKMessages returns how much of the per-block MaxSDKMessages budget msgs
+// take, counting the messages that MsgExec and ICA packets dispatch.
+func (app *App) CountSDKMessages(ctx sdk.Context, msgs []sdk.Msg) int {
+	return countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.
