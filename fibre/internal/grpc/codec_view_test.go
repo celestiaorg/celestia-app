@@ -342,7 +342,24 @@ func TestDownloadCodecLargeBuffersOffHeap(t *testing.T) {
 	var got types.DownloadShardResponse
 	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire[:len(wire)/2]), mem.SliceBuffer(wire[len(wire)/2:])}, &got))
 	require.Equal(t, want, got)
-	require.True(t, codec.large)
+	require.GreaterOrEqual(t, len(codec.buf), row.MmapThreshold)
 	codec.Release()
 	codec.Release() // the row allocator panics on a double free
+}
+
+// A retried RPC decodes into the same codec: the first attempt's buffer is
+// freed before the retry's is stored, so Release leaves nothing in use.
+func TestDownloadCodecRetryFreesPreviousBuffer(t *testing.T) {
+	resp := makeDownloadShard(2, 2)
+	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, row.MmapThreshold)
+	wire := marshalDownloadShard(t, resp)
+
+	codec := NewDownloadCodec(4, 2)
+	var got types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &got))
+	first := codec.buf
+	var retried types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &retried))
+	codec.Release()
+	require.Panics(t, func() { row.Free(first) }, "first buffer should not be in use")
 }

@@ -15,8 +15,7 @@ import (
 // It bounds rows and proof segments per shard like [NewServerCodec].
 type DownloadCodec struct {
 	pooledCodec
-	buf   []byte
-	large bool // buf came from row.Alloc
+	buf []byte
 }
 
 func NewDownloadCodec(maxShardRows, maxProofSegments int) *DownloadCodec {
@@ -30,14 +29,15 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if !ok || data.Len() == 0 || grpc.EnableTracing {
 		return c.pooledCodec.Unmarshal(data, v)
 	}
-	buf, large := getDownloadBuffer(data.Len())
+	buf := getDownloadBuffer(data.Len())
 	data.CopyTo(buf) // Overwrite every visible byte before parsing.
 	aliased, err := c.unmarshalDownload(buf, resp)
 	if aliased {
-		c.buf, c.large = buf, large
+		c.Release() // a retried RPC decodes into the same codec
+		c.buf = buf
 		return nil
 	}
-	putDownloadBuffer(buf, large)
+	putDownloadBuffer(buf)
 	return err
 }
 
@@ -45,7 +45,7 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 // afterwards. Safe to call more than once and before any response arrived.
 func (c *DownloadCodec) Release() {
 	if c.buf != nil {
-		putDownloadBuffer(c.buf, c.large)
+		putDownloadBuffer(c.buf)
 		c.buf = nil
 	}
 }
@@ -61,19 +61,19 @@ var downloadBuffers bufferPool
 // GC goal by as much again, and stayed resident for two GC cycles after their
 // last use. The row allocator keeps a freed buffer for reuse only while it is
 // reused soon.
-func getDownloadBuffer(n int) (buf []byte, large bool) {
+func getDownloadBuffer(n int) []byte {
 	if n < row.MmapThreshold {
-		return downloadBuffers.get(n), false
+		return downloadBuffers.get(n)
 	}
-	return row.Alloc(n), true
+	return row.Alloc(n)
 }
 
-func putDownloadBuffer(buf []byte, large bool) {
-	if large {
-		row.Free(buf)
+func putDownloadBuffer(buf []byte) {
+	if len(buf) < row.MmapThreshold {
+		downloadBuffers.put(buf)
 		return
 	}
-	downloadBuffers.put(buf)
+	row.Free(buf)
 }
 
 type bufferPool struct {
