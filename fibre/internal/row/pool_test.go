@@ -20,6 +20,14 @@ func (a *allocator) slabCount() int {
 	return len(a.inUse) + len(a.free)
 }
 
+// newTestAllocator returns a private allocator whose trim loop stops with the
+// test.
+func newTestAllocator(t *testing.T) *allocator {
+	a := newAllocator()
+	t.Cleanup(a.stop)
+	return a
+}
+
 func expectPanic(t *testing.T, msg string, f func()) {
 	t.Helper()
 	defer func() {
@@ -123,7 +131,7 @@ func TestPool_Concurrent(t *testing.T) {
 // A freed slab is reused by the next get of the same size; the caller sees
 // exactly the size it asked for, and put needs only the slab's start.
 func TestAllocator_GetPutExact(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 
 	buf := a.get(384)
 	if len(buf) != 384 || cap(buf) != 384 {
@@ -144,7 +152,7 @@ func TestAllocator_GetPutExact(t *testing.T) {
 // A free slab up to maxWaste times the request is reused; the caller sees
 // exactly the size it asked for.
 func TestAllocator_ReusesLargerFreeSlab(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 
 	big := a.get(128)
 	a.put(big)
@@ -160,7 +168,7 @@ func TestAllocator_ReusesLargerFreeSlab(t *testing.T) {
 
 // A free slab more than maxWaste times the request is not reused.
 func TestAllocator_LargeWasteAllocates(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 
 	a.put(a.get(192))
 	small := a.get(64)
@@ -172,7 +180,7 @@ func TestAllocator_LargeWasteAllocates(t *testing.T) {
 
 // get takes the smallest fitting slab, the most recently freed among equals.
 func TestAllocator_BestFit(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 
 	w, x, y, z := a.get(256), a.get(192), a.get(192), a.get(128)
 	a.put(w)
@@ -189,7 +197,7 @@ func TestAllocator_BestFit(t *testing.T) {
 
 // Free slabs beyond maxFreeBytes are released, oldest first.
 func TestAllocator_MaxFreeBytes(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 	a.maxFree = 2 * 64
 
 	x, y, z := a.get(64), a.get(64), a.get(64)
@@ -206,7 +214,7 @@ func TestAllocator_MaxFreeBytes(t *testing.T) {
 
 // Free slabs idle for idleTTL are released.
 func TestAllocator_IdleTTL(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 
 	a.put(a.get(64))
 	keep := a.get(128)
@@ -221,7 +229,7 @@ func TestAllocator_IdleTTL(t *testing.T) {
 
 // The background trim releases idle slabs without further puts.
 func TestAllocator_TrimLoop(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 	a.ttl = 20 * time.Millisecond
 
 	a.put(a.get(64))
@@ -236,7 +244,7 @@ func TestAllocator_TrimLoop(t *testing.T) {
 
 // put rejects a buffer that is not the start of an in-use slab.
 func TestAllocator_PutForeignPanics(t *testing.T) {
-	a := newAllocator()
+	a := newTestAllocator(t)
 	buf := a.get(128)
 	defer a.put(buf)
 	expectPanic(t, "put of a buffer inside a slab should panic", func() { a.put(buf[64:]) })

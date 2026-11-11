@@ -41,46 +41,6 @@ func BenchmarkPool_Concurrent(b *testing.B) {
 	})
 }
 
-// BenchmarkPool_EvictMmappedTouched measures Pool throughput with
-// touched mmapped slabs: pre-seeds the free list with touched slabs, then
-// hammers Get/Put in parallel. Touching every page on each Get ensures
-// any slab released past the cap takes the slow munmap path.
-func BenchmarkPool_EvictMmappedTouched(b *testing.B) {
-	const rowCount = 256
-	const rowSize = 4096 // 1 MiB → mmap path
-	const seed = 16
-	p := NewPool(rowSize, rowCount)
-
-	// pre-seed the free list with touched slabs.
-	bufs := make([][][]byte, seed)
-	for i := range bufs {
-		bufs[i] = p.Get(rowCount, rowSize)
-		for _, row := range bufs[i] {
-			for j := 0; j < len(row); j += 4096 {
-				row[j] = 1
-			}
-		}
-	}
-	for _, buf := range bufs {
-		p.Put(buf)
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			buf := p.Get(rowCount, rowSize)
-			// touch every page so the slab is fully faulted by the time it evicts.
-			for _, row := range buf {
-				for j := 0; j < len(row); j += 4096 {
-					row[j] = 1
-				}
-			}
-			p.Put(buf)
-		}
-	})
-}
-
 // BenchmarkPool_AllocContentionTail measures the tail-latency penalty
 // reuse-path Gets pay while another goroutine is doing a fresh
 // allocation. Worker 0 periodically asks for a novel size (no free slab
