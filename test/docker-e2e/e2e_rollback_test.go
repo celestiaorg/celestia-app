@@ -185,16 +185,8 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 // prepareRollbackValidator writes recovery.sh to a validator and enables snapshots.
 func prepareRollbackValidator(ctx context.Context, node *cosmos.ChainNode) error {
-	// Operators may only have the image, so take the script from the binary.
-	script, _, err := node.Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
-	if err != nil {
-		return fmt.Errorf("failed to print the recovery script from the image: %w", err)
-	}
-	if !strings.Contains(string(script), "Usage: recovery.sh") {
-		return fmt.Errorf("unexpected recovery-script output: %s", script)
-	}
-	if err := node.WriteFile(ctx, "recovery.sh", script); err != nil {
-		return fmt.Errorf("failed to write the recovery script to %s: %w", node.Name(), err)
+	if err := writeRecoveryScript(ctx, node); err != nil {
+		return err
 	}
 	// A snapshot every 2 heights leaves one above the phase 2 target for the script to delete.
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
@@ -423,6 +415,22 @@ func (s *CelestiaTestSuite) verifyAppHash(ctx context.Context, nodes cosmos.Chai
 		s.Require().NoError(err, "app hash check failed on %s", n.Name())
 		s.Require().Contains(out, fmt.Sprintf("app hash at height %d matches", height))
 	}
+}
+
+// writeRecoveryScript writes recovery.sh to the node home.
+func writeRecoveryScript(ctx context.Context, node *cosmos.ChainNode) error {
+	// Operators may only have the image, so take the script from the binary.
+	script, _, err := node.Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to print the recovery script from the image: %w", err)
+	}
+	if !strings.Contains(string(script), "Usage: recovery.sh") {
+		return fmt.Errorf("unexpected recovery-script output: %s", script)
+	}
+	if err := node.WriteFile(ctx, "recovery.sh", script); err != nil {
+		return fmt.Errorf("failed to write the recovery script to %s: %w", node.Name(), err)
+	}
+	return nil
 }
 
 // runRecoveryScript runs recovery.sh from the node home in a one-off container and returns stdout and stderr combined.

@@ -3,8 +3,9 @@ package docker_e2e
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -104,13 +105,18 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	s.Require().NoError(err)
 	s.validateGenesis(ctx, source, genesisBz)
 
+	// Validators join the new chain with the recovery script. It keeps the sign
+	// state, which forbids signing old heights again, and the tx index, which
+	// holds the events of packets sent before the halt.
+	genesisSum := sha256.Sum256(genesisBz)
 	for _, v := range chain.Validators {
-		s.Require().NoError(v.WriteFile(ctx, "config/genesis.json", genesisBz), "failed to write genesis on %s", v.Name())
-		// Keep the sign state, which forbids signing old heights again, and the
-		// tx index, which holds the events of packets sent before the halt.
-		wipe := fmt.Sprintf("find %s/data -mindepth 1 -maxdepth 1 ! -name priv_validator_state.json ! -name tx_index.db -exec rm -rf {} +", v.HomeDir())
-		_, stderr, err := v.Exec(ctx, []string{"sh", "-c", wipe}, nil)
-		s.Require().NoError(err, "failed to wipe data on %s: %s", v.Name(), stderr)
+		s.Require().NoError(writeRecoveryScript(ctx, v))
+		s.Require().NoError(v.WriteFile(ctx, "new-genesis.json", genesisBz), "failed to write genesis on %s", v.Name())
+		out, err := s.runRecoveryScript(ctx, v, "new-chain", "--setup", "none", "--home", v.HomeDir(),
+			"--genesis", v.HomeDir()+"/new-genesis.json", "--genesis-sha256", hex.EncodeToString(genesisSum[:]),
+			"--chain-id", genesis.ChainID)
+		t.Logf("recovery.sh new-chain on %s:\n%s", v.Name(), out)
+		s.Require().NoError(err, "recovery.sh new-chain failed on %s", v.Name())
 	}
 	if r.archive != nil {
 		s.isolateArchive(ctx, r.archive)
@@ -130,6 +136,11 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 		return info.LatestBlockHeight > r.initialHeight+2
 	})
 	s.Require().NoError(err, "new chain did not produce blocks after height %d", r.initialHeight)
+	for _, v := range chain.Validators {
+		out, err := s.runRecoveryScript(ctx, v, "verify", "--rpc", "http://"+v.HostName()+":26657",
+			"--chain-id", genesis.ChainID, "--check-height", strconv.FormatInt(r.initialHeight+1, 10))
+		s.Require().NoError(err, "recovery.sh verify failed on %s: %s", v.Name(), out)
+	}
 
 	status, err := node.Client.Status(ctx)
 	s.Require().NoError(err)

@@ -2,6 +2,11 @@ name: test
 on:
   workflow_call:
 
+# Test the cgo build that releases ship: a runner without a C compiler fails
+# instead of silently testing the pure-Go fallbacks.
+env:
+  CGO_ENABLED: "1"
+
 jobs:
   test-scripts:
     # Run only on PRs. `make test-short` is not run here: the go-test matrix
@@ -201,13 +206,11 @@ jobs:
           for pid in "${pids[@]}"; do wait "$pid"; done
 
       - name: Build celestia-appd and the e2e test binary
-        # One after the other with the same CGO setting, so the test binary
-        # reuses the compiled dependencies instead of compiling them in parallel.
-        env:
-          CGO_ENABLED: "0"
+        # One after the other with the same tags, so the test binary reuses the
+        # compiled dependencies. STATIC=true lets the cgo build run in the Alpine image.
         run: |
-          GOOS=linux GOARCH=amd64 make -o mod build DOWNLOAD=false
-          cd test/docker-e2e && go test -c -o ../../build/e2e.test .
+          GOOS=linux GOARCH=amd64 make -o mod build DOWNLOAD=false STATIC=true
+          cd test/docker-e2e && go test -c -tags=netgo,osusergo -o ../../build/e2e.test .
 
       - name: Upload e2e binaries
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
