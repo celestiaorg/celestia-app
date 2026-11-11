@@ -280,8 +280,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				return dtx.Tx
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				return innerTx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
 		},
@@ -473,8 +473,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				wrappedTx, err := coretypes.MarshalIndexWrapper(dtx.Tx, 0)
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(innerTx, 0)
 				require.NoError(t, err)
 				return wrappedTx
 			},
