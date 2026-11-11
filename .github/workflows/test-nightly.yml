@@ -137,6 +137,7 @@ jobs:
           # retry once so a slow container restart does not fail the nightly.
           - test: TestRollback
             max-attempts: 2
+          - test: TestSurgeryDA
           - test: TestCortoLoad
             extra-image: true
           # Export and restart from the export: core state, then IBC/ICA and
