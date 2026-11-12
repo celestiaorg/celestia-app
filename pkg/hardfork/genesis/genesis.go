@@ -16,7 +16,7 @@ import (
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
 
-// Module is one app_state entry with its payload kept as read.
+// Module is one app_state entry; Raw is shared with copies, so replace it rather than mutate it.
 type Module struct {
 	Name string
 	Raw  json.RawMessage
