@@ -99,6 +99,10 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 // PutOwned calls release exactly once when that reference ends, which may be
 // before or after PutOwned returns; the caller must not modify or free data
 // until then. A nil release behaves like Put.
+//
+// release may run on an internal transport or runtime goroutine (an upload
+// goroutine, the gRPC writer freeing the last row view, or the runtime cleanup
+// goroutine); it must not block and must not call back into the Client.
 func PutOwned(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, release func()) (result PutResult, err error) {
 	if release == nil {
 		release = func() {}
