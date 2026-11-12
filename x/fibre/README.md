@@ -79,11 +79,11 @@ The module emits typed events (the event type is the proto message name, e.g. `c
 |----------------------------|-----------------|--------------------|-------------------------|
 | WithdrawalDelay            | time.Duration   | 24h                | [12h10m, 168h]          |
 | PaymentPromiseTimeout      | time.Duration   | 1h                 | [10m, 12h]              |
-| PaymentPromiseHeightWindow | uint64          | 1000               | > 0                     |
+| PaymentPromiseHeightWindow | uint64          | 3250               | > 0                     |
 | ShardRetention             | time.Duration   | 4h                 | [10m, 168h]             |
 | FullStakeStorageBudget     | uint64          | 2199023255552 (2 TiB) | > 0                  |
 
-All parameters are changeable by governance. `WithdrawalDelay`'s lower bound is `MaxPaymentPromiseTimeout + 10m`, which guarantees every promise leaves a usable timeout-settlement window. `ShardRetention` is how long fibre servers keep uploaded shards on disk; `FullStakeStorageBudget` caps the fibre disk usage of a hypothetical 100%-stake validator over one retention window, from which each server derives its own stake-proportional budget. `PaymentPromiseHeightWindow` should stay well below the staking module's `HistoricalEntries` (default 10000): a promise whose height has been pruned from historical info can no longer be signature-verified, so such PFFs fail CheckTx on nodes that have not already verified them, risk split ProcessProposal votes, and can only settle via timeout.
+All parameters are changeable by governance. `WithdrawalDelay`'s lower bound is `MaxPaymentPromiseTimeout + 10m`, which guarantees every promise leaves a usable timeout-settlement window. `ShardRetention` is how long fibre servers keep uploaded shards on disk; `FullStakeStorageBudget` caps the fibre disk usage of a hypothetical 100%-stake validator over one retention window, from which each server derives its own stake-proportional budget. `PaymentPromiseHeightWindow` should stay well below the staking module's `HistoricalEntries` (default 32500): a promise whose height has been pruned from historical info can no longer be signature-verified, so such PFFs fail CheckTx on nodes that have not already verified them, risk split ProcessProposal votes, and can only settle via timeout.
 
 ## Usage
 
