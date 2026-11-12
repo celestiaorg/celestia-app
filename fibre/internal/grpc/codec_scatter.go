@@ -225,6 +225,12 @@ func (f *scatterFraming) views(owner *rowOwner) (mem.BufferSlice, error) {
 		bs = append(bs, &views[len(views)-1])
 	}
 	addFraming := func(start, end int) { add(f.buf[start:end]) }
+	if f.pooled != nil && cap(f.buf) != cap(*f.pooled) {
+		// buf outgrew the pooled buffer and was reallocated on the heap:
+		// return the pooled one and keep the framing GC-owned.
+		f.discard()
+		f.pooled = nil
+	}
 	if f.pooled != nil {
 		*f.pooled = f.buf
 		root := mem.NewBuffer(f.pooled, f.pool)
