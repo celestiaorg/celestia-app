@@ -30,6 +30,7 @@ func NewAnteHandler(
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
+	sdkMessageCounter SDKMessageCounter,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -75,6 +76,10 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// Charge gas for every message counted against MaxSDKMessages beyond
+		// the first, including those MsgExec and ICA packets dispatch.
+		// Side effect: consumes gas from the gas meter.
+		NewSDKMessageGasDecorator(sdkMessageCounter),
 		// Charge gas for the signatures a Hyperlane MsgProcessMessage carries.
 		// Side effect: consumes gas from the gas meter.
 		NewISMSignatureGasDecorator(),

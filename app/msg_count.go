@@ -39,9 +39,26 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 	// the read run out of gas and panic.
 	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 
+	return sumMsgWeights(msgs, func(packet channeltypes.Packet) int {
+		return countICAPacketMsgs(ctx, ck, packet)
+	})
+}
+
+// countSDKMessageGasWeight counts msgs like countExecutableMsgs, but counts an
+// ICA packet's payload without reading the channel. The ante handler charges
+// gas from this count, and a channel upgrade earlier in a block can change the
+// channel's encoding between ProcessProposal and FinalizeBlock. A count that
+// read the channel could then charge more in FinalizeBlock than ProcessProposal
+// checked, and a tx that runs out of gas there stays in the block unpaid.
+func countSDKMessageGasWeight(msgs []sdk.Msg) int {
+	return sumMsgWeights(msgs, countICAPacketMsgsAnyEncoding)
+}
+
+// sumMsgWeights adds up msgWeight over msgs, counting ICA packets with icaCount.
+func sumMsgWeights(msgs []sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	count := 0
 	for _, msg := range msgs {
-		count += msgWeight(ctx, ck, msg)
+		count += msgWeight(msg, icaCount)
 		// Callers only compare the count against the limit, so stop once it is
 		// past it rather than reading a channel for every remaining packet.
 		if count > appconsts.MaxSDKMessages {
@@ -145,20 +162,20 @@ func execWeight(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec, weigh fu
 // msgWeight returns what a message costs: one for the message itself, plus the
 // messages it dispatches. A message with no fan-out, or an empty one, still
 // weighs one, since it costs a full ante pass either way.
-func msgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+func msgWeight(msg sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	if exec, ok := msg.(*authz.MsgExec); ok {
-		return 1 + execFanout(ctx, ck, exec)
+		return 1 + execFanout(exec, icaCount)
 	}
-	return leafWeight(ctx, ck, msg)
+	return leafWeight(msg, icaCount)
 }
 
 // leafWeight is msgWeight for a message that is not a MsgExec.
-func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+func leafWeight(msg sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	switch msg := msg.(type) {
 	case *icahosttypes.MsgModuleQuerySafe:
 		return 1 + len(msg.Requests)
 	case *channeltypes.MsgRecvPacket:
-		return 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
+		return 1 + icaCount(msg.Packet)
 	}
 	return 1
 }
@@ -167,7 +184,7 @@ func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 // itself. It does not recurse: the ante handler rejects a nested MsgExec, and
 // counting runs before the ante handler, so recursing on attacker controlled
 // nesting could exhaust the stack in PrepareProposal, which has no recover.
-func execFanout(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
+func execFanout(exec *authz.MsgExec, icaCount func(channeltypes.Packet) int) int {
 	nested, err := exec.GetMessages()
 	if err != nil {
 		// The ante handler rejects a tx with undecodable inner messages, so
@@ -176,7 +193,7 @@ func execFanout(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
 	}
 	count := 0
 	for _, msg := range nested {
-		count += leafWeight(ctx, ck, msg)
+		count += leafWeight(msg, icaCount)
 	}
 	return count
 }
@@ -232,6 +249,23 @@ func countICAPacketMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.P
 		return appconsts.MaxSDKMessages
 	}
 	return count
+}
+
+// countICAPacketMsgsAnyEncoding returns the most messages the ICA host could
+// dispatch from packet under either encoding, or zero if the payload parses as
+// neither, since the host then dispatches nothing. Taking the larger count
+// matters: leading JSON whitespace can form proto fields, so one payload can
+// walk as a single proto entry yet hold hundreds of proto3json messages.
+func countICAPacketMsgsAnyEncoding(packet channeltypes.Packet) int {
+	if packet.DestinationPort != icatypes.HostPortID {
+		return 0
+	}
+	var data icatypes.InterchainAccountPacketData
+	if err := data.UnmarshalJSON(packet.Data); err != nil || data.Type != icatypes.EXECUTE_TX {
+		return 0
+	}
+	// Both counters return -1 when the payload does not parse.
+	return max(0, countProtoMsgs(data.Data), countJSONMsgs(data.Data))
 }
 
 // countICAPacketZKProofMsgs returns how many ZK proof messages the ICA host
