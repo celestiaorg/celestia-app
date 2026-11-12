@@ -414,6 +414,21 @@ type sysCountingClient struct {
 	stats *sysRPCStats
 }
 
+// Connect and WaitReady forward the optional connection methods the client
+// cache looks for, so the wrapper warms and rotates connections like production.
+func (c *sysCountingClient) Connect() {
+	if cc, ok := c.Client.(interface{ Connect() }); ok {
+		cc.Connect()
+	}
+}
+
+func (c *sysCountingClient) WaitReady(ctx context.Context) bool {
+	if w, ok := c.Client.(interface{ WaitReady(context.Context) bool }); ok {
+		return w.WaitReady(ctx)
+	}
+	return true
+}
+
 func (c *sysCountingClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
 	c.stats.calls.Add(1)
 	resp, err := c.Client.DownloadShard(ctx, req, opts...)
