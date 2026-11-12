@@ -36,18 +36,14 @@ const (
 	// the block interval at 800ms, so this value is 4 seconds (5x).
 	MaxExpectedTimePerBlock = 4 * time.Second
 
-	// The block counts below are the v10 values x3.25, the ratio of the v10
-	// (~2.6s) to the v11 (0.8s) block interval, so each keeps its duration.
-
-	// SignedBlocksWindow is the x/slashing liveness window (v10: 10,000).
+	// SignedBlocksWindow is the x/slashing liveness window.
 	SignedBlocksWindow int64 = 32_500
 	// HistoricalEntries is the number of x/staking historical infos kept. It
-	// must cover the fibre PaymentPromiseHeightWindow (v10: 10,000).
+	// must cover the fibre PaymentPromiseHeightWindow.
 	HistoricalEntries uint32 = 32_500
-	// MempoolTTLNumBlocks is the minimum mempool TTL in blocks (v10: 36).
+	// MempoolTTLNumBlocks is the minimum mempool TTL in blocks.
 	MempoolTTLNumBlocks int64 = 117
-	// SnapshotInterval is the default state sync snapshot interval in blocks
-	// (v10: 1,500).
+	// SnapshotInterval is the default state sync snapshot interval in blocks.
 	SnapshotInterval uint64 = 4_875
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
