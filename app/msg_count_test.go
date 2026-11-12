@@ -385,9 +385,11 @@ func TestCountICAPacketMsgsNeverUndercounts(t *testing.T) {
 	// A proto3json payload laid out so its bytes are also a walkable proto wire
 	// stream: the leading "\n " is JSON whitespace and a proto field 1 tag of
 	// length 32, and the "*t" in each element is a field 5 tag whose length
-	// strides exactly one element. Counting it under proto3 yields 1 while the
-	// host, on a proto3json channel, dispatches every message.
-	element := `{"fromAddress":"AAA*tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","@type":"/cosmos.bank.v1beta1.MsgSend"}`
+	// (0x74 = 116) strides exactly one element plus its comma, so each element
+	// must be 117 bytes. Counting it under proto3 yields 1 while the host, on a
+	// proto3json channel, dispatches every message.
+	element := `{"fromAddress":"AAA*t` + strings.Repeat("A", 55) + `","@type":"/cosmos.bank.v1beta1.MsgSend"}`
+	require.Len(t, element, 117)
 	crafted := []byte("\n {\"messages\":[")
 	for i := range 700 {
 		if i > 0 {
@@ -396,6 +398,7 @@ func TestCountICAPacketMsgsNeverUndercounts(t *testing.T) {
 		crafted = append(crafted, element...)
 	}
 	crafted = append(crafted, []byte("]}                  ")...)
+	require.Equal(t, 1, countProtoMsgs(crafted), "crafted payload must walk as a single proto message")
 
 	payloads := map[string][]byte{
 		"proto3":                     protoPayload,
@@ -437,7 +440,10 @@ func FuzzCountICAPacketMsgs(f *testing.F) {
 	f.Add([]byte{0x0B, 0x0A, 0x00, 0x0C})
 	f.Add([]byte(`{"messages":[]}`))
 	f.Add([]byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend","amount":[]}]}`))
-	f.Add([]byte("\n {\"messages\":[{\"fromAddress\":\"AAA*tAA\",\"@type\":\"/cosmos.bank.v1beta1.MsgSend\"}]}  "))
+	// One element of the "json that walks as proto" payload from
+	// TestCountICAPacketMsgsNeverUndercounts, sized so the proto walk ends
+	// exactly at the end of the trailing padding.
+	f.Add([]byte("\n {\"messages\":[{\"fromAddress\":\"AAA*t" + strings.Repeat("A", 55) + "\",\"@type\":\"/cosmos.bank.v1beta1.MsgSend\"}]}" + strings.Repeat(" ", 18)))
 	f.Add([]byte(`{"messages":[{"@type":"/celestia.zkism.v1.MsgUpdateInterchainSecurityModule"}]}`))
 	f.Add([]byte(`{"messages":[{"@type":"/hyperlane.core.v1.MsgProcessMessage","metadata":"0x"}]}`))
 
