@@ -107,9 +107,10 @@ func WithServerForceTLS(force bool) ServerCredsOption {
 }
 
 // NewDetectingServerCreds returns server credentials accepting both tls and
-// plaintext HTTP/2 connections (TLS only under [WithServerForceTLS]).
+// plaintext HTTP/2 connections (TLS only under [WithServerForceTLS]). TLS
+// writes are batched; see [batchingCreds].
 func NewDetectingServerCreds(tls credentials.TransportCredentials, opts ...ServerCredsOption) credentials.TransportCredentials {
-	c := detectingCreds{TransportCredentials: tls}
+	c := detectingCreds{TransportCredentials: batchingCreds{tls}}
 	for _, opt := range opts {
 		opt(&c)
 	}
