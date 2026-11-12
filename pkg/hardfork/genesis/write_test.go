@@ -207,20 +207,30 @@ func TestInstall(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := setup(t)
 			tc.edit(t, &p)
-			before := entries(t, filepath.Join(p.dir, "out"))
+			beforeOut, beforeRep := entries(t, filepath.Join(p.dir, "out")), entries(t, filepath.Join(p.dir, "rep"))
 			err := install(p)
 			var ce *genesis.CheckError
 			require.True(t, errors.As(err, &ce), "want a CheckError, got %v", err)
 			require.Equal(t, tc.want, ce.Want)
-			require.Equal(t, before, entries(t, filepath.Join(p.dir, "out")))
-			require.Empty(t, entries(t, filepath.Join(p.dir, "rep")))
+			require.Equal(t, beforeOut, entries(t, filepath.Join(p.dir, "out")))
+			require.Equal(t, beforeRep, entries(t, filepath.Join(p.dir, "rep")))
 		})
 	}
 
+	// fromNth fails the nth call and every later one.
+	fromNth := func(n int) func(string) error {
+		calls := 0
+		return func(string) error {
+			if calls++; calls >= n {
+				return errInjected
+			}
+			return nil
+		}
+	}
 	failures := []struct {
 		name               string
 		link, sync, remove func(string) error
-		leftover           string
+		leftOut, leftRep   string
 	}{
 		{name: "report link", link: nth(1)},
 		{name: "report dir sync", sync: nth(1)},
@@ -237,8 +247,21 @@ func TestInstall(t *testing.T) {
 				}
 				return nil
 			},
-			leftover: "report.json",
+			leftRep: "report.json",
 		},
+		{
+			name: "failed genesis removal keeps the report",
+			sync: nth(4),
+			remove: func(path string) error {
+				if filepath.Base(path) == "genesis.json" {
+					return errInjected
+				}
+				return nil
+			},
+			leftOut: "genesis.json",
+			leftRep: "report.json",
+		},
+		{name: "unsynced genesis removal keeps the report", sync: fromNth(4), leftRep: "report.json"},
 	}
 	for _, tc := range failures {
 		t.Run(tc.name, func(t *testing.T) {
@@ -272,16 +295,16 @@ func TestInstall(t *testing.T) {
 
 			err := install(p)
 			require.ErrorIs(t, err, errInjected)
-			_, statErr := os.Lstat(p.out)
-			require.ErrorIs(t, statErr, os.ErrNotExist)
-			require.Empty(t, entries(t, filepath.Join(p.dir, "out")))
-			if tc.leftover == "" {
-				require.Empty(t, entries(t, filepath.Join(p.dir, "rep")))
-				return
+			for _, d := range []struct{ dir, left string }{{"out", tc.leftOut}, {"rep", tc.leftRep}} {
+				got := entries(t, filepath.Join(p.dir, d.dir))
+				if d.left == "" {
+					require.Empty(t, got)
+					continue
+				}
+				require.Equal(t, []string{d.left}, got)
+				require.ErrorContains(t, err, "leftover")
+				require.ErrorContains(t, err, d.left)
 			}
-			require.ErrorContains(t, err, "leftover")
-			require.ErrorContains(t, err, tc.leftover)
-			require.Equal(t, []string{tc.leftover}, entries(t, filepath.Join(p.dir, "rep")))
 		})
 	}
 }

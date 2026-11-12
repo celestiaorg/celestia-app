@@ -43,7 +43,7 @@ func Install(g *Genesis, rep *Report, input, output, report string) (err error) 
 	var tmps, links []string
 	defer func() {
 		if err != nil {
-			err = cleanup(err, slices.Concat(links, tmps), outDir, repDir)
+			err = cleanup(err, links, tmps, outDir, repDir)
 		}
 	}()
 
@@ -153,10 +153,25 @@ func writeTemp(dir string, write func(io.Writer) error) (string, error) {
 	return f.Name(), errors.Join(err, f.Close())
 }
 
-// cleanup removes paths and syncs dirs; cause is returned joined with what could not be cleaned up.
-func cleanup(cause error, paths []string, dirs ...string) error {
+// cleanup removes links in order, then tmps, and syncs dirs; cause is returned joined with what could not be
+// cleaned up. A link is removed only once the one before it is removed and its dir synced, so neither a failed
+// removal nor a crash leaves a genesis without its report.
+func cleanup(cause error, links, tmps []string, dirs ...string) error {
 	errs := []error{cause}
-	for _, p := range paths {
+	for i, p := range links {
+		err := remove(p)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			err = syncDir(filepath.Dir(p))
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("leftover %s: %w", p, err))
+			for _, kept := range links[i+1:] {
+				errs = append(errs, fmt.Errorf("leftover %s: kept because %s may remain", kept, p))
+			}
+			break
+		}
+	}
+	for _, p := range tmps {
 		if err := remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			errs = append(errs, fmt.Errorf("leftover %s: %w", p, err))
 		}
