@@ -34,21 +34,25 @@ type exportRestart struct {
 	// archive is a node of the old chain that keeps its data and stays out of
 	// the new chain, so relayers can read the old blocks and events.
 	archive *cosmos.ChainNode
+	// exportAt, if not zero, is the height every validator exports.
+	exportAt int64
+	// initialHeight is the first height of the new chain. If zero, it is set
+	// to max(S, E) + 1 + restartHeightGap.
+	initialHeight int64
 
 	// Filled in by exportAndRestart.
 
-	// exportHeight is the last executed height of the old chain (E).
+	// exportHeight is the height of the export (E).
 	exportHeight int64
 	// signedHeight is the highest height in any validator's sign state (S).
 	signedHeight int64
-	// initialHeight is the first height of the new chain.
-	initialHeight int64
 	// exported is the export the new chain starts from.
 	exported *genutiltypes.AppGenesis
 }
 
-// exportAndRestart stops the chain, exports the highest validator's state and
-// restarts every validator as a new chain from that export.
+// exportAndRestart stops the chain, exports the highest validator's state (or
+// the state at exportAt) and restarts every validator as a new chain from that
+// export.
 //
 // The new chain starts at max(S, E) + 1 + restartHeightGap, where S is the
 // highest height in any validator's sign state and E the export height. Every
@@ -72,9 +76,13 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	}
 	s.Require().NoError(chain.Stop(ctx), "failed to stop the chain")
 
+	var exportArgs []string
+	if r.exportAt > 0 {
+		exportArgs = []string{"--height", strconv.FormatInt(r.exportAt, 10)}
+	}
 	var source *cosmos.ChainNode
 	for _, v := range chain.Validators {
-		exported := s.export(ctx, v)
+		exported := s.export(ctx, v, exportArgs...)
 		t.Logf("%s exported height %d", v.Name(), exported.InitialHeight-1)
 		if r.exported == nil || exported.InitialHeight > r.exported.InitialHeight {
 			r.exported, source = exported, v
@@ -84,7 +92,14 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 		}
 	}
 	r.exportHeight = r.exported.InitialHeight - 1
-	r.initialHeight = max(r.signedHeight, r.exportHeight) + 1 + restartHeightGap
+	if r.exportAt > 0 {
+		s.Require().Equal(r.exportAt, r.exportHeight, "export --height %d returned another height", r.exportAt)
+	}
+	minHeight := max(r.signedHeight, r.exportHeight) + 1
+	if r.initialHeight == 0 {
+		r.initialHeight = minHeight + restartHeightGap
+	}
+	s.Require().GreaterOrEqual(r.initialHeight, minHeight, "the new chain must start above every old height")
 
 	// An export below the last height must work too: it is the way back to a
 	// height before the bad state.
@@ -123,8 +138,9 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	}
 	if r.newChainID != "" {
 		// Tastora signs with the chain-id of the node it broadcasts through.
+		// Full nodes keep the old one: tastora derives their hostnames from it.
 		chain.Config.ChainID = r.newChainID
-		for _, n := range chain.Nodes() {
+		for _, n := range chain.Validators {
 			n.ChainID = r.newChainID
 		}
 	}
