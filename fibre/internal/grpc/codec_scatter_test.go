@@ -377,6 +377,35 @@ func TestScatterMarshalAllocsConstant(t *testing.T) {
 	}
 }
 
+// TestScatterMarshalPooledAllocsConstant is the pooled-framing counterpart of
+// TestScatterMarshalAllocsConstant, on the production shape (14 proof segments
+// per row). Pooled buffers come from sync.Pools, so allow one allocation of
+// jitter.
+func TestScatterMarshalPooledAllocsConstant(t *testing.T) {
+	if raceEnabled {
+		t.Skip("sync.Pool drops items at random under the race detector")
+	}
+	pool := mem.DefaultBufferPool()
+	allocs := func(rows int) float64 {
+		req := scatterTestRequest(rows, 14)
+		if mem.IsBelowBufferPoolingThreshold(scatterFramingSize(req)) {
+			t.Fatalf("framing of %d rows is not pooled", rows)
+		}
+		marshal := func() {
+			bs, err := marshalUploadShardRequestScatter(req, pool, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bs.Free()
+		}
+		marshal() // warm the pools
+		return testing.AllocsPerRun(20, marshal)
+	}
+	if small, large := allocs(128), allocs(256); large > small+1 || large < small-1 {
+		t.Fatalf("allocs grew with rows: %v at 128 rows, %v at 256 rows", small, large)
+	}
+}
+
 func BenchmarkScatterMarshal(b *testing.B) {
 	req := scatterTestRequest(168, 14)
 	b.ReportAllocs()
