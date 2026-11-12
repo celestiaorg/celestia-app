@@ -3,7 +3,10 @@ package docker_e2e
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	"math/big"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,9 +14,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
+	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -22,6 +27,7 @@ import (
 	commitmenttypes "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
 	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -313,4 +319,121 @@ func (s *IBCTestSuite) updateHostedClient(ctx context.Context, hostChain *cosmos
 		_, err := client.ConsensusState(ctx, &clienttypes.QueryConsensusStateRequest{ClientId: clientID, RevisionNumber: height.RevisionNumber, RevisionHeight: height.RevisionHeight})
 		return err == nil
 	})
+}
+
+// TestHyperlaneExportBelowTip restarts Celestia from an export below the last
+// height the relayer saw. A message sent in the dropped blocks stays delivered
+// on the EVM chain, and the next message reuses its nonce. A relayer that keeps
+// its database drops that message, because the database already holds one at
+// that nonce; a relayer with a fresh database delivers it.
+//
+// The suite uses a noop ISM and runs no Hyperlane validator, so how validators
+// sign a reused nonce is not checked here.
+func (s *HyperlaneTestSuite) TestHyperlaneExportBelowTip() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane export below tip test in short mode")
+	}
+	ctx := context.Background()
+
+	h := s.setupHyperlaneExport(ctx)
+	chain, reth, cfg, tokenRouter := h.chain, h.reth, h.cfg, h.tokenRouter
+	rethRecipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+	celestiaRecipient := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+	celestiaRecipientBz, err := bech32ToBytes(celestiaRecipient)
+	s.Require().NoError(err)
+	sendToEVM := func(amount int64) {
+		s.SendTransferRemoteTx(ctx, chain, cfg.TokenID, h.rethDomain, rethRecipient, sdkmath.NewInt(amount))
+	}
+	requireEVMBalance := func(want int64) {
+		s.AssertERC20Balance(ctx, reth, tokenRouter, rethRecipient, big.NewInt(want))
+	}
+
+	sendToEVM(1000)
+	requireEVMBalance(1000)
+	// The EVM sender is rethRecipient, so this leaves it 500.
+	s.SendTransferRemoteTxEvm(ctx, reth, tokenRouter, h.celestiaDomain, celestiaRecipientBz, sdkmath.NewInt(500))
+	s.AssertBankBalance(ctx, chain, celestiaRecipient, chain.Config.Denom, sdkmath.NewInt(500))
+	delivered := s.processedMessage(ctx, chain)
+
+	// Snapshot at the export height E; n is the nonce of the next message.
+	before := s.hyperlaneState(ctx, chain, cfg, celestiaRecipient, delivered.MessageId)
+	n, err := strconv.ParseUint(before["sent"], 10, 32)
+	s.Require().NoError(err)
+	exportAt, err := chain.Validators[0].Height(ctx)
+	s.Require().NoError(err)
+
+	// A message on nonce n in the blocks above E, delivered before the halt.
+	sendToEVM(300)
+	requireEVMBalance(800)
+	s.Require().NoError(h.agent.Stop(ctx), "failed to stop the relayer")
+
+	r := &exportRestart{exportAt: exportAt, archive: h.archive}
+	s.exportAndRestart(ctx, chain, r)
+	t.Logf("exported at height %d, new chain starts at %d", r.exportHeight, r.initialHeight)
+	s.Require().Equal(before, s.hyperlaneState(ctx, chain, cfg, celestiaRecipient, delivered.MessageId), "hyperlane state differs from the export height")
+	// The message on nonce n is unbacked: the EVM chain keeps it, Celestia no
+	// longer holds its collateral.
+	s.Require().Equal(big.NewInt(800), s.QueryERC20Balance(ctx, reth, tokenRouter, rethRecipient), "EVM balance changed across the restart")
+
+	// The relayer keeps its database, which holds the dropped message on nonce n.
+	validator := chain.Validators[0]
+	s.restartRelayerOn(ctx, h.agent, h.deployer, validator, validator, r.initialHeight, relayerExportDB)
+	sendToEVM(200) // the replacement, on nonce n
+	sendToEVM(50)  // the control, on nonce n+1
+	sent := s.hyperlaneState(ctx, chain, cfg, celestiaRecipient, delivered.MessageId)["sent"]
+	s.Require().Equal(strconv.FormatUint(n+2, 10), sent, "the replacement did not reuse nonce n")
+
+	s.Run("reused nonce dropped by a kept database", func() {
+		// The control is delivered once the relayer has indexed past the
+		// replacement, so the replacement had its chance.
+		requireEVMBalance(850)
+		time.Sleep(30 * time.Second)
+		s.Require().Equal(big.NewInt(850), s.QueryERC20Balance(ctx, reth, tokenRouter, rethRecipient), "the replacement was delivered")
+		// A relayer that exited during the wait would also leave 850.
+		s.Require().NoError(h.agent.ContainerLifecycle.Running(ctx), "the relayer stopped during the wait")
+	})
+
+	// A fresh database indexed from the new chain stores the replacement and
+	// the control, the only messages above the initial height. Its processor
+	// waits at nonce 0 and reads the highest stored nonce only at start, so
+	// restart the relayer once both are stored.
+	const recoveryDB = "relayer-db-recovery"
+	s.restartRelayerOn(ctx, h.agent, h.deployer, validator, validator, r.initialHeight, recoveryDB)
+	s.waitForStoredMessages(ctx, validator, h.agent, 2)
+	s.restartRelayerOn(ctx, h.agent, h.deployer, validator, validator, r.initialHeight, recoveryDB)
+	s.Run("replacement delivered by a fresh database", func() { requireEVMBalance(1050) })
+
+	s.Run("evm to celestia", func() {
+		s.SendTransferRemoteTxEvm(ctx, reth, tokenRouter, h.celestiaDomain, celestiaRecipientBz, sdkmath.NewInt(100))
+		s.AssertBankBalance(ctx, chain, celestiaRecipient, chain.Config.Denom, sdkmath.NewInt(600))
+		requireEVMBalance(950)
+	})
+}
+
+// relayerMetricsPort is the default metrics port of the Hyperlane agents.
+const relayerMetricsPort = 9090
+
+// waitForStoredMessages waits until the relayer has stored at least want
+// Celestia messages since it started. The metrics port is not published, so a
+// one-shot container with the node's image reads it over the docker network.
+func (s *HyperlaneTestSuite) waitForStoredMessages(ctx context.Context, node *cosmos.ChainNode, agent *hyperlane.Agent, want int) {
+	url := fmt.Sprintf("http://%s:%d/metrics", agent.Name(), relayerMetricsPort)
+	chainLabel := `chain="` + HypCelestiaChainName + `"`
+	err := internal.WaitFor(ctx, 2*time.Minute, 5*time.Second, func(ctx context.Context) (bool, error) {
+		out, _, err := node.Exec(ctx, []string{"curl", "-sf", url}, nil)
+		if err != nil {
+			return false, nil
+		}
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if !strings.Contains(line, "contract_sync_stored_events{") || !strings.Contains(line, `data_type="dispatched_messages"`) || !strings.Contains(line, chainLabel) {
+				continue
+			}
+			fields := strings.Fields(line)
+			count, err := strconv.Atoi(fields[len(fields)-1])
+			return err == nil && count >= want, nil
+		}
+		return false, nil
+	})
+	s.Require().NoError(err, "relayer did not store %d Celestia messages", want)
 }
