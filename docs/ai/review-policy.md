@@ -76,4 +76,6 @@ approval never satisfies code-owner review.
    The App, not `GITHUB_TOKEN`, supplies approvals.
 
 This policy governs `main` and PRs stacked on it. Release branches keep their
-own protections.
+own protections: their `CODEOWNERS` owns every file and the `v*` ruleset
+requires code-owner review, which the App's approval never satisfies, so the
+workflow skips PRs into `v*` branches and a human approves every backport.
