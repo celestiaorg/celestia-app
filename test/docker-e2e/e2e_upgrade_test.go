@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -22,6 +24,7 @@ import (
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	cmtconsensus "github.com/cometbft/cometbft/consensus/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -263,8 +266,8 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.Require().NoError(err)
 
 	s.ValidatePreUpgrade(ctx, chain, cfg)
-	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
-	s.ValidatePostUpgrade(ctx, chain, cfg)
+	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
+	s.ValidatePostUpgrade(ctx, chain, cfg, upgradeHeight)
 }
 
 // UpgradeChain executes the upgrade to the target app version.
@@ -470,7 +473,7 @@ func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastor
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 }
 
-func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
+func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, upgradeHeight int64) {
 	appVersion := appconsts.Version
 
 	node := chain.GetNodes()[0]
@@ -481,8 +484,9 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
-	// CIP-048: Consensus timeout parameters
+	// v11 consensus timeouts: 800ms dynamic timeout commit paces blocks.
 	s.validateTimeoutInfo(ctx, node, cfg)
+	s.validatePacing(ctx, node, upgradeHeight)
 	// Evidence params: MaxAgeNumBlocks bounded to the unbonding period.
 	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV10Blocks, appVersion)
 	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
@@ -492,8 +496,8 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the expected v9 values per CIP-048, or the start-flag
-// overrides the test chain runs with.
+// parameters match the v11 values, or the start-flag overrides the test chain
+// runs with.
 func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, cfg *dockerchain.Config) {
 	rpcClient, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -501,19 +505,104 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
-	timeoutCommit, delayedPrecommitTimeout := dockerchain.TimeoutCommit, dockerchain.DelayedPrecommitTimeout
-	if cfg.DefaultBlockTime {
-		timeoutCommit, delayedPrecommitTimeout = appconsts.TimeoutCommit, appconsts.DelayedPrecommitTimeout
+	want := appconsts.GetConsensusTimeouts(appconsts.Version)
+	if !cfg.DefaultBlockTime {
+		want.TimeoutCommit, want.DelayedPrecommitTimeout = dockerchain.TimeoutCommit, dockerchain.DelayedPrecommitTimeout
 	}
 
 	ti := abciInfo.Response.TimeoutInfo
-	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
-	s.Require().Equal(delayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "DelayedPrecommitTimeout mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(timeoutCommit, ti.TimeoutCommit, "TimeoutCommit mismatch")
+	s.Require().Equal(want.TimeoutPropose, ti.TimeoutPropose, "TimeoutPropose mismatch")
+	s.Require().Equal(want.TimeoutProposeDelta, ti.TimeoutProposeDelta, "TimeoutProposeDelta mismatch")
+	s.Require().Equal(want.TimeoutPrevote, ti.TimeoutPrevote, "TimeoutPrevote mismatch")
+	s.Require().Equal(want.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(want.TimeoutPrecommit, ti.TimeoutPrecommit, "TimeoutPrecommit mismatch")
+	s.Require().Equal(want.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(want.TimeoutCommit, ti.TimeoutCommit, "TimeoutCommit mismatch")
+	s.Require().Equal(want.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(800*time.Millisecond, ti.DynamicTimeoutCommit, "DynamicTimeoutCommit mismatch")
+}
+
+// pacingSample is one height's round-0 start and the previous height's commit time.
+type pacingSample struct {
+	start, prevCommit time.Time
+}
+
+// validatePacing polls core's round state for 10 heights from upgradeHeight+3 and
+// checks that the dynamic timeout commit spaces height starts.
+// ABCIInfo alone can't show what core uses; v11 timeouts apply from H+2.
+func (s *CelestiaTestSuite) validatePacing(ctx context.Context, node tastoratypes.ChainNode, upgradeHeight int64) {
+	const heights = 10
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	timeoutCommit := abciInfo.Response.TimeoutInfo.TimeoutCommit
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	samples := make(map[int64]pacingSample)
+	var first int64
+	for {
+		dump, err := rpcClient.DumpConsensusState(ctx)
+		s.Require().NoError(err, "failed to dump consensus state")
+		var rs struct {
+			Height     int64     `json:"height,string"`
+			Step       uint8     `json:"step"`
+			StartTime  time.Time `json:"start_time"`
+			CommitTime time.Time `json:"commit_time"`
+		}
+		s.Require().NoError(json.Unmarshal(dump.RoundState, &rs), "failed to decode round state")
+		if rs.Height >= upgradeHeight+3 {
+			if first == 0 {
+				first = rs.Height
+			}
+			if rs.Height >= first+heights {
+				break
+			}
+			sample := samples[rs.Height]
+			sample.start = rs.StartTime
+			// From the commit step on, commit_time is this height's commit.
+			if rs.Step < uint8(cmtconsensus.RoundStepCommit) && sample.prevCommit.IsZero() {
+				sample.prevCommit = rs.CommitTime
+			}
+			samples[rs.Height] = sample
+		}
+		select {
+		case <-ctx.Done():
+			s.Require().NoError(ctx.Err(), "timed out polling round state at height %d", rs.Height)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	for _, h := range slices.Sorted(maps.Keys(samples)) {
+		sample := samples[h]
+		s.T().Logf("pacing height %d: start=%s start-prev_commit=%v", h, sample.start.Format(time.StampMilli), sample.start.Sub(sample.prevCommit))
+	}
+	s.Require().NoError(checkPacing(samples, timeoutCommit))
+}
+
+// checkPacing requires consecutive starts at least 795 ms apart per height, and
+// one start after its previous commit by more than timeoutCommit (legacy pacing
+// gives exactly timeoutCommit).
+func checkPacing(samples map[int64]pacingSample, timeoutCommit time.Duration) error {
+	heights := slices.Sorted(maps.Keys(samples))
+	floorBinds := false
+	for i, h := range heights {
+		sample := samples[h]
+		if !sample.prevCommit.IsZero() && sample.start.Sub(sample.prevCommit) > timeoutCommit {
+			floorBinds = true
+		}
+		if i == 0 {
+			continue
+		}
+		prev := heights[i-1]
+		if gap, want := sample.start.Sub(samples[prev].start), time.Duration(h-prev)*795*time.Millisecond; gap < want {
+			return fmt.Errorf("start(%d) - start(%d) = %v, want >= %v", h, prev, gap, want)
+		}
+	}
+	if !floorBinds {
+		return fmt.Errorf("no height in %v started more than %v after the previous commit: legacy pacing", heights, timeoutCommit)
+	}
+	return nil
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and

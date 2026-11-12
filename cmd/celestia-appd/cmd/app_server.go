@@ -23,7 +23,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		timeoutCommit = cast.ToDuration(v)
 	}
 
-	return app.New(
+	celestiaApp := app.New(
 		logger,
 		db,
 		traceStore,
@@ -32,4 +32,8 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		appOptions,
 		server.DefaultBaseappOptions(appOptions)...,
 	)
+	if v := appOptions.Get(DynamicTimeoutCommitFlag); v != nil {
+		celestiaApp.SetDynamicTimeoutCommit(cast.ToDuration(v))
+	}
+	return celestiaApp
 }
