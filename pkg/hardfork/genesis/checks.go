@@ -30,11 +30,9 @@ var (
 	valCodec = addresscodec.NewBech32Codec(params.Bech32PrefixValAddr)
 )
 
-// CheckResult holds the values that CheckState measures for the report.
+// CheckResult holds, for the report, the signed annual_provisions - inflation_rate * supply[bond_denom] and the exported mint values.
 type CheckResult struct {
-	// MintExcess is the signed annual_provisions - inflation_rate * supply[bond_denom].
-	MintExcess math.LegacyDec
-	// AnnualProvisions, InflationRate and MintGenesisTime are the exported mint values.
+	MintExcess       math.LegacyDec
 	AnnualProvisions math.LegacyDec
 	InflationRate    math.LegacyDec
 	MintGenesisTime  time.Time
@@ -68,8 +66,7 @@ func decodeModule(cdc codec.JSONCodec, g *Genesis, name string, gs proto.Message
 	return nil
 }
 
-// decodeAddr decodes the address in field of records[i]. Import decodes it too, so two spellings of one
-// address would overwrite each other; with seen set, it fails on a key decoded at an earlier index.
+// decodeAddr decodes records[i].field; with seen set, it rejects a key that an earlier index decoded to, as import would overwrite it.
 func decodeAddr(ac address.Codec, seen map[string]int, module, records string, i int, field, addr string) (string, error) {
 	bz, err := ac.StringToBytes(addr)
 	if err != nil {
@@ -185,30 +182,8 @@ func checkStaking(cdc codec.JSONCodec, g *Genesis, bals map[string]sdk.Coins) (s
 	if err := checkPowers(&gs, powers); err != nil {
 		return "", err
 	}
-
-	type pair struct{ del, val string }
-	seenUBD := make(map[pair]int, len(gs.UnbondingDelegations))
-	for i, ubd := range gs.UnbondingDelegations {
-		del, err := decodeAddr(accCodec, nil, module, "unbonding_delegations", i, "delegator_address", ubd.DelegatorAddress)
-		if err != nil {
-			return "", err
-		}
-		val, err := decodeAddr(valCodec, nil, module, "unbonding_delegations", i, "validator_address", ubd.ValidatorAddress)
-		if err != nil {
-			return "", err
-		}
-		if j, ok := seenUBD[pair{del, val}]; ok {
-			return "", duplicateError(module, "unbonding_delegations", i, j, ubd.DelegatorAddress)
-		}
-		seenUBD[pair{del, val}] = i
-		for j, e := range ubd.Entries {
-			if err := nonNegative(module, fmt.Sprintf("unbonding_delegations[%d].entries[%d].balance", i, j), e.Balance); err != nil {
-				return "", err
-			}
-			if err := notBonded.add(denom, e.Balance); err != nil {
-				return "", overflowError(module, "unbonding_delegations", err)
-			}
-		}
+	if err := addUBDs(&gs, notBonded); err != nil {
+		return "", err
 	}
 	if err := equalCoins(module, stakingtypes.BondedPoolName, bonded.coins(), bals[stakingtypes.BondedPoolName]); err != nil {
 		return "", err
@@ -217,6 +192,35 @@ func checkStaking(cdc codec.JSONCodec, g *Genesis, bals map[string]sdk.Coins) (s
 		return "", err
 	}
 	return denom, nil
+}
+
+// addUBDs rejects duplicate (delegator, validator) pairs and adds every entry balance to notBonded.
+func addUBDs(gs *stakingtypes.GenesisState, notBonded intSum) error {
+	const module, records = stakingtypes.ModuleName, "unbonding_delegations"
+	seen := make(map[[2]string]int, len(gs.UnbondingDelegations))
+	for i, ubd := range gs.UnbondingDelegations {
+		del, err := decodeAddr(accCodec, nil, module, records, i, "delegator_address", ubd.DelegatorAddress)
+		if err != nil {
+			return err
+		}
+		val, err := decodeAddr(valCodec, nil, module, records, i, "validator_address", ubd.ValidatorAddress)
+		if err != nil {
+			return err
+		}
+		if j, ok := seen[[2]string{del, val}]; ok {
+			return duplicateError(module, records, i, j, ubd.DelegatorAddress)
+		}
+		seen[[2]string{del, val}] = i
+		for j, e := range ubd.Entries {
+			if err := nonNegative(module, fmt.Sprintf("%s[%d].entries[%d].balance", records, i, j), e.Balance); err != nil {
+				return err
+			}
+			if err := notBonded.add(gs.Params.BondDenom, e.Balance); err != nil {
+				return overflowError(module, records, err)
+			}
+		}
+	}
+	return nil
 }
 
 // checkPowers requires last_validator_powers to list exactly the bonded validators with their token power.
@@ -260,8 +264,7 @@ func checkPowers(gs *stakingtypes.GenesisState, powers map[string]int64) error {
 	return nil
 }
 
-// checkDistribution compares the module balance with the holdings InitGenesis sums.
-// Commission is part of outstanding rewards, so it is not added again.
+// checkDistribution compares the module balance with the holdings InitGenesis sums; commission is inside outstanding rewards.
 func checkDistribution(cdc codec.JSONCodec, g *Genesis, bal sdk.Coins) error {
 	const module = distrtypes.ModuleName
 	var gs distrtypes.GenesisState
@@ -333,14 +336,14 @@ func checkMint(cdc codec.JSONCodec, g *Genesis, bondDenom string, supply sdk.Coi
 	if !ack.IsNil() && !ack.Equal(excess) {
 		return fail("accept-mint-excess", excess.String(), ack.String())
 	}
-	// Annual provisions are fixed for the year, so a burn since then gives a positive excess on honest state.
+	// Provisions are recomputed only when the rate changes, so a burn since then gives a positive excess on honest state.
 	if ack.IsNil() && excess.IsPositive() {
 		return fail("excess", "<= 0 or acknowledged", excess.String())
 	}
 	return &CheckResult{MintExcess: excess, AnnualProvisions: m.AnnualProvisions, InflationRate: m.InflationRate, MintGenesisTime: *gs.GenesisTime}, nil
 }
 
-// validCoins rejects nil, zero, negative, unsorted, duplicate and invalid-denom coins.
+// validCoins and validDecCoins reject nil, zero, negative, unsorted, duplicate and invalid-denom coins.
 func validCoins(coins sdk.Coins) error {
 	for _, c := range coins {
 		if c.Amount.IsNil() {
@@ -350,7 +353,6 @@ func validCoins(coins sdk.Coins) error {
 	return coins.Validate()
 }
 
-// validDecCoins is validCoins for decimal coins.
 func validDecCoins(coins sdk.DecCoins) error {
 	for _, c := range coins {
 		if c.Amount.IsNil() {
