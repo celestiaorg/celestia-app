@@ -24,10 +24,17 @@ GOLANG_CROSS_IMAGE    := ghcr.io/goreleaser/goreleaser-cross:$(GOLANG_CROSS_VERS
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
-BUILD_TAGS_STANDALONE := ledger
-BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
+# STATIC=true links a cgo build statically, so it runs on a host with another libc.
+comma := ,
+ifeq ($(STATIC),true)
+BUILD_TAGS_STATIC := netgo,osusergo
+LDFLAGS_STATIC := -linkmode=external -extldflags=-static
+endif
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+BUILD_TAGS_STANDALONE := ledger$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
+BUILD_TAGS_MULTIPLEXER := ledger,multiplexer$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
+
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT) $(LDFLAGS_STATIC)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
@@ -45,8 +52,8 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # .git: an empty -X value blanks the field out rather than leaving the default in
 # place.
 COMMIT_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null)
-LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown)
-BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
+LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown) $(LDFLAGS_STATIC)
+BUILD_FLAGS_FIBRE := $(if $(BUILD_TAGS_STATIC),-tags=$(BUILD_TAGS_STATIC)) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -206,8 +213,7 @@ docker-build: build-docker-multiplexer
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
-		--build-arg TARGETOS=$(DOCKER_GOOS) \
-		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
+		--platform $(DOCKER_GOOS)/$(DOCKER_GOARCH) \
 		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
@@ -369,13 +375,22 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build binaries for talis VMs (ubuntu 22.04 LTS), including the fibre experiment tools.
+# TALIS_CGO_BUILD builds celestia-appd and fibre with cgo in a linux/amd64 Alpine
+# container. The static musl link runs on any VM regardless of its glibc.
+TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
+	-v celestia-app-talis-gomod:/go/pkg/mod -v celestia-app-talis-gocache:/root/.cache/go-build \
+	-e GOFLAGS=-buildvcs=false docker.io/golang:1.26.11-alpine3.24 sh -c ' \
+	apk add -q --no-cache gcc linux-headers make musl-dev && \
+	make -o mod build-standalone build-fibre-server STATIC=true \
+		VERSION=$(VERSION) COMMIT=$(COMMIT) COMMIT_DATE=$(COMMIT_DATE) CELESTIA_TAG=$(CELESTIA_TAG) && \
+	chown $(shell id -u):$(shell id -g) build/celestia-appd build/fibre'
+
+## build-talis-bins: Build binaries for talis VMs (ubuntu 22.04 LTS), including the fibre experiment tools. Requires Docker.
 build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_FIBRE)" -o build/fibre ./fibre/cmd
+	$(TALIS_CGO_BUILD)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
@@ -411,13 +426,12 @@ build-rust-fibre-txsim: ensure-rust
 	$(call build_rust_crate,tools/rust-fibre-txsim,rust-fibre-txsim,fibre-txsim)
 .PHONY: build-rust-fibre-txsim
 
-## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim. Requires Docker.
 build-talis-bins-rust-fibre:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	$(TALIS_CGO_BUILD)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre

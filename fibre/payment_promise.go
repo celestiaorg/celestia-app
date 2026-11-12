@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v11/pkg/secpverify"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -172,7 +173,7 @@ func (p *PaymentPromise) Validate() error {
 	}
 
 	// verify signature using secp256k1
-	if !p.SignerKey.VerifySignature(signBytes, p.Signature) {
+	if !secpverify.Verify(p.SignerKey, signBytes, p.Signature) {
 		return errors.New("signature verification failed")
 	}
 

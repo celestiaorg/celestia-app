@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math/rand/v2"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
@@ -367,4 +369,51 @@ func TestAddShard_ReleasesRejectedShard(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, retained)
 	require.Zero(t, released)
+}
+
+// newParityOnlyDownload returns a download with a single reconstruct slot that
+// holds parity rows only, so the original rows must be reconstructed.
+func newParityOnlyDownload(t *testing.T) *download {
+	t.Helper()
+	d, proofs, rlc := newTestDownload(t, testK)
+	d.cfg.reconstructSlots = make(chan struct{}, 1)
+	for from := range d.ShardSources(context.Background()) {
+		require.NoError(t, d.AddShard(from, proofs[testK:], rlc))
+	}
+	return d
+}
+
+// TestDownload_ReconstructWaitsForSlot checks that reconstruction takes one of
+// the config's reconstruct slots, so at most cap(slots) work slabs are held at
+// once, and that a download waiting for a slot gives up with its context.
+func TestDownload_ReconstructWaitsForSlot(t *testing.T) {
+	d := newParityOnlyDownload(t)
+	d.cfg.reconstructSlots <- struct{}{} // another download holds the only slot
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := d.Blob(ctx)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Len(t, d.cfg.reconstructSlots, 1, "a waiting download must not take or release a slot")
+}
+
+func TestDownload_ReconstructReleasesSlot(t *testing.T) {
+	d := newParityOnlyDownload(t)
+	blob, err := d.Blob(context.Background())
+	require.NoError(t, err)
+	defer blob.Free()
+	require.Empty(t, d.cfg.reconstructSlots)
+}
+
+func TestMaxConcurrentReconstructs(t *testing.T) {
+	// Clear the variable first so a value exported in the developer's shell
+	// cannot leak into the default checks.
+	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "")
+	def := maxConcurrentReconstructs()
+	require.Equal(t, max(2, runtime.GOMAXPROCS(0)/2), def)
+	for _, bad := range []string{"0", "-1", "abc"} {
+		t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", bad)
+		require.Equal(t, def, maxConcurrentReconstructs(), "invalid value %q must fall back to the default", bad)
+	}
+	t.Setenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS", "3")
+	require.Equal(t, 3, maxConcurrentReconstructs())
 }

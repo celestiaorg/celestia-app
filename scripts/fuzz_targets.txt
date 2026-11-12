@@ -99,3 +99,5 @@
 1 ./x/blob/keeper       FuzzPayForBlobsHandler              5m 100x
 3 ./fibre               FuzzShardMarkerDecode               2m 100x
 1 ./app                 FuzzBuildProposalSquareParity       5m -
+1 ./pkg/secpverify      FuzzVerifyMatchesDecred             5m 100x
+1 ./pkg/secpverify      FuzzVerifyMatchesDecredSigned       5m 100x
