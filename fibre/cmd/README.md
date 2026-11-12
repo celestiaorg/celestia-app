@@ -610,6 +610,8 @@ To gauge THP use, read `AnonHugePages` (PMD-sized THP) in `/proc/<pid>/smaps_rol
 
 **Opt-out:** set `FIBRE_ROW_NO_HUGEPAGE=1` to skip just the huge-page advice (the `mmap` slabs stay enabled), or `FIBRE_ROW_NO_MMAP=1` to route slabs through the Go heap entirely. Both are environment variables read at startup.
 
+**Download memory:** set `FIBRE_MAX_CONCURRENT_RECONSTRUCTS=<n>` to cap how many blob downloads run Reed-Solomon reconstruction at once (default: half of `GOMAXPROCS`, at least 2). Each reconstruction holds a codec work slab (~512 MiB for 128 MiB blobs). Also read at startup; non-positive or invalid values are ignored.
+
 ## Troubleshooting
 
 ### `starting server: creating signer: ...`

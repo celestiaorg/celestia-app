@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
@@ -42,6 +44,22 @@ type BlobConfig struct {
 	Assembler *row.Assembler
 	// DataPool pools blob downloads allocations.
 	DataPool *row.Pool
+
+	// reconstructSlots bounds concurrent Reed-Solomon reconstructions. Each
+	// one holds a codec work slab of CodecWorkRows rows (~512 MiB for 128 MiB
+	// blobs), and a reconstruction already spreads over idle workers, so more
+	// of them in parallel add memory, not throughput.
+	reconstructSlots chan struct{}
+}
+
+// maxConcurrentReconstructs returns the reconstruction limit:
+// FIBRE_MAX_CONCURRENT_RECONSTRUCTS when set to a positive integer, otherwise
+// one per two schedulable CPUs, at least two.
+func maxConcurrentReconstructs() int {
+	if n, err := strconv.Atoi(os.Getenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS")); err == nil && n > 0 {
+		return n
+	}
+	return max(2, runtime.GOMAXPROCS(0)/2)
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -109,6 +127,8 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		Coder:         coder,
 		Assembler:     assembler,
 		DataPool:      dataPool,
+
+		reconstructSlots: make(chan struct{}, maxConcurrentReconstructs()),
 	}, nil
 }
 
