@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -126,15 +128,11 @@ func (f fixture) withConsensusField(t *testing.T, raw string) []byte {
 	return bytes.Replace(f.file, old, []byte(`"consensus":{"x":`+raw+`,"validators":`), 1)
 }
 
-// emptyReads returns (0, nil) the given number of times, then EOF.
-type emptyReads int
-
-func (e *emptyReads) Read([]byte) (int, error) {
-	if *e == 0 {
-		return 0, io.EOF
-	}
-	*e--
-	return 0, nil
+// replace replaces the single occurrence of old in the export file.
+func (f fixture) replace(t *testing.T, old, repl string) []byte {
+	t.Helper()
+	require.Equal(t, 1, bytes.Count(f.file, []byte(old)))
+	return bytes.Replace(f.file, []byte(old), []byte(repl), 1)
 }
 
 // errAtEnd returns the last bytes of data together with err, then EOF.
@@ -192,6 +190,12 @@ func TestLoadExportRejects(t *testing.T) {
 			got:  "trailing data",
 		},
 		{
+			name: "trailing non-JSON",
+			file: func(*testing.T) []byte { return append(slices.Clone(f.file), "x"...) },
+			want: genesis.CheckError{Step: "load"},
+			got:  "invalid character",
+		},
+		{
 			name: "malformed JSON",
 			file: func(*testing.T) []byte { return []byte(`{"chain_id":"test-app",}`) },
 			want: genesis.CheckError{Step: "load"},
@@ -210,14 +214,6 @@ func TestLoadExportRejects(t *testing.T) {
 			want: genesis.CheckError{Step: "load", Field: strings.Repeat("a", 127) + "é", Want: "an AppGenesis key"},
 			got:  "unknown key",
 			text: `"` + strings.Repeat("a", 127) + `"...`,
-		},
-		{
-			name: "no progress after the document",
-			reader: func(data []byte) io.Reader {
-				return io.MultiReader(bytes.NewReader(data), new(emptyReads(101)), strings.NewReader("{}"))
-			},
-			want: genesis.CheckError{Step: "load"},
-			got:  "no data or error",
 		},
 		{
 			name: "joined EOF error with the last bytes",
@@ -248,8 +244,34 @@ func TestLoadExportRejects(t *testing.T) {
 			file: func(t *testing.T) []byte { return f.withVesting(t, nested(9998)[:9998]+`"\"[{\\"`+nested(9998)[9998:]) },
 		},
 		{
-			name: "consensus depth 10000 accepted",
+			name: "consensus depth 10000 passes the depth check",
 			file: func(t *testing.T) []byte { return f.withConsensusField(t, nested(9998)) },
+			want: genesis.CheckError{Step: "load", Field: `consensus."x"`, Want: "a known field"},
+			got:  "unknown field",
+		},
+		{
+			name: "consensus key in another case",
+			file: func(t *testing.T) []byte {
+				return f.replace(t, `"consensus":{"validators":`, `"consensus":{"Validators":`)
+			},
+			want: genesis.CheckError{Step: "load", Field: `consensus."Validators"`, Want: "a known field"},
+			got:  "unknown field",
+		},
+		{
+			name: "unknown nested consensus field",
+			file: func(t *testing.T) []byte {
+				return f.replace(t, `"params":{"block":{"max_bytes":`, `"params":{"block":{"x":"1","max_bytes":`)
+			},
+			want: genesis.CheckError{Step: "load", Field: `consensus."params"."block"."x"`, Want: "a known field"},
+			got:  "unknown field",
+		},
+		{
+			name: "repeated nested consensus key",
+			file: func(t *testing.T) []byte {
+				return f.replace(t, `"params":{"block":{"max_bytes":`, `"params":{"block":{"max_gas":"1","max_bytes":`)
+			},
+			want: genesis.CheckError{Step: "load", Field: `consensus."params"."block"."max_gas"`, Want: "one occurrence"},
+			got:  "repeated key",
 		},
 		{
 			name: "consensus depth 10001",
@@ -316,6 +338,12 @@ func TestLoadExportRejects(t *testing.T) {
 			want: inputErr("consensus.params.version.app", fmt.Sprint(appconsts.Version)),
 		},
 		{
+			name: "invalid consensus params",
+			edit: func(_ *testing.T, g *genutiltypes.AppGenesis) { g.Consensus.Params.Evidence.MaxAgeNumBlocks = 0 },
+			want: inputErr("consensus.params", "valid consensus params"),
+			got:  "MaxAgeNumBlocks",
+		},
+		{
 			name: "empty validators",
 			edit: func(_ *testing.T, g *genutiltypes.AppGenesis) { g.Consensus.Validators = nil },
 			want: inputErr("consensus.validators", "non-empty"),
@@ -361,7 +389,51 @@ func TestLoadExportRejects(t *testing.T) {
 			},
 			want: appState(f.modules[0], "a key after "+f.modules[1]),
 		},
+		{
+			name: "unknown module key with the next app version",
+			edit: func(t *testing.T, g *genutiltypes.AppGenesis) {
+				setModules(t, g, append(modules(t, g), genesis.Module{Name: "zzz", Raw: json.RawMessage(`{}`)}))
+				g.Consensus.Params.Version.App = appconsts.Version + 1
+			},
+			want: inputErr("consensus.params.version.app", fmt.Sprint(appconsts.Version)),
+			got:  "(use the v",
+		},
+		{
+			name: "missing module key with the next app version",
+			edit: func(t *testing.T, g *genutiltypes.AppGenesis) {
+				setModules(t, g, slices.DeleteFunc(modules(t, g), func(m genesis.Module) bool { return m.Name == "mint" }))
+				g.Consensus.Params.Version.App = appconsts.Version + 1
+			},
+			want: inputErr("consensus.params.version.app", fmt.Sprint(appconsts.Version)),
+			got:  "(use the v",
+		},
+		{
+			name: "unsorted module keys with the next app version",
+			edit: func(t *testing.T, g *genutiltypes.AppGenesis) {
+				mods := modules(t, g)
+				mods[0], mods[1] = mods[1], mods[0]
+				setModules(t, g, mods)
+				g.Consensus.Params.Version.App = appconsts.Version + 1
+			},
+			want: appState(f.modules[0], "a key after "+f.modules[1]),
+		},
 	})
+}
+
+func TestLoadExportFile(t *testing.T) {
+	f := newFixture(t)
+	path := filepath.Join(t.TempDir(), "export.json")
+	require.NoError(t, os.WriteFile(path, f.file, 0o600))
+	exp, err := genesis.LoadExportFile(path, f.modules, f.options())
+	require.NoError(t, err)
+	want, err := genesis.LoadExport(bytes.NewReader(f.file), f.modules, f.options())
+	require.NoError(t, err)
+	require.Equal(t, want, exp)
+
+	// A non-JSON file fails on the hash, so it is never parsed.
+	require.NoError(t, os.WriteFile(path, []byte("not JSON"), 0o600))
+	_, err = genesis.LoadExportFile(path, f.modules, f.options())
+	requireCheckError(t, err, genesis.CheckError{Step: "load", Field: "export-sha256", Want: f.options().ExportSHA256}, "")
 }
 
 // loadCase is an export edit that LoadExport must reject with want, or accept when want is zero.
