@@ -13,6 +13,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -213,4 +214,15 @@ func TestCachedVerifierDoesNotCacheUnkeyable(t *testing.T) {
 	// No TEXTUAL handler is registered, so the ordinary path reports it.
 	require.Error(t, inputs.verify(cachedVerifier(cache), handler))
 	require.Zero(t, cache.Len())
+}
+
+// TestCachedVerifierErrorsMatchSDK: a secp256k1 key with multisig data must
+// get the SDK's error text, which names the key's type, on every build.
+func TestCachedVerifierErrorsMatchSDK(t *testing.T) {
+	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
+	inputs := signedInputs(t, handler)
+	multi := &signing.MultiSignatureData{}
+	want := authsigning.VerifySignature(context.Background(), inputs.pubKey, inputs.signerData, multi, handler, inputs.txData)
+	got := cachedVerifier(nil)(context.Background(), inputs.pubKey, inputs.signerData, multi, handler, inputs.txData)
+	require.EqualError(t, got, want.Error())
 }

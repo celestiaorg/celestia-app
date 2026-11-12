@@ -3,8 +3,9 @@ package docker_e2e
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -33,21 +34,25 @@ type exportRestart struct {
 	// archive is a node of the old chain that keeps its data and stays out of
 	// the new chain, so relayers can read the old blocks and events.
 	archive *cosmos.ChainNode
+	// exportAt, if not zero, is the height every validator exports.
+	exportAt int64
+	// initialHeight is the first height of the new chain. If zero, it is set
+	// to max(S, E) + 1 + restartHeightGap.
+	initialHeight int64
 
 	// Filled in by exportAndRestart.
 
-	// exportHeight is the last executed height of the old chain (E).
+	// exportHeight is the height of the export (E).
 	exportHeight int64
 	// signedHeight is the highest height in any validator's sign state (S).
 	signedHeight int64
-	// initialHeight is the first height of the new chain.
-	initialHeight int64
 	// exported is the export the new chain starts from.
 	exported *genutiltypes.AppGenesis
 }
 
-// exportAndRestart stops the chain, exports the highest validator's state and
-// restarts every validator as a new chain from that export.
+// exportAndRestart stops the chain, exports the highest validator's state (or
+// the state at exportAt) and restarts every validator as a new chain from that
+// export.
 //
 // The new chain starts at max(S, E) + 1 + restartHeightGap, where S is the
 // highest height in any validator's sign state and E the export height. Every
@@ -71,9 +76,13 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	}
 	s.Require().NoError(chain.Stop(ctx), "failed to stop the chain")
 
+	var exportArgs []string
+	if r.exportAt > 0 {
+		exportArgs = []string{"--height", strconv.FormatInt(r.exportAt, 10)}
+	}
 	var source *cosmos.ChainNode
 	for _, v := range chain.Validators {
-		exported := s.export(ctx, v)
+		exported := s.export(ctx, v, exportArgs...)
 		t.Logf("%s exported height %d", v.Name(), exported.InitialHeight-1)
 		if r.exported == nil || exported.InitialHeight > r.exported.InitialHeight {
 			r.exported, source = exported, v
@@ -83,7 +92,14 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 		}
 	}
 	r.exportHeight = r.exported.InitialHeight - 1
-	r.initialHeight = max(r.signedHeight, r.exportHeight) + 1 + restartHeightGap
+	if r.exportAt > 0 {
+		s.Require().Equal(r.exportAt, r.exportHeight, "export --height %d returned another height", r.exportAt)
+	}
+	minHeight := max(r.signedHeight, r.exportHeight) + 1
+	if r.initialHeight == 0 {
+		r.initialHeight = minHeight + restartHeightGap
+	}
+	s.Require().GreaterOrEqual(r.initialHeight, minHeight, "the new chain must start above every old height")
 
 	// An export below the last height must work too: it is the way back to a
 	// height before the bad state.
@@ -104,21 +120,27 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	s.Require().NoError(err)
 	s.validateGenesis(ctx, source, genesisBz)
 
+	// Validators join the new chain with the recovery script. It keeps the sign
+	// state, which forbids signing old heights again, and the tx index, which
+	// holds the events of packets sent before the halt.
+	genesisSum := sha256.Sum256(genesisBz)
 	for _, v := range chain.Validators {
-		s.Require().NoError(v.WriteFile(ctx, "config/genesis.json", genesisBz), "failed to write genesis on %s", v.Name())
-		// Keep the sign state, which forbids signing old heights again, and the
-		// tx index, which holds the events of packets sent before the halt.
-		wipe := fmt.Sprintf("find %s/data -mindepth 1 -maxdepth 1 ! -name priv_validator_state.json ! -name tx_index.db -exec rm -rf {} +", v.HomeDir())
-		_, stderr, err := v.Exec(ctx, []string{"sh", "-c", wipe}, nil)
-		s.Require().NoError(err, "failed to wipe data on %s: %s", v.Name(), stderr)
+		s.Require().NoError(writeRecoveryScript(ctx, v))
+		s.Require().NoError(v.WriteFile(ctx, "new-genesis.json", genesisBz), "failed to write genesis on %s", v.Name())
+		out, err := s.runRecoveryScript(ctx, v, "new-chain", "--setup", "none", "--home", v.HomeDir(),
+			"--genesis", v.HomeDir()+"/new-genesis.json", "--genesis-sha256", hex.EncodeToString(genesisSum[:]),
+			"--chain-id", genesis.ChainID)
+		t.Logf("recovery.sh new-chain on %s:\n%s", v.Name(), out)
+		s.Require().NoError(err, "recovery.sh new-chain failed on %s", v.Name())
 	}
 	if r.archive != nil {
 		s.isolateArchive(ctx, r.archive)
 	}
 	if r.newChainID != "" {
 		// Tastora signs with the chain-id of the node it broadcasts through.
+		// Full nodes keep the old one: tastora derives their hostnames from it.
 		chain.Config.ChainID = r.newChainID
-		for _, n := range chain.Nodes() {
+		for _, n := range chain.Validators {
 			n.ChainID = r.newChainID
 		}
 	}
@@ -130,6 +152,11 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 		return info.LatestBlockHeight > r.initialHeight+2
 	})
 	s.Require().NoError(err, "new chain did not produce blocks after height %d", r.initialHeight)
+	for _, v := range chain.Validators {
+		out, err := s.runRecoveryScript(ctx, v, "verify", "--rpc", "http://"+v.HostName()+":26657",
+			"--chain-id", genesis.ChainID, "--check-height", strconv.FormatInt(r.initialHeight+1, 10))
+		s.Require().NoError(err, "recovery.sh verify failed on %s: %s", v.Name(), out)
+	}
 
 	status, err := node.Client.Status(ctx)
 	s.Require().NoError(err)

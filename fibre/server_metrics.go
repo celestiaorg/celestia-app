@@ -68,6 +68,9 @@ type serverMetrics struct {
 	// Prune
 	pruneEntries  metric.Int64Counter
 	pruneDuration metric.Float64Histogram
+
+	// Transport
+	acceptTotal metric.Int64Counter
 }
 
 func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
@@ -250,6 +253,14 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating prune duration histogram: %w", err)
 	}
 
+	// Transport metrics
+	sm.acceptTotal, err = m.Int64Counter("fibre.server.accepts",
+		metric.WithDescription("Accepted connections by transport mode (plaintext or tls)"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating accept total counter: %w", err)
+	}
+
 	return &sm, nil
 }
 
@@ -268,6 +279,13 @@ func registerStoreBackendMetric(m metric.Meter, backend string, objectConfigured
 		return fmt.Errorf("creating store backend gauge: %w", err)
 	}
 	return nil
+}
+
+// observeAccept records an accepted connection by transport mode. Call it from
+// the grpc server credentials via [fibregrpc.WithAcceptObserver]. Under
+// force-TLS every accept is reported as TLS.
+func (m *serverMetrics) observeAccept(mode string) {
+	m.acceptTotal.Add(context.Background(), 1, metric.WithAttributes(attribute.String("mode", mode)))
 }
 
 // observeUploadShard records in-flight increment and returns a function that records

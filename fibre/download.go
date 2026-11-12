@@ -209,7 +209,7 @@ func (s *download) Blob(ctx context.Context) (blob *Blob, err error) {
 		return nil, err
 	}
 
-	if err := s.reconstruct(); err != nil {
+	if err := s.reconstruct(ctx); err != nil {
 		if s.dropInvalidRows(err) {
 			return nil, errRefetch
 		}
@@ -240,7 +240,15 @@ func (s *download) Blob(ctx context.Context) (blob *Blob, err error) {
 //   - K rows received → Reconstruct
 //   - 0 rows received → [ErrNotFound]
 //   - 0 < rows < K → [ErrNotEnoughShards]
-func (s *download) reconstruct() error {
+func (s *download) reconstruct(ctx context.Context) error {
+	if slots := s.cfg.reconstructSlots; slots != nil && s.reconstructor.Want() == 0 {
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	err := s.reconstructor.Reconstruct(s.rows)
 	if !errors.Is(err, rsema1d.ErrNotEnoughRows) {
 		return err
