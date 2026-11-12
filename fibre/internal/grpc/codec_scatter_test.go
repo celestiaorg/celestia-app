@@ -142,7 +142,24 @@ func TestScatterMarshalWireParity(t *testing.T) {
 				t.Fatalf("wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
 					len(canonical), canonical, len(scattered), scattered)
 			}
+			requireDownloadScatterParity(t, tc.req.Shard)
 		})
+	}
+}
+
+// requireDownloadScatterParity checks the download scatter marshaler against
+// gogoproto for a response carrying shard.
+func requireDownloadScatterParity(t *testing.T, shard *types.BlobShard) {
+	t.Helper()
+	resp := &types.DownloadShardResponse{Shard: shard}
+	canonical, err := resp.Marshal()
+	if err != nil {
+		t.Fatalf("canonical download marshal: %v", err)
+	}
+	scattered := marshalDownloadShardResponseScatter(resp).Materialize()
+	if !bytes.Equal(canonical, scattered) {
+		t.Fatalf("download wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
+			len(canonical), canonical, len(scattered), scattered)
 	}
 }
 
@@ -269,6 +286,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if got := scatterFramingSize(req); got != framing {
 			t.Fatalf("scatterFramingSize = %d, framing is %d bytes", got, framing)
 		}
+		requireDownloadScatterParity(t, req.Shard)
 	})
 }
 
@@ -286,24 +304,27 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
 
-	bs, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil)
+	upload, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, limit := len(bs), 2*rows+3; got > limit {
-		t.Fatalf("got %d buffers, want at most %d", got, limit)
-	}
-	var aliased int
-	for _, b := range bs {
-		d := b.ReadOnlyData()
-		for _, row := range shard.Rows {
-			if len(d) > 0 && &d[0] == &row.Data[0] {
-				aliased++
+	download := marshalDownloadShardResponseScatter(&types.DownloadShardResponse{Shard: shard})
+	for name, bs := range map[string]mem.BufferSlice{"upload": upload, "download": download} {
+		if got, limit := len(bs), 2*rows+3; got > limit {
+			t.Fatalf("%s: got %d buffers, want at most %d", name, got, limit)
+		}
+		var aliased int
+		for _, b := range bs {
+			d := b.ReadOnlyData()
+			for _, row := range shard.Rows {
+				if len(d) > 0 && &d[0] == &row.Data[0] {
+					aliased++
+				}
 			}
 		}
-	}
-	if aliased != rows {
-		t.Fatalf("%d row data buffers are views, want %d", aliased, rows)
+		if aliased != rows {
+			t.Fatalf("%s: %d row data buffers are views, want %d", name, aliased, rows)
+		}
 	}
 }
 
@@ -312,9 +333,10 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 // blobRowSize/blobShardSize, then this count.
 func TestScatterCodecCoversAllFields(t *testing.T) {
 	for typ, want := range map[reflect.Type]int{
-		reflect.TypeFor[types.UploadShardRequest](): 2,
-		reflect.TypeFor[types.BlobShard]():          2,
-		reflect.TypeFor[types.BlobRow]():            3,
+		reflect.TypeFor[types.UploadShardRequest]():    2,
+		reflect.TypeFor[types.DownloadShardResponse](): 1,
+		reflect.TypeFor[types.BlobShard]():             2,
+		reflect.TypeFor[types.BlobRow]():               3,
 	} {
 		if got := typ.NumField(); got != want {
 			t.Errorf("%s has %d fields, scatter codec handles %d", typ.Name(), got, want)

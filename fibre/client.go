@@ -86,17 +86,20 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("create state client: %w", err)
 	}
 
+	metrics, err := newClientMetrics(cfg.Meter)
+	if err != nil {
+		return nil, fmt.Errorf("creating metrics: %w", err)
+	}
+
 	// The default dialer is bound to this client's state client, so it stays
 	// out of the exported Config: a client built from a copied Config must
 	// dial through its own state client.
 	newClientFn := cfg.NewClientFn
 	if newClientFn == nil {
-		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
-	}
-
-	metrics, err := newClientMetrics(cfg.Meter)
-	if err != nil {
-		return nil, fmt.Errorf("creating metrics: %w", err)
+		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log,
+			fibregrpc.WithForceTLS(cfg.ForceTLS),
+			fibregrpc.WithDialObserver(metrics.observeDial),
+		)
 	}
 
 	return &Client{

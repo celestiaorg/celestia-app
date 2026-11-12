@@ -37,6 +37,15 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
+	// ForceTLS makes the client always dial validators over TLS and never
+	// probe plaintext HTTP/2. The default (false) probes plaintext first for
+	// throughput and falls back to TLS per host; set true to require TLS, e.g.
+	// to keep blob data confidential from on-path observers before its
+	// MsgPayForFibre inclusion.
+	// It applies only when [NewClientFn] is nil; a custom NewClientFn owns its
+	// transport and ignores this setting.
+	ForceTLS bool
+
 	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer
 	// (dial + RPC), and also the initial validator-set lookup against the
 	// celestia-app node (state.Head / state.GetByHeight), so a hung app node

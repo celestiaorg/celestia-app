@@ -42,50 +42,10 @@ func (s *CelestiaTestSuite) TestRollback() {
 	}
 
 	ctx := context.TODO()
-	// A retry runs in a new process with the same container and volume names, and
-	// a failed run can leave its volumes and host keyring copies behind, so the
-	// new full node would find the old keyring.
-	suiteName := strings.ReplaceAll(t.Name(), "/", "_")
-	s.removeLeftovers(ctx, suiteName+"-", "-"+suiteName)
-	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	// Write the validators' files before they start: WriteFile chowns the whole
-	// volume, which fails if a running node deletes a file mid-walk.
-	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).WithPostInit(prepareRollbackValidator).Build(ctx)
-	s.Require().NoError(err, "failed to get chain")
-
-	err = celestia.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
-
-	t.Cleanup(func() {
-		if err := celestia.Remove(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
-		}
-	})
-
-	// The full node never halts and is never rolled back; it serves the deleted blocks.
-	err = celestia.AddNode(ctx, cosmos.NewChainNodeConfigBuilder().
-		WithNodeType(tastoratypes.NodeTypeConsensusFull).
-		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			// Tastora enables REST, which requires the Cosmos SDK gRPC server.
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.GRPC.Enable = true
-			})
-		}).
-		Build())
-	s.Require().NoError(err, "failed to add full node")
-
+	celestia, fullNode, fullNodePeer := s.startRecoveryChain(ctx, dockerchain.DefaultConfig(s.client, s.network))
 	validators := celestia.Validators
-	fullNode := celestia.FullNodes[0]
 	allNodes := celestia.Nodes()
 
-	// Restarted validators get new IPs, so they must dial the full node themselves.
-	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
-	s.Require().NoError(err, "failed to get the full node peer address")
-
-	err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
-		return !info.CatchingUp && info.LatestBlockHeight > 0
-	})
-	s.Require().NoError(err, "full node failed to sync")
 	startHeight, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 
@@ -185,21 +145,62 @@ func (s *CelestiaTestSuite) TestRollback() {
 
 // prepareRollbackValidator writes recovery.sh to a validator and enables snapshots.
 func prepareRollbackValidator(ctx context.Context, node *cosmos.ChainNode) error {
-	// Operators may only have the image, so take the script from the binary.
-	script, _, err := node.Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
-	if err != nil {
-		return fmt.Errorf("failed to print the recovery script from the image: %w", err)
-	}
-	if !strings.Contains(string(script), "Usage: recovery.sh") {
-		return fmt.Errorf("unexpected recovery-script output: %s", script)
-	}
-	if err := node.WriteFile(ctx, "recovery.sh", script); err != nil {
-		return fmt.Errorf("failed to write the recovery script to %s: %w", node.Name(), err)
+	if err := writeRecoveryScript(ctx, node); err != nil {
+		return err
 	}
 	// A snapshot every 2 heights leaves one above the phase 2 target for the script to delete.
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
 		cfg.StateSync.SnapshotInterval = 2
 	})
+}
+
+// startRecoveryChain starts the validators with recovery.sh and snapshots, and a
+// full node that never halts, and returns the chain, the full node and its peer address.
+func (s *CelestiaTestSuite) startRecoveryChain(ctx context.Context, cfg *dockerchain.Config) (*cosmos.Chain, *cosmos.ChainNode, string) {
+	t := s.T()
+	// A retry runs in a new process with the same container and volume names, and
+	// a failed run can leave its volumes and host keyring copies behind, so the
+	// new full node would find the old keyring.
+	suiteName := strings.ReplaceAll(t.Name(), "/", "_")
+	s.removeLeftovers(ctx, suiteName+"-", "-"+suiteName)
+	// Write the validators' files before they start: WriteFile chowns the whole
+	// volume, which fails if a running node deletes a file mid-walk.
+	celestia, err := dockerchain.NewCelestiaChainBuilder(t, cfg).WithPostInit(prepareRollbackValidator).Build(ctx)
+	s.Require().NoError(err, "failed to get chain")
+
+	err = celestia.Start(ctx)
+	s.Require().NoError(err, "failed to start chain")
+
+	t.Cleanup(func() {
+		if err := celestia.Remove(ctx); err != nil {
+			t.Logf("Error stopping chain: %v", err)
+		}
+	})
+
+	// The full node never halts and is never rolled back; it serves the deleted blocks.
+	err = celestia.AddNode(ctx, cosmos.NewChainNodeConfigBuilder().
+		WithNodeType(tastoratypes.NodeTypeConsensusFull).
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			// Tastora enables REST, which requires the Cosmos SDK gRPC server.
+			// The validators' gas price lets transactions be sent through this node.
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				cfg.GRPC.Enable = true
+				cfg.MinGasPrices = "0.025utia"
+			})
+		}).
+		Build())
+	s.Require().NoError(err, "failed to add full node")
+
+	fullNode := celestia.FullNodes[0]
+	// Restarted validators get new IPs, so they must dial the full node themselves.
+	fullNodePeer, err := addressutil.BuildInternalPeerAddressList(ctx, []*cosmos.ChainNode{fullNode})
+	s.Require().NoError(err, "failed to get the full node peer address")
+
+	err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
+		return !info.CatchingUp && info.LatestBlockHeight > 0
+	})
+	s.Require().NoError(err, "full node failed to sync")
+	return celestia, fullNode, fullNodePeer
 }
 
 // armHaltHeight restarts the validators with a halt height above the full node's height and returns it.
@@ -423,6 +424,22 @@ func (s *CelestiaTestSuite) verifyAppHash(ctx context.Context, nodes cosmos.Chai
 		s.Require().NoError(err, "app hash check failed on %s", n.Name())
 		s.Require().Contains(out, fmt.Sprintf("app hash at height %d matches", height))
 	}
+}
+
+// writeRecoveryScript writes recovery.sh to the node home.
+func writeRecoveryScript(ctx context.Context, node *cosmos.ChainNode) error {
+	// Operators may only have the image, so take the script from the binary.
+	script, _, err := node.Exec(ctx, []string{"celestia-appd", "recovery-script"}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to print the recovery script from the image: %w", err)
+	}
+	if !strings.Contains(string(script), "Usage: recovery.sh") {
+		return fmt.Errorf("unexpected recovery-script output: %s", script)
+	}
+	if err := node.WriteFile(ctx, "recovery.sh", script); err != nil {
+		return fmt.Errorf("failed to write the recovery script to %s: %w", node.Name(), err)
+	}
+	return nil
 }
 
 // runRecoveryScript runs recovery.sh from the node home in a one-off container and returns stdout and stderr combined.
