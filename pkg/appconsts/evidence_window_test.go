@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// maxAssumedBlockTime is the upper bound of the measured v11 average block
-// times (0.85-1.2s on the geo100 run) that MaxAgeNumBlocks is derived from.
+// maxAssumedBlockTime is the upper bound of the v11 average block time that
+// MaxAgeNumBlocks is derived from.
 const maxAssumedBlockTime = 1200 * time.Millisecond
 
 // TestEvidenceWindowWithinUnbonding guards that the block-based evidence window
