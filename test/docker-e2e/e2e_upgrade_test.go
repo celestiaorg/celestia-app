@@ -178,6 +178,8 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 		}
 	})
 
+	s.startConsistencyMonitor(ctx, chain.Nodes())
+
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
 	testBankSend(s.T(), chain, cfg)
@@ -273,6 +275,7 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 		return nil
 	})
 	s.Require().NoError(err)
+	s.startConsistencyMonitor(ctx, chain.Nodes())
 
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
