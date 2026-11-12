@@ -415,8 +415,10 @@ func (s *CelestiaTestSuite) recoveryRollback(ctx context.Context, node *cosmos.C
 	return out
 }
 
-// verifyAppHash checks with the recovery script that each node has the full node's app hash at height.
+// verifyAppHash checks that the nodes and the full node agree on the app hash
+// and block hash at height, then checks the same app hash with the recovery script.
 func (s *CelestiaTestSuite) verifyAppHash(ctx context.Context, nodes cosmos.ChainNodes, fullNode *cosmos.ChainNode, height int64) {
+	s.requireAgreement(ctx, append(cosmos.ChainNodes{fullNode}, nodes...), height)
 	appHash := s.block(ctx, fullNode, height).Block.AppHash.String()
 	for _, n := range nodes {
 		out, err := s.runRecoveryScript(ctx, n, "verify", "--rpc", "http://"+n.HostName()+":26657",
