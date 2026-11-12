@@ -58,7 +58,8 @@ func (s *CelestiaTestSuite) requireAgreement(ctx context.Context, nodes cosmos.C
 
 // startConsistencyMonitor checks, until the test ends, that the nodes agree
 // on the app hash and block hash of every height and that the chain does not
-// stall. Use it only while no node is meant to halt or roll back.
+// stall. It also fails when a node does not answer for monitorStallTimeout.
+// Use it only while no node is meant to halt, roll back or stay down.
 func (s *CelestiaTestSuite) startConsistencyMonitor(ctx context.Context, nodes cosmos.ChainNodes) {
 	m := internal.StartMonitor(ctx, rpcNodes(nodes), internal.MonitorConfig{
 		Interval:     monitorInterval,
