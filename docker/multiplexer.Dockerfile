@@ -4,8 +4,8 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine
-ARG RUNTIME_IMAGE=docker.io/alpine:3.22
+ARG BUILDER_IMAGE=docker.io/golang:1.26.11-alpine3.24
+ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 ARG TARGETOS
 ARG TARGETARCH
 # the docker registry used for the embedded v3 binary.
@@ -45,22 +45,26 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V9} AS base-v9
 # Stage 1h: this base image contains already released v10 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V10} AS base-v10
 
+# xx cross-compiles the cgo build for the target platform without emulation.
+FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx:1.10.0@sha256:40fe21f44bb8cddf1eb1226db190d0a984118f62ee02a91b77d99448d28264a6 AS xx
+
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+# xx is a set of helper scripts meant to be copied over the root filesystem.
+# hadolint ignore=DL3067
+COPY --from=xx / /
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
-    gcc \
+    clang \
     git \
-    # linux-headers are needed for Ledger support
-    linux-headers \
-    make \
-    musl-dev
+    lld \
+    make
 
 WORKDIR /celestia-app
 
@@ -74,6 +78,7 @@ COPY . .
 
 # Declare the target platform only after the steps that do not depend on it, so
 # the builds for each platform share those layers instead of each storing a copy.
+ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -97,10 +102,19 @@ RUN --mount=type=bind,from=base-v3,source=/bin/celestia-appd,target=/tmp/celesti
         tar -cvzf "internal/embedding/celestia-app_${TARGETOS}_v${v}_${TARGETARCH}.tar.gz" "/tmp/celestia-appd-v${v}" || exit 1; \
     done
 
+# The C toolchain for the target platform; linux-headers are needed for Ledger support.
+# hadolint ignore=DL3018
+RUN xx-apk add --no-cache gcc linux-headers musl-dev
+
+# xx-go --wrap cross-compiles for TARGETPLATFORM with the target's C toolchain. STATIC=true links
+# musl in, so the binary runs outside this image; the grep fails a build without cgo.
 # Remove the Go build cache in the same layer so it is not kept for each platform.
-RUN uname -a &&\
-    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make -o mod build DOWNLOAD=false && \
+# hadolint ignore=DL4006
+RUN uname -a && \
+    xx-go --wrap && \
+    make -o mod build DOWNLOAD=false STATIC=true && \
+    xx-verify --static build/celestia-appd && \
+    go version -m build/celestia-appd | grep -q CGO_ENABLED=1 && \
     go clean -cache
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
