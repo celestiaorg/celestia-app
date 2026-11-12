@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"cosmossdk.io/core/appmodule"
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
@@ -65,6 +66,8 @@ type Options struct {
 	InitialHeight int64
 	// ChainID is the output chain-id; empty keeps the export's.
 	ChainID string
+	// AcceptMintExcess acknowledges a positive mint excess and must equal it exactly; nil means none.
+	AcceptMintExcess math.LegacyDec
 }
 
 // CheckError reports the first failed check.
