@@ -21,13 +21,13 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/aws/aws-sdk-go-v2 v1.47.3
-	github.com/aws/aws-sdk-go-v2/config v1.33.9
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
+	github.com/aws/aws-sdk-go-v2 v1.47.5
+	github.com/aws/aws-sdk-go-v2/config v1.33.13
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.18
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.340.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.4
-	github.com/aws/smithy-go v1.28.6
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
+	github.com/aws/smithy-go v1.28.7
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
@@ -89,7 +89,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.1
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
 	google.golang.org/api v0.307.0
@@ -152,19 +152,19 @@ require (
 	github.com/ashanbrown/forbidigo/v2 v2.3.0 // indirect
 	github.com/ashanbrown/makezero/v2 v2.1.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.23 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.21 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.10.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.38.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.51.4 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.25 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.8 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.8 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.23 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.12.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.39.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.51.6 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -361,11 +361,12 @@ require (
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.22.0 // indirect
 	github.com/oklog/run v1.1.0 // indirect
+	github.com/pandatix/go-abnf v0.5.3 // indirect
 	github.com/petermattis/goid v0.0.0-20250813065127-a731cc31b4fe // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.72.0 // indirect
+	github.com/prometheus/common v0.73.1 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23 // indirect
@@ -471,7 +472,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.4
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.9
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc0
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.2
 	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.3
