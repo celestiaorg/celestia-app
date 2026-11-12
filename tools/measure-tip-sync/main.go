@@ -21,7 +21,7 @@ const (
 	dropletSize = "c2-16vcpu-32gb"
 	region      = "nyc3"
 	repoURL     = "https://github.com/celestiaorg/celestia-app.git"
-	goVersion   = "1.26.10"
+	goVersion   = "1.26.11"
 )
 
 func main() {

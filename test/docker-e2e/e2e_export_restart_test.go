@@ -140,6 +140,8 @@ func (s *IBCTestSuite) celestiaClientID(ctx context.Context) string {
 
 // hermesExec runs a one-shot hermes command next to the stopped relayer.
 func (s *IBCTestSuite) hermesExec(ctx context.Context, args ...string) string {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	stdout, stderr, err := s.hermes.Exec(ctx, s.logger, append([]string{"hermes", "--json"}, args...), nil)
 	s.Require().NoError(err, "hermes %v failed: %s%s", args, stdout, stderr)
 	return string(stdout)
@@ -259,6 +261,12 @@ func (s *IBCTestSuite) recoverClientByGovernance(ctx context.Context, subject, s
 
 // submitTransfer sends utia from Celestia to simapp without waiting for delivery.
 func (s *IBCTestSuite) submitTransfer(ctx context.Context, amount sdkmath.Int) {
+	s.sendTransfer(ctx, amount, time.Now().Add(time.Hour))
+}
+
+// sendTransfer sends utia from Celestia to simapp with the given timeout
+// without waiting for delivery.
+func (s *IBCTestSuite) sendTransfer(ctx context.Context, amount sdkmath.Int, timeout time.Time) *user.TxResponse {
 	msg := ibctransfertypes.NewMsgTransfer(
 		s.transferChannel.PortID,
 		s.transferChannel.ChannelID,
@@ -266,15 +274,17 @@ func (s *IBCTestSuite) submitTransfer(ctx context.Context, amount sdkmath.Int) {
 		s.chainA.GetFaucetWallet().GetFormattedAddress(),
 		s.chainB.GetFaucetWallet().GetFormattedAddress(),
 		clienttypes.ZeroHeight(),
-		uint64(time.Now().Add(time.Hour).UnixNano()),
+		uint64(timeout.UnixNano()),
 		"",
 	)
 	resp, err := s.celestiaTxClient.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimit(200000), user.SetFee(5000))
-	s.Require().NoError(err, "failed to submit the pending transfer")
-	s.Require().Equal(uint32(0), resp.Code, "pending transfer failed")
+	s.Require().NoError(err, "failed to submit the transfer")
+	s.Require().Equal(uint32(0), resp.Code, "transfer failed")
+	return resp
 }
 
 // ibcBalances returns the Celestia balances an IBC transfer or an ICA can move.
+// An empty icaAddress leaves out the ICA.
 func (s *IBCTestSuite) ibcBalances(ctx context.Context, icaAddress string) map[string]string {
 	conn := s.chainA.GetNode().GrpcConn
 	faucet := s.chainA.GetFaucetWallet().GetFormattedAddress()
@@ -283,13 +293,16 @@ func (s *IBCTestSuite) ibcBalances(ctx context.Context, icaAddress string) map[s
 
 	total, err := ibctransfertypes.NewQueryClient(conn).TotalEscrowForDenom(ctx, &ibctransfertypes.QueryTotalEscrowForDenomRequest{Denom: "utia"})
 	s.Require().NoError(err, "failed to query total escrow")
-	return map[string]string{
+	balances := map[string]string{
 		"faucet utia":          s.getBalance(ctx, s.chainA, faucet, "utia").String(),
 		"faucet stake voucher": s.getBalance(ctx, s.chainA, faucet, stakeVoucher).String(),
-		"ica utia":             s.getBalance(ctx, s.chainA, icaAddress, "utia").String(),
 		"escrow utia":          s.getBalance(ctx, s.chainA, escrow, "utia").String(),
 		"total escrow utia":    total.Amount.String(),
 	}
+	if icaAddress != "" {
+		balances["ica utia"] = s.getBalance(ctx, s.chainA, icaAddress, "utia").String()
+	}
+	return balances
 }
 
 // requireCelestiaClientActive checks that simapp's client of Celestia is active.

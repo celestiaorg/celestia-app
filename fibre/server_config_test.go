@@ -132,6 +132,19 @@ func TestServerConfigLegacyMaxConnectionsLoads(t *testing.T) {
 	require.NoError(t, loaded.Validate())
 }
 
+func TestServerConfigForceTLS(t *testing.T) {
+	cfg := DefaultServerConfig()
+	assert.False(t, cfg.ForceTLS, "plaintext-first is the default")
+
+	home := t.TempDir()
+	configPath := DefaultConfigPath(home)
+	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
+	require.NoError(t, os.WriteFile(configPath, []byte("force_tls = true\n"), 0o644))
+
+	require.NoError(t, cfg.Load(configPath))
+	assert.True(t, cfg.ForceTLS, "force_tls from the config file must reach the server config")
+}
+
 func TestServerConfigValidateNoSigner(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.Path = t.TempDir()
