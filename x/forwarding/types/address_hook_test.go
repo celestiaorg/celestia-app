@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v11/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/stretchr/testify/require"
 )

@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v10/app/params"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cosmos/cosmos-sdk/client"

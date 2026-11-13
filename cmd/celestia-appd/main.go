@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 )
 

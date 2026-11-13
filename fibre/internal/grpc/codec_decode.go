@@ -3,7 +3,7 @@ package grpc
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 )
 
 // validateUploadShard rejects requests with too many rows or proof segments

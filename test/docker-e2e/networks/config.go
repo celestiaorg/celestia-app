@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 )
 
 // Config holds the configuration for connecting to an existing live chain

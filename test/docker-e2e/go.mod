@@ -5,7 +5,7 @@ go 1.26.10
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
-	github.com/celestiaorg/celestia-app/v10 v10.0.0-rc0
+	github.com/celestiaorg/celestia-app/v11 v11.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.1
 	github.com/celestiaorg/tastora v0.21.1
@@ -296,7 +296,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.3
-	github.com/celestiaorg/celestia-app/v10 => ../..
+	github.com/celestiaorg/celestia-app/v11 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.8
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.12
 	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2

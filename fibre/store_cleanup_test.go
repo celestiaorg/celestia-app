@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs/errorfs"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
