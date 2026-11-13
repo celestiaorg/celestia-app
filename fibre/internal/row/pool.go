@@ -1,30 +1,28 @@
-// Package row provides a bucketed allocator of fixed-shape row slabs.
+// Package row allocates row buffers for the Fibre codec.
 //
-// A slab is the indivisible allocation unit: rowCount rows of rowSize
-// bytes each. A Get(rowCount, rowSize) is served from the exact bucket
-// or from a larger-rowSize bucket within a slack window on the same
-// rowCount — never smaller. Failing both, a new slab is allocated at
-// the exact requested key.
+// Each Alloc returns one slab, a contiguous region that [Pool.Get] carves
+// into rows. Slabs of at least [MmapThreshold] bytes are mmap'd (off the Go
+// heap, advised for transparent huge pages); smaller ones come from the Go
+// heap.
 //
-// Retention is demand-driven: each bucket has a generation counter that
-// advances on every Get to that bucket. A free slab becomes evictable
-// once bucket.gen exceeds its lastPut by evictionThreshold. When a
-// bucket goes fully idle (no in-use slabs), an independent per-bucket
-// idle timer arms and drops that bucket's free slabs after idleGrace
-// if no Get arrives.
+// Returned slabs go to one process-wide free list, so a steady stream of blobs
+// reuses memory that is already faulted in instead of having the kernel zero
+// hundreds of MiB of fresh pages per blob. The list is bounded three ways:
 //
-// Contract: buffers from [Pool.Get] must be returned together via
-// [Pool.Put] to the same Pool that issued them; callers must not
-// re-slice or split across calls. Put validates a back-pointer embedded
-// in each slab's region and panics on double-free or already-released
-// slabs. Passing buffers from a different Pool instance is undefined
-// behavior. A pointer whose backing array lies near the start of a page
-// can fault when Put reads the header below it, so callers must not
-// pass buffers this pool never allocated.
+//   - an Alloc reuses the smallest free slab that fits and is at most twice the
+//     request, so a small request never pins a much larger slab;
+//   - free slabs total at most maxFreeBytes, oldest released first;
+//   - a free slab unused for idleTTL is released.
+//
+// Contract: return every slab exactly once, by passing the buffer Alloc
+// returned to Free or the rows Get returned to Put. Both panic on a buffer
+// that is not an in-use slab, such as a double free.
 package row
 
 import (
 	"fmt"
+	"log/slog"
+	"slices"
 	"sync"
 	"time"
 	"unsafe"
@@ -33,82 +31,61 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
-// Structural constants — invariants of the memory layout, not tuning knobs.
 const (
-	// rowSizeAlign is the quantum for both rowSize and the minimum
-	// accepted rowSize; matches the Leopard chunk size that the underlying
-	// SIMD GF(2^16) kernels require.
+	// rowSizeAlign is the row size quantum: the Leopard chunk size the SIMD
+	// GF(2^16) kernels require, which also keeps every carved row 64-byte
+	// aligned.
 	rowSizeAlign = field.LeopardChunkSize
 
-	// headerSize prefixes every slab's backing region. Sized to keep
-	// data 64-byte (SIMD) aligned; the first word is a back-pointer to
-	// the owning *slab, used by Put to recover it from a carved buffer.
-	headerSize = 64
+	// maxWaste bounds how much larger than the request a reused slab may be.
+	maxWaste = 2
+
+	// MmapThreshold is the smallest slab mmap'd instead of taken from the Go
+	// heap, where GOGC's pacer would count the codec's large buffers twice.
+	MmapThreshold = 1 << 20
+
+	// maxFreeBytes caps the memory held in free slabs, a few codec slabs. A
+	// miss only costs a fresh mapping (page faults and kernel zeroing, ~25 µs
+	// per MiB with huge pages on Graviton4), while a larger cap carries one
+	// burst's peak into the next. 1 GiB cost 1-2% throughput in CPU-bound
+	// gateway load; 2 GiB did not.
+	maxFreeBytes = 2 << 30
+
+	// idleTTL is how long a free slab is kept without reuse. Under load a
+	// slab is reused within milliseconds; one idle this long is surplus.
+	idleTTL = 2 * time.Second
 )
 
-// Pool tunables — safe to adjust, governed by workload characteristics.
-const (
-	// slack: max number of rowSizeAlign slot steps above the exact match
-	// a free slab may occupy for upward fallback. Waste per reused slab
-	// is slack*rowSizeAlign*rowCount bytes — constant per row, so safe to
-	// apply at any rowSize. With defaults and Celestia's shape: ≤1.5 MiB
-	// on the assembler slab, ≤4 MiB on the codec-work slab (~5.5MiB total)
-	slack = 2
+// slabs is the free list every caller shares, so memory freed by one stage
+// (parity, codec work, downloads) can serve another and the bounds above hold
+// for the process as a whole.
+var slabs = newAllocator()
 
-	// evictionThreshold: generation ticks a free slab must age through
-	// before becoming evictable.
-	evictionThreshold = 4
+// Alloc returns size contiguous bytes of one slab. size must be positive.
+// Release the buffer with [Free]. Safe for concurrent use.
+func Alloc(size int) []byte {
+	if size <= 0 {
+		panic(fmt.Sprintf("row: size %d must be positive", size))
+	}
+	return slabs.get(size)
+}
 
-	// idleGrace: wait after a bucket goes fully idle before its free
-	// slabs are dropped.
-	idleGrace = 30 * time.Second
+// Free returns the slab behind buf, as returned by [Alloc].
+func Free(buf []byte) {
+	slabs.put(buf)
+}
 
-	// mmapThreshold: minimum slab size routed through mmap instead of
-	// the Go heap. Above this, allocations stay invisible to GOGC's
-	// heap-doubling pacer so the codec's multi-MiB work buffers don't
-	// trigger OOMs.
-	mmapThreshold = 1 << 20 // 1 MiB
-)
-
-// Pool is a bucketed allocator of fixed-shape row slabs for a single
-// row count. Callers needing multiple row counts construct one Pool
-// each.
+// Pool hands out slabs of rowCount rows of up to maxRowSize bytes. It only
+// checks request shapes; storage comes from the shared free list.
 //
-// Buckets live by-value in a flat slice indexed by rowSize/64 - 1, so
-// exact lookup is a single index. Concurrency is bucket-local: Pool's
-// own state is fixed at [NewPool] and never mutates; each bucket carries
-// its own mutex and idle-drop timer. Disjoint buckets serve Get/Put in
-// parallel.
-//
-// O(1) for both Put and Get. Safe for concurrent use.
-// Implements [reedsolomon.WorkAllocator].
+// Safe for concurrent use. Implements [reedsolomon.WorkAllocator].
 type Pool struct {
 	rowCount   int
 	maxRowSize int
-
-	// buckets[sizeIdx] is the bucket for rowSize (sizeIdx+1)*rowSizeAlign.
-	buckets []bucket
 }
 
-// bucket holds free and in-use slabs for one (rowCount, rowSize)
-// pair. Every state mutation is serialized by the embedded mutex.
-//
-// free is a FIFO by release time: reuse pops the back (LIFO warmth),
-// aged eviction pops the front (oldest first). used anchors live
-// in-use slabs on the Go heap — the header back-pointer inside a
-// (possibly mmap'd) region is invisible to GC, so a Go-heap reference
-// must outlive the slab. idleTimer arms when used goes empty and
-// drops free slabs after idleGrace if no Get arrives.
-type bucket struct {
-	sync.Mutex
-
-	gen        uint64
-	free, used []*slab
-	idleTimer  *time.Timer
-}
-
-// NewPool creates a Pool serving the given rowCount. maxRowSize must
-// be a positive multiple of 64; rowCount must be positive.
+// NewPool returns a Pool for rowCount rows of up to maxRowSize bytes.
+// maxRowSize must be a positive multiple of 64; rowCount must be positive.
 func NewPool(maxRowSize, rowCount int) *Pool {
 	if maxRowSize < rowSizeAlign || maxRowSize%rowSizeAlign != 0 {
 		panic(fmt.Sprintf("row: maxRowSize %d must be a positive multiple of %d", maxRowSize, rowSizeAlign))
@@ -116,295 +93,172 @@ func NewPool(maxRowSize, rowCount int) *Pool {
 	if rowCount <= 0 {
 		panic(fmt.Sprintf("row: rowCount %d must be positive", rowCount))
 	}
-	return &Pool{
-		rowCount:   rowCount,
-		maxRowSize: maxRowSize,
-		buckets:    make([]bucket, maxRowSize/rowSizeAlign),
-	}
+	return &Pool{rowCount: rowCount, maxRowSize: maxRowSize}
 }
 
-// Get returns n buffers of size bytes each, carved from one slab.
-// n must equal the pool's rowCount; size must be a positive multiple
-// of 64 in [64, maxRowSize]. Violations panic.
+// Get returns n rows of size bytes each, carved from one slab. n must equal
+// the pool's rowCount; size must be a positive multiple of 64 no larger than
+// maxRowSize. Violations panic. Each row's capacity is clamped to its length.
 func (p *Pool) Get(n, size int) [][]byte {
-	return p.acquire(n, size).carve(n, size)
-}
-
-// GetRegion returns the n*size contiguous bytes of a slab's data region
-// without allocating the per-row [][]byte view that [Pool.Get] does.
-// The returned slice aliases pool memory and is released when passed
-// to [Pool.PutRegion] (or any one of its derived per-row sub-slices
-// passed to [Pool.Put]).
-func (p *Pool) GetRegion(n, size int) []byte {
-	s := p.acquire(n, size)
-	return s.region[headerSize : headerSize+n*size]
-}
-
-// acquire reserves a slab sized for n rows of size bytes — recycling from
-// the bucket's free list when available, allocating fresh otherwise.
-func (p *Pool) acquire(n, size int) *slab {
 	if n != p.rowCount {
 		panic(fmt.Sprintf("row: rowCount %d does not match pool's %d", n, p.rowCount))
 	}
 	if size < rowSizeAlign || size > p.maxRowSize || size%rowSizeAlign != 0 {
 		panic(fmt.Sprintf("row: size %d invalid (want positive multiple of %d, <= %d)", size, rowSizeAlign, p.maxRowSize))
 	}
-
-	bk, s := p.pop(size)
-	if s == nil {
-		s = bk.new(n * size)
+	region := Alloc(n * size)
+	rows := make([][]byte, n)
+	for i := range rows {
+		rows[i] = region[i*size : (i+1)*size : (i+1)*size]
 	}
-	return s
+	return rows
 }
 
-// Put returns the slab backing bufs to its owning bucket. Panics on
-// empty bufs, an already-released slab, or a double-free. Passing
-// bufs from a different Pool is undefined behavior.
-func (p *Pool) Put(bufs [][]byte) {
-	if len(bufs) == 0 {
+// Put returns the slab behind rows, as returned by [Pool.Get].
+func (p *Pool) Put(rows [][]byte) {
+	if len(rows) == 0 {
 		panic("row: Put called with empty bufs")
 	}
-	p.putBuf(bufs[0])
+	Free(rows[0])
 }
 
-// PutRegion returns the slab backing a contiguous region (such as the one
-// returned by [Pool.GetRegion]) to its owning bucket.
-func (p *Pool) PutRegion(region []byte) {
-	p.putBuf(region)
+// allocator is the free list behind [Alloc] and every Pool.
+type allocator struct {
+	mu sync.Mutex
+	// inUse maps a slab's first byte to the whole slab: callers see only the
+	// size they asked for, and put must reject anything else (double frees).
+	inUse     map[*byte]slab
+	free      []slab // oldest first
+	freeBytes int64
+	trimmer   sync.Once
+	done      chan struct{} // closed by stop
+
+	maxFree int64         // maxFreeBytes outside tests
+	ttl     time.Duration // idleTTL outside tests
 }
 
-func (p *Pool) putBuf(buf []byte) {
-	b := slabFromBuf(buf)
-	if b == nil {
-		panic("row: Put called with empty buffer")
-	}
-	b.bucket.put(b)
+type slab struct {
+	buf     []byte
+	mmapped bool      // release must munmap it
+	since   time.Time // when freed
 }
 
-// Slabs returns the total count of live slabs (in-use plus free)
-// across all buckets. For tests and observability; locks each bucket
-// briefly.
-func (p *Pool) Slabs() int {
-	n := 0
-	for i := range p.buckets {
-		bk := &p.buckets[i]
-		bk.Lock()
-		n += len(bk.used) + len(bk.free)
-		bk.Unlock()
-	}
-	return n
+func newAllocator() *allocator {
+	return &allocator{inUse: make(map[*byte]slab), done: make(chan struct{}), maxFree: maxFreeBytes, ttl: idleTTL}
 }
 
-// pop walks size's exact bucket up through the slack window and tries
-// to recycle a free slab. Returns (bk, slab) for the first hit, or
-// (exact bucket, nil) on a clean miss for the caller's slow-path
-// [bucket.new].
-func (p *Pool) pop(size int) (*bucket, *slab) {
-	sizeIdx := size/rowSizeAlign - 1
-	maxIdx := min(sizeIdx+slack, len(p.buckets)-1)
-	for i := sizeIdx; i <= maxIdx; i++ {
-		bk := &p.buckets[i]
-		if s := bk.pop(); s != nil {
-			return bk, s
+// get returns size bytes from the smallest free slab that fits within
+// maxWaste, or from a new slab.
+func (a *allocator) get(size int) []byte {
+	a.mu.Lock()
+	best := -1
+	for i, f := range a.free {
+		if c := len(f.buf); c >= size && c <= maxWaste*size && (best < 0 || c <= len(a.free[best].buf)) {
+			best = i // <= prefers the most recently freed among equal sizes
 		}
 	}
-	return &p.buckets[sizeIdx], nil
+	var s slab
+	if best >= 0 {
+		s = a.free[best]
+		a.free = slices.Delete(a.free, best, best+1)
+		a.freeBytes -= int64(len(s.buf))
+		a.inUse[unsafe.SliceData(s.buf)] = s
+	}
+	a.mu.Unlock()
+
+	if s.buf == nil {
+		s = alloc(size) // outside the lock: mapping MiBs is slow
+		a.mu.Lock()
+		a.inUse[unsafe.SliceData(s.buf)] = s
+		a.mu.Unlock()
+	}
+	return s.buf[:size:size]
 }
 
-// new allocates a fresh slab at bk's exact key and adopts it directly
-// into bk.used. alloc runs outside the lock — a multi-MiB mmap would
-// dominate Get p95 if held across it.
-func (bk *bucket) new(dataSize int) *slab {
-	region, free := alloc(headerSize + dataSize)
-
-	bk.Lock()
-	defer bk.Unlock()
-
-	s := &slab{
-		bucket: bk,
-		region: region,
-		free:   free,
+// put moves the slab starting at buf to the free list and releases whatever
+// the bounds no longer allow.
+func (a *allocator) put(buf []byte) {
+	if cap(buf) == 0 {
+		panic("row: Put called with empty buffer")
 	}
-	writeSlabPtr(region, s)
-	bk.use(s)
-	return s
+	key := unsafe.SliceData(buf)
+	now := time.Now()
+
+	a.mu.Lock()
+	s, ok := a.inUse[key]
+	if !ok {
+		a.mu.Unlock()
+		panic("row: Put called with a buffer that is not an in-use slab (double free?)")
+	}
+	delete(a.inUse, key)
+	s.since = now
+	a.free = append(a.free, s)
+	a.freeBytes += int64(len(s.buf))
+	expired := a.trimLocked(now)
+	a.mu.Unlock()
+
+	release(expired)
+	a.trimmer.Do(func() { go a.trimLoop() })
 }
 
-// put hands b back to bk. The bk.used[b.usedIdx] == b identity check
-// catches double-free and stale references in one shot. Arms the idle
-// timer when used goes empty.
-func (bk *bucket) put(b *slab) {
-	bk.Lock()
-	defer bk.Unlock()
-
-	if b.usedIdx >= len(bk.used) || bk.used[b.usedIdx] != b {
-		panic("row: Put called with released or already-freed slab")
-	}
-
-	// swap-delete from bk.used.
-	last := len(bk.used) - 1
-	if b.usedIdx != last {
-		moved := bk.used[last]
-		bk.used[b.usedIdx] = moved
-		moved.usedIdx = b.usedIdx
-	}
-	bk.used[last] = nil
-	bk.used = bk.used[:last]
-
-	b.lastPut = bk.gen
-	bk.free = append(bk.free, b)
-
-	if len(bk.used) == 0 {
-		bk.armIdle()
+// trimLoop releases idle slabs when no Put arrives to do it, until stop.
+func (a *allocator) trimLoop() {
+	tick := time.NewTicker(a.ttl / 2)
+	defer tick.Stop()
+	for {
+		select {
+		case now := <-tick.C:
+			a.mu.Lock()
+			expired := a.trimLocked(now)
+			a.mu.Unlock()
+			release(expired)
+		case <-a.done:
+			return
+		}
 	}
 }
 
-// pop dequeues the most recently freed slab (LIFO) and adopts it into
-// bk.used. Returns nil if bk.free is empty.
-func (bk *bucket) pop() *slab {
-	bk.Lock()
-	defer bk.Unlock()
+// stop ends trimLoop. Tests call it on private allocators.
+func (a *allocator) stop() {
+	close(a.done)
+}
 
-	n := len(bk.free)
+// trimLocked removes free slabs idle for a.ttl or over a.maxFree bytes,
+// oldest first, and returns them for release outside the lock.
+func (a *allocator) trimLocked(now time.Time) []slab {
+	n := 0
+	for n < len(a.free) && (a.freeBytes > a.maxFree || now.Sub(a.free[n].since) >= a.ttl) {
+		a.freeBytes -= int64(len(a.free[n].buf))
+		n++
+	}
 	if n == 0 {
 		return nil
 	}
-	s := bk.free[n-1]
-	bk.free[n-1] = nil
-	bk.free = bk.free[:n-1]
-
-	bk.use(s)
-	return s
+	expired := slices.Clone(a.free[:n])
+	a.free = slices.Delete(a.free, 0, n)
+	return expired
 }
 
-// use cancels the idle timer, advances generation, runs aged eviction,
-// and links s into bk.used. Caller holds bk.mu. Invoked from both the
-// recycle path ([bucket.pop]) and the fresh-alloc path ([bucket.new]).
-func (bk *bucket) use(s *slab) {
-	bk.cancelIdle()
-	bk.gen++
-	bk.evict()
-
-	s.usedIdx = len(bk.used)
-	bk.used = append(bk.used, s)
-}
-
-// evict drops the oldest free slab if it has aged past
-// evictionThreshold. At most one per call. Caller holds bk.mu.
-func (bk *bucket) evict() {
-	if len(bk.free) == 0 {
-		return
+// alloc returns a new 64-byte aligned slab of at least size bytes: mmap'd
+// at or above MmapThreshold, from the Go heap below it or when mmap fails.
+func alloc(size int) slab {
+	if !disableMmap && size >= MmapThreshold {
+		buf, err := mmapAlloc(size)
+		if err == nil {
+			return slab{buf: buf, mmapped: true}
+		}
+		slog.Warn("row: mmap failed, using the Go heap", "size", size, "err", err)
 	}
-
-	oldest := bk.free[0]
-	if bk.gen-oldest.lastPut < evictionThreshold {
-		return
-	}
-
-	oldest.free(oldest.region)
-	bk.free[0] = nil // drop the backing-array reference before reslicing
-	bk.free = bk.free[1:]
+	return slab{buf: reedsolomon.AllocAligned(1, size)[0]}
 }
 
-// armIdle schedules a per-bucket drop after idleGrace. Lazily creates
-// the timer on first arm and reuses via Reset afterwards. Reset is
-// safe without a preceding Stop: cancelIdle/dropIdle leave the timer
-// stopped or expired before any subsequent arm. Caller holds bk.mu.
-func (bk *bucket) armIdle() {
-	if bk.idleTimer == nil {
-		bk.idleTimer = time.AfterFunc(idleGrace, bk.dropIdle)
-		return
-	}
-
-	bk.idleTimer.Reset(idleGrace)
-}
-
-// cancelIdle stops the idle-drop timer if armed. Caller holds bk.mu.
-func (bk *bucket) cancelIdle() {
-	if bk.idleTimer != nil {
-		bk.idleTimer.Stop()
-	}
-}
-
-// dropIdle is the idle-timer callback: drops bk's free slabs if bk
-// is still fully idle when it fires. Leaves idleTimer non-nil so the
-// next armIdle reuses it via Reset.
-func (bk *bucket) dropIdle() {
-	bk.Lock()
-	defer bk.Unlock()
-
-	if len(bk.used) != 0 {
-		return
-	}
-
-	for _, b := range bk.free {
-		b.free(b.region)
-	}
-	bk.free = nil
-}
-
-// slab's backing region is laid out as
-//
-//	[ header (headerSize bytes) | data (rowSize * rowCount bytes) ]
-//
-// The first word of the header stores a back-pointer to this *slab so
-// Put can recover it from any carved buffer by subtracting headerSize.
-type slab struct {
-	bucket *bucket
-
-	region []byte       // full backing region including the header
-	free   func([]byte) // releases region; mmapFree for off-heap, noopFree for Go-heap
-
-	lastPut uint64
-	usedIdx int // index in bucket.used; updated on swap-delete
-}
-
-// slabFromBuf recovers the owning *slab by reading the back-pointer
-// stored headerSize bytes below the buffer's base. Symmetric with
-// writeSlabPtr. A buffer whose backing array begins within headerSize
-// of a page start can fault here — contract forbids passing such buffers.
-//
-// Recovery is cap-based, not len-based: a carved buffer re-sliced to
-// [:0:cap] keeps its backing pointer and remains valid for [Pool.Put].
-func slabFromBuf(buf []byte) *slab {
-	if cap(buf) == 0 {
-		return nil
-	}
-	base := unsafe.Pointer(unsafe.SliceData(buf))
-	return *(**slab)(unsafe.Pointer(uintptr(base) - headerSize))
-}
-
-// writeSlabPtr stamps b's address into region's header so slabFromBuf
-// can recover it from any buffer carved out of region[headerSize:].
-func writeSlabPtr(region []byte, b *slab) {
-	*(**slab)(unsafe.Pointer(unsafe.SliceData(region))) = b
-}
-
-// carve returns n contiguous []byte views of length size each into b's
-// data region. Each slice is capacity-clamped so callers can't append
-// past their row.
-func (b *slab) carve(n, size int) [][]byte {
-	bufs := make([][]byte, n)
-	for i := range bufs {
-		off := headerSize + i*size
-		bufs[i] = b.region[off : off+size : off+size]
-	}
-	return bufs
-}
-
-// alloc returns a backing region and the matching release callback.
-// Large allocations go through mmap (off-heap, invisible to GC) and
-// pair with [mmapFree]; smaller ones use the SIMD-aligned Go-heap
-// allocator and pair with noopFree (GC reclaims).
-func alloc(size int) (data []byte, free func([]byte)) {
-	if !disableMmap && size >= mmapThreshold {
-		if d, err := mmapAlloc(size); err == nil {
-			return d, mmapFree
+// release returns mmap'd slabs to the OS; Go-heap slabs are left to the GC.
+func release(expired []slab) {
+	for _, s := range expired {
+		if s.mmapped {
+			mmapFree(s.buf)
 		}
 	}
-	return reedsolomon.AllocAligned(1, size)[0], noopFree
 }
-
-func noopFree([]byte) {}
 
 var _ reedsolomon.WorkAllocator = (*Pool)(nil)

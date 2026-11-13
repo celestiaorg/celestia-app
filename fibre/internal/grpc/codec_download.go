@@ -3,6 +3,7 @@ package grpc
 import (
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/mem"
@@ -28,14 +29,15 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if !ok || data.Len() == 0 || grpc.EnableTracing {
 		return c.pooledCodec.Unmarshal(data, v)
 	}
-	buf := downloadBuffers.get(data.Len())
+	buf := getDownloadBuffer(data.Len())
 	data.CopyTo(buf) // Overwrite every visible byte before parsing.
 	aliased, err := c.unmarshalDownload(buf, resp)
 	if aliased {
+		c.Release() // a retried RPC decodes into the same codec
 		c.buf = buf
 		return nil
 	}
-	downloadBuffers.put(buf)
+	putDownloadBuffer(buf)
 	return err
 }
 
@@ -43,14 +45,36 @@ func (c *DownloadCodec) Unmarshal(data mem.BufferSlice, v any) error {
 // afterwards. Safe to call more than once and before any response arrived.
 func (c *DownloadCodec) Release() {
 	if c.buf != nil {
-		downloadBuffers.put(c.buf)
+		putDownloadBuffer(c.buf)
 		c.buf = nil
 	}
 }
 
-// downloadBuffers recycles response buffers through the GC-managed sync.Pool,
-// which keeps their zeroing and collection off the download path.
+// downloadBuffers recycles small response buffers through the GC-managed
+// sync.Pool, which keeps their zeroing and collection off the download path.
 var downloadBuffers bufferPool
+
+// getDownloadBuffer takes shard response buffers the row allocator would mmap
+// (~50 MiB each for a 128 MiB blob over 10 validators) from it, off the Go
+// heap. Their lifetime is explicit — [DownloadCodec.Release] — so they need
+// no garbage collection: in a sync.Pool they counted as live heap, raised the
+// GC goal by as much again, and stayed resident for two GC cycles after their
+// last use. The row allocator keeps a freed buffer for reuse only while it is
+// reused soon.
+func getDownloadBuffer(n int) []byte {
+	if n < row.MmapThreshold {
+		return downloadBuffers.get(n)
+	}
+	return row.Alloc(n)
+}
+
+func putDownloadBuffer(buf []byte) {
+	if len(buf) < row.MmapThreshold {
+		downloadBuffers.put(buf)
+		return
+	}
+	row.Free(buf)
+}
 
 type bufferPool struct {
 	pool sync.Pool

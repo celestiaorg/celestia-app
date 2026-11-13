@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/mem"
@@ -326,4 +327,39 @@ func TestDownloadCodecRecyclesBuffers(t *testing.T) {
 		p.put(make([]byte, 5))
 		require.Equal(t, 10, cap(p.get(10)))
 	})
+}
+
+// Shard buffers of at least row.MmapThreshold live off the Go heap until
+// Release, and decode the same as a plain unmarshal.
+func TestDownloadCodecLargeBuffersOffHeap(t *testing.T) {
+	resp := makeDownloadShard(2, 2)
+	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, row.MmapThreshold)
+	wire := marshalDownloadShard(t, resp)
+	var want types.DownloadShardResponse
+	require.NoError(t, want.Unmarshal(wire))
+
+	codec := NewDownloadCodec(4, 2)
+	var got types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire[:len(wire)/2]), mem.SliceBuffer(wire[len(wire)/2:])}, &got))
+	require.Equal(t, want, got)
+	require.GreaterOrEqual(t, len(codec.buf), row.MmapThreshold)
+	codec.Release()
+	codec.Release() // the row allocator panics on a double free
+}
+
+// A retried RPC decodes into the same codec: the first attempt's buffer is
+// freed before the retry's is stored, so Release leaves nothing in use.
+func TestDownloadCodecRetryFreesPreviousBuffer(t *testing.T) {
+	resp := makeDownloadShard(2, 2)
+	resp.Shard.Rows[0].Data = bytes.Repeat([]byte{0x5a}, row.MmapThreshold)
+	wire := marshalDownloadShard(t, resp)
+
+	codec := NewDownloadCodec(4, 2)
+	var got types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &got))
+	first := codec.buf
+	var retried types.DownloadShardResponse
+	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &retried))
+	codec.Release()
+	require.Panics(t, func() { row.Free(first) }, "first buffer should not be in use")
 }
