@@ -206,7 +206,8 @@ func TestFrozenAccounts(t *testing.T) {
 	ubd, err := c.app.StakingKeeper.GetUnbondingDelegation(c.ctx(), victim, valAddr)
 	require.NoError(t, err)
 	entry := ubd.Entries[0]
-	requireOK(t, c.deliver(t, "victim", []sdk.Msg{stakingtypes.NewMsgCancelUnbondingDelegation(victim.String(), val, entry.CreationHeight, sdk.NewCoin(appconsts.BondDenom, entry.Balance))}), "cancel unbonding")
+	// Unbondings must run to completion, so cancelling one is not allowed.
+	requireFrozen(t, c.deliver(t, "victim", []sdk.Msg{stakingtypes.NewMsgCancelUnbondingDelegation(victim.String(), val, entry.CreationHeight, sdk.NewCoin(appconsts.BondDenom, entry.Balance))}), "cancel unbonding")
 
 	// Accounts that aren't listed are unaffected.
 	requireOK(t, c.deliver(t, "thief", []sdk.Msg{stakingtypes.NewMsgDelegate(thief.String(), val, tia)}), "unlisted delegate")
