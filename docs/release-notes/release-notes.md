@@ -2,6 +2,14 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v11.0.0
+
+v11: emergency release from v10.x.
+
+### Node Operators (v11.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v11 activation height. The multiplexer embeds v10.6.0 to serve heights before the upgrade.
+
 ## v10.0.0
 
 ### Node Operators (v10.0.0)
