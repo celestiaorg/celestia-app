@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -38,6 +39,8 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithISMCreation := newMsgSubmitProposal(t, &zkismtypes.MsgCreateInterchainSecurityModule{})
 	proposalWithVerifyingKeyUpdate := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateVerifyingKeys{})
 	msgExecWithISMCreation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&zkismtypes.MsgCreateInterchainSecurityModule{}})
+	proposalWithAttestation := newMsgSubmitProposal(t, &teeismtypes.MsgSubmitAttestation{})
+	msgExecWithAttestation := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&teeismtypes.MsgSubmitAttestation{}})
 	proposalWithProcessMessage := newMsgSubmitProposal(t, &hyperlanetypes.MsgProcessMessage{})
 	msgExecWithProcessMessage := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{}})
 	proposalWithRecvPacket := newMsgSubmitProposal(t, &channeltypes.MsgRecvPacket{})
@@ -127,6 +130,15 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name: "Accept authz with budgeted verifying-key pairing work",
 			msg:  &msgExecWithISMCreation,
+		},
+		{
+			name:    "Reject proposal with TDX attestation verification",
+			msg:     proposalWithAttestation,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name: "Accept authz with budgeted TDX attestation verification",
+			msg:  &msgExecWithAttestation,
 		},
 		{
 			name:    "Reject proposal with Hyperlane MsgProcessMessage",

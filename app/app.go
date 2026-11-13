@@ -57,6 +57,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v11/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v11/x/teeism"
+	teeismkeeper "github.com/celestiaorg/celestia-app/v11/x/teeism/keeper"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	"github.com/celestiaorg/celestia-app/v11/x/valaddr"
 	valaddrkeeper "github.com/celestiaorg/celestia-app/v11/x/valaddr/keeper"
 	valaddrtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
@@ -203,6 +206,7 @@ type App struct {
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
+	TeeIsmKeeper        *teeismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
 	FibreKeeper         *fibrekeeper.Keeper
 	ValAddrKeeper       valaddrkeeper.Keeper
@@ -490,6 +494,13 @@ func newApp(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	app.TeeIsmKeeper = teeismkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[teeismtypes.StoreKey]),
+		&app.HyperlaneKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
 	app.ForwardingKeeper = forwardingkeeper.NewKeeper(
 		app.BankKeeper,
 		forwardingkeeper.NewWarpKeeperAdapter(&app.WarpKeeper),
@@ -554,6 +565,7 @@ func newApp(
 		hyperlanecore.NewAppModule(encodingConfig.Codec, &app.HyperlaneKeeper),
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
 		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
+		teeism.NewAppModule(encodingConfig.Codec, app.TeeIsmKeeper),
 		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
 		valaddr.NewAppModule(encodingConfig.Codec, app.ValAddrKeeper),
 		fibre.NewAppModule(encodingConfig.Codec, *app.FibreKeeper),

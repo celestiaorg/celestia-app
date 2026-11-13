@@ -31,6 +31,7 @@ func TestModuleOrder(t *testing.T) {
 		"interchainaccounts",
 		"packetfowardmiddleware",
 		"zkism",
+		"teeism",
 		"fibre",
 		"valaddr",
 	}, mm.OrderBeginBlockers)
@@ -88,6 +89,7 @@ func TestModuleOrder(t *testing.T) {
 		"hyperlane",
 		"warp",
 		"zkism",
+		"teeism",
 		"forwarding",
 		"fibre",
 		"valaddr",

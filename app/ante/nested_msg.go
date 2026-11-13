@@ -4,6 +4,7 @@ import (
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -75,6 +76,10 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 		case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 			if container == "MsgSubmitProposal" {
 				return sdkerrors.ErrNotSupported.Wrapf("ZK proof verification inside %s is not supported", container)
+			}
+		case *teeismtypes.MsgSubmitAttestation:
+			if container == "MsgSubmitProposal" {
+				return sdkerrors.ErrNotSupported.Wrapf("TDX attestation verification inside %s is not supported", container)
 			}
 		case *hyperlanetypes.MsgProcessMessage:
 			if container == "MsgSubmitProposal" {
