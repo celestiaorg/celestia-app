@@ -379,6 +379,7 @@ func newApp(
 		encodingConfig.Codec,
 		keys[signaltypes.StoreKey],
 		app.StakingKeeper,
+		app.BaseApp,
 	)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
@@ -701,6 +702,10 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 			}
 			app.SignalKeeper.ResetTally(ctx)
 			currentVersion = signalUpgrade.AppVersion
+		} else {
+			// Clear an upgrade that does not raise the app version. Older
+			// versions could store one, and it would block signalling forever.
+			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
 
