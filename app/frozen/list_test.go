@@ -1,6 +1,8 @@
 package frozen
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -37,4 +39,12 @@ func TestParseList(t *testing.T) {
 		_, err := ParseList(list)
 		require.Error(t, err, name)
 	}
+}
+
+// TestConsensusInputsPinned fails on any change to the list or Destination.
+// Both are frozen once v11.0.0 is tagged: changing them forks the upgrade.
+func TestConsensusInputsPinned(t *testing.T) {
+	sum := sha256.Sum256([]byte(addresses))
+	require.Equal(t, "46c6222f1fb5b931ac103968965a9cb4ef26847bac984fd5a5e8f74304c1bba4", hex.EncodeToString(sum[:]))
+	require.Equal(t, "celestia1atuap9kfnt6y8ykvn3437e7j3z8qffh33pzt53", Destination)
 }
