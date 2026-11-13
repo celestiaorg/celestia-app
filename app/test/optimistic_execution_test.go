@@ -21,7 +21,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -165,8 +164,7 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 // With served, a's request carries a later time that only a speculative result ignores.
 func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte, served bool) {
 	p.t.Helper()
-	header := p.blockHeader(height, blockTime)
-	txs := coreFinalizeTxs(blockTxs, header)
+	txs := testutil.CoreFinalizeTxs(blockTxs, p.appVersion)
 	resps := make([]*abci.ResponseFinalizeBlock, 0, 2)
 	for _, testApp := range []*app.App{p.a, p.b} {
 		reqTime := blockTime
@@ -207,16 +205,6 @@ func (p *oePair) blockHeader(height int64, blockTime time.Time) *cmtproto.Header
 		Version: cmtversion.Consensus{App: p.appVersion},
 		ChainID: testutil.ChainID, Height: height, Time: blockTime,
 	}
-}
-
-// coreFinalizeTxs is what celestia-core sends FinalizeBlock for the block
-// (state/execution.go unwrapBlobTxs).
-func coreFinalizeTxs(blockTxs [][]byte, header *cmtproto.Header) [][]byte {
-	txs := make([][]byte, len(blockTxs))
-	for i, tx := range blockTxs {
-		txs[i], _ = coretypes.UnwrapBlobTx(tx, header.Version.App)
-	}
-	return txs
 }
 
 // differentialHeight runs one block through the validator path on a and the

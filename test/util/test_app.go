@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -115,6 +116,46 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// WithBlockHash sets req.Hash to a stand-in for the CometBFT block hash that
+// commits to every executed field, so optimistic execution is reused only for the processed block.
+func WithBlockHash(req *abci.RequestFinalizeBlock) *abci.RequestFinalizeBlock {
+	req.Hash = nil
+	bz, err := req.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.Sum256(bz)
+	req.Hash = hash[:]
+	return req
+}
+
+// WithProposalBlockHash sets req.Hash to the WithBlockHash of the FinalizeBlock
+// request celestia-core sends once this proposal is decided (blob txs stripped).
+// Test apps run appconsts.Version.
+func WithProposalBlockHash(req *abci.RequestProcessProposal) *abci.RequestProcessProposal {
+	req.Hash = WithBlockHash(&abci.RequestFinalizeBlock{
+		Txs:                CoreFinalizeTxs(req.Txs, appconsts.Version),
+		DecidedLastCommit:  req.ProposedLastCommit,
+		Misbehavior:        req.Misbehavior,
+		Height:             req.Height,
+		Time:               req.Time,
+		NextValidatorsHash: req.NextValidatorsHash,
+		ProposerAddress:    req.ProposerAddress,
+		Header:             req.Header,
+	}).Hash
+	return req
+}
+
+// CoreFinalizeTxs is what celestia-core v0.43 sends FinalizeBlock for a block
+// of appVersion (state/execution.go unwrapBlobTxs).
+func CoreFinalizeTxs(blockTxs [][]byte, appVersion uint64) [][]byte {
+	txs := make([][]byte, len(blockTxs))
+	for i, tx := range blockTxs {
+		txs[i], _ = tmtypes.UnwrapBlobTx(tx, appVersion)
+	}
+	return txs
 }
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
