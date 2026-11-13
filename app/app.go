@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -239,9 +238,9 @@ type App struct {
 	checkStateMu *sync.RWMutex
 	// stateFixes repair committed state at set heights. See state_fixes.go.
 	stateFixes []StateFix
-	// upgradeInfo is the plan scheduled by the last EndBlocker run. Commit writes
-	// it to disk, so a discarded optimistic run never publishes it.
-	upgradeInfo *atomic.Pointer[upgradetypes.Plan]
+	// upgradeInfo is the plan scheduled by the last EndBlocker run. Commit writes it,
+	// so EndBlocker never publishes it from a discarded optimistic run.
+	upgradeInfo *upgradetypes.Plan
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -313,7 +312,6 @@ func newApp(
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
-		upgradeInfo:             &atomic.Pointer[upgradetypes.Plan]{},
 		stateFixes:              stateFixes,
 	}
 
@@ -671,7 +669,7 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
 
 // EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
-	app.upgradeInfo.Store(nil)
+	app.upgradeInfo = nil
 	res, err := app.ModuleManager.EndBlock(ctx)
 	if err != nil {
 		return sdk.EndBlock{}, err
@@ -702,7 +700,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
-			app.upgradeInfo.Store(&plan)
+			app.upgradeInfo = &plan
 			currentVersion = signalUpgrade.AppVersion
 		}
 	}
@@ -1040,11 +1038,10 @@ func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
 // QuerySequence reading it via CheckState().
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	// Written before committing, so a crash replays the block and rewrites it.
-	if plan := app.upgradeInfo.Load(); plan != nil {
+	if plan := app.upgradeInfo; plan != nil {
 		if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, *plan); err != nil {
 			return nil, fmt.Errorf("failed to dump upgrade info to disk: %w", err)
 		}
-		app.upgradeInfo.Store(nil)
 	}
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()

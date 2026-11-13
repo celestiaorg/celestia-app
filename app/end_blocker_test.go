@@ -105,38 +105,23 @@ func TestEndBlockerUpgrade(t *testing.T) {
 // EndBlocker fails FinalizeBlock and leaves committed state unchanged.
 func TestEndBlockerUpgradeFailureIsNotCommitted(t *testing.T) {
 	current := appconsts.Version
-	tests := []struct {
-		name      string
-		pastBlock bool
-		wantErr   string
-	}{
-		{name: "schedule failure", pastBlock: true, wantErr: "failed to schedule upgrade"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			testApp, _ := newEndBlockerTestApp(t)
-			ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
-			lastHeight := testApp.LastBlockHeight()
-			upgradeHeight := lastHeight + 1
-			if tc.pastBlock {
-				// The plan height would be before the current block.
-				upgradeHeight = lastHeight - 1
-			}
-			setPendingUpgrade(t, testApp, ctx, current+1, upgradeHeight)
+	testApp, _ := newEndBlockerTestApp(t)
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
+	lastHeight := testApp.LastBlockHeight()
+	// The plan height would be before the current block.
+	setPendingUpgrade(t, testApp, ctx, current+1, lastHeight-1)
 
-			_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: lastHeight + 1, Time: util.GenesisTime})
-			require.ErrorContains(t, err, tc.wantErr)
+	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: lastHeight + 1, Time: util.GenesisTime})
+	require.ErrorContains(t, err, "failed to schedule upgrade")
 
-			require.Equal(t, lastHeight, testApp.LastBlockHeight())
-			ctx = testApp.NewUncachedContext(false, cmtproto.Header{})
-			require.True(t, testApp.SignalKeeper.IsUpgradePending(ctx))
-			appVersion, err := testApp.AppVersion(ctx)
-			require.NoError(t, err)
-			require.Equal(t, current, appVersion)
-			_, err = testApp.UpgradeKeeper.GetUpgradePlan(ctx)
-			require.ErrorIs(t, err, upgradetypes.ErrNoUpgradePlanFound)
-		})
-	}
+	require.Equal(t, lastHeight, testApp.LastBlockHeight())
+	ctx = testApp.NewUncachedContext(false, cmtproto.Header{})
+	require.True(t, testApp.SignalKeeper.IsUpgradePending(ctx))
+	appVersion, err := testApp.AppVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, current, appVersion)
+	_, err = testApp.UpgradeKeeper.GetUpgradePlan(ctx)
+	require.ErrorIs(t, err, upgradetypes.ErrNoUpgradePlanFound)
 }
 
 // TestUpgradeInfoWrittenAtCommit checks that upgrade-info.json appears only
