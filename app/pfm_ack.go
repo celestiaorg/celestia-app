@@ -16,12 +16,6 @@ const (
 	// pfmErrorAckPrefix starts the text of every error acknowledgement that
 	// packet-forward-middleware creates.
 	pfmErrorAckPrefix = "packet-forward-middleware error: "
-
-	// EventTypePacketForwardError is emitted with the original error text
-	// when a packet-forward-middleware error acknowledgement is replaced.
-	EventTypePacketForwardError = "packet_forward_error"
-	// AttributeKeyPacketForwardError holds the original error text.
-	AttributeKeyPacketForwardError = "error"
 )
 
 // pfmIBCMiddleware wraps packet-forward-middleware so that the error
@@ -59,8 +53,8 @@ func (w pfmICS4Wrapper) WriteAcknowledgement(ctx sdk.Context, chanCap *capabilit
 
 // fixedPFMErrorAck returns the fixed error acknowledgement when ack is a
 // packet-forward-middleware error acknowledgement. The fixed one carries only
-// the ABCI code of apperrors.ErrPacketForward. The original text goes to an
-// event, which is not part of consensus.
+// the ABCI code of apperrors.ErrPacketForward. The original text goes to the
+// node log.
 func fixedPFMErrorAck(ctx sdk.Context, ack ibcexported.Acknowledgement) (channeltypes.Acknowledgement, bool) {
 	a, ok := ack.(channeltypes.Acknowledgement)
 	if !ok {
@@ -70,9 +64,8 @@ func fixedPFMErrorAck(ctx sdk.Context, ack ibcexported.Acknowledgement) (channel
 	if !ok || !strings.HasPrefix(e.Error, pfmErrorAckPrefix) {
 		return channeltypes.Acknowledgement{}, false
 	}
-	ctx.EventManager().EmitEvent(sdk.NewEvent(
-		EventTypePacketForwardError,
-		sdk.NewAttribute(AttributeKeyPacketForwardError, e.Error),
-	))
+	// The text goes to the node log only. An event would put it in the ABCI
+	// results, where nodes from different builds would disagree on it.
+	ctx.Logger().Info("replaced packet-forward-middleware error acknowledgement", "error", e.Error)
 	return channeltypes.NewErrorAcknowledgement(apperrors.ErrPacketForward), true
 }
