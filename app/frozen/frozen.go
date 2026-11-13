@@ -17,8 +17,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -163,6 +165,10 @@ func (r *Rules) checkMsg(msg sdk.Msg) error {
 }
 
 func (r *Rules) checkPromise(p *fibretypes.PaymentPromise) error {
+	// Address panics on a malformed key, and ProcessProposal skips msg ValidateBasic.
+	if len(p.SignerPublicKey.Key) != secp256k1.PubKeySize {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "payment promise signer key")
+	}
 	if r.Has(p.SignerPublicKey.Address()) {
 		return errorsmod.Wrap(ErrFrozen, "payment promise from a listed escrow")
 	}
