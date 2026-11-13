@@ -21,11 +21,11 @@ func TestPFMErrorAckIsFixed(t *testing.T) {
 	require.True(t, ok)
 
 	memos := map[string]string{
-		"blank port":         `{"forward":{"receiver":"cosmos1abc","port":"","channel":"channel-0"}}`,
-		"separator in chan":  `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel/0"}}`,
-		"empty receiver":     `{"forward":{"receiver":"","port":"transfer","channel":"channel-0"}}`,
-		"invalid forward":    `{"forward":{"receiver":1}}`,
-		"negative retries":   `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel-0","retries":-1}}`,
+		"blank port":        `{"forward":{"receiver":"cosmos1abc","port":"","channel":"channel-0"}}`,
+		"separator in chan": `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel/0"}}`,
+		"empty receiver":    `{"forward":{"receiver":"","port":"transfer","channel":"channel-0"}}`,
+		"invalid forward":   `{"forward":{"receiver":1}}`,
+		"negative retries":  `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel-0","retries":-1}}`,
 	}
 
 	// The pinned bytes are part of consensus: ibc-go commits their hash.
