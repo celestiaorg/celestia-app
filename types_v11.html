@@ -140,6 +140,7 @@
                         <h1 id="types-v11"><a class="header" href="#types-v11">Types v11</a></h1>
 <h2 id="msgs"><a class="header" href="#msgs">Msgs</a></h2>
 <p>The following is an exhaustive list of supported Cosmos SDK Msgs for app version 11.</p>
+<p>The ante handler rejects these registered Msgs, which can never succeed in app version 11, also inside <code>MsgExec</code> or <code>MsgSubmitProposal</code>: <code>MsgSubmitEvidence</code>, <code>MsgExecLegacyContent</code>, gov v1beta1 <code>MsgSubmitProposal</code>, <code>MsgCreatePeriodicVestingAccount</code>, <code>MsgCreatePermanentLockedAccount</code>, <code>MsgChannelCloseInit</code> and <code>MsgChannelUpgradeInit</code>.</p>
 <pre><code class="language-ascii">/celestia.blob.v1.MsgPayForBlobs
 /celestia.blob.v1.MsgUpdateBlobParams
 /celestia.fibre.v1.MsgDepositToEscrow
@@ -175,19 +176,16 @@
 /cosmos.distribution.v1beta1.MsgUpdateParams
 /cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward
 /cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission
-/cosmos.evidence.v1beta1.MsgSubmitEvidence
 /cosmos.feegrant.v1beta1.MsgGrantAllowance
 /cosmos.feegrant.v1beta1.MsgPruneAllowances
 /cosmos.feegrant.v1beta1.MsgRevokeAllowance
 /cosmos.gov.v1.MsgCancelProposal
 /cosmos.gov.v1.MsgDeposit
-/cosmos.gov.v1.MsgExecLegacyContent
 /cosmos.gov.v1.MsgSubmitProposal
 /cosmos.gov.v1.MsgUpdateParams
 /cosmos.gov.v1.MsgVote
 /cosmos.gov.v1.MsgVoteWeighted
 /cosmos.gov.v1beta1.MsgDeposit
-/cosmos.gov.v1beta1.MsgSubmitProposal
 /cosmos.gov.v1beta1.MsgVote
 /cosmos.gov.v1beta1.MsgVoteWeighted
 /cosmos.slashing.v1beta1.MsgUnjail
@@ -201,8 +199,6 @@
 /cosmos.staking.v1beta1.MsgUpdateParams
 /cosmos.upgrade.v1beta1.MsgCancelUpgrade
 /cosmos.upgrade.v1beta1.MsgSoftwareUpgrade
-/cosmos.vesting.v1beta1.MsgCreatePeriodicVestingAccount
-/cosmos.vesting.v1beta1.MsgCreatePermanentLockedAccount
 /cosmos.vesting.v1beta1.MsgCreateVestingAccount
 /hyperlane.core.interchain_security.v1.MsgAnnounceValidator
 /hyperlane.core.interchain_security.v1.MsgCreateMerkleRootMultisigIsm
@@ -239,7 +235,6 @@
 /ibc.applications.transfer.v1.MsgUpdateParams
 /ibc.core.channel.v1.MsgAcknowledgement
 /ibc.core.channel.v1.MsgChannelCloseConfirm
-/ibc.core.channel.v1.MsgChannelCloseInit
 /ibc.core.channel.v1.MsgChannelOpenAck
 /ibc.core.channel.v1.MsgChannelOpenConfirm
 /ibc.core.channel.v1.MsgChannelOpenInit
@@ -247,7 +242,6 @@
 /ibc.core.channel.v1.MsgChannelUpgradeAck
 /ibc.core.channel.v1.MsgChannelUpgradeCancel
 /ibc.core.channel.v1.MsgChannelUpgradeConfirm
-/ibc.core.channel.v1.MsgChannelUpgradeInit
 /ibc.core.channel.v1.MsgChannelUpgradeOpen
 /ibc.core.channel.v1.MsgChannelUpgradeTimeout
 /ibc.core.channel.v1.MsgChannelUpgradeTry
