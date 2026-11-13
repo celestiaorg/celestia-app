@@ -7,9 +7,11 @@ import (
 )
 
 // gasPerAdditionalSDKMessage is the gas limit a tx must declare for each
-// counted SDK message after the first. It applies only to mempool admission and
-// proposal construction, not to block validity.
-const gasPerAdditionalSDKMessage uint64 = 10_000
+// counted SDK message after the first, checked only at mempool admission and
+// proposal construction. Unlike main, which charges 10,000 as real gas, this is
+// only a floor that simulation does not include, so it stays below the cheapest
+// honest message (about 6,000 gas).
+const gasPerAdditionalSDKMessage uint64 = 5_000
 
 // validateSDKMessageGas returns an error if the gas limit of tx, which counts
 // msgCount messages against MaxSDKMessages, is below the floor above.

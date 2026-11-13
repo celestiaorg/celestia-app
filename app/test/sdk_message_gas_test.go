@@ -1,9 +1,12 @@
 package app_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
+	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -17,16 +20,23 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 )
 
+// gasPerAdditionalSDKMessage mirrors the unexported constant in app.
+const gasPerAdditionalSDKMessage = 5_000
+
 // TestSDKMessageGasAdmission checks that a tx whose gas limit does not cover
-// 10k gas per counted SDK message beyond the first is kept out of the mempool
+// gasPerAdditionalSDKMessage per counted SDK message beyond the first is kept out of the mempool
 // and out of proposals this node builds, while blocks that include one stay
 // valid.
 func TestSDKMessageGasAdmission(t *testing.T) {
@@ -77,7 +87,7 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 
 	// Enough gas to execute each attack, but less than the per-message floor.
 	const underpaidGas = 1_000_000
-	floor := uint64(appconsts.MaxSDKMessages-1) * 10_000
+	floor := uint64(appconsts.MaxSDKMessages-1) * gasPerAdditionalSDKMessage
 
 	s0, addr0 := signer(0)
 	execAttack := createTx(s0, underpaidGas, emptyExecs(addr0)...)
@@ -158,7 +168,121 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 		weights := []int64{int64(len(honestSends)), int64(1 + len(honestSends))}
 		for i, res := range resp.TxResults {
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
-			require.GreaterOrEqual(t, res.GasUsed, (weights[i]-1)*10_000)
+			require.GreaterOrEqual(t, res.GasUsed, (weights[i]-1)*gasPerAdditionalSDKMessage)
 		}
 	})
+}
+
+// TestSDKMessageGasFloorBelowCheapHonestMessages checks that the cheapest honest
+// messages simulate to at least the floor, so a tx whose gas limit is its
+// simulated gas, with no multiplier, passes CheckTx.
+func TestSDKMessageGasFloorBelowCheapHonestMessages(t *testing.T) {
+	const n = 50
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	// 0 signs direct messages, 1 grants authz to 2, which signs MsgExec.
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signers := make([]*user.Signer, len(accounts))
+	addrs := make([]sdk.AccAddress, len(accounts))
+	for i := range accounts {
+		s, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(accounts[i], infos[i].AccountNum, infos[i].Sequence))
+		require.NoError(t, err)
+		signers[i], addrs[i] = s, testfactory.GetAddress(kr, accounts[i])
+	}
+	createTx := func(i int, gasLimit uint64, msgs ...sdk.Msg) []byte {
+		tx, _, err := signers[i].CreateTx(msgs, user.SetGasLimitAndGasPrice(gasLimit, appconsts.DefaultMinGasPrice))
+		require.NoError(t, err)
+		return tx
+	}
+	commit := func(i int, msgs ...sdk.Msg) {
+		resp := commitBlock(t, testApp, createTx(i, 50_000_000, msgs...))
+		require.Equal(t, abci.CodeTypeOK, resp.TxResults[0].Code, resp.TxResults[0].Log)
+		require.NoError(t, signers[i].IncrementSequence(accounts[i]))
+	}
+
+	// Setup: n proposals in voting period, n fee grants from each of 0 and 1,
+	// and authz grants from 1 to 2.
+	props := make([]sdk.Msg, n)
+	deposit := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(10_000_000_000)))
+	govAddr := authtypes.NewModuleAddress(govtypes.ModuleName)
+	for i := range props {
+		content := banktypes.NewMsgSend(govAddr, addrs[0], sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+		p, err := govv1.NewMsgSubmitProposal([]sdk.Msg{content}, deposit, addrs[0].String(), "", fmt.Sprintf("title %d", i), "summary", false)
+		require.NoError(t, err)
+		props[i] = p
+	}
+	commit(0, props...)
+	feeGrantees := make([][]sdk.AccAddress, 2)
+	for granter := range feeGrantees {
+		grants := make([]sdk.Msg, n)
+		for i := range grants {
+			grantee := testnode.RandomAddress().(sdk.AccAddress)
+			feeGrantees[granter] = append(feeGrantees[granter], grantee)
+			m, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, addrs[granter], grantee)
+			require.NoError(t, err)
+			grants[i] = m
+		}
+		commit(granter, grants...)
+	}
+	authzGrants := make([]sdk.Msg, 0, 3)
+	for _, msg := range []sdk.Msg{&feegrant.MsgRevokeAllowance{}, &govv1.MsgVote{}, &distrtypes.MsgSetWithdrawAddress{}} {
+		g, err := authz.NewMsgGrant(addrs[1], addrs[2], authz.NewGenericAuthorization(sdk.MsgTypeURL(msg)), nil)
+		require.NoError(t, err)
+		authzGrants = append(authzGrants, g)
+	}
+	commit(1, authzGrants...)
+
+	shapes := []struct {
+		name string
+		msgs func(owner int) []sdk.Msg
+	}{
+		{"MsgRevokeAllowance", func(owner int) []sdk.Msg {
+			out := make([]sdk.Msg, n)
+			for i := range out {
+				m := feegrant.NewMsgRevokeAllowance(addrs[owner], feeGrantees[owner][i])
+				out[i] = &m
+			}
+			return out
+		}},
+		{"MsgVote", func(owner int) []sdk.Msg {
+			out := make([]sdk.Msg, n)
+			for i := range out {
+				out[i] = govv1.NewMsgVote(addrs[owner], uint64(i+1), govv1.OptionYes, "")
+			}
+			return out
+		}},
+		{"MsgSetWithdrawAddress", func(owner int) []sdk.Msg {
+			out := make([]sdk.Msg, n)
+			for i := range out {
+				out[i] = distrtypes.NewMsgSetWithdrawAddress(addrs[owner], testnode.RandomAddress().(sdk.AccAddress))
+			}
+			return out
+		}},
+	}
+	for _, shape := range shapes {
+		exec := authz.NewMsgExec(addrs[2], shape.msgs(1))
+		cases := []struct {
+			name   string
+			signer int
+			weight int
+			msgs   []sdk.Msg
+		}{
+			{shape.name, 0, n, shape.msgs(0)},
+			{"MsgExec{" + shape.name + "}", 2, n + 1, []sdk.Msg{&exec}},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				gasInfo, _, err := testApp.Simulate(createTx(tc.signer, 50_000_000, tc.msgs...))
+				require.NoError(t, err)
+				floor := uint64(tc.weight-1) * gasPerAdditionalSDKMessage
+				require.GreaterOrEqual(t, gasInfo.GasUsed, floor)
+
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: createTx(tc.signer, gasInfo.GasUsed, tc.msgs...), Type: abci.CheckTxType_New})
+				require.NoError(t, err)
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+				require.NoError(t, signers[tc.signer].IncrementSequence(accounts[tc.signer]))
+			})
+		}
+	}
 }
