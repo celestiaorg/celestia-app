@@ -46,9 +46,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
-	// Core unwraps with block.Version.App, which it checked equals this (state/validation.go).
-	app.oeTxs.appVersion = ctx.ConsensusParams().Version.GetApp()
-
 	// Read the max square size before the ante loop. The loop reassigns ctx to
 	// the context returned by the ante handler, which carries a finite gas meter
 	// scoped to the last transaction. Reading it after the loop would meter this
