@@ -244,17 +244,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				zkProofMsgCount += countZKProofMsgs(msgs)
 				if zkProofMsgCount > appconsts.MaxZKProofMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
 					return reject(), nil
 				}
-				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				ismSigCount += countISMSignatures(msgs)
 				if ismSigCount > appconsts.MaxISMSignatures {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
 					return reject(), nil
 				}
-				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				sdkMessageCount += countExecutableMsgs(msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil

@@ -256,7 +256,7 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	// configured block max bytes.
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 
 			db := dbm.NewMemDB()
@@ -305,7 +305,7 @@ func TestFillDoesNotHashSkippedTxsBelowLogLevel(t *testing.T) {
 	for _, raw := range txs {
 		txBytes += uint64(len(raw))
 	}
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 
 	var before, after runtime.MemStats
@@ -337,7 +337,7 @@ func BenchmarkFillSkippedBlobTxs(b *testing.B) {
 	} {
 		b.Run(bc.name, func(b *testing.B) {
 			for b.Loop() {
-				fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, bc.maxSquareSize, appconsts.SubtreeRootThreshold)
+				fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, bc.maxSquareSize, appconsts.SubtreeRootThreshold)
 				require.NoError(b, err)
 				if kept := fsb.Fill(ctx, txs, bc.maxTxBytes); len(kept) >= len(txs) {
 					b.Fatalf("kept all %d txs; nothing was skipped", len(kept))

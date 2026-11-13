@@ -47,7 +47,7 @@ func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 		}
 		return ctx, nil
 	}
-	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	fsb.decodePFF = func(raw []byte) *fibretypes.DecodedPayForFibre {
 		p.pffDecodes++

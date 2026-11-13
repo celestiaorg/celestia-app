@@ -82,7 +82,7 @@ func TestFillKeepsSmallerBlobTxAfterOverflow(t *testing.T) {
 func newTestBlobFill(t *testing.T, txConfig, validationConfig client.TxConfig, txs [][]byte) [][]byte {
 	t.Helper()
 	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	fsb.validateBlobTx = func(bTx *blobtx.BlobTx) (bool, error) {
 		return false, blobtypes.ValidateBlobTx(validationConfig, bTx, appconsts.SubtreeRootThreshold, appconsts.Version)
