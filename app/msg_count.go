@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 
 	storetypes "cosmossdk.io/store/types"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -36,9 +39,26 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 	// the read run out of gas and panic.
 	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 
+	return sumMsgWeights(msgs, func(packet channeltypes.Packet) int {
+		return countICAPacketMsgs(ctx, ck, packet)
+	})
+}
+
+// countSDKMessageGasWeight counts msgs like countExecutableMsgs, but counts an
+// ICA packet's payload without reading the channel. The ante handler charges
+// gas from this count, and a channel upgrade earlier in a block can change the
+// channel's encoding between ProcessProposal and FinalizeBlock. A count that
+// read the channel could then charge more in FinalizeBlock than ProcessProposal
+// checked, and a tx that runs out of gas there stays in the block unpaid.
+func countSDKMessageGasWeight(msgs []sdk.Msg) int {
+	return sumMsgWeights(msgs, countICAPacketMsgsAnyEncoding)
+}
+
+// sumMsgWeights adds up msgWeight over msgs, counting ICA packets with icaCount.
+func sumMsgWeights(msgs []sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	count := 0
 	for _, msg := range msgs {
-		count += msgWeight(ctx, ck, msg)
+		count += msgWeight(msg, icaCount)
 		// Callers only compare the count against the limit, so stop once it is
 		// past it rather than reading a channel for every remaining packet.
 		if count > appconsts.MaxSDKMessages {
@@ -46,6 +66,26 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 		}
 	}
 	return count
+}
+
+// txGasLimit returns the gas limit tx declares, which caps the gas its
+// execution can consume. It reads the fee through the nil safe proto getters
+// because it runs before ante, and FeeTx.GetGas panics on a tx without AuthInfo
+// or Fee. A tx without a fee, or one that is not a protobuf tx, reports zero
+// here and ante rejects it.
+func txGasLimit(tx sdk.Tx) uint64 {
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
+	if !ok {
+		return 0
+	}
+	return protoTx.GetProtoTx().GetAuthInfo().GetFee().GetGasLimit()
+}
+
+// fitsSDKGas reports whether a tx with gas limit txGas fits a block whose txs
+// already declare used gas, with used <= MaxSDKGas. Subtracting rather than
+// adding keeps an attacker chosen txGas from overflowing the sum.
+func fitsSDKGas(used, txGas uint64) bool {
+	return txGas <= appconsts.MaxSDKGas-used
 }
 
 // countZKProofMsgs counts messages that perform ZK proof verification or
@@ -64,23 +104,10 @@ func countZKProofMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 
 func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	switch msg := msg.(type) {
-	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages:
+	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 		return 1
 	case *authz.MsgExec:
-		nested, err := msg.GetMessages()
-		if err != nil {
-			return 0
-		}
-		count := 0
-		for _, nestedMsg := range nested {
-			// Ante rejects nested MsgExec. Do not recurse through attacker-controlled
-			// wrapper depth before that rejection.
-			if _, nestedExec := nestedMsg.(*authz.MsgExec); nestedExec {
-				continue
-			}
-			count += zkProofMsgWeight(ctx, ck, nestedMsg)
-		}
-		return count
+		return execWeight(ctx, ck, msg, zkProofMsgWeight)
 	case *channeltypes.MsgRecvPacket:
 		return countICAPacketZKProofMsgs(ctx, ck, msg.Packet)
 	default:
@@ -88,23 +115,67 @@ func zkProofMsgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	}
 }
 
+// countISMSignatures counts the signatures Hyperlane MsgProcessMessage metadata
+// carries, including through authz and ICA wrappers.
+func countISMSignatures(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
+	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	count := 0
+	for _, msg := range msgs {
+		count += ismSignatureWeight(ctx, ck, msg)
+		if count > appconsts.MaxISMSignatures {
+			return count
+		}
+	}
+	return count
+}
+
+func ismSignatureWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+	switch msg := msg.(type) {
+	case *hyperlanetypes.MsgProcessMessage:
+		return ante.ProcessMessageSignatures(msg.Metadata)
+	case *authz.MsgExec:
+		return execWeight(ctx, ck, msg, ismSignatureWeight)
+	case *channeltypes.MsgRecvPacket:
+		return countICAPacketISMSignatures(ctx, ck, msg.Packet)
+	default:
+		return 0
+	}
+}
+
+// execWeight sums weigh over the messages a MsgExec dispatches, skipping a
+// nested MsgExec, which ante rejects, rather than recursing into it.
+func execWeight(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec, weigh func(sdk.Context, channelKeeper, sdk.Msg) int) int {
+	nested, err := exec.GetMessages()
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, nestedMsg := range nested {
+		if _, nestedExec := nestedMsg.(*authz.MsgExec); nestedExec {
+			continue
+		}
+		count += weigh(ctx, ck, nestedMsg)
+	}
+	return count
+}
+
 // msgWeight returns what a message costs: one for the message itself, plus the
 // messages it dispatches. A message with no fan-out, or an empty one, still
 // weighs one, since it costs a full ante pass either way.
-func msgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+func msgWeight(msg sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	if exec, ok := msg.(*authz.MsgExec); ok {
-		return 1 + execFanout(ctx, ck, exec)
+		return 1 + execFanout(exec, icaCount)
 	}
-	return leafWeight(ctx, ck, msg)
+	return leafWeight(msg, icaCount)
 }
 
 // leafWeight is msgWeight for a message that is not a MsgExec.
-func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+func leafWeight(msg sdk.Msg, icaCount func(channeltypes.Packet) int) int {
 	switch msg := msg.(type) {
 	case *icahosttypes.MsgModuleQuerySafe:
 		return 1 + len(msg.Requests)
 	case *channeltypes.MsgRecvPacket:
-		return 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
+		return 1 + icaCount(msg.Packet)
 	}
 	return 1
 }
@@ -113,7 +184,7 @@ func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 // itself. It does not recurse: the ante handler rejects a nested MsgExec, and
 // counting runs before the ante handler, so recursing on attacker controlled
 // nesting could exhaust the stack in PrepareProposal, which has no recover.
-func execFanout(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
+func execFanout(exec *authz.MsgExec, icaCount func(channeltypes.Packet) int) int {
 	nested, err := exec.GetMessages()
 	if err != nil {
 		// The ante handler rejects a tx with undecodable inner messages, so
@@ -122,7 +193,7 @@ func execFanout(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
 	}
 	count := 0
 	for _, msg := range nested {
-		count += leafWeight(ctx, ck, msg)
+		count += leafWeight(msg, icaCount)
 	}
 	return count
 }
@@ -180,10 +251,39 @@ func countICAPacketMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.P
 	return count
 }
 
+// countICAPacketMsgsAnyEncoding returns the most messages the ICA host could
+// dispatch from packet under either encoding, or zero if the payload parses as
+// neither, since the host then dispatches nothing. Taking the larger count
+// matters: leading JSON whitespace can form proto fields, so one payload can
+// walk as a single proto entry yet hold hundreds of proto3json messages.
+func countICAPacketMsgsAnyEncoding(packet channeltypes.Packet) int {
+	if packet.DestinationPort != icatypes.HostPortID {
+		return 0
+	}
+	var data icatypes.InterchainAccountPacketData
+	if err := data.UnmarshalJSON(packet.Data); err != nil || data.Type != icatypes.EXECUTE_TX {
+		return 0
+	}
+	// Both counters return -1 when the payload does not parse.
+	return max(0, countProtoMsgs(data.Data), countJSONMsgs(data.Data))
+}
+
 // countICAPacketZKProofMsgs returns how many ZK proof messages the ICA host
 // would dispatch. Malformed host payloads count over the limit because ante
 // validation occurs after proposal counting.
 func countICAPacketZKProofMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet) int {
+	return countICAPacketWeighted(ctx, ck, packet, zkProofTypeURLWeight, appconsts.MaxZKProofMessages+1)
+}
+
+// countICAPacketISMSignatures fails closed on a MsgProcessMessage in an ICA
+// payload: the wire-level walk sees type URLs, not metadata lengths.
+func countICAPacketISMSignatures(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet) int {
+	return countICAPacketWeighted(ctx, ck, packet, ismTypeURLWeight, appconsts.MaxISMSignatures+1)
+}
+
+// countICAPacketWeighted sums weigh over the type URLs the ICA host would
+// dispatch from packet, or returns over if the payload cannot be walked.
+func countICAPacketWeighted(ctx sdk.Context, ck channelKeeper, packet channeltypes.Packet, weigh func(typeURL string) int, over int) int {
 	if packet.DestinationPort != icatypes.HostPortID {
 		return 0
 	}
@@ -193,31 +293,47 @@ func countICAPacketZKProofMsgs(ctx sdk.Context, ck channelKeeper, packet channel
 		return 0
 	}
 	if err := host.ChannelIdentifierValidator(packet.DestinationChannel); err != nil {
-		return appconsts.MaxZKProofMessages + 1
+		return over
 	}
 	version, ok := ck.GetAppVersion(ctx, packet.DestinationPort, packet.DestinationChannel)
 	if !ok {
-		return appconsts.MaxZKProofMessages + 1
+		return over
 	}
 	metadata, err := icatypes.MetadataFromVersion(version)
 	if err != nil {
-		return appconsts.MaxZKProofMessages + 1
+		return over
 	}
 
 	count := -1
 	switch metadata.Encoding {
 	case icatypes.EncodingProtobuf:
-		count = countProtoZKProofMsgs(data.Data)
+		count = countProtoWeighted(data.Data, weigh, over)
 	case icatypes.EncodingProto3JSON:
-		count = countJSONZKProofMsgs(data.Data)
+		count = countJSONWeighted(data.Data, weigh, over)
 	}
 	if count < 0 {
-		return appconsts.MaxZKProofMessages + 1
+		return over
 	}
 	return count
 }
 
-func countProtoZKProofMsgs(bz []byte) int {
+func zkProofTypeURLWeight(typeURL string) int {
+	if isZKProofTypeURL(typeURL) {
+		return 1
+	}
+	return 0
+}
+
+// ismTypeURLWeight counts a MsgProcessMessage as over budget; see above.
+func ismTypeURLWeight(typeURL string) int {
+	if typeURL == sdk.MsgTypeURL(&hyperlanetypes.MsgProcessMessage{}) {
+		return appconsts.MaxISMSignatures + 1
+	}
+	return 0
+}
+
+// countProtoWeighted sums weigh over a proto3 CosmosTx, or -1 if bz is not one.
+func countProtoWeighted(bz []byte, weigh func(string) int, over int) int {
 	count := 0
 	for len(bz) > 0 {
 		num, typ, n := protowire.ConsumeTag(bz)
@@ -239,11 +355,9 @@ func countProtoZKProofMsgs(bz []byte) int {
 				return -1
 			}
 			if isFanOutTypeURL(typeURL) {
-				return appconsts.MaxZKProofMessages + 1
+				return over
 			}
-			if isZKProofTypeURL(typeURL) {
-				count++
-			}
+			count += weigh(typeURL)
 			continue
 		}
 		n = protowire.ConsumeFieldValue(num, typ, bz)
@@ -297,7 +411,8 @@ func isFanOutTypeURL(typeURL string) bool {
 func isZKProofTypeURL(typeURL string) bool {
 	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{}) ||
 		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
-		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{})
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{}) ||
+		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateVerifyingKeys{})
 }
 
 // countProtoMsgs counts the entries of a proto3 encoded CosmosTx, or -1 if the
@@ -340,7 +455,8 @@ func countJSONMsgs(bz []byte) int {
 	return len(tx.Messages)
 }
 
-func countJSONZKProofMsgs(bz []byte) int {
+// countJSONWeighted sums weigh over a proto3json CosmosTx, or -1 if bz is not one.
+func countJSONWeighted(bz []byte, weigh func(string) int, over int) int {
 	var tx struct {
 		Messages []struct {
 			TypeURL string `json:"@type"`
@@ -355,11 +471,9 @@ func countJSONZKProofMsgs(bz []byte) int {
 			return -1
 		}
 		if isFanOutTypeURL(msg.TypeURL) {
-			return appconsts.MaxZKProofMessages + 1
+			return over
 		}
-		if isZKProofTypeURL(msg.TypeURL) {
-			count++
-		}
+		count += weigh(msg.TypeURL)
 	}
 	return count
 }

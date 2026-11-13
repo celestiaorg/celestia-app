@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -31,6 +32,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,7 +149,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.Txs {
-		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
+		_, isBlobTx := coretypes.UnwrapBlobTx(txBytes, appconsts.Version)
 		if idx < numNormalTxs {
 			require.False(t, isBlobTx)
 		} else {
@@ -448,7 +450,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(150_000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
 		accountIndex++
@@ -467,6 +469,50 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		zkProofTxs = append(zkProofTxs, rawTx)
 		accountIndex++
 	}
+
+	// Two txs that each carry a full block's ISM signature budget, and one
+	// that exceeds it on its own.
+	ismSigTxs := make([][]byte, 0, 2)
+	for range 2 {
+		msg := &hyperlanetypes.MsgProcessMessage{
+			Relayer:  addrs[accountIndex].String(),
+			Metadata: ismMetadataHex(appconsts.MaxISMSignatures),
+			Message:  "0x",
+		}
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(ismGasLimit(appconsts.MaxISMSignatures)), user.SetFee(10000))
+		require.NoError(t, err)
+		ismSigTxs = append(ismSigTxs, rawTx)
+		accountIndex++
+	}
+	ismSigOverTx, _, err := signer.CreateTx([]sdk.Msg{&hyperlanetypes.MsgProcessMessage{
+		Relayer:  addrs[accountIndex].String(),
+		Metadata: ismMetadataHex(appconsts.MaxISMSignatures + 1),
+		Message:  "0x",
+	}}, user.SetGasLimit(ismGasLimit(appconsts.MaxISMSignatures+1)), user.SetFee(10000))
+	require.NoError(t, err)
+	accountIndex++
+
+	// Each declares half of MaxSDKGas, so only two fit a block.
+	halfGasTxs := make([][]byte, 0, 3)
+	for range 3 {
+		msg := banktypes.NewMsgSend(addrs[accountIndex], testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(appconsts.MaxSDKGas/2), user.SetFee(10000))
+		require.NoError(t, err)
+		halfGasTxs = append(halfGasTxs, rawTx)
+		accountIndex++
+	}
+	gasOverMsg := banktypes.NewMsgSend(addrs[accountIndex], testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
+	gasOverTx, _, err := signer.CreateTx([]sdk.Msg{gasOverMsg}, user.SetGasLimit(appconsts.MaxSDKGas+1), user.SetFee(10000))
+	require.NoError(t, err)
+	accountIndex++
+
+	// A single MsgModuleQuerySafe weighing exactly MaxSDKMessages.
+	querySafeRequests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+	for i := range querySafeRequests {
+		querySafeRequests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+	}
+	querySafeTx, _, err := signer.CreateTx([]sdk.Msg{icahosttypes.NewMsgModuleQuerySafe(addrs[accountIndex].String(), querySafeRequests)}, user.SetGasLimit(1_000_000), user.SetFee(10000))
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name                 string
@@ -493,6 +539,39 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			name:                 "capping ZK proof transactions",
 			inputTransactions:    zkProofTxs,
 			expectedTransactions: zkProofTxs[:appconsts.MaxZKProofMessages],
+		},
+		{
+			name:                 "capping ISM signature transactions",
+			inputTransactions:    ismSigTxs,
+			expectedTransactions: ismSigTxs[:1],
+		},
+		{
+			name:                 "dropping a transaction over the ISM signature budget on its own",
+			inputTransactions:    [][]byte{ismSigOverTx, ismSigTxs[0]},
+			expectedTransactions: ismSigTxs[:1],
+		},
+		{
+			name:                 "capping transactions by SDK gas",
+			inputTransactions:    halfGasTxs,
+			expectedTransactions: halfGasTxs[:2],
+		},
+		{
+			name:                 "dropping a transaction over the SDK gas budget on its own",
+			inputTransactions:    [][]byte{gasOverTx, halfGasTxs[0]},
+			expectedTransactions: halfGasTxs[:1],
+		},
+		{
+			// A tx whose requests weigh the whole SDK message budget must not
+			// keep the other SDK txs out of the block.
+			name:                 "dropping a MsgModuleQuerySafe over MaxModuleQuerySafeRequests",
+			inputTransactions:    append([][]byte{querySafeTx}, msgSendTxs[:5]...),
+			expectedTransactions: msgSendTxs[:5],
+		},
+		{
+			// Blob txs do not count against MaxSDKGas.
+			name:                 "keeping blob transactions after the SDK gas budget is full",
+			inputTransactions:    append(append([][]byte{}, halfGasTxs...), pfbTxs[0]),
+			expectedTransactions: append(append([][]byte{}, halfGasTxs[:2]...), pfbTxs[0]),
 		},
 		{
 			name: "capping msg send after pfb transactions",

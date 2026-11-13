@@ -270,15 +270,13 @@ Startup fails if the saved record is corrupt, or if retained object shards have 
 
 `max_request_memory` (default 16 GiB) bounds the bytes of request messages buffered in memory: every request is admitted against this budget before it is read, and rejected (retryably) when it is full. It is not an RSS bound — decode and verification allocate on top — so leave host headroom. See ADR-031.
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+Connections are capped only for safety and fairness, and over-cap connections are closed at once rather than parked:
 
-**Deprecated:** sizing memory with these caps. Before memory admission, gRPC buffered a full upload message (~132 MiB) per in-flight stream, so the caps bounded worst-case receive memory:
+- `max_connections_per_ip` (default 16, `0` disables) limits concurrent connections from one source IP (IPv6 by `/64`). A fixed internal cap of 4096 bounds the total.
+- `max_concurrent_streams` (default 100) bounds per-connection stream concurrency.
+- `max_connections` is deprecated and ignored; the key is kept so existing configs still load.
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
-```
-
-That bound no longer applies: buffered request memory is capped by `max_request_memory` alone, whatever the connection and stream caps are. Set `max_request_memory` to size memory, and use these caps only to limit concurrency.
+Existing config files keep their written values: unless edited, they keep `max_concurrent_streams = 13` and a `max_connections` that is now ignored. Raise `max_concurrent_streams` to 100 to pick up the new default.
 
 ## Signing
 
@@ -362,9 +360,10 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 ## Transport security (TLS)
 
-The Fibre server↔client link is always TLS-encrypted, and it is fully automatic: there are no certificates to obtain, configure, or renew.
+Shards move over plaintext HTTP/2 by default, falling back to TLS automatically. Shard data is public and integrity comes from the payment-promise receipts (ed25519 signatures checked against the validator set) and from row proofs against the commitment, so plaintext keeps integrity while trading away transport confidentiality and server authentication for the TLS CPU cost. Operators who need to close that gap set `force_tls` (see below). TLS stays fully automatic: there are no certificates to obtain, configure, or renew.
 
-- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set, so the connection proves it belongs to your validator — no certificate authority involved.
+- Servers accept both plaintext and TLS on the same port, chosen by the first bytes of each connection. Clients try plaintext per validator and fall back to TLS for servers that only speak TLS, re-probing after 10 minutes. Old and new nodes interoperate with no configuration.
+- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set on the TLS path, so the connection proves it belongs to your validator — no certificate authority involved.
 - Identity is bound to the consensus key, not the network address, so the host you register on-chain can be an IP literal or a DNS name.
 - A restart generates a fresh certificate automatically. After changing the signer (`--signer-grpc-address`), restart the server so the certificate is endorsed with the right key.
 - Downloads are public — any peer can read shards. Uploads are still gated by the payment-promise check.
@@ -372,7 +371,7 @@ The Fibre server↔client link is always TLS-encrypted, and it is fully automati
 Two things to keep in mind:
 
 - The app link (`--app-grpc-address`) is not TLS-protected, so keep it on the same host or a trusted network. The signer link (`--signer-grpc-address`) uses plaintext only on loopback; remote connections require the mutual TLS configuration described in [Signing](#signing).
-- There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
+- With plaintext shards, an on-path observer can see blob data shortly before its `MsgPayForFibre` inclusion makes it public anyway. If that window matters, set `force_tls = true` (or `--force-tls`) on the server to reject plaintext and serve TLS only, and `ForceTLS` on the client to never probe plaintext. Both sides can be forced independently; a forced client still interoperates with a plaintext-serving server.
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
@@ -396,7 +395,7 @@ Downloads of stored shards keep working while the app node or signer is down. Re
 
 ### How to check
 
-The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
+The port speaks TLS with a self-signed identity certificate, so tell the probe not to verify it:
 
 ```sh
 go install github.com/grpc-ecosystem/grpc-health-probe@latest
@@ -506,6 +505,10 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
 | `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
 | `fibre.server.request.rejected` | Counter | `method`, `reason` | gRPC requests rejected by memory admission (`per_ip`, `memory_timeout`, `memory_overflow`) |
+| `fibre.server.request.reserved_bytes` | Gauge (By) | — | Request bytes reserved against `max_request_memory` |
+| `fibre.server.request.admission.waiting` | Gauge | — | Requests waiting for memory budget |
+| `fibre.server.connections.open` | Gauge | — | Open gRPC connections |
+| `fibre.server.connections.rejected` | Counter | `reason` | Connections rejected by the global (`global`) or per-IP (`per_ip`) cap |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
 | `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |
@@ -576,6 +579,39 @@ fibre start \
 ```
 
 Profiles are tagged with `version` and `hostname` for filtering in the Grafana UI.
+
+## Performance tuning (Linux)
+
+### Transparent huge pages (row slabs)
+
+The encoder streams hundreds of MiB of row data per blob through `mmap`'d scratch slabs. On Linux the server advises the kernel to back those slabs with transparent huge pages (`MADV_HUGEPAGE`), which cuts TLB misses on that streaming. In the change that introduced it ([#8175](https://github.com/celestiaorg/celestia-app/pull/8175)) this improved throughput by about **10% at 16 concurrent encodes** on a Graviton4 (c8gn.4xlarge); the gain depends on the host.
+
+The advice is a no-op unless the host enables THP in `madvise` (or `always`) mode. With default per-size settings, check it and (as root) enable it if needed:
+
+```sh
+# must print [madvise] or [always]; [never] makes the advice a no-op
+cat /sys/kernel/mm/transparent_hugepage/enabled
+# enable madvise mode for the current boot (persist via grub/tmpfiles)
+echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+```
+
+**Recommended:** `enabled = madvise`, which restricts automatic THP allocation to advised regions — including these slabs — rather than to every anonymous mapping on the host.
+
+Trade-offs to be aware of:
+
+- **Memory:** huge pages are charged to the server's memory cgroup and can round RSS up to the huge-page size (commonly 2 MiB; see `cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size`). Leave headroom in any cgroup memory limit.
+- **Defrag stalls:** the advice makes these slabs `MADV_HUGEPAGE` regions, so with `defrag = always`, `madvise`, or `defer+madvise` the first touch of a slab can synchronously stall while the kernel compacts memory to form a huge page (see `fibre/internal/row/mmap_unix.go`). `defrag = defer` avoids these synchronous THP reclaim/compaction stalls, assembling huge pages in the background (already-available ones can still be used up front); `never` skips direct THP reclaim/compaction, falling back to regular pages when huge pages are not immediately available. Inspect or change it with:
+
+```sh
+cat /sys/kernel/mm/transparent_hugepage/defrag
+echo defer | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
+```
+
+To gauge THP use, read `AnonHugePages` (PMD-sized THP) in `/proc/<pid>/smaps_rollup` while the server is serving — that is a process-level figure; attribute it to specific slab mappings via `/proc/<pid>/smaps`.
+
+**Opt-out:** set `FIBRE_ROW_NO_HUGEPAGE=1` to skip just the huge-page advice (the `mmap` slabs stay enabled), or `FIBRE_ROW_NO_MMAP=1` to route slabs through the Go heap entirely. Both are environment variables read at startup.
+
+**Download memory:** set `FIBRE_MAX_CONCURRENT_RECONSTRUCTS=<n>` to cap how many blob downloads run Reed-Solomon reconstruction at once (default: half of `GOMAXPROCS`, at least 2). Each reconstruction holds a codec work slab (~512 MiB for 128 MiB blobs). Also read at startup; non-positive or invalid values are ignored.
 
 ## Troubleshooting
 

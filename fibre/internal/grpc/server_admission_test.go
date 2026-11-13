@@ -16,12 +16,14 @@ import (
 )
 
 // fakeFibre signals handler entry on entered (if set) and blocks until release
-// is closed (if set) or the request ends. Uploads panic when panics is set.
+// is closed (if set) or, unless ignoreCancel, the request ends. Uploads panic
+// when panics is set.
 type fakeFibre struct {
 	types.UnimplementedFibreServer
-	entered chan struct{}
-	release chan struct{}
-	panics  bool
+	entered      chan struct{}
+	release      chan struct{}
+	ignoreCancel bool
+	panics       bool
 }
 
 func (f *fakeFibre) wait(ctx context.Context) error {
@@ -29,6 +31,10 @@ func (f *fakeFibre) wait(ctx context.Context) error {
 		f.entered <- struct{}{}
 	}
 	if f.release == nil {
+		return nil
+	}
+	if f.ignoreCancel { // like a store read that outlives the request
+		<-f.release
 		return nil
 	}
 	select {
@@ -59,7 +65,7 @@ func (f *fakeFibre) DownloadShard(ctx context.Context, _ *types.DownloadShardReq
 // startServer serves svc and gRPC health with admission cfg and returns a client conn.
 func startServer(t *testing.T, cfg AdmissionConfig, svc types.FibreServer) (*Server, *grpc.ClientConn) {
 	t.Helper()
-	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, 100, cfg)
+	srv, err := Listen("127.0.0.1:0", 0, 100, cfg) // per-IP disabled
 	require.NoError(t, err)
 	srv.Register(svc)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
@@ -167,4 +173,47 @@ func TestAdmissionRecoversPanic(t *testing.T) {
 	_, err := types.NewFibreClient(conn).UploadShard(t.Context(), &types.UploadShardRequest{})
 	require.Equal(t, grpccodes.Internal, status.Code(err))
 	require.Eventually(t, func() bool { return srv.adm.reserved.Load() == 0 }, 2*time.Second, 10*time.Millisecond)
+}
+
+// TestDownloadHoldsMaxUntilReturn: a download keeps its max reservation while the
+// handler runs, so a second download is rejected, and a client reset (RST_STREAM
+// cancels the stream context) does not release it before the handler returns.
+func TestDownloadHoldsMaxUntilReturn(t *testing.T) {
+	withShortWait(t)
+	const msg = 1 << 16
+	svc := &fakeFibre{entered: make(chan struct{}, 1), release: make(chan struct{}), ignoreCancel: true}
+	srv, conn := startServer(t, AdmissionConfig{Budget: msg, MaxMessage: msg}, svc) // budget fits one
+	c := types.NewFibreClient(conn)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { _, err := c.DownloadShard(ctx, &types.DownloadShardRequest{}); done <- err }()
+	<-svc.entered
+	require.EqualValues(t, msg, srv.adm.reserved.Load())
+
+	_, err := c.DownloadShard(t.Context(), &types.DownloadShardRequest{})
+	requireRetryable(t, err)
+
+	cancel()
+	require.Equal(t, grpccodes.Canceled, status.Code(<-done))
+	require.Never(t, func() bool { return srv.adm.reserved.Load() < msg }, 300*time.Millisecond, 10*time.Millisecond)
+
+	close(svc.release)
+	require.Eventually(t, func() bool { return srv.adm.reserved.Load() == 0 }, 2*time.Second, 10*time.Millisecond)
+}
+
+// TestServerStats: Stats reports live reservations and open connections.
+func TestServerStats(t *testing.T) {
+	const msg = 1 << 16
+	svc := &fakeFibre{entered: make(chan struct{}, 1), release: make(chan struct{})}
+	srv, conn := startServer(t, AdmissionConfig{Budget: msg, MaxMessage: msg}, svc)
+	go func() {
+		_, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{})
+	}()
+	<-svc.entered
+	st := srv.Stats()
+	require.EqualValues(t, msg, st.ReservedBytes)
+	require.EqualValues(t, 1, st.OpenConns)
+	close(svc.release)
+	require.Eventually(t, func() bool { return srv.Stats().ReservedBytes == 0 }, 2*time.Second, 10*time.Millisecond)
 }

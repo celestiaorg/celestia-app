@@ -97,7 +97,11 @@ func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vec
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
 	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
-	return v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	err = v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	// rows may alias a whole request buffer; a pooled verifier must not pin it
+	clear(v.rowsScratch)
+	clear(v.proofScratch)
+	return err
 }
 
 // VerifyShared is the concurrent-safe counterpart to [Verifier.Verify]. It performs the
@@ -167,6 +171,9 @@ func (v *Verifier) extendRLC() error {
 func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 	if len(proofs) == 0 {
 		return 0, errors.New("no proofs provided")
+	}
+	if proofs[0] == nil {
+		return 0, errors.New("received nil proof in verifier")
 	}
 	expectedProofDepth := bits.Len(uint(v.config.K+v.config.N)) - 1
 	rowSize := len(proofs[0].Row)

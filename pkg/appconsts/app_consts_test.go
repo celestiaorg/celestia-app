@@ -8,27 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMaxExpectedTimePerBlock fails if MaxExpectedTimePerBlock deviates too
-// much from the expected block time * 5. The expected block time is primarily
-// determined by DelayedPrecommitTimeout and The TimeoutCommit. If this test fails, it means that
-// timeout constants were modified without updating MaxExpectedTimePerBlock (or
-// vice versa). All of these values need to be updated together:
-//   - DelayedPrecommitTimeout (and other Timeout* constants)
-//   - MaxExpectedTimePerBlock
+// TestMaxExpectedTimePerBlock fails if MaxExpectedTimePerBlock is not 5x the
+// block interval of the current app version.
 func TestMaxExpectedTimePerBlock(t *testing.T) {
-	expectedBlockTime := DelayedPrecommitTimeout + TimeoutCommit
-	want := expectedBlockTime * 5
-	deviation := MaxExpectedTimePerBlock - want
-	if deviation < 0 {
-		deviation = -deviation
-	}
-	// Allow up to 2 seconds of tolerance to account for the fact that
-	// DelayedPrecommitTimeout + TimeoutCommit isn't exactly 3 seconds.
-	tolerance := 2 * time.Second
-	assert.LessOrEqual(t, deviation, tolerance,
-		"MaxExpectedTimePerBlock (%v) deviates from (DelayedPrecommitTimeout + TimeoutCommit) * 5 (%v) by more than %v. "+
-			"If you changed timeout constants, also update MaxExpectedTimePerBlock.",
-		MaxExpectedTimePerBlock, want, tolerance)
+	want := 5 * GetConsensusTimeouts(Version).BlockInterval()
+	assert.Equal(t, want, MaxExpectedTimePerBlock,
+		"If you changed timeout constants, also update MaxExpectedTimePerBlock.")
 }
 
 // TestSubtreeRootThreshold verifies that SubtreeRootThreshold has not changed
@@ -44,13 +29,15 @@ func TestConsts(t *testing.T) {
 	t.Run("TestUpgradeHeightDelay should be 3", func(t *testing.T) {
 		require.Equal(t, int64(3), TestUpgradeHeightDelay)
 	})
-	t.Run("CortoUpgradeHeightDelay should be 1 day of ~2.6 second blocks", func(t *testing.T) {
-		require.Equal(t, int64(33_231), CortoUpgradeHeightDelay)
+	blocksIn := func(d time.Duration) int64 { return int64(d / GetConsensusTimeouts(Version).BlockInterval()) }
+	day := 24 * time.Hour
+	t.Run("CortoUpgradeHeightDelay should be 1 day of 0.8 second blocks", func(t *testing.T) {
+		require.Equal(t, blocksIn(day), CortoUpgradeHeightDelay)
 	})
-	t.Run("MochaUpgradeHeightDelay should be 2 days of ~2.6 second blocks", func(t *testing.T) {
-		require.Equal(t, int64(66_462), MochaUpgradeHeightDelay)
+	t.Run("MochaUpgradeHeightDelay should be 2 days of 0.8 second blocks", func(t *testing.T) {
+		require.Equal(t, blocksIn(2*day), MochaUpgradeHeightDelay)
 	})
-	t.Run("MainnetUpgradeHeightDelay should be 7 days of ~2.6 second blocks", func(t *testing.T) {
-		require.Equal(t, int64(232_616), MainnetUpgradeHeightDelay)
+	t.Run("MainnetUpgradeHeightDelay should be 7 days of 0.8 second blocks", func(t *testing.T) {
+		require.Equal(t, blocksIn(7*day), MainnetUpgradeHeightDelay)
 	})
 }

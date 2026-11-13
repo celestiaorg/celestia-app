@@ -5,6 +5,10 @@ on:
 jobs:
   build:
     name: build
+    # Skip in the merge queue: test / build-e2e-artifacts already runs
+    # `make build` on the combined result there, and the coverage suite compiles
+    # every package.
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0

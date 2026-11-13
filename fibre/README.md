@@ -17,6 +17,32 @@ This package is the Go client. Depending on what you want to do:
 - gRPC access to a `celestia-appd` node (default `127.0.0.1:9090`).
 - For uploads: a funded account in a local keyring, plus a funded fibre **escrow account** for that key (see [Escrow](#escrow)).
 
+`Put` confirms PFF execution through `TxClient.ConfirmTxSubscription` on the same
+app gRPC connection. Current multiplexer and standalone nodes with in-process core
+provide the required `BlockAPI.SubscribeNewHeights`, `TxStatusBatch`, and committed
+application height metadata. Separate-process ABCI deployments are not validated.
+
+Confirmation blocks until the transaction's result is covered by the application's
+committed height, so state queries that follow observe its effects. Each waiter
+checks its transaction once directly, then waits on a status feed shared by all
+waiters of the client. On every new height the feed fetches the status of every
+waiting transaction in batches of at most 20 hashes, running up to 4 batches in
+parallel with a 5 second timeout each. A failed or invalid batch is skipped; its
+waiters get the next height's results. The height stream reconnects with backoff
+(250ms up to 5s) for as long as anyone is waiting, with no reconnect limit. A
+waiter that receives no status for 30 seconds checks its transaction directly, so
+confirmation still makes progress if the subscription is unavailable.
+
+There is no waiter limit and no explicit shutdown: the feed starts with the first
+waiter and stops when the last one leaves. Caller deadlines and cancellation apply.
+A direct status check whose RPC fails is retried at the next 30 second check
+while the feed keeps delivering. An unimplemented `TxStatus` or missing committed
+height metadata returns an error, which does not mean the transaction failed
+on-chain. The caller retains ownership of the gRPC connection.
+
+Existing `ConfirmTx` and `WithPollTime` behavior is unchanged for other SDK callers.
+`Put` never falls back to that polling path.
+
 ## Quickstart
 
 Upload a blob with `Put`, then fetch it back by its `BlobID`:

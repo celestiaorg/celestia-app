@@ -268,17 +268,23 @@ func (s *CelestiaTestSuite) logSyncStatus(ctx context.Context, client rpcclient.
 // Upgrade-agnostic: can be called before/after upgrades or spanning the entire period.
 // Call at the end of E2E tests to validate network health.
 func (s *CelestiaTestSuite) CheckLiveness(ctx context.Context, chain tastoratypes.Chain) error {
+	return s.CheckLivenessFrom(ctx, chain, 1)
+}
+
+// CheckLivenessFrom is CheckLiveness for a chain whose first block is at startHeight,
+// such as a chain restarted from an export.
+func (s *CelestiaTestSuite) CheckLivenessFrom(ctx context.Context, chain tastoratypes.Chain, startHeight int64) error {
 	rpcClient, err := chain.GetNodes()[0].GetRPCClient()
 	if err != nil {
 		return fmt.Errorf("failed to get RPC client: %w", err)
 	}
 
-	endHeight, err := s.ensureMinimumBlocks(ctx, chain, rpcClient, 1)
+	endHeight, err := s.ensureMinimumBlocks(ctx, chain, rpcClient, startHeight)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum blocks: %w", err)
 	}
 
-	proposers, err := s.fetchProposerAddresses(ctx, rpcClient, 1, endHeight)
+	proposers, err := s.fetchProposerAddresses(ctx, rpcClient, startHeight, endHeight)
 	if err != nil {
 		return fmt.Errorf("failed to fetch proposer addresses: %w", err)
 	}

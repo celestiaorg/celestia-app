@@ -2,15 +2,20 @@ package app_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
 	"cosmossdk.io/math"
+	"cosmossdk.io/store/rootmulti"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -24,6 +29,103 @@ func TestExportAppStateAndValidators(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, exported)
 	require.Equal(t, appconsts.Version, exported.ConsensusParams.Version.App)
+}
+
+func TestExportRefusals(t *testing.T) {
+	testCases := []struct {
+		name            string
+		setup           func(*testing.T, *app.App, sdk.Context)
+		modulesToExport []string
+		wantErr         string
+	}{
+		{
+			name: "upgrade plan for the next height",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+			},
+			wantErr: "export with --height 1 instead",
+		},
+		{
+			name: "upgrade plan for the next height and another app version",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+				require.NoError(t, testApp.SetAppVersion(ctx, appconsts.Version+1))
+			},
+			wantErr: "export with --height 1 instead",
+		},
+		{
+			name: "state at another app version",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				require.NoError(t, testApp.SetAppVersion(ctx, appconsts.Version-1))
+			},
+			wantErr: fmt.Sprintf("use a binary for app version %d (`celestia-appd passthrough v%d export` in the multiplexer build)",
+				appconsts.Version-1, appconsts.Version-1),
+		},
+		{
+			name:            "subset of modules",
+			modulesToExport: []string{"bank"},
+			wantErr:         "exporting a subset of modules is not supported",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+			execBlock(t, testApp, func(ctx sdk.Context) {
+				if tc.setup != nil {
+					tc.setup(t, testApp, ctx)
+				}
+			})
+			require.Equal(t, int64(2), testApp.LastBlockHeight())
+
+			_, err := testApp.ExportAppStateAndValidators(false, nil, tc.modulesToExport)
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+// TestExportUsesLastCommitTime checks that a zero-height export starts the
+// unbonding of a validator that leaves the set at the last commit time.
+func TestExportUsesLastCommitTime(t *testing.T) {
+	valSet := cmttypes.NewValidatorSet([]*cmttypes.Validator{
+		cmttypes.NewValidator(ed25519.GenPrivKey().PubKey(), 1),
+		cmttypes.NewValidator(ed25519.GenPrivKey().PubKey(), 1),
+	})
+	testApp := util.NewTestApp()
+	genesisState, _ := util.GenesisStateWithValidatorSet(testApp, valSet)
+	testApp = util.InitialiseTestAppWithGenesis(testApp, app.DefaultConsensusParams(), genesisState)
+
+	// The export recomputes the validator set and drops one validator.
+	execBlock(t, testApp, func(ctx sdk.Context) {
+		params, err := testApp.StakingKeeper.GetParams(ctx)
+		require.NoError(t, err)
+		params.MaxValidators = 1
+		require.NoError(t, testApp.StakingKeeper.SetParams(ctx, params))
+	})
+
+	commitInfo, err := testApp.CommitMultiStore().(*rootmulti.Store).GetCommitInfo(testApp.LastBlockHeight())
+	require.NoError(t, err)
+	lastBlockTime := util.GenesisTime.Add(time.Duration(testApp.LastBlockHeight()) * time.Second)
+	require.True(t, lastBlockTime.Equal(commitInfo.Timestamp), "want %s, got %s", lastBlockTime, commitInfo.Timestamp)
+
+	exported, err := testApp.ExportAppStateAndValidators(true, nil, nil)
+	require.NoError(t, err)
+
+	var appState map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(exported.AppState, &appState))
+	var staking stakingtypes.GenesisState
+	testApp.AppCodec().MustUnmarshalJSON(appState[stakingtypes.ModuleName], &staking)
+
+	var unbonding []stakingtypes.Validator
+	for _, validator := range staking.Validators {
+		if validator.IsUnbonding() {
+			unbonding = append(unbonding, validator)
+		}
+	}
+	require.Len(t, unbonding, 1)
+	want := commitInfo.Timestamp.Add(staking.Params.UnbondingTime)
+	require.True(t, want.Equal(unbonding[0].UnbondingTime), "want %s, got %s", want, unbonding[0].UnbondingTime)
 }
 
 // TestExportForZeroHeightAfterSlashing is a regression test for a panic in

@@ -53,12 +53,12 @@ func (k Keeper) GetEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 }
 
 // BankDenomForToken returns the bank denom used to represent the given Hyperlane token on Celestia.
+// Warp mints and burns synthetic tokens in OriginDenom, which is "hyperlane/<id>" for
+// permissionless synthetic tokens and a custom denom for native synthetic tokens.
 func (k Keeper) BankDenomForToken(token warptypes.HypToken) (string, error) {
 	switch token.TokenType {
-	case warptypes.HYP_TOKEN_TYPE_COLLATERAL:
+	case warptypes.HYP_TOKEN_TYPE_COLLATERAL, warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
 		return token.OriginDenom, nil
-	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
-		return "hyperlane/" + token.Id.String(), nil
 	default:
 		return "", types.ErrUnsupportedToken
 	}

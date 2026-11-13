@@ -12,7 +12,7 @@ import (
 
 const (
 	stateTransitionProgramVkHex = "004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
-	stateMembershipProgramVkHex = "00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
+	stateMembershipProgramVkHex = "00187b5483ec55367414caf254fe354bf24046ebc62f37ef03fed60321c1d7d1"
 	proofPrefixLen              = 4
 	// proofMetadataLen is the SP1 v6 metadata between the vkey-hash prefix and
 	// the gnark proof: exit_code(32) + vk_root(32) + proof_nonce(32).

@@ -1,0 +1,201 @@
+# Fuzz entry-point inventory
+
+This is the celestia-app inventory for
+[PROTOCO-3326](https://linear.app/celestia/issue/PROTOCO-3326), updated on
+2026-10-28. The cross-repository inventory remains tracked by
+[PROTOCO-3321](https://linear.app/celestia/issue/PROTOCO-3321).
+
+## Priorities and scope
+
+Priority 1 covers peer/client transactions and proposer-controlled blocks: a
+failure affects admission or block validation on every node. Priority 2 covers
+proofs and fibre transport: malformed bytes can crash a receiver or make
+optimized codecs disagree with canonical decoding. Priority 3 covers internal
+primitives reached after those boundaries validate their inputs.
+
+The initial nightly baseline was seven targets. PRs
+[#8349](https://github.com/celestiaorg/celestia-app/pull/8349) and
+[#8381](https://github.com/celestiaorg/celestia-app/pull/8381) added eight, with
+[#8383](https://github.com/celestiaorg/celestia-app/pull/8383) correcting the share
+proof harness. This follow-up adds two focused ante targets and registers five
+existing targets that were missing from the nightly script. Every target is
+registered in [scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt).
+
+The two additional targets prioritize nested-message restrictions, which stop
+ante bypasses, and fee/priority arithmetic, where attacker-selected gas and fees
+cross rounding and integer-width boundaries. Structured nested messages pass
+through the real transaction encoder/decoder before reaching the decorator.
+
+## Covered surfaces
+
+Each row records a fuzzed surface, its untrusted input, and its target. A target
+can cover several functions; target presence does not establish branch coverage.
+
+| Priority | Entry point / input source | Fuzz target(s) | Scope and limits |
+| --- | --- | --- | --- |
+| 1 | `app.CheckTx`: RPC and peer transaction bytes | `FuzzCheckTxMutatedTxs` in [app/test](../app/test/check_tx_fuzz_test.go) | Mutations of send, PFF, single-blob and multi-blob transactions; detects recovered panics. CheckTx state is reused. |
+| 1 | `app.CheckTx` recheck path (pay-for-fibre fast path, blob recheck): mempool txs rechecked after every commit | `FuzzRecheckMutatedTxs` in [app/test](../app/test/recheck_fuzz_test.go) | Applies the CheckTx mutations, admits what a new CheckTx accepts, and rechecks the admitted txs on the same check state and after an empty block. Rechecks must not recover a panic, and after a block that changed nothing they must keep every admitted tx. Only admitted txs are rechecked, as in the mempool. |
+| 1 | `app.PrepareProposal`: mempool transactions | `FuzzCheckTxPrepareProposal` in [app/test](../app/test/check_tx_prepare_proposal_fuzz_test.go) | Re-signs structured messages and checks accepted transactions survive proposal construction. Arbitrary malformed mempool batches are outside this target. |
+| 1 | `app.PrepareProposal` then `app.ProcessProposal`: malformed mempool batches | `FuzzPrepareProposalMalformedBatch` in [app/test](../app/test/prepare_proposal_fuzz_test.go) | Up to eight mutations, duplications, reorderings and arbitrary insertions over valid send, PFF and blob txs. Fails on a panic PrepareProposal recovered, or when ProcessProposal rejects the block PrepareProposal built. |
+| 1 | `app.ProcessProposal`: proposer transaction bytes | `FuzzProcessProposalMutatedTxs` in [app/test](../app/test/process_proposal_fuzz_test.go) | Mutates a prepared proposal; detects recovered panics and requires unchanged proposals to be accepted. Header root and square size remain fixed. |
+| 1 | `FinalizeBlock` and `Commit`: a proposal every validator accepted | `FuzzFinalizeBlockMutatedProposal` in [app/test](../app/test/finalize_block_fuzz_test.go) | Applies the ProcessProposal mutations, claims the data root and square size the proposer would compute for the mutated txs, and, when ProcessProposal accepts a changed proposal, runs FinalizeBlock and Commit. FinalizeBlock must not error or recover a panic and must return one result per tx. The fixture is rebuilt after each finalized block. Cross-node app-hash agreement is not checked. |
+| 1 | `app/ante.NewAnteHandler` chain behind `app.CheckTx` (setup, validate basic, timeout height, memo, tx size gas, fee deduction and fee grants, public keys, signature count, gas and verification, sequence increment) and the `x/fibre/ante` decorators: client-signed transactions | `FuzzAnteChainSignedTxs` in [app/test](../app/test/ante_chain_fuzz_test.go) | Builds txs from typed fields (one to four sends or a pay-for-fibre message, signers, fee amounts and denoms, gas limits 0, 1 and MaxUint64, memos around the limit, past and future timeout heights, fee payer and granter, sign modes, missing or foreign public keys, missing or extra signatures and signers) and signs them correctly unless a signature edit forges them. Forged txs must be rejected; accepted txs must deduct the fee once from the fee payer or granter, advance each signer's sequence by one and charge at least the tx size gas; rejected txs must leave the check state unchanged. Recovered panics for signers without a public key are tolerated. ProcessProposal and FinalizeBlock execution are outside this target. |
+| 1 | `pkg/da.ExtendSharesWithTreePool` vs `ExtendShares`, `pkg/wrapper` buffered tree vs NMT wrapper: proposer-controlled original square shares | `FuzzExtendSharesParity` in [pkg/da](../pkg/da/extend_shares_fuzz_test.go) | Squares up to 8x8 with non-square counts, out-of-order namespaces and arbitrary share bytes; shares, per-axis roots and errors, and the data root must match. One tree pool is shared across inputs to exercise resize and reuse after failures. |
+| 1 | `app.QuerySequence`: signer bytes named by CAT mempool peers | `FuzzQuerySequence` in [app/test](../app/test/query_sequence_fuzz_test.go) | Arbitrary signer bytes on the ABCI mempool connection, which has no panic recovery. Unknown signers must report sequence 0 and an account that committed a tx reports 1. |
+| 1 | `app/ante.NestedMsgDecorator.AnteHandle`: decoded authz/governance containers | `FuzzNestedMsgDecorator` in [app/ante](../app/ante/nested_msg_fuzz_test.go) | Varies message type, position, count, wrapper and simulation mode; forbidden messages must never reach the next handler. Exercises the guard directly, independently of signature/fee rejection earlier in the ante chain. |
+| 1 | `app/ante.MultisigISMValidatorsDecorator` behind `NestedMsgDecorator`: Hyperlane multisig ISM creation, bare or in authz execs and gov proposals | `FuzzMultisigISMNestedLimit` in [app/ante](../app/ante/multisig_ism_fuzz_test.go) | Message trees up to three levels deep with message-ID and Merkle-root multisig ISMs of 0 to 200 validators, round-tripped through the tx codec and run through both decorators in chain order. The pair must reject exactly the txs that nest a wrapper in a wrapper or hold an oversized ISM anywhere, which pins the multisig decorator's one-level assumption to the nesting guard. |
+| 1 | `app/ante.PreverifyTxSignatures` and the cached signature verification decorator: signed tx bytes | `FuzzCachedSigVerification` in [app/ante](../app/ante/cached_sigverify_fuzz_test.go) | Byte edits and cross-tx splices over signed txs from two accounts at two sequences. After warming the cache, the cached decorator must reach the uncached decision and error for every tx that passes `ValidateBasic`. Txs whose `GetSignaturesV2` panics are excluded until PROTOCO-3482 is fixed. |
+| 1 | `pkg/secpverify.Verify` (cgo builds, libsecp256k1) behind `app/ante` signature verification and `fibre.PaymentPromise` signatures: client secp256k1 public keys, messages and signatures | `FuzzVerifyMatchesDecred`, `FuzzVerifyMatchesDecredSigned` in [pkg/secpverify](../pkg/secpverify/secpverify_cgo_test.go) | Arbitrary keys, messages and signatures, and mutations of valid signatures (bit flips, high S, R or S encoded as value + N); the verdict must match the SDK's decred verifier. Runs only with cgo enabled. |
+| 1 | `app/ante.ValidateTxFee`: transaction fee coins and gas limit | `FuzzValidateTxFee` in [app/ante](../app/ante/validate_tx_fee_fuzz_test.go) | Keeper-backed fee checker with a big-integer oracle for the network minimum, foreign fee denoms and CheckTx/DeliverTx modes. Fees that do not fit in an int64 must be rejected. |
+| 1 | `app/ante.ProcessMessageSignatures`, `ISMSignatureGasDecorator`: `MsgProcessMessage` metadata hex | `FuzzISMSignatureWeight` in [app/ante](../app/ante/ism_signature_gas_fuzz_test.go) | Arbitrary strings and structured message-id and merkle-root multisig metadata with partial signatures, prefixes and letter case. The counted weight must be at least the signatures the hyperlane multisig metadata parsers recover after mailbox hex decoding, and the decorator must charge for them in direct and authz-wrapped messages. Routing ISM dispatch and signature validity are outside this target. |
+| 1 | `app/ante.verifyMinFee`, `getTxPriority`: transaction gas/fees | `FuzzAnteFeeArithmetic` in [app/ante](../app/ante/fee_fuzz_test.go) | Uses a `math/big` oracle for rounded minimum fees and overflow-safe priority, including zero gas and values above MaxInt64. Random fees and prices span uint64; keeper-backed fee deduction is outside this target. |
+| 1 | `app/encoding` tx decoder: raw tx bytes from peers, clients and proposers | `FuzzTxDecoderFastPath` in [app/encoding](../app/encoding/decoder_fuzz_test.go) | The decoder `MakeConfig` installs, including its plain-envelope fast path, must agree with the full BlobTx/IndexWrapper/empty-tx wrapper chain on errors and decoded tx bytes, for plain, wrapped and type-id-marked seeds. |
+| 1 | `app.TxCache.Exists`, `App.ValidateBlobTxWithCache`: blob txs cached in CheckTx and replayed in ProcessProposal | `FuzzTxCacheValidation` in [app](../app/pfb_tx_cache_fuzz_test.go) | Mutates one of namespace, data, share version, signer, inner tx or blob order/count of a valid signed blob tx; the cache must hit only for field-identical txs. With a CheckTx-shaped cache (only fully validated txs inserted), cached validation must accept exactly when full validation does. |
+| 1 | `app.pffDecodeCandidate`: raw transaction classification | `FuzzPFFDecodeCandidateParity` in [app](../app/pff_decode_candidate_fuzz_test.go) | Fast-path classification agrees with the SDK and fibre decoders. |
+| 1 | `app.firstMsgIsPayForFibre`, `separateTxsDecoded`: PrepareProposal mempool tx routing | `FuzzFirstMsgIsPayForFibre` in [app](../app/filtered_square_builder_peek_fuzz_test.go) | Mutated signed and unsigned send, pay-for-fibre, multi-message and wrapped txs. Wherever the SDK decoder accepts the bytes, the wire-level peek must parse them and agree on whether the first message is a pay-for-fibre, and txs with only pay-for-fibre or only other non-PFB messages must reach the matching list. Mixed and PFB-carrying txs are routed but not checked. |
+| 1 | `app.countICAPacketMsgs`: IBC packet contents | `FuzzCountICAPacketMsgs` in [app](../app/msg_count_test.go) | Fuzzes ICA message counting from packet data. |
+| 1 | `app.countExecutableMsgs`, `countZKProofMsgs`: decoded tx messages | `FuzzCountTxMsgs` in [app](../app/msg_count_fuzz_test.go) | Structured txs of up to 64 messages mixing sends, `MsgExec`, `MsgModuleQuerySafe`, ICA packets under both channel encodings (structured or raw payloads) and ZK messages, decoded by the app decoder. Neither counter may report fewer messages or proofs than execution would dispatch. |
+| 1 | `x/blob/types.ValidateBlobTx`, `ValidateBlobTxSkipCommitment`: blob transaction envelopes | `FuzzValidateBlobTx` in [x/blob/types](../x/blob/types/blob_tx_fuzz_test.go) | Cached validation must agree with full validation except for the skipped commitment check. |
+| 1 | `x/blob/types.MsgPayForBlobs.ValidateBasic`, gas estimation: message fields | `FuzzMsgPayForBlobsValidateBasic`, `FuzzPFBGasEstimation` in [x/blob/types](../x/blob/types) | Inconsistent vector lengths and share versions; gas helpers run after their validation preconditions. |
+| 1 | `x/blob/ante` `getSharesNeeded`, `validateEnoughGas` and the decorator walks over them: PFB message fields | `FuzzPFBShareAndGasValidation` in [x/blob/ante](../x/blob/ante/pfb_shares_fuzz_test.go) | Arbitrary blob sizes, share versions and namespace counts, including mismatched lengths, as a reordered ante chain could pass them before `ValidateBasic`. Share counts and gas verdicts must match a big-integer oracle; fewer share versions than blob sizes must be rejected. |
+| 1 | `x/valaddr/types.ValidateHost`: fibre provider host registered on chain | `FuzzValidateHost` in [x/valaddr/types](../x/valaddr/types/host_fuzz_test.go) | Accepted hosts must be bounded and split into a non-empty host and a port in range that join back to the input, and the host must be an IP literal or a host name that is not a gRPC resolver scheme. |
+| 1 | `x/fibre/types.ParsePayForFibreTx`, `TryParseFibreTx`, `ClassifyTxs`: transaction bytes | `FuzzParsePayForFibreTx` in [x/fibre/types](../x/fibre/types/classified_tx_fuzz_test.go) | Parser/classifier agreement and system blob consistency; decoded PFF basic validation, signature cache keys and gas estimates. |
+| 1 | `x/zkism` verifying keys, proofs and public values: `MsgCreateInterchainSecurityModule`, `MsgUpdateVerifyingKeys`, `MsgUpdateInterchainSecurityModule`, `MsgSubmitMessages` | `FuzzValidateGroth16Vkey`, `FuzzPublicValuesUnmarshal`, `FuzzParseMerkleProofMetadata`, `FuzzSP1Groth16VerifyProof` in [x/zkism/types](../x/zkism/types/decoders_fuzz_test.go); `FuzzUnmarshalProof` in [x/zkism/internal/groth16](../x/zkism/internal/groth16/proof_fuzz_test.go) | Accepted keys decode in gnark with bounded allocation and a canonical encoding; decoders round trip; only golden proof statements verify. The pairing runs only for proofs within a few bytes of a golden proof. Message servers and keeper state are outside these targets. |
+| 1 | `x/fibre/keeper.PreverifySignatures`: block pay-for-fibre txs in PrepareProposal, ProcessProposal and PreBlocker | `FuzzPreverifySignatures` in [x/fibre/keeper](../x/fibre/keeper/preverify_fuzz_test.go) | Up to eight byte-level edits, duplications and removals over two valid signed PFF txs, with and without certificates and early stop. Every cache entry must pass the sequential verifier, and no other entry may be recorded. |
+| 1 | `x/signal` `SignalVersion`, `TryUpgrade`, `VersionTally`: DeliverTx upgrade signals over the bonded validator set | `FuzzSignalTryUpgrade` in [x/signal](../x/signal/signal_fuzz_test.go) | Up to 48 signals, upgrade attempts, validator power, bonding and removal changes, upgrade activations and tally queries over up to eight validators, each message on a cache context. A `math/big` oracle decides whether and to which version TryUpgrade schedules an upgrade and checks tallies and stored signals. Bonded totals span the CometBFT range up to MaxInt64/8. |
+| 1 | `x/forwarding` `MsgForward`, `DeriveForwardingAddress` and `QuoteForwardingFee` queries: forward destinations, hook bindings and IGP fees | `FuzzDeriveForwardingAddress` in [x/forwarding/types](../x/forwarding/types/address_fuzz_test.go); `FuzzForwardingAddressQueryMsgParity`, `FuzzForwardIGPFee` in [x/forwarding/keeper](../x/forwarding/keeper/forward_fuzz_test.go) | Address derivation is injective up to equivalent hook bindings, and the query and message server agree on fuzzed hex inputs. Mocked bank, warp and hook keepers with amounts below 2^248; forwards succeed exactly when their preconditions hold, and the relayer's net cost is the fee the hook consumed. |
+| 1 | `x/zkism/keeper` msg server `Create`, `Update`, `SubmitMessages`, `UpdateVerifyingKeys`, `TransferOwnership` and `Keeper.Verify`: DeliverTx ISM messages and Hyperlane message metadata | `FuzzZKISMMsgSequence` in [x/zkism/keeper](../x/zkism/keeper/msg_sequence_fuzz_test.go) | Up to 24 operations with golden SP1 proofs from `x/zkism/internal/testdata`, single-byte proof or public value mutations, fuzz-chosen owners, verifying keys, messages and ids, each message on a cache context. A model predicts every outcome: owner-only key updates and transfers, proofs accepted only unmodified under the matching state and keys, and `Verify` only for proven messages. Ids differing only in module type or specifier must resolve to the same ISM, as in hyperlane-cosmos's own ISMs. |
+| 1 | `x/fibre/keeper` msg server `DepositToEscrow`, `RequestWithdrawal`, `PayForFibre`, `PaymentPromiseTimeout`, `UpdateFibreParams` and `BeginBlocker`: DeliverTx escrow messages and signed payment promises | `FuzzEscrowMsgSequence`, `FuzzFibreStoreKeyRoundTrip` in [x/fibre/keeper](../x/fibre/keeper/escrow_fuzz_test.go) | Up to 32 messages, time advances and injected bank failures over three fixed signers, each message after `ValidateBasic` on a cache context. Escrow balances must match pending withdrawals and a balance-tracking bank mock, coins are conserved and no promise settles twice. Validator certificates are outside this target. Index keys must round-trip, and arbitrary or short keys must parse or return an error. |
+| 1 | `fibre.Server.UploadShard` (`verifyPromise`, `verifyAssignment`, `verifyShard`, `parseRow`) and `DownloadShard`: fibre client upload and download RPCs | `FuzzServerUploadShard`, `FuzzServerDownloadShard` in [fibre](../fibre/server_upload_fuzz_test.go) | Up to 32 typed edits to a valid upload (row indices, foreign rows, row data, proof segments, RLCs, promise fields and signature), re-signed unless the signature is the target, sent through the wire encoding. Rejections must be `InvalidArgument`. An accepted upload must carry a valid client signature, rows assigned to the server that verify against the commitment (unless the identical promise was already stored), and a valid validator signature, and the stored shard must verify. Downloads take arbitrary blob IDs and may only return the stored shard for its own ID. The state client is a mock; escrow checks are outside this target. |
+| 2 | `app/ante.ParamFilterDecorator` with the app's governance param filters: param changes nested in gov proposals and authz execs | `FuzzParamFilterDecorator` in [app](../app/param_filter_fuzz_test.go) | Message trees up to four levels deep mixing sends with bank, staking and consensus `MsgUpdateParams` (allowed and refused values, missing consensus sections), round-tripped through the tx encoder and decoder. The decorator must reject exactly when a wrapper holds a refused change or no messages, judged by an independent reading of the rules. |
+| 2 | `pkg/proof.ShareProof.Validate`, `RowProof.Validate`: client-supplied inclusion proofs | `FuzzShareProofValidate` in [pkg/proof](../pkg/proof/proof_fuzz_test.go) | Single-share and multi-row seeds, arbitrary proof/root bytes. `VerifyProof` is reached through `Validate`; nil row proofs are excluded as described below. |
+| 2 | `pkg/proof.QueryTxInclusionProof`, `QueryShareInclusionProof`, `ParseNamespace`, `NewTxInclusionProof`: `abci_query` block bytes and path indices | `FuzzProofQueries` in [pkg/proof](../pkg/proof/querier_fuzz_test.go) | Arbitrary paths and request bytes must not panic. For blocks of up to 16 pool txs, returned proofs must validate against an independently computed data root and cover exactly the requested tx or share range; blocks with txs out of square order must be rejected. |
+| 2 | `pkg/da.DataAvailabilityHeaderFromProto`: serialized row/column roots | `FuzzDataAvailabilityHeaderFromProto` in [pkg/da](../pkg/da/data_availability_header_fuzz_test.go) | Accepted headers validate, hash, respect square bounds and survive a proto round trip. |
+| 2 | `app/grpc/gasestimation` gas price estimation: request priority and mempool fees, gas limits and sizes | `FuzzEstimateGasPrice` in [app/grpc/gasestimation](../app/grpc/gasestimation/gas_estimator_fuzz_test.go) | Mock mempool of up to 512 txs within the CheckTx domain (positive gas, fee below MaxInt64) and any priority value. Estimates must be finite, at least the network minimum and bounded by the highest fitting price plus the high priority adjustment. |
+| 2 | `app/grpc/tx` `TxStatus`, `TxStatusBatch`: client tx ids and CometBFT RPC responses | `FuzzTxStatus` in [app/grpc/tx](../app/grpc/tx/server_fuzz_test.go) | Arbitrary id strings against a stub node that answers faithfully, fails, truncates, drops, adds, reorders or returns nil results. Malformed ids must be rejected with InvalidArgument, nil, missing or extra node results with Internal, and every batch entry must carry the status of its id. |
+| 1 | `fibre/internal/grpc` admission limiter (`admit`, `received`, `release`, per-IP slots): concurrent upload and download requests from any peer | `FuzzAdmissionSequence` in [fibre/internal/grpc](../fibre/internal/grpc/admission_fuzz_test.go) | Up to 256 admits, receives (sizes may be negative or above the reservation) and repeated releases from ten source IPs, one unkeyed, against a model. Admission must succeed exactly when the IP has a free slot and the budget fits one more reservation; reserved bytes and per-IP slots must match the model after every step, and no budget may leak. Waiting for budget is disabled, so queueing and timeouts are not covered. |
+| 1 | `x/fibre/keeper` `DecodePayForFibre`, `DerivePayForFibre`, `ValidatePayForFibreSignatures` and msg server `PayForFibre`: DeliverTx pay-for-fibre txs with signed promises and validator certificates | `FuzzPayForFibreMsgServer` in [x/fibre/keeper](../x/fibre/keeper/pay_for_fibre_fuzz_test.go) | Up to six fresh or replayed txs from two funded payers, each with an optional typed edit (re-signed or stale) and block time advance, against four validators of unequal power, at a delivery height on either side of the promise height or at the edges of the height window. Decode must agree with the parser and independently derived cache keys; the certificate check must match a 2/3 quorum-walk model; settlement must match a window, escrow and replay model, charge the modelled amount, emit the typed event and refuse an immediate replay. |
+| 1 | `app.executeTxMsgs`, `runMsgs`: fibre settlement and escrow replay in PrepareProposal and ProcessProposal | `FuzzExecuteTxMsgs` in [app](../app/pff_execution_fuzz_test.go) | Scripted handlers behind a stub router that write, emit, then succeed, fail, panic, consume gas or are unregistered. Execution must stop at the first failure and report it as an error; `executeTxMsgs` must leave no writes or events on failure and apply all of them in order on success. Real module handlers are covered by the targets above. |
+| 1 | `x/blob/keeper` msg server `PayForBlobs` through the SDK msg service router: DeliverTx PFB messages | `FuzzPayForBlobsHandler` in [x/blob/keeper](../x/blob/keeper/pay_for_blobs_fuzz_test.go) | Up to eight edits to signer, namespaces, blob sizes up to MaxUint32, commitments, share versions and blob count, under a fuzz-chosen gas limit. Messages failing `ValidateBasic` stop there. Gas must equal a share-layout model and stay within `DefaultEstimateGas`, run out exactly when the model exceeds the limit, and the event must repeat the message. |
+| 1 | `fibre/internal/grpc` `limitedListener.Accept`, `limitedConn.Close`, `keyedCounter`, `connKey`: inbound connections from any peer | `FuzzLimitedListenerSequence` in [fibre/internal/grpc](../fibre/internal/grpc/conn_limiter_fuzz_test.go) | Up to 128 accepts and repeated closes through a fake listener from IPv4, IPv4-mapped, IPv6 (two /64s, compressed or upper-case expanded), non-IP and missing peer addresses, under fuzzed global and per-IP caps. A model with independent bucketing predicts every accept; open count, per-key slots and rejection counters must match it, rejected connections are closed once and a repeated close frees one slot. Single-threaded. |
+| 1 | `fibre/internal/grpc` upload buffer reuse (`uploadBuffers`, reusing server codec): upload RPC bytes of at least 1 MiB | `FuzzUploadBufferReuse` in [fibre/internal/grpc](../fibre/internal/grpc/conn_limiter_fuzz_test.go) | Up to 24 valid, truncated or oversized uploads and repeated releases under a fuzzed idle limit. Live requests and idle buffers must never share backing memory, live payloads must stay intact and idle bytes within the limit. Single-threaded; concurrent reuse is covered by unit tests. |
+| 1 | `app.buildProposalSquare`: the square and data root ProcessProposal derives from a proposer's txs | `FuzzBuildProposalSquareParity` in [app](../app/proposal_square_fuzz_test.go) | Up to eight txs mixing valid signed blob txs, blob txs with arbitrary inner bytes, plain txs and raw bytes, decoded as ProcessProposal decodes them, under max square sizes 1 to 128. The build must fail exactly when `pkg/da.ConstructEDS` fails, report the same square size, produce the same data root, and never recover a panic. Cached versus uncached blob validation is covered by `FuzzTxCacheValidation`. |
+| 2 | `fibre/internal/grpc` scatter/view/pooled codecs: upload and download RPC bytes | `FuzzScatterMarshalParity`, `FuzzUploadViewsParity`, `FuzzDownloadViewsParity` in [fibre/internal/grpc](../fibre/internal/grpc) | Canonical protobuf parity, malformed wire inputs and contiguous/fragmented buffer decoding. |
+| 2 | `fibre/internal/grpc.HostRegistry` `resolveHost`, `PullAll`: on-chain provider hosts from the state node | `FuzzHostRegistry` in [fibre/internal/grpc](../fibre/internal/grpc/host_registry_fuzz_test.go) | Up to 128 resolutions with found, not-found, failing and found-without-info answers, bulk pulls (failing, partial or with unknown providers), host rotations and mock-clock advances over four validators. A model predicts each answer: at most one query per validator per refresh window, the last known host on failure, and never a host the chain did not report for that validator. `GetHost`'s host validation is covered by `FuzzValidateHost`. |
+| 2 | `fibre` client download session (`parseShard`, `addShard`, `download.AddShard`, refetch, `Blob` and header decode): shards served by fibre servers | `FuzzDownload` in [fibre](../fibre/download_fuzz_test.go) | Up to eight validators each serve one honest or corrupted shard (row, proof or RLC bytes, indices, sizes, missing or duplicate rows) through the wire encoding. A returned blob must equal the committed data, every shard buffer must be released and accepted parity-bearing shards only after reconstruction, and clean shards covering K rows must reconstruct. Uses a K=8, N=8 coder; RLC-poisoned original rows are covered by unit tests. |
+| 2 | `fibre` shard codec and reader: stored/transferred shard bytes | `FuzzShardCodecRoundTrip`, `FuzzShardCodecReadNoPanic`, `FuzzShardReader` in [fibre](../fibre) | Codec round trips, arbitrary read bytes and reader behavior. |
+| 2 | `app/errors.ParseInsufficientMinGasPrice`, `ParseExpectedSequence`, `ParseNonceMismatch`: error strings from nodes | `FuzzParseNodeErrors` in [app/errors](../app/errors/parse_fuzz_test.go) | Arbitrary strings wrapped as fee or sequence errors; gas prices must be finite and non-negative and sequences must appear in the string. |
+| 2 | `fibre/internal/tlsid.VerifyPeer`, `verifyCertAt`: peer TLS certificate DER and identity extension | `FuzzVerifyPeerCert`, `FuzzVerifyIdentityExtension` in [fibre/internal/tlsid](../fibre/internal/tlsid/tlsid_fuzz_test.go) | Mutated golden-vector certificates, plus well-formed certificates around fuzzed payloads, signatures, windows, keys and usages; accepted certificates must carry an endorsement valid only under the expected key and chain ID for the presented TLS key. Structured payloads must get the independently computed verdict. |
+| 2 | `fibre/validator.QuorumPrefix`, `SignatureSet`, `Set.Assign`, `ShardMap.Verify`: validator sets and certificate signatures | `FuzzQuorumPrefix`, `FuzzAssign` in [fibre/validator](../fibre/validator/set_fuzz_test.go) | The quorum prefix agrees with the sequential `x/fibre` signature walk for absent, valid and invalid signatures; shard maps give each validator its distinct rows and `Verify` accepts exactly them. Voting powers span the CometBFT range. |
+| 2 | `fibre.PaymentPromise` decoding, `Validate`, `SignBytes`, `Hash`: client payment promises | `FuzzPaymentPromiseUnmarshal`, `FuzzPaymentPromiseSignBytes` in [fibre](../fibre/payment_promise_fuzz_test.go) | Round trips, height and timestamp extremes, `Validate` agreement with `x/fibre/types.PaymentPromise.ValidateBasic`, and sign bytes that change with every signed field. Stateful escrow checks are outside this target. |
+| 2 | `fibre.CommitmentFromString`, `Commitment.UnmarshalJSON`/`UnmarshalBinary`, `BlobID.UnmarshalBinary`: commitments and blob IDs from clients and API callers | `FuzzCommitmentAndBlobIDParsing` in [fibre](../fibre/blob_id_fuzz_test.go) | Hex strings are accepted exactly when they spell 32 bytes in either case and format back in lower case; JSON decoding agrees with string parsing for every string and arbitrary JSON, and round trips. Binary decoders accept exactly their fixed sizes, copy their input and round trip. |
+| 2 | `x/fibre/keeper.ValidatePaymentPromise` with `LocalPromiseCache`: payment promises on the validator's gRPC query | `FuzzPromiseCacheReservations` in [x/fibre/keeper](../x/fibre/keeper/promise_cache_fuzz_test.go) | Up to 48 signed, forged (bit-flipped or foreign signature, fields changed after signing) and replayed promises from three signers, escrow balance changes, settlements and block advances. Forged promises must be rejected without touching the cache, reserved hashes are idempotent, per signer the reservations a sweep kept plus those added since stay within the AvailableBalance that sweep read (or the kept amount, if already above it), and a sweep keeps no settled or unsettleable reservation. A reservation that reads a lower AvailableBalance than the last sweep must sweep first. Wall-clock staleness and eviction are not exercised. |
+| 2 | `pkg/rsema1d.Verifier.Verify`, `VerifyShared`, `Reconstructor.Add`/`Reject`/`Reconstruct`, `rlc.Unmarshal`: rows, proofs and RLC values from upload peers and download servers | `FuzzVerifier`, `FuzzReconstructor` in [pkg/rsema1d](../pkg/rsema1d/verifier_fuzz_test.go); `FuzzUnmarshal` in [pkg/rsema1d/rlc](../pkg/rsema1d/rlc/marshal_fuzz_test.go) | Mutated proofs, rows, indices, RLC values and commitments, including poisoned row commitments; accepted rows must be the committed ones and reconstructions must re-encode to the commitment. Small K=N=4 shape. |
+| 3 | `pkg/rsema1d/merkle.RootFromProofs`: decoded shard proofs | `FuzzRootFromProofs` in [pkg/rsema1d/merkle](../pkg/rsema1d/merkle/proof_test.go) | Batch verification agrees with individual proofs under mutation. |
+| 3 | `pkg/rsema1d/rlc.Compute`: validated rows and coefficients | `FuzzCompute` in [pkg/rsema1d/rlc](../pkg/rsema1d/rlc/poly_test.go) | Dispatched, pure-Go and scalar computations agree for bounded valid shapes. |
+| 3 | `pkg/rsema1d/internal/sha256x2.Sum`: hash input buffers | `FuzzSum` in [pkg/rsema1d/internal/sha256x2](../pkg/rsema1d/internal/sha256x2/sha256x2_test.go) | Two-lane hashing agrees with the standard implementation. Assembly coverage depends on the runner architecture. |
+| 2 | `x/mint` minter `CalculateBlockProvision`, `CalculateInflationRate`: proposer-influenced block times | `FuzzMinterBlockProvision` in [x/mint/types](../x/mint/types/minter_fuzz_test.go) | Genesis, previous and current times across the int64 nanosecond range and annual provisions up to 2^96. Provisions fail exactly when time goes backwards, match `annual * elapsed / year` computed with big.Int within LegacyDec rounding, and never decrease with more elapsed time; inflation stays between the target and initial rates and never rises year over year. |
+| 3 | `x/minfee` `UpdateMinfeeParams` and `ValidateTxFee`: governance-set network minimum gas price | `FuzzNetworkMinGasPrice` in [app/ante](../app/ante/network_min_gas_price_fuzz_test.go) | Any price up to 2^128 attoutia/gas, negative included (`Params.Validate` accepts everything), sent through the wire encoding and the keeper, then fees checked in DeliverTx mode. A fee is accepted exactly when it covers ceil(price * gas) computed with big.Int. |
+| 3 | `x/blob/keeper.UpdateBlobParams`: governance blob params | `FuzzUpdateBlobParams` in [x/blob/keeper](../x/blob/keeper/params_fuzz_test.go) | Any gas per blob byte and max square size, from the authority or not, through the wire encoding. Accepted exactly when the authority matches, gas per byte is non-zero and the square size is a power of two within the upper bound; rejected updates leave params untouched; accepted params never wrap PFB gas for blobs up to the max tx size. |
+| 3 | `fibre.decodeShardMarkerBackend`: shard markers read back from the server's store | `FuzzShardMarkerDecode` in [fibre](../fibre/store_marker_fuzz_test.go) | Arbitrary bytes; only the legacy empty marker and versioned markers with a known backend and a size in (0, `maxPlausibleShardSize`] decode, and decoded markers re-encode to the same bytes. |
+
+## Remaining coverage and known exclusions
+
+The next additions should extend priority 1 coverage to stateful sequences across proposal
+construction, validation and finalization over several blocks. These need isolated committed state
+and meaningful accept/reject oracles. The current mutation harnesses do not
+provide a state-machine sequence fuzzer.
+
+Fibre upload and download handlers are fuzzed against a mock state client, so
+they do not establish coverage of escrow settlement; the admission and
+connection limiters have their own model-based targets. ZK-ISM message servers, proof/key decoders and keeper state
+have dedicated targets but no end-to-end Hyperlane relay harness. These are
+follow-up surfaces; neither the nested-message guard nor transaction byte
+mutation claims to cover them fully.
+
+Existing CheckTx/ProcessProposal harnesses exclude the known empty-message or
+nil-fee ante panic class.
+The share proof harness excludes a nil row proof before
+calling `ShareProof.Validate`. These are tracked in
+[PROTOCO-3433](https://linear.app/celestia/issue/PROTOCO-3433), items 4 and 5.
+Keep exclusions narrow and remove each with the corresponding fix and regression
+test. New crashes should receive an issue, a minimized reproducer and a regression
+test with the fix; do not add a broad panic recovery to a harness.
+
+## Running and maintaining coverage
+
+`make test-fuzz` runs the targets registered in
+[scripts/fuzz_targets.txt](../scripts/fuzz_targets.txt). In the nightly
+[test-nightly.yml](../.github/workflows/test-nightly.yml), the `fuzz-targets`
+job runs `scripts/test_fuzz.sh --check` and builds the `test-fuzz` matrix from
+`scripts/test_fuzz.sh --list-json`. Each target then runs on its own runner,
+named after the target, so adding a target only needs a registry line and does
+not lengthen the other jobs. `--check` fails when a `Fuzz*` function is missing
+from the registry or a registered target no longer exists.
+
+To run one registered target the way the nightly does, set `FUZZ_TARGET` (and
+optionally `FUZZ_PKG`); `FUZZ_TIME` overrides its registry fuzztime:
+
+```sh
+FUZZ_TARGET=FuzzNestedMsgDecorator FUZZ_TIME=60s make test-fuzz
+```
+
+Or call `go test` directly:
+
+```sh
+go test ./app/ante -run='^$' -fuzz='^FuzzNestedMsgDecorator$' -fuzztime=60s -parallel=2 -fuzzminimizetime=100x
+```
+
+Normal `go test ./app/ante` also runs the targets' seed corpora. Cheap targets
+use a bounded minimization budget so nightly runs keep exploring inputs. Update
+this inventory and the registry together when adding or renaming a target.
+
+Targets that interpret a byte slice as a script of operations should read it
+with [test/util/fuzzutil](../test/util/fuzzutil). Give each operation a
+fixed-width `Consumer.Record`, so editing one operation does not shift the bytes
+of later ones, and lay out seeds with `fuzzutil.Records`.
+
+### Persistent corpora
+
+Each nightly target starts from the inputs earlier nights found. `go test -fuzz`
+stores the inputs that reach new coverage in a cache directory, by default
+`$(go env GOCACHE)/fuzz`. With `FUZZ_CACHE_DIR` set, `scripts/test_fuzz.sh`
+passes `-test.fuzzcachedir` so each target's corpus lives in
+`$FUZZ_CACHE_DIR/<pkg>/<target>` instead, apart from the Go build cache. The
+`test-fuzz` job restores that directory from an `actions/cache` entry keyed
+`fuzz-corpus-v1-<pkg>/<target>-<run>`, fuzzes, and saves it again under a new
+key even when the target fails. It then deletes the target's older entries, so
+each target keeps one entry. The `gathering baseline coverage` count in a target's
+log is its seeds plus the restored corpus, so it grows from night to night.
+
+The cache holds only inputs that did not fail. `go test` writes a crashing input
+to the package's `testdata/fuzz` directory, which the job never caches or
+uploads; it reaches only the Linear issue. The saved corpus can still hold
+inputs one mutation away from a crash, and a pull request workflow can restore
+caches saved on `main`, so treat the corpus as public.
+
+Corpus files are small. In local 90-second runs, `FuzzCheckTxMutatedTxs` wrote
+139 files totalling 12 KB, and the largest local corpora are under 100 KB. Even
+if a long-running target grows to a few MB, the registry's 82 targets, with one
+entry each, need a few hundred MB at most of GitHub's 10 GB repository cache. A
+corpus over 32 MiB (`CORPUS_MAX_MIB` in the workflow) is not saved, which bounds
+the worst case at about 2.6 GB, and the job prints a warning. The target
+then keeps restoring its last saved corpus. Bump `v1` in `CORPUS_KEY` to start
+every target from its seeds again. Entries that no longer match a target's
+argument types are skipped by `go test`, so a signature change needs no bump.
+
+To reuse a corpus locally, set `FUZZ_CACHE_DIR` on successive runs:
+
+```sh
+FUZZ_TARGET=FuzzValidateHost FUZZ_TIME=30s FUZZ_CACHE_DIR=/tmp/fuzz-corpus make test-fuzz
+```
+
+## Nightly failures
+
+A crashing input can describe an exploitable bug, so the nightly job writes each
+target's output to a file and prints only pass/fail to the public log. When a
+target fails on `main`, the job files a Linear issue in the Protocol team with
+the output tail and the minimized crashing input, or comments on the open issue
+for that target. The registry priority sets the issue priority: 1 is Urgent, 2
+is High and 3 is Medium. Triage the issue, and keep crash details out of public
+PRs and GitHub issues until a fix ships.

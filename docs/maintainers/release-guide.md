@@ -61,6 +61,7 @@ These requirements apply to release candidates, testnet releases, and mainnet re
 ### After creating the release candidate
 
 1. Wait until CI passes on the release and verify that prebuilt binaries were attached to the release.
+1. For tags containing the devnet workflow, verify that `devnet` passed and `ghcr.io/celestiaorg/celestia-devnet-validator:<tag>` has amd64 and arm64 manifests. See [devnet image](../../docker/devnet/README.md) for usage and manual reruns. On first publication, make the GHCR package public and verify anonymous pulls.
 1. Create a PR to bump the celestia-app dependency in [celestia-node](https://github.com/celestiaorg/celestia-node).
 1. [Optional] Start a testnet via auto-devops that uses the release candidate. Confirm it works.
 1. [Optional] Use the release candidate to sync from genesis. Confirm it works.

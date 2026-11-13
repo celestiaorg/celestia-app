@@ -15,7 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -92,13 +91,15 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 			require.NoError(t, err)
 			msgs, _ := tt.msgFunc()
+			// SubmitTx polls TxStatus until the tx is committed and returns an
+			// error if the execution code is not OK, so a successful response
+			// already confirms inclusion. Querying GetTx here would be flaky
+			// because the tx indexer can lag behind the TxStatus commit signal,
+			// producing intermittent "tx not found" errors.
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(4000))
 			require.NoError(t, err)
-			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
-			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-			require.NoError(t, err)
 			require.NotNil(t, res)
-			assert.Equal(t, abci.CodeTypeOK, res.Code, getTxResp.TxResponse.RawLog)
+			assert.Equal(t, abci.CodeTypeOK, res.Code)
 		})
 	}
 }

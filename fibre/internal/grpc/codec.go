@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/encoding"
@@ -28,10 +29,11 @@ type protoUnmarshaler interface {
 
 // pooledCodec wraps gogoproto's MarshalToSizedBuffer + Unmarshal with
 // per-RPC buffer reuse from gRPC's mem.BufferPool. For UploadShardRequest
-// the scatter path emits row payloads zero-copy; every other message goes
-// through the pooled contiguous path.
+// and DownloadShardResponse the scatter path emits row payloads zero-copy;
+// every other message goes through the pooled contiguous path.
 type pooledCodec struct {
-	pool mem.BufferPool
+	pool    mem.BufferPool
+	uploads *uploadBuffers
 
 	// These limits are zero for clients, which do not decode upload requests.
 	// Servers set them with NewServerCodec.
@@ -63,6 +65,9 @@ func (c *pooledCodec) Name() string { return codecName }
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
 		return marshalUploadShardRequestScatter(req)
+	}
+	if resp, ok := v.(*types.DownloadShardResponse); ok {
+		return marshalDownloadShardResponseScatter(resp), nil
 	}
 
 	msg, ok := v.(sizedBufferMarshaler)
@@ -101,12 +106,56 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if _, ok := v.(*types.DownloadShardRequest); ok && data.Len() > maxDownloadShardRequestSize {
 		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
 	}
-	buf := data.Materialize()
-	// Check row and proof counts before the generated decoder allocates for them.
-	if _, ok := v.(*types.UploadShardRequest); ok && c.maxShardRows > 0 {
-		if err := c.validateUploadShard(buf); err != nil {
-			return err
+	if req, ok := v.(*types.UploadShardRequest); ok {
+		// Only the server's admitHandler can release view-decoded backing.
+		var buf []byte
+		reuse := c.uploads != nil && data.Len() >= minUploadBufferSize
+		if reuse {
+			if data.Len() > c.uploads.limit {
+				return fmt.Errorf("fibre-proto codec: upload exceeds %d bytes", c.uploads.limit)
+			}
+			buf = c.uploads.get(data.Len())
+			data.CopyTo(buf) // Overwrite every visible byte before parsing.
+			defer func() {
+				if buf != nil {
+					c.uploads.put(buf)
+				}
+			}()
+		} else {
+			buf = data.Materialize()
+		}
+		if c.maxShardRows > 0 {
+			if err := c.validateUploadShard(buf); err != nil {
+				return err
+			}
+		}
+		if unmarshalUploadViews(slices.Clip(buf), req) {
+			if reuse {
+				c.uploads.retain(req, buf)
+				buf = nil
+			}
+			return nil
+		}
+		return req.Unmarshal(buf)
+	}
+	if resp, ok := v.(*types.DownloadShardResponse); ok {
+		// Rows alias buf and are retained until the download finishes, so the
+		// buffer must be GC-owned rather than borrowed from the gRPC pool.
+		_, err := c.unmarshalDownload(data.Materialize(), resp)
+		return err
+	}
+	return msg.Unmarshal(data.Materialize())
+}
+
+// unmarshalDownload decodes buf into resp and reports whether resp aliases buf.
+func (c *pooledCodec) unmarshalDownload(buf []byte, resp *types.DownloadShardResponse) (bool, error) {
+	if c.maxShardRows > 0 {
+		if err := c.validateDownloadShard(buf); err != nil {
+			return false, err
 		}
 	}
-	return msg.Unmarshal(buf)
+	if unmarshalDownloadViews(slices.Clip(buf), resp) {
+		return true, nil
+	}
+	return false, resp.Unmarshal(buf)
 }

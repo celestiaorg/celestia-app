@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"strings"
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -37,6 +39,14 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 			name: "success",
 			setupTest: func() {
 				msg = newMsg(groth16Vkey)
+			},
+			expError: nil,
+		},
+		{
+			name: "success: root history size stored",
+			setupTest: func() {
+				msg = newMsg(groth16Vkey)
+				msg.RootHistorySize = types.MaxRootHistorySize
 			},
 			expError: nil,
 		},
@@ -71,6 +81,10 @@ func (suite *KeeperTestSuite) TestCreateInterchainSecurityModule() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
+
+				ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, res.Id)
+				suite.Require().NoError(err)
+				suite.Require().Equal(msg.RootHistorySize, ism.RootHistorySize)
 			}
 			// The key parse is charged whether or not it succeeds.
 			suite.Require().GreaterOrEqual(suite.ctx.GasMeter().GasConsumed(), uint64(types.DefaultProofVerifyCostGroth16))
@@ -124,6 +138,33 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 			expError: sdkerrors.ErrInvalidType,
 		},
 		{
+			name: "state already updated in this block",
+			setupTest: func() {
+				ism.StateHeight = suite.ctx.BlockHeight()
+				suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+				msg = &types.MsgUpdateInterchainSecurityModule{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: types.ErrAlreadyUpdatedInBlock,
+		},
+		{
+			name: "simulation skips the per-block check",
+			setupTest: func() {
+				ism.StateHeight = suite.ctx.BlockHeight()
+				suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+				suite.ctx = suite.ctx.WithExecMode(sdk.ExecModeSimulate)
+				msg = &types.MsgUpdateInterchainSecurityModule{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: pubValues,
+				}
+			},
+			expError: nil,
+		},
+		{
 			name: "trusted state mismatch",
 			setupTest: func() {
 				msg = &types.MsgUpdateInterchainSecurityModule{
@@ -165,10 +206,9 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 		suite.Run(tc.name, func() {
 			suite.SetupTest() // reset state
 			ism = suite.CreateTestIsm(trustedState)
-			suite.Require().NoError(suite.zkISMKeeper.SetMessageProofSubmitted(suite.ctx, ism.Id, true))
 
 			tc.setupTest()
-			before := suite.snapshotIsm(ism.Id, nil)
+			before := suite.snapshotIsm(ism.Id)
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
 			res, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, msg)
@@ -176,7 +216,7 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 			if tc.expError != nil {
 				suite.Require().ErrorIs(err, tc.expError)
 				suite.Require().Nil(res)
-				suite.Require().Equal(before, suite.snapshotIsm(ism.Id, nil))
+				suite.Require().Equal(before, suite.snapshotIsm(ism.Id))
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
@@ -185,18 +225,30 @@ func (suite *KeeperTestSuite) TestUpdateInterchainSecurityModule() {
 				suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 				suite.Require().Equal(publicValues.NewState, res.State)
-				suite.Require().False(suite.snapshotIsm(ism.Id, nil).submitted)
+				suite.Require().Equal(suite.ctx.BlockHeight(), suite.snapshotIsm(ism.Id).ism.StateHeight)
+
+				// The replaced state root stays acceptable for membership proofs.
+				suite.Require().NotEqual(trustedState[:32], publicValues.NewState[:32])
+				stateRoots := suite.snapshotIsm(ism.Id).stateRoots
+				suite.Require().Len(stateRoots, 1)
+				suite.Require().Equal(trustedState[:32], stateRoots[0].Root)
+				suite.Require().Equal(suite.ctx.BlockHeight(), stateRoots[0].Height)
 			}
 		})
 	}
 }
 
+// stateMembershipTrustedState is the trusted state that the state membership fixtures are bound to:
+// the EVM state root followed by the EVM height (u64, little-endian) at which the merkle tree was proven.
+const stateMembershipTrustedState = "6cb90452a1f1eb1702fe794c323e4caecf41ec98e835d63334928a41576de97ef000000000000000"
+
 func (suite *KeeperTestSuite) TestSubmitMessages() {
-	trustedState, err := hex.DecodeString("93feaeaf040d7b179d2d9dc8fc3900308fece8ec5b678816c583861a5ba9aa7da704000000000000548dde286a0ffb85381e5258af5ca042715f745c43ad0389b4834bf608695bf6d70000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443964a68700cf76e215626e076e76d23bd1f4c3b31184b5822fd7b4df15d5ce9a")
+	trustedState, err := hex.DecodeString(stateMembershipTrustedState)
 	suite.Require().NoError(err)
 
 	ism := suite.CreateTestIsm(trustedState)
-	proofBz, pubValues := readStateMembershipProofData(suite.T())
+	// The proof does not verify against these public values, so every case below is rejected.
+	proofBz, _ := readStateMembershipProofData(suite.T())
 
 	var msg *types.MsgSubmitMessages
 
@@ -205,17 +257,6 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 		setupTest func()
 		expError  error
 	}{
-		{
-			name: "success",
-			setupTest: func() {
-				msg = &types.MsgSubmitMessages{
-					Id:           ism.Id,
-					Proof:        proofBz,
-					PublicValues: pubValues,
-				}
-			},
-			expError: nil,
-		},
 		{
 			name: "ism not found",
 			setupTest: func() {
@@ -237,19 +278,40 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			expError: sdkerrors.ErrInvalidType,
 		},
 		{
-			name: "duplicate submission rejected",
+			name: "merkle tree state already proven in this block",
 			setupTest: func() {
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 0, Height: suite.ctx.BlockHeight()}))
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
 					Proof:        proofBz,
-					PublicValues: pubValues,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
 				}
-				// First submission should succeed
-				msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-				_, err := msgServer.SubmitMessages(suite.ctx, msg)
-				suite.Require().NoError(err)
 			},
-			expError: types.ErrMessageProofAlreadySubmitted,
+			expError: types.ErrAlreadyUpdatedInBlock,
+		},
+		{
+			name: "count equal to latest proven count rejected",
+			setupTest: func() {
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 1}))
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
+				}
+			},
+			expError: types.ErrStaleMerkleTreeState,
+		},
+		{
+			name: "count below latest proven count rejected",
+			setupTest: func() {
+				suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, types.MerkleTreeState{Root: randBytes(32), Count: 2}))
+				msg = &types.MsgSubmitMessages{
+					Id:           ism.Id,
+					Proof:        proofBz,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
+				}
+			},
+			expError: types.ErrStaleMerkleTreeState,
 		},
 		{
 			name: "state root mismatch",
@@ -257,7 +319,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
 					Proof:        proofBz,
-					PublicValues: marshalStateMembershipValues(suite, pubValues, func(v *types.StateMembershipValues) { v.StateRoot[0] ^= 1 }),
+					PublicValues: marshalStateMembershipValues(suite, ism, func(v *types.StateMembershipValues) { v.StateRoot[0] ^= 1 }),
 				}
 			},
 			expError: types.ErrInvalidStateRoot,
@@ -268,7 +330,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
 					Proof:        proofBz,
-					PublicValues: marshalStateMembershipValues(suite, pubValues, func(v *types.StateMembershipValues) { v.MerkleTreeAddress[31] ^= 1 }),
+					PublicValues: marshalStateMembershipValues(suite, ism, func(v *types.StateMembershipValues) { v.MerkleTreeAddress[31] ^= 1 }),
 				}
 			},
 			expError: types.ErrInvalidMerkleTreeAddress,
@@ -281,7 +343,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
 					Proof:        proofBz,
-					PublicValues: pubValues,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
 				}
 			},
 			expError: types.ErrInvalidVerifyingKey,
@@ -289,19 +351,15 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 		{
 			name: "invalid proof",
 			setupTest: func() {
-				transitionProof, _ := readStateTransitionProofData(suite.T())
 				msg = &types.MsgSubmitMessages{
 					Id:           ism.Id,
-					Proof:        transitionProof,
-					PublicValues: pubValues,
+					Proof:        proofBz,
+					PublicValues: marshalStateMembershipValues(suite, ism, func(*types.StateMembershipValues) {}),
 				}
 			},
 			expError: types.ErrInvalidProof,
 		},
 	}
-
-	publicValues := new(types.StateMembershipValues)
-	suite.Require().NoError(publicValues.Unmarshal(pubValues))
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
@@ -309,96 +367,107 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 			ism = suite.CreateTestIsm(trustedState)
 
 			tc.setupTest()
-			before := suite.snapshotIsm(ism.Id, publicValues.MessageIds)
+			before := suite.snapshotIsm(ism.Id)
 
 			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
 			res, err := msgServer.SubmitMessages(suite.ctx, msg)
 
-			if tc.expError != nil {
-				suite.Require().ErrorIs(err, tc.expError)
-				suite.Require().Nil(res)
-				suite.Require().Equal(before, suite.snapshotIsm(ism.Id, publicValues.MessageIds))
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().NotNil(res)
-
-				suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
-
-				for idx, id := range publicValues.MessageIds {
-					has, err := suite.zkISMKeeper.HasMessageId(suite.ctx, ism.Id, id[:])
-					suite.Require().NoError(err)
-					suite.Require().True(has)
-
-					suite.Require().Equal(types.EncodeHex(id[:]), res.Messages[idx])
-				}
-			}
+			suite.Require().ErrorIs(err, tc.expError)
+			suite.Require().Nil(res)
+			suite.Require().Equal(before, suite.snapshotIsm(ism.Id))
 		})
 	}
 }
 
-func (suite *KeeperTestSuite) TestSubmitMessagesAfterUpdate() {
-	// Test that after UpdateInterchainSecurityModule, a new SubmitMessages is allowed
-	trustedState1, err := hex.DecodeString("cba82bb5e1679482417a2f3e702afcfcac71d635b39983aea1ec90662c295b4fcd00000000000000306a35299603c1c3225e813951f37a3a527d516a17e124aa5f1765ccdcf0bd792e0000000000000000000000000000000000000000000000000000a8045f161bf468bf4d443964a68700cf76e215626e076e76d23bd1f4c3b31184b5822fd7b4df15d5ce9a")
+func (suite *KeeperTestSuite) TestSubmitMessagesSuccess() {
+	trustedState, err := hex.DecodeString(stateMembershipTrustedState)
 	suite.Require().NoError(err)
 
-	ism := suite.CreateTestIsm(trustedState1)
+	ism := suite.CreateTestIsm(trustedState)
+	proofBz, pubValues := readStateMembershipProofData(suite.T())
+
+	var publicValues types.StateMembershipValues
+	suite.Require().NoError(publicValues.Unmarshal(pubValues))
+
+	msg := &types.MsgSubmitMessages{
+		Id:           ism.Id,
+		Proof:        proofBz,
+		PublicValues: pubValues,
+	}
+
 	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
-
-	// Update to new state
-	updateProof, updatePubValues := readStateTransitionProofData(suite.T())
-	updateMsg := &types.MsgUpdateInterchainSecurityModule{
-		Id:           ism.Id,
-		Proof:        updateProof,
-		PublicValues: updatePubValues,
-	}
-	updateRes, err := msgServer.UpdateInterchainSecurityModule(suite.ctx, updateMsg)
+	res, err := msgServer.SubmitMessages(suite.ctx, msg)
 	suite.Require().NoError(err)
-	suite.Require().NotNil(updateRes)
+	suite.Require().Equal(types.EncodeHex(publicValues.StateRoot[:]), res.StateRoot)
+	suite.Require().Equal(types.EncodeHex(publicValues.TreeRoot[:]), res.TreeRoot)
+	suite.Require().Equal(publicValues.Count, res.Count)
 
-	// Now SubmitMessages should work with the new state
-	submitProof, submitPubValues := readStateMembershipProofData(suite.T())
-	submitMsg := &types.MsgSubmitMessages{
-		Id:           ism.Id,
-		Proof:        submitProof,
-		PublicValues: submitPubValues,
-	}
-	submitRes, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
+	treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ism.Id)
 	suite.Require().NoError(err)
-	suite.Require().NotNil(submitRes)
+	suite.Require().Equal(publicValues.TreeRoot[:], treeState.Root)
+	suite.Require().Equal(publicValues.Count, treeState.Count)
+	suite.Require().Equal(suite.ctx.BlockHeight(), treeState.Height)
 
-	// Second SubmitMessages should fail
-	submitRes2, err := msgServer.SubmitMessages(suite.ctx, submitMsg)
-	suite.Require().Error(err)
-	suite.Require().ErrorIs(err, types.ErrMessageProofAlreadySubmitted)
-	suite.Require().Nil(submitRes2)
+	// A second proof in the same block is rejected; in a later block the same proof adds no leaves and is rejected.
+	_, err = msgServer.SubmitMessages(suite.ctx, msg)
+	suite.Require().ErrorIs(err, types.ErrAlreadyUpdatedInBlock)
+	// Simulation skips the per-block check, so the same proof fails only as stale.
+	_, err = msgServer.SubmitMessages(suite.ctx.WithExecMode(sdk.ExecModeSimulate), msg)
+	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
+	_, err = msgServer.SubmitMessages(suite.ctx.WithBlockHeight(suite.ctx.BlockHeight()+1), msg)
+	suite.Require().ErrorIs(err, types.ErrStaleMerkleTreeState)
+
+	// Every message dispatched on the source chain verifies against the proven root.
+	messages := readStateMembershipMessages(suite.T())
+	suite.Require().Len(messages, int(publicValues.Count))
+
+	leaves := make([][32]byte, len(messages))
+	for i, message := range messages {
+		leaves[i] = message.Id()
+	}
+
+	for i, message := range messages {
+		authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(leaves, uint32(i)), message)
+		suite.Require().NoError(err)
+		suite.Require().True(authorized, "message %d not authorized", i)
+	}
+
+	// A message that was not dispatched on the source chain is rejected.
+	forged := messages[0]
+	forged.Body = append([]byte{}, forged.Body...)
+	forged.Body[len(forged.Body)-1] ^= 1
+	authorized, err := suite.zkISMKeeper.Verify(suite.ctx, ism.Id, merkleProofMetadata(leaves, 0), forged)
+	suite.Require().NoError(err)
+	suite.Require().False(authorized)
 }
 
 // ismSnapshot holds the ISM state that a rejected message must not change.
 type ismSnapshot struct {
 	ism          types.InterchainSecurityModule
-	hasSubmitted bool
-	submitted    bool
-	messages     []bool
+	hasTreeState bool
+	treeState    types.MerkleTreeState
+	stateRoots   []types.RootHistoryEntry
+	treeStates   []types.RootHistoryEntry
 }
 
-// snapshotIsm reads the ISM, whether its submission flag is stored and its value, and whether each message id is stored.
-func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress, messageIds [][32]byte) ismSnapshot {
+// snapshotIsm reads the ISM, its merkle tree state and its root histories.
+func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress) ismSnapshot {
 	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, id)
 	suite.Require().NoError(err)
 
-	submitted, err := suite.zkISMKeeper.GetMessageProofSubmitted(suite.ctx, id)
-	hasSubmitted := !errors.Is(err, collections.ErrNotFound)
-	if hasSubmitted {
+	stateRoots, err := suite.zkISMKeeper.GetStateRootHistory(suite.ctx, id)
+	suite.Require().NoError(err)
+
+	treeStates, err := suite.zkISMKeeper.GetTreeStateHistory(suite.ctx, id)
+	suite.Require().NoError(err)
+
+	treeState, err := suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, id)
+	hasTreeState := !errors.Is(err, collections.ErrNotFound)
+	if hasTreeState {
 		suite.Require().NoError(err)
 	}
 
-	messages := make([]bool, len(messageIds))
-	for i, messageId := range messageIds {
-		messages[i], err = suite.zkISMKeeper.HasMessageId(suite.ctx, id, messageId[:])
-		suite.Require().NoError(err)
-	}
-
-	return ismSnapshot{ism: ism, hasSubmitted: hasSubmitted, submitted: submitted, messages: messages}
+	return ismSnapshot{ism: ism, hasTreeState: hasTreeState, treeState: treeState, stateRoots: stateRoots, treeStates: treeStates}
 }
 
 // marshalStateTransitionValues decodes bz, applies modify and re-encodes it.
@@ -412,13 +481,228 @@ func marshalStateTransitionValues(suite *KeeperTestSuite, bz []byte, modify func
 	return out
 }
 
-// marshalStateMembershipValues decodes bz, applies modify and re-encodes it.
-func marshalStateMembershipValues(suite *KeeperTestSuite, bz []byte, modify func(*types.StateMembershipValues)) []byte {
-	var values types.StateMembershipValues
-	suite.Require().NoError(values.Unmarshal(bz))
+// marshalStateMembershipValues builds public values matching the ism, applies modify and encodes them.
+func marshalStateMembershipValues(suite *KeeperTestSuite, ism types.InterchainSecurityModule, modify func(*types.StateMembershipValues)) []byte {
+	values := types.StateMembershipValues{
+		TreeRoot: [32]byte{0x01},
+		Count:    1,
+	}
+	copy(values.StateRoot[:], ism.State[:32])
+	copy(values.MerkleTreeAddress[:], ism.MerkleTreeAddress)
 	modify(&values)
 
 	out, err := values.Marshal()
 	suite.Require().NoError(err)
 	return out
+}
+
+func (suite *KeeperTestSuite) TestUpdateVerifyingKeys() {
+	var msg *types.MsgUpdateVerifyingKeys
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+	}{
+		{
+			name:      "success",
+			setupTest: func() {},
+			expError:  nil,
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg.Id = util.CreateMockHexAddress("ism", 2)
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "sender is not the owner",
+			setupTest: func() {
+				msg.Owner = "not-the-owner"
+			},
+			expError: sdkerrors.ErrUnauthorized,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset state
+			ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
+			ism.Owner = testfactory.TestAccAddr
+			suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+
+			treeState := types.MerkleTreeState{Root: randBytes(32), Count: 7}
+			suite.Require().NoError(suite.zkISMKeeper.SetMerkleTreeState(suite.ctx, ism.Id, treeState))
+			suite.Require().NoError(suite.zkISMKeeper.PushStateRootHistory(suite.ctx, ism, randBytes(32)))
+			suite.Require().NoError(suite.zkISMKeeper.PushTreeStateHistory(suite.ctx, ism, types.MerkleTreeState{Root: randBytes(32), Count: 3}))
+
+			msg = &types.MsgUpdateVerifyingKeys{
+				Id:                  ism.Id,
+				Owner:               testfactory.TestAccAddr,
+				Groth16Vkey:         ism.Groth16Vkey,
+				StateTransitionVkey: randBytes(32),
+				StateMembershipVkey: randBytes(32),
+			}
+
+			tc.setupTest()
+			before := suite.snapshotIsm(ism.Id)
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.UpdateVerifyingKeys(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().ErrorIs(err, tc.expError)
+				suite.Require().Nil(res)
+				suite.Require().Equal(before, suite.snapshotIsm(ism.Id))
+				return
+			}
+
+			suite.Require().NoError(err)
+			suite.Require().NotNil(res)
+
+			after := suite.snapshotIsm(ism.Id)
+			suite.Require().Equal(msg.Groth16Vkey, after.ism.Groth16Vkey)
+			suite.Require().Equal(msg.StateTransitionVkey, after.ism.StateTransitionVkey)
+			suite.Require().Equal(msg.StateMembershipVkey, after.ism.StateMembershipVkey)
+			suite.Require().Equal(ism.State, after.ism.State)
+			suite.Require().Equal(ism.Owner, after.ism.Owner)
+			suite.Require().Empty(after.stateRoots, "state roots trusted under the replaced keys must be dropped")
+			suite.Require().Empty(after.treeStates, "tree states proven under the replaced keys must be dropped")
+
+			_, err = suite.zkISMKeeper.GetMerkleTreeState(suite.ctx, ism.Id)
+			suite.Require().ErrorIs(err, collections.ErrNotFound, "tree state proven under the replaced keys must be dropped")
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestTransferOwnership() {
+	var msg *types.MsgTransferOwnership
+
+	// newOwner is a valid bech32 address that differs from the current owner.
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x42}, 20)).String()
+
+	testCases := []struct {
+		name      string
+		setupTest func()
+		expError  error
+		expOwner  string
+	}{
+		{
+			name:      "success: transfer",
+			setupTest: func() {},
+			expOwner:  newOwner,
+		},
+		{
+			name: "success: renounce",
+			setupTest: func() {
+				msg.NewOwner = ""
+				msg.RenounceOwnership = true
+			},
+			expOwner: "",
+		},
+		{
+			name: "success: transfer stores the canonical spelling of an uppercase address",
+			setupTest: func() {
+				msg.NewOwner = strings.ToUpper(newOwner)
+			},
+			expOwner: newOwner,
+		},
+		{
+			name: "ism not found",
+			setupTest: func() {
+				msg.Id = util.CreateMockHexAddress("ism", 2)
+			},
+			expError: types.ErrIsmNotFound,
+		},
+		{
+			name: "sender is not the owner",
+			setupTest: func() {
+				msg.Owner = newOwner
+			},
+			expError: sdkerrors.ErrUnauthorized,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset state
+			ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
+			ism.Owner = testfactory.TestAccAddr
+			suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+
+			msg = &types.MsgTransferOwnership{
+				Id:       ism.Id,
+				Owner:    testfactory.TestAccAddr,
+				NewOwner: newOwner,
+			}
+
+			tc.setupTest()
+			before := suite.snapshotIsm(ism.Id)
+
+			msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+			res, err := msgServer.TransferOwnership(suite.ctx, msg)
+
+			if tc.expError != nil {
+				suite.Require().ErrorIs(err, tc.expError)
+				suite.Require().Nil(res)
+				suite.Require().Equal(before, suite.snapshotIsm(ism.Id))
+				return
+			}
+
+			suite.Require().NoError(err)
+			suite.Require().NotNil(res)
+
+			after := suite.snapshotIsm(ism.Id)
+			expected := before.ism
+			expected.Owner = tc.expOwner
+			suite.Require().Equal(expected, after.ism, "only the owner may change")
+		})
+	}
+}
+
+// TestOwnershipLifecycle checks that a transferred ISM obeys its new owner and that a renounced ISM can never be
+// administered again.
+func (suite *KeeperTestSuite) TestOwnershipLifecycle() {
+	ism := suite.CreateTestIsm([]byte("trusted_root_with_at_least_32_bytes"))
+	ism.Owner = testfactory.TestAccAddr
+	suite.Require().NoError(suite.zkISMKeeper.SetIsm(suite.ctx, ism.Id, ism))
+
+	newOwner := sdk.AccAddress(bytes.Repeat([]byte{0x42}, 20)).String()
+	msgServer := keeper.NewMsgServerImpl(suite.zkISMKeeper)
+
+	_, err := msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: testfactory.TestAccAddr, NewOwner: newOwner})
+	suite.Require().NoError(err)
+
+	updateKeys := func(owner string) error {
+		_, err := msgServer.UpdateVerifyingKeys(suite.ctx, &types.MsgUpdateVerifyingKeys{
+			Id:                  ism.Id,
+			Owner:               owner,
+			Groth16Vkey:         ism.Groth16Vkey,
+			StateTransitionVkey: randBytes(32),
+			StateMembershipVkey: randBytes(32),
+		})
+		return err
+	}
+
+	// The previous owner lost control, the new owner has it.
+	suite.Require().ErrorIs(updateKeys(testfactory.TestAccAddr), sdkerrors.ErrUnauthorized)
+	suite.Require().NoError(updateKeys(newOwner))
+
+	_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: testfactory.TestAccAddr, NewOwner: testfactory.TestAccAddr})
+	suite.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
+
+	// Renounce: nobody, including an empty owner field, can administer the ISM afterwards.
+	_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: newOwner, RenounceOwnership: true})
+	suite.Require().NoError(err)
+
+	stored, err := suite.zkISMKeeper.GetIsm(suite.ctx, ism.Id)
+	suite.Require().NoError(err)
+	suite.Require().Empty(stored.Owner)
+
+	for _, owner := range []string{newOwner, testfactory.TestAccAddr, ""} {
+		suite.Require().ErrorIs(updateKeys(owner), sdkerrors.ErrUnauthorized, "owner %q", owner)
+		_, err = msgServer.TransferOwnership(suite.ctx, &types.MsgTransferOwnership{Id: ism.Id, Owner: owner, NewOwner: newOwner})
+		suite.Require().ErrorIs(err, sdkerrors.ErrUnauthorized, "owner %q", owner)
+	}
 }

@@ -35,7 +35,8 @@ type download struct {
 
 	rows [][]byte // K+N; rows[:K] become slab-backed after the first Add
 
-	refetched bool // invalid original rows were already dropped once
+	refetched bool     // invalid original rows were already dropped once
+	releases  []func() // shard buffers referenced by parity rows until reconstruction
 }
 
 // errRefetch tells the caller of [download.Blob] that invalid original rows
@@ -192,15 +193,22 @@ func (s *download) release(from validator.SelectedValidator) {
 // If committed original rows fail their RLC check, Blob drops them, keeps the
 // slab and returns [errRefetch] once: the caller runs the shard loop again so
 // the dropped rows are recovered from parity, then calls Blob again.
-func (s *download) Blob(ctx context.Context) (*Blob, error) {
+func (s *download) Blob(ctx context.Context) (blob *Blob, err error) {
 	s.inflightWg.Wait()
+	defer func() {
+		// parity rows keep aliasing shard buffers until the refetched Blob
+		// reconstructs
+		if !errors.Is(err, errRefetch) {
+			s.releaseShards()
+		}
+	}()
 
 	if err := ctx.Err(); err != nil {
 		s.freeSlab()
 		return nil, err
 	}
 
-	if err := s.reconstruct(); err != nil {
+	if err := s.reconstruct(ctx); err != nil {
 		if s.dropInvalidRows(err) {
 			return nil, errRefetch
 		}
@@ -214,7 +222,7 @@ func (s *download) Blob(ctx context.Context) (*Blob, error) {
 		s.freeSlab()
 		return nil, err
 	}
-	blob := &Blob{
+	blob = &Blob{
 		cfg:       s.cfg,
 		id:        s.id,
 		header:    header,
@@ -231,7 +239,15 @@ func (s *download) Blob(ctx context.Context) (*Blob, error) {
 //   - K rows received → Reconstruct
 //   - 0 rows received → [ErrNotFound]
 //   - 0 < rows < K → [ErrNotEnoughShards]
-func (s *download) reconstruct() error {
+func (s *download) reconstruct(ctx context.Context) error {
+	if slots := s.cfg.reconstructSlots; slots != nil && s.reconstructor.Want() == 0 {
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	err := s.reconstructor.Reconstruct(s.rows)
 	if !errors.Is(err, rsema1d.ErrNotEnoughRows) {
 		return err
@@ -282,6 +298,21 @@ func (s *download) freeSlab() {
 	}
 	s.cfg.DataPool.PutRegion(s.slab)
 	s.slab = nil
+}
+
+// retain defers release until [download.Blob] has run reconstruction. Must be
+// called before the worker's [download.AddShard].
+func (s *download) retain(release func()) {
+	s.mu.Lock()
+	s.releases = append(s.releases, release)
+	s.mu.Unlock()
+}
+
+func (s *download) releaseShards() {
+	for _, release := range s.releases {
+		release()
+	}
+	s.releases = nil
 }
 
 // RowsCount returns the number of unique rows currently stored. For instrumentation.

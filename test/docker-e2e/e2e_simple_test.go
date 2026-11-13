@@ -43,6 +43,8 @@ func (s *CelestiaTestSuite) TestE2ESimple() {
 		}
 	})
 
+	s.startConsistencyMonitor(ctx, celestia.Nodes())
+
 	// Verify the chain is running
 	height, err := celestia.Height(ctx)
 	s.Require().NoError(err, "failed to get chain height")

@@ -45,6 +45,9 @@ type Client struct {
 	clock   clock.Clock
 
 	clientCache *fibregrpc.ClientCache
+	// warmedSet is the hash of the last validator set pre-dialed by warm.
+	warmMu    sync.Mutex
+	warmedSet string
 
 	// escrowLedgers holds one client-side escrow accountant per signer address,
 	// created lazily on first use. It guards local admission and auto-funding
@@ -83,17 +86,20 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("create state client: %w", err)
 	}
 
+	metrics, err := newClientMetrics(cfg.Meter)
+	if err != nil {
+		return nil, fmt.Errorf("creating metrics: %w", err)
+	}
+
 	// The default dialer is bound to this client's state client, so it stays
 	// out of the exported Config: a client built from a copied Config must
 	// dial through its own state client.
 	newClientFn := cfg.NewClientFn
 	if newClientFn == nil {
-		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
-	}
-
-	metrics, err := newClientMetrics(cfg.Meter)
-	if err != nil {
-		return nil, fmt.Errorf("creating metrics: %w", err)
+		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log,
+			fibregrpc.WithForceTLS(cfg.ForceTLS),
+			fibregrpc.WithDialObserver(metrics.observeDial),
+		)
 	}
 
 	return &Client{
@@ -180,7 +186,41 @@ func (c *Client) Start(ctx context.Context) error {
 		return err
 	}
 	c.log.Info("client ready", "chain_id", c.state.ChainID())
+	if valSet, err := c.validatorSet(ctx, 0); err == nil {
+		c.warm(valSet)
+	} else {
+		c.log.Warn("not pre-dialing validators", "error", err)
+	}
 	return nil
+}
+
+// warm pre-dials the validators of valSet in the background once per distinct
+// set, so uploads and downloads start on established connections.
+func (c *Client) warm(valSet validator.Set) {
+	if valSet.ValidatorSet == nil {
+		return
+	}
+	hash := string(valSet.Hash())
+	c.warmMu.Lock()
+	if hash == c.warmedSet {
+		c.warmMu.Unlock()
+		return
+	}
+	c.warmedSet = hash
+	c.warmMu.Unlock()
+
+	c.closeWg.Go(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), c.Config.RPCTimeout)
+		defer cancel()
+		go func() {
+			select {
+			case <-c.stopCh:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+		c.clientCache.Warm(ctx, valSet.Validators)
+	})
 }
 
 // Stop stops the client and releases any associated resources.
