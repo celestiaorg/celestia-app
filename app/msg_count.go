@@ -239,7 +239,7 @@ func zkProofTypeURLWeight(typeURL string) int {
 
 // ismTypeURLWeight counts a MsgProcessMessage as over budget; see above.
 func ismTypeURLWeight(typeURL string) int {
-	if typeURL == sdk.MsgTypeURL(&hyperlanetypes.MsgProcessMessage{}) {
+	if typeURL == processMessageTypeURL {
 		return appconsts.MaxISMSignatures + 1
 	}
 	return 0
@@ -289,17 +289,26 @@ func protoAnyTypeURL(bz []byte) (string, bool) {
 // list, so fail closed if governance allows one rather than letting inner proof
 // work bypass the counter. See TestIcaAllowMessagesExcludeFanOutMsgs.
 func isFanOutTypeURL(typeURL string) bool {
-	return typeURL == sdk.MsgTypeURL(&authz.MsgExec{}) ||
-		typeURL == sdk.MsgTypeURL(&govv1.MsgSubmitProposal{}) ||
-		typeURL == sdk.MsgTypeURL(&channeltypes.MsgRecvPacket{})
+	return typeURL == execTypeURL || typeURL == submitProposalTypeURL || typeURL == recvPacketTypeURL
 }
 
 func isZKProofTypeURL(typeURL string) bool {
-	return typeURL == sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{}) ||
-		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{}) ||
-		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{}) ||
-		typeURL == sdk.MsgTypeURL(&zkismtypes.MsgUpdateVerifyingKeys{})
+	return typeURL == createZKISMTypeURL || typeURL == updateZKISMTypeURL ||
+		typeURL == submitZKMessagesTypeURL || typeURL == updateVerifyingKeysTypeURL
 }
+
+// Type URLs the ICA payload walks compare each entry against, computed once
+// because sdk.MsgTypeURL allocates.
+var (
+	execTypeURL                = sdk.MsgTypeURL(&authz.MsgExec{})
+	submitProposalTypeURL      = sdk.MsgTypeURL(&govv1.MsgSubmitProposal{})
+	recvPacketTypeURL          = sdk.MsgTypeURL(&channeltypes.MsgRecvPacket{})
+	createZKISMTypeURL         = sdk.MsgTypeURL(&zkismtypes.MsgCreateInterchainSecurityModule{})
+	updateZKISMTypeURL         = sdk.MsgTypeURL(&zkismtypes.MsgUpdateInterchainSecurityModule{})
+	submitZKMessagesTypeURL    = sdk.MsgTypeURL(&zkismtypes.MsgSubmitMessages{})
+	updateVerifyingKeysTypeURL = sdk.MsgTypeURL(&zkismtypes.MsgUpdateVerifyingKeys{})
+	processMessageTypeURL      = sdk.MsgTypeURL(&hyperlanetypes.MsgProcessMessage{})
+)
 
 // countProtoMsgs counts the entries of a proto3 encoded CosmosTx, or -1 if the
 // host's decoder rejects the bytes. It walks the wire format instead of
@@ -489,11 +498,38 @@ func countJSONWeighted(bz []byte, weigh func(string) int, over int) int {
 // jsonCosmosTxMsgs returns the raw "messages" value of a proto3json CosmosTx, or
 // false if the host's decoder rejects the bytes. It reads the payload the way
 // that decoder (gogoproto jsonpb) does: only the first JSON value, ignoring any
-// bytes after it, into a map, so a later duplicate key wins.
+// bytes after it; null as an empty tx; keys matched exactly, so a later
+// duplicate "messages" wins; and any other key rejected, since the host does
+// not allow unknown fields. It streams the top-level object rather than
+// decoding it into a map, so it stops at the first unknown key.
 func jsonCosmosTxMsgs(bz []byte) (json.RawMessage, bool) {
-	var fields map[string]json.RawMessage
-	if err := json.NewDecoder(bytes.NewReader(bz)).Decode(&fields); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(bz))
+	tok, err := dec.Token()
+	if err != nil {
 		return nil, false
 	}
-	return fields["messages"], true
+	if tok == nil {
+		return nil, true
+	}
+	if delim, ok := tok.(json.Delim); !ok || delim != '{' {
+		return nil, false
+	}
+	var msgs json.RawMessage
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, false
+		}
+		if key, ok := tok.(string); !ok || key != "messages" {
+			return nil, false
+		}
+		if err := dec.Decode(&msgs); err != nil {
+			return nil, false
+		}
+	}
+	// Consume the closing brace, which also rejects a trailing comma.
+	if _, err := dec.Token(); err != nil {
+		return nil, false
+	}
+	return msgs, true
 }
