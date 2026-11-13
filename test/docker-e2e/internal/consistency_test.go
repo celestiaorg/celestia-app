@@ -21,6 +21,7 @@ type fakeNode struct {
 	onlyAt    bool // diverge only at divergeAt, not above it
 	badBlock  bool // diverge on the block hash instead of the app hash
 	down      bool // fail every RPC
+	blockErrs int  // fail this many Block calls; negative fails all of them
 	maxBlock  int64
 }
 
@@ -55,6 +56,10 @@ func (n *fakeNode) Block(_ context.Context, height int64) (BlockInfo, error) {
 	defer n.mu.Unlock()
 	if n.down {
 		return BlockInfo{}, fmt.Errorf("%s is down", n.name)
+	}
+	if n.blockErrs != 0 {
+		n.blockErrs--
+		return BlockInfo{}, fmt.Errorf("%s block query failed", n.name)
 	}
 	if height > n.height {
 		return BlockInfo{}, fmt.Errorf("%s: height %d is above the latest height %d", n.name, height, n.height)
@@ -225,6 +230,30 @@ func TestMonitor(t *testing.T) {
 		), cfg)
 		eventually(t, "the monitor to fail", failed(m))
 		requireContains(t, m.Stop(), "b did not answer for", "a=")
+	})
+	t.Run("block queries that keep failing fail the monitor", func(t *testing.T) {
+		cfg := testMonitorConfig()
+		cfg.StallTimeout = 20 * time.Millisecond
+		m := StartMonitor(context.Background(), nodes(
+			&fakeNode{name: "a", height: 1, grow: true},
+			&fakeNode{name: "b", height: 1, grow: true, blockErrs: -1},
+		), cfg)
+		eventually(t, "the monitor to fail", failed(m))
+		requireContains(t, m.Stop(), "agreement checks are stuck at height 1", "b block query failed", "a=", "b=")
+	})
+	t.Run("a transient block query error is retried", func(t *testing.T) {
+		cfg := testMonitorConfig()
+		cfg.StallTimeout = time.Second
+		a := &fakeNode{name: "a", height: 1, grow: true}
+		b := &fakeNode{name: "b", height: 1, grow: true, blockErrs: 3}
+		m := StartMonitor(context.Background(), nodes(a, b), cfg)
+		eventually(t, "height 10 to be checked", func() bool { return m.CheckedHeight() >= 10 })
+		if err := m.Stop(); err != nil {
+			t.Fatal(err)
+		}
+		if b.maxBlock < 10 {
+			t.Fatalf("expected b to be asked for heights up to 10, got %d", b.maxBlock)
+		}
 	})
 }
 
