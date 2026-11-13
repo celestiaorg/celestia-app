@@ -1,0 +1,5 @@
+# PLACEHOLDER: the real list of accounts with exposed keys is supplied at release.
+# One bech32 account address per line; blank lines and lines starting with # are ignored.
+celestia1qyqszqgpqyqszqgpqyqszqgpqyqszqgpreswh3
+celestia1qgpqyqszqgpqyqszqgpqyqszqgpqyqszjaktu8
+celestia1qvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrndh2kx
