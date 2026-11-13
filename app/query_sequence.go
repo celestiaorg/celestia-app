@@ -9,7 +9,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/mempool"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // SetPendingSequencer injects the in-process mempool that QuerySequence reads
@@ -25,10 +24,7 @@ func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
 // QuerySequence returns the signer's next sequence from the mempool and
 // committed state (see nextSequence), so it does not lag during recheck.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
-	sequence, ok, err := app.nextSequence(req.Signer)
-	if err != nil {
-		return nil, err
-	}
+	sequence, ok := app.nextSequence(req.Signer)
 	if !ok {
 		return app.querySequenceFromCheckState(req.Signer)
 	}
@@ -37,25 +33,22 @@ func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence)
 
 // nextSequence returns max(committed sequence, highest pending sequence + 1),
 // or false without an in-process mempool or a Commit since start. Lock free.
-func (app *App) nextSequence(signer []byte) (uint64, bool, error) {
+func (app *App) nextSequence(signer []byte) (uint64, bool) {
 	p := app.pendingSequencer.Load()
 	if p == nil {
-		return 0, false, nil
+		return 0, false
 	}
 	// Mempool first: a tx it drops after a Commit is then in the state read below.
 	pending, hasPending := (*p).HighestPendingSequence(signer)
 	committed := app.committedCtx.Load()
 	if committed == nil {
-		return 0, false, nil
+		return 0, false
 	}
-	sequence, err := app.accountSequence(committed.WithGasMeter(storetypes.NewInfiniteGasMeter()), signer)
-	if err != nil {
-		return 0, false, err
-	}
+	sequence := app.accountSequence(*committed, signer)
 	if hasPending && pending != math.MaxUint64 && pending+1 > sequence {
 		sequence = pending + 1
 	}
-	return sequence, true, nil
+	return sequence, true
 }
 
 // storeCommittedContext caches a read-only context on the state Commit just
@@ -79,19 +72,15 @@ func (app *App) querySequenceFromCheckState(signer []byte) (*abci.ResponseQueryS
 	if !ok {
 		return &abci.ResponseQuerySequence{}, errors.New("checkState not set")
 	}
-	// Own gas meter: concurrent readers would otherwise share checkState's.
-	sequence, err := app.accountSequence(checkTxCtx.WithGasMeter(storetypes.NewInfiniteGasMeter()), signer)
-	if err != nil {
-		return nil, err
-	}
-	return &abci.ResponseQuerySequence{Sequence: sequence}, nil
+	return &abci.ResponseQuerySequence{Sequence: app.accountSequence(checkTxCtx, signer)}, nil
 }
 
-// accountSequence returns the signer's sequence in ctx, or 0 for an unknown account.
-func (app *App) accountSequence(ctx sdk.Context, signer []byte) (uint64, error) {
-	sequence, err := app.AccountKeeper.GetSequence(ctx, sdk.AccAddress(signer))
-	if errors.Is(err, sdkerrors.ErrUnknownAddress) {
-		return 0, nil
+// accountSequence returns the signer's sequence in ctx, or 0 for an unknown
+// account. Own gas meter: concurrent readers would otherwise share ctx's.
+func (app *App) accountSequence(ctx sdk.Context, signer []byte) uint64 {
+	acc := app.AccountKeeper.GetAccount(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), sdk.AccAddress(signer))
+	if acc == nil {
+		return 0
 	}
-	return sequence, err
+	return acc.GetSequence()
 }

@@ -816,7 +816,8 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.FibreKeeper,
 		app.sigCache,
 		app.CountSDKMessages,
-		app.simulateNextSequence,
+		// nextSequence takes only the CAT store's lock, so it is safe under Simulate's.
+		app.nextSequence,
 	)
 }
 
@@ -1049,11 +1050,4 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	res, err := app.BaseApp.Commit()
 	app.storeCommittedContext()
 	return res, err
-}
-
-// simulateNextSequence feeds the simulate ante decorator. nextSequence takes no
-// app or BaseApp lock (only the CAT store's), so it is safe under Simulate's.
-func (app *App) simulateNextSequence(signer []byte) (uint64, bool) {
-	sequence, ok, err := app.nextSequence(signer)
-	return sequence, ok && err == nil
 }
