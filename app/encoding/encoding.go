@@ -54,7 +54,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	}
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
-	sdkDecoder := canonicalTxDecoder(authtx.DefaultTxDecoder(protoCodec))
+	sdkDecoder := authtx.StrictTxDecoder(protoCodec)
 	wrappedDecoder := blobTxDecoder(indexWrapperDecoder(sdkDecoder))
 	txDecoder := rejectEmptyTxDecoder(func(raw []byte) (sdk.Tx, error) {
 		if _, plain := txutil.PlainSDKBody(raw); plain {
