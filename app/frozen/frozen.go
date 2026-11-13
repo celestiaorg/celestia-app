@@ -172,8 +172,7 @@ func (r *Rules) checkPromise(p *fibretypes.PaymentPromise) error {
 // allowed is what a listed account may still sign; SendRestriction pins MsgSend's recipient.
 func allowed(msg sdk.Msg) bool {
 	switch m := msg.(type) {
-	case *banktypes.MsgSend, *stakingtypes.MsgUndelegate, *stakingtypes.MsgCancelUnbondingDelegation,
-		*distrtypes.MsgWithdrawDelegatorReward:
+	case *banktypes.MsgSend, *stakingtypes.MsgUndelegate, *distrtypes.MsgWithdrawDelegatorReward:
 		return true
 	case *distrtypes.MsgSetWithdrawAddress:
 		return m.WithdrawAddress == Whitehat
