@@ -42,11 +42,11 @@ See the [x/zkism README](../../x/zkism/README.md) for details.
 
 ## v11.0.0
 
-v11 is an emergency release cut from the `v10.x` line (release branch `v11.x`), not from `main`. It contains only the app version bump and the fix below. Features developed on `main` that were previously planned for v11 ship in [v12](#v1200) instead.
+v11 is an emergency release cut from the `v10.x` line (release branch `v11.x`), not from `main`. Its state machine differs from v10 only by the app version and the fix below. Features developed on `main` that were previously planned for v11 ship in [v12](#v1200) instead.
 
 ### Node Operators (v11.0.0)
 
-Node operators MUST upgrade their binary to v11 prior to the v11 activation height. Block time and consensus timeouts are unchanged from v10.
+Node operators MUST upgrade their binary to v11 prior to the v11 activation height. The multiplexer embeds v10.6.0 to serve heights before the upgrade. Block time and consensus timeouts are unchanged from v10.
 
 ### State Machine Changes (v11.0.0)
 
