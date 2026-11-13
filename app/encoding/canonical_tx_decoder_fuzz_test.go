@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v11/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/stretchr/testify/require"
 )
 
-// FuzzCheckCanonicalTx checks that the encoding check returns rather than
-// panics on any bytes, and that every tx the app decoder accepts also decodes
+// FuzzCheckCanonicalTx checks that every tx the app decoder accepts also decodes
 // under the SDK decoder alone.
 func FuzzCheckCanonicalTx(f *testing.F) {
 	for _, seed := range decoderSeeds(f) {
@@ -22,7 +22,6 @@ func FuzzCheckCanonicalTx(f *testing.F) {
 	decode := config.TxConfig.TxDecoder()
 	sdkDecode := authtx.DefaultTxDecoder(config.Codec)
 	f.Fuzz(func(t *testing.T, raw []byte) {
-		_ = checkCanonicalTx(raw)
 		if _, err := decode(raw); err != nil {
 			return
 		}
@@ -35,14 +34,14 @@ func FuzzCheckCanonicalTx(f *testing.F) {
 func BenchmarkCanonicalTxDecoder(b *testing.B) {
 	config := MakeConfig(bank.AppModuleBasic{}, blob.AppModule{})
 	sdkDecode := authtx.DefaultTxDecoder(config.Codec)
-	decode := canonicalTxDecoder(sdkDecode)
+	decode := authtx.StrictTxDecoder(config.Codec)
 	seeds := decoderSeeds(b)
 	for _, bc := range []struct {
 		name string
 		raw  []byte
 	}{
 		{"MsgSend", seeds[0]},
-		{"MsgPayForBlobs", fieldValue(seeds[2], 1)},
+		{"MsgPayForBlobs", indexWrappedTx(b, seeds[2])},
 	} {
 		_, err := decode(bc.raw)
 		require.NoError(b, err)
@@ -56,10 +55,13 @@ func BenchmarkCanonicalTxDecoder(b *testing.B) {
 				_, _ = decode(bc.raw)
 			}
 		})
-		b.Run(bc.name+"/check-only", func(b *testing.B) {
-			for range b.N {
-				_ = checkCanonicalTx(bc.raw)
-			}
-		})
 	}
+}
+
+// indexWrappedTx returns the tx in an IndexWrapper.
+func indexWrappedTx(t testing.TB, raw []byte) []byte {
+	t.Helper()
+	iw, ok := blobtypes.UnmarshalIndexWrapper(raw)
+	require.True(t, ok)
+	return iw.Tx
 }

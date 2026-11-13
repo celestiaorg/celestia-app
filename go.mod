@@ -473,7 +473,6 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.4
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc0
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.2
 	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.3
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
@@ -491,3 +490,5 @@ tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 	github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 )
+
+replace github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14.0.20261113133134-06f5fc6a95e9
