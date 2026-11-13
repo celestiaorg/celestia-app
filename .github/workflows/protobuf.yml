@@ -17,6 +17,12 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs on the same PR. Pushes to branches get a unique group
+# (run_id), so post-merge runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # GitHub does not support native path filters on merge_group, so use
   # dorny/paths-filter to detect proto changes and gate the downstream jobs. On
