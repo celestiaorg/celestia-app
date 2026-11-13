@@ -136,6 +136,12 @@ func TestFrozenAccounts(t *testing.T) {
 	} {
 		requireOK(t, c.deliver(t, "victim", []sdk.Msg{msg}), name)
 	}
+	// Grants from unlisted accounts to a listed one must survive the cleanup.
+	thiefAuth, err := authz.NewMsgGrant(thief, victim, authz.NewGenericAuthorization(sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})), nil)
+	require.NoError(t, err)
+	thiefAllowance, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, thief, victim)
+	require.NoError(t, err)
+	requireOK(t, c.deliver(t, "thief", []sdk.Msg{thiefAuth, thiefAllowance}), "unlisted grants")
 	grants, err := c.app.AuthzKeeper.GetAuthorizations(c.ctx(), thief, victim)
 	require.NoError(t, err)
 	require.Len(t, grants, 2)
@@ -151,6 +157,11 @@ func TestFrozenAccounts(t *testing.T) {
 	withdrawAddr, err := c.app.DistrKeeper.GetDelegatorWithdrawAddr(ctx, victim)
 	require.NoError(t, err)
 	require.Equal(t, victim, withdrawAddr)
+	grants, err = c.app.AuthzKeeper.GetAuthorizations(ctx, victim, thief)
+	require.NoError(t, err)
+	require.Len(t, grants, 1)
+	_, err = c.app.FeeGrantKeeper.GetAllowance(ctx, thief, victim)
+	require.NoError(t, err)
 
 	// The pre-upgrade grant is gone, so executing it fails.
 	stolen := authz.NewMsgExec(thief, []sdk.Msg{banktypes.NewMsgSend(victim, thief, utia(1))})
@@ -256,36 +267,6 @@ func TestFrozenBankRoutes(t *testing.T) {
 	require.NoError(t, err)
 	send.ToAddress = whitehat.String()
 	_, err = c.app.MsgServiceRouter().Handler(send)(v11, send)
-	require.NoError(t, err)
-}
-
-// TestFrozenWhitehatUpgrade checks the v11 handler removes only what listed accounts set up.
-func TestFrozenWhitehatUpgrade(t *testing.T) {
-	c := newFrozenChain(t, "victim", "thief")
-	victim, thief := c.addr("victim"), c.addr("thief")
-	c.app.FrozenRules.SetList(victim)
-	ctx := c.app.NewUncachedContext(false, cmtproto.Header{Height: c.app.LastBlockHeight() + 1})
-	require.NoError(t, c.app.AuthzKeeper.SaveGrant(ctx, thief, victim, authz.NewGenericAuthorization("/x"), nil))
-	require.NoError(t, c.app.FeeGrantKeeper.GrantAllowance(ctx, victim, thief, &feegrant.BasicAllowance{}))
-	require.NoError(t, c.app.DistrKeeper.SetDelegatorWithdrawAddr(ctx, victim, thief))
-	// Grants by unlisted accounts must survive the cleanup.
-	require.NoError(t, c.app.AuthzKeeper.SaveGrant(ctx, victim, thief, authz.NewGenericAuthorization("/x"), nil))
-	require.NoError(t, c.app.FeeGrantKeeper.GrantAllowance(ctx, thief, victim, &feegrant.BasicAllowance{}))
-
-	c.applyV11Upgrade(t, ctx)
-	auths, err := c.app.AuthzKeeper.GetAuthorizations(ctx, thief, victim)
-	require.NoError(t, err)
-	require.Empty(t, auths)
-	_, err = c.app.FeeGrantKeeper.GetAllowance(ctx, victim, thief)
-	require.Error(t, err)
-	w, err := c.app.DistrKeeper.GetDelegatorWithdrawAddr(ctx, victim)
-	require.NoError(t, err)
-	require.Equal(t, victim, w)
-
-	auths, err = c.app.AuthzKeeper.GetAuthorizations(ctx, victim, thief)
-	require.NoError(t, err)
-	require.Len(t, auths, 1)
-	_, err = c.app.FeeGrantKeeper.GetAllowance(ctx, thief, victim)
 	require.NoError(t, err)
 }
 

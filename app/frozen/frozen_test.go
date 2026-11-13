@@ -1,6 +1,8 @@
 package frozen_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"strings"
 	"testing"
@@ -34,6 +36,10 @@ func TestEmbeddedList(t *testing.T) {
 		seen[string(addr)] = true
 	}
 	require.Len(t, seen, 41_963)
+	// The list and whitehat are consensus inputs: never change them once v11.0.0 is tagged.
+	sum := sha256.Sum256(bz)
+	require.Equal(t, "96faa31190aec74db35efec56f3f6aaeb16137c3fb988163b7a95a8a00d8f6a3", hex.EncodeToString(sum[:]))
+	require.Equal(t, "celestia1atuap9kfnt6y8ykvn3437e7j3z8qffh33pzt53", frozen.Whitehat)
 	require.False(t, r.Has(sdk.MustAccAddressFromBech32(frozen.Whitehat)))
 }
 
