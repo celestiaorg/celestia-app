@@ -27,7 +27,7 @@ type decoderPair struct {
 
 func newDecoderPair() decoderPair {
 	config := MakeConfig(bank.AppModuleBasic{}, blob.AppModule{})
-	sdkDecoder := authtx.DefaultTxDecoder(config.Codec)
+	sdkDecoder := canonicalTxDecoder(authtx.DefaultTxDecoder(config.Codec))
 	return decoderPair{
 		fast:    config.TxConfig.TxDecoder(),
 		wrapped: rejectEmptyTxDecoder(blobTxDecoder(indexWrapperDecoder(sdkDecoder))),

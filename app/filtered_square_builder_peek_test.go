@@ -15,8 +15,8 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// TestFirstMsgIsPayForFibreMatchesDecoder pins the peek to the decoder on decodable txs with
-// duplicated fields, which the decoder resolves last-wins.
+// TestFirstMsgIsPayForFibreMatchesDecoder pins the peek to the decoder. Txs with duplicated
+// fields no longer decode, so the peek's answer for them does not matter.
 func TestFirstMsgIsPayForFibreMatchesDecoder(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	pffMsg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
@@ -49,21 +49,26 @@ func TestFirstMsgIsPayForFibreMatchesDecoder(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		rawTx   []byte
-		wantPFF bool
+		name     string
+		rawTx    []byte
+		wantPFF  bool
+		rejected bool
 	}{
-		{"duplicated body_bytes, pay-for-fibre last", append(field(txRawBodyField, sendRaw.BodyBytes), pffTx...), true},
-		{"duplicated body_bytes, MsgSend last", append(field(txRawBodyField, pffRaw.BodyBytes), sendTx...), false},
-		{"duplicated body_bytes, empty last", slices.Concat(field(txRawBodyField, pffRaw.BodyBytes), field(txRawBodyField, nil), sendRest), false},
-		{"duplicated type_url, pay-for-fibre last", withAny(sendURL, payForFibreTypeURL, pffValue), true},
-		{"duplicated type_url, MsgSend last", withAny(payForFibreTypeURL, sendURL, sendValue), false},
-		{"empty body", newUnsignedTx(t, txConfig), false},
-		{"MsgSend first", newUnsignedTx(t, txConfig, newMsgSend(), pffMsg), false},
+		{"duplicated body_bytes, pay-for-fibre last", append(field(txRawBodyField, sendRaw.BodyBytes), pffTx...), true, true},
+		{"duplicated body_bytes, MsgSend last", append(field(txRawBodyField, pffRaw.BodyBytes), sendTx...), false, true},
+		{"duplicated body_bytes, empty last", slices.Concat(field(txRawBodyField, pffRaw.BodyBytes), field(txRawBodyField, nil), sendRest), false, true},
+		{"duplicated type_url, pay-for-fibre last", withAny(sendURL, payForFibreTypeURL, pffValue), true, true},
+		{"duplicated type_url, MsgSend last", withAny(payForFibreTypeURL, sendURL, sendValue), false, true},
+		{"empty body", newUnsignedTx(t, txConfig), false, false},
+		{"MsgSend first", newUnsignedTx(t, txConfig, newMsgSend(), pffMsg), false, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			sdkTx, err := txConfig.TxDecoder()(tc.rawTx)
+			if tc.rejected {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 			decodedPFF := false
 			if msgs := sdkTx.GetMsgs(); len(msgs) > 0 {
