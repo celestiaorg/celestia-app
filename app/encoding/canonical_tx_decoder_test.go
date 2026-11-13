@@ -2,8 +2,10 @@ package encoding_test
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	sdkmath "cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -459,5 +461,97 @@ func TestCanonicalTxDecoderRejectsStringsAndDecimals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			requireRejected(t, f, tc.raw)
 		})
+	}
+}
+
+// TestCanonicalTxDecoderAcceptsEncoderOutput checks that a tx the SDK's own
+// tx builder encodes, holding any registered message with every field set,
+// passes the encoding check.
+func TestCanonicalTxDecoderAcceptsEncoderOutput(t *testing.T) {
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	decode := config.TxConfig.TxDecoder()
+	checked := 0
+	for _, url := range config.InterfaceRegistry.ListImplementations(sdk.MsgInterfaceProtoName) {
+		msg, err := config.InterfaceRegistry.Resolve(url)
+		require.NoError(t, err)
+		fillFields(reflect.ValueOf(msg).Elem(), 0)
+
+		builder := config.TxConfig.NewTxBuilder()
+		if err := builder.SetMsgs(msg); err != nil {
+			t.Logf("%s: cannot be set: %v", url, err)
+			continue
+		}
+		builder.SetMemo("memo")
+		builder.SetGasLimit(100_000)
+		builder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("utia", 1)))
+		raw, err := config.TxConfig.TxEncoder()(builder.GetTx())
+		require.NoError(t, err, url)
+		_, err = decode(raw)
+		if err != nil {
+			require.NotContains(t, err.Error(), "not canonically encoded", url)
+			t.Logf("%s: SDK decoder rejects it: %v", url, err)
+			continue
+		}
+		checked++
+	}
+	t.Logf("checked %d message types", checked)
+	require.Greater(t, checked, 100)
+}
+
+var (
+	intType  = reflect.TypeFor[sdkmath.Int]()
+	decType  = reflect.TypeFor[sdkmath.LegacyDec]()
+	timeType = reflect.TypeFor[time.Time]()
+)
+
+// fillFields sets every exported field of v to a non-default value. Anys and
+// oneofs stay empty.
+func fillFields(v reflect.Value, depth int) {
+	switch {
+	case v.Type() == intType:
+		v.Set(reflect.ValueOf(sdkmath.NewInt(7)))
+		return
+	case v.Type() == decType:
+		v.Set(reflect.ValueOf(sdkmath.LegacyNewDec(7)))
+		return
+	case v.Type() == timeType:
+		v.Set(reflect.ValueOf(time.Unix(7, 0).UTC()))
+		return
+	}
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(1)
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(1)
+	case reflect.Array:
+		for i := range v.Len() {
+			fillFields(v.Index(i), depth)
+		}
+	case reflect.Slice:
+		if depth > 3 || v.Type().Elem() == reflect.TypeFor[*codectypes.Any]() {
+			return
+		}
+		s := reflect.MakeSlice(v.Type(), 2, 2)
+		for i := range 2 {
+			fillFields(s.Index(i), depth+1)
+		}
+		v.Set(s)
+	case reflect.Pointer:
+		if depth > 3 || v.Type() == reflect.TypeFor[*codectypes.Any]() {
+			return
+		}
+		p := reflect.New(v.Type().Elem())
+		fillFields(p.Elem(), depth+1)
+		v.Set(p)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if v.Type().Field(i).IsExported() && !strings.HasPrefix(v.Type().Field(i).Name, "XXX_") {
+				fillFields(v.Field(i), depth)
+			}
+		}
 	}
 }
