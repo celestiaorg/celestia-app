@@ -224,8 +224,6 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
-	// oeTxs strips BlobTxs from the txs optimistic execution runs.
-	oeTxs *oeTxsTransform
 	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
 	// rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
@@ -285,10 +283,9 @@ func newApp(
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 	handoff := &txHandoff{}
-	oeTxs := &oeTxsTransform{}
 
 	// Prepended so a caller's DisableOptimisticExecution wins.
-	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(oeTxs.strip))}, baseAppOptions...)
+	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(stripBlobTxs))}, baseAppOptions...)
 	baseApp := baseapp.NewBaseApp(Name, logger, db, handoff.decoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
@@ -311,7 +308,6 @@ func newApp(
 		proposalCache:           newProposalCache(),
 		sigCache:                NewSigCache(maxTxs),
 		txHandoff:               handoff,
-		oeTxs:                   oeTxs,
 		recheckTxs:              newRecheckTxCache(maxTxs),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,

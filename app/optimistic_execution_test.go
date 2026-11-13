@@ -31,7 +31,7 @@ func TestStripBlobTxs(t *testing.T) {
 	blobTx, err := blobtx.MarshalBlobTx(sendTx, blob)
 	require.NoError(t, err)
 	garbage := []byte("not a tx")
-	// A BlobTx under the legacy rules only: v11 rejects its share version.
+	// A BlobTx under the legacy rules only; ProcessProposal rejects it, so OE never sees it.
 	legacyOnly, err := proto.Marshal(&blobproto.BlobTx{
 		Tx:     sendTx,
 		Blobs:  []*blobproto.BlobProto{{NamespaceId: make([]byte, share.NamespaceIDSize), Data: []byte{1}, ShareVersion: 7}},
@@ -45,7 +45,6 @@ func TestStripBlobTxs(t *testing.T) {
 		input[i] = bytes.Clone(tx)
 	}
 
-	require.Equal(t, [][]byte{sendTx, sendTx, pffTx, garbage, sendTx, sendTx}, stripBlobTxs(txs, 10))
-	require.Equal(t, [][]byte{sendTx, sendTx, pffTx, garbage, sendTx, legacyOnly}, stripBlobTxs(txs, 11))
+	require.Equal(t, [][]byte{sendTx, sendTx, pffTx, garbage, sendTx, legacyOnly}, stripBlobTxs(txs))
 	require.Equal(t, input, txs, "input must not be mutated")
 }
