@@ -76,7 +76,7 @@ func (c *frozenChain) deliver(t *testing.T, name string, msgs []sdk.Msg, opts ..
 }
 
 func (c *frozenChain) ctx() sdk.Context {
-	return c.app.NewContext(true).WithBlockHeight(c.app.LastBlockHeight())
+	return c.app.NewContext(true).WithBlockHeight(c.app.LastBlockHeight()).WithChainID(testutil.ChainID)
 }
 
 // upgradeToV11 sets app version 11 and runs the v11 upgrade handler, as the v10 -> v11 transition does.
@@ -110,8 +110,8 @@ func utia(n int64) sdk.Coins { return sdk.NewCoins(sdk.NewInt64Coin(appconsts.Bo
 func TestFrozenAccounts(t *testing.T) {
 	c := newFrozenChain(t, "victim", "victim2", "thief")
 	victim, victim2, thief := c.addr("victim"), c.addr("victim2"), c.addr("thief")
-	whitehat := sdk.MustAccAddressFromBech32(frozen.Whitehat)
-	c.app.FrozenRules.SetList(victim, victim2)
+	whitehat := sdk.MustAccAddressFromBech32(frozen.MainnetWhitehat)
+	c.app.FrozenRules.SetNetwork(testutil.ChainID, frozen.MainnetWhitehat, victim, victim2)
 	vals, err := c.app.StakingKeeper.GetAllValidators(c.ctx())
 	require.NoError(t, err)
 	val := vals[0].OperatorAddress
@@ -210,8 +210,8 @@ func TestFrozenAccounts(t *testing.T) {
 func TestFrozenBankRoutes(t *testing.T) {
 	c := newFrozenChain(t, "victim", "thief")
 	victim, thief := c.addr("victim"), c.addr("thief")
-	whitehat := sdk.MustAccAddressFromBech32(frozen.Whitehat)
-	c.app.FrozenRules.SetList(victim)
+	whitehat := sdk.MustAccAddressFromBech32(frozen.MainnetWhitehat)
+	c.app.FrozenRules.SetNetwork(testutil.ChainID, frozen.MainnetWhitehat, victim)
 	warpToken := createWarpToken(t, c, thief)
 	tia := utia(1_000_000)
 
@@ -242,9 +242,11 @@ func TestFrozenBankRoutes(t *testing.T) {
 		_, err := c.app.MsgServiceRouter().Handler(msg)(cacheCtx, msg)
 		require.ErrorIs(t, err, frozen.ErrFrozen, name)
 	}
-	// The same send works before v11 and to the whitehat after.
+	// The same send works before v11, on a chain without this list, and to the whitehat.
 	send := &banktypes.MsgSend{FromAddress: victim.String(), ToAddress: thief.String(), Amount: tia}
 	_, err = c.app.MsgServiceRouter().Handler(send)(v10, send)
+	require.NoError(t, err)
+	_, err = c.app.MsgServiceRouter().Handler(send)(v11.WithChainID(appconsts.MainnetChainID), send)
 	require.NoError(t, err)
 	send.ToAddress = whitehat.String()
 	_, err = c.app.MsgServiceRouter().Handler(send)(v11, send)

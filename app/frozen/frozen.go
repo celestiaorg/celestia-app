@@ -1,12 +1,15 @@
 // Package frozen restricts accounts whose private keys were exposed: from app
-// version 11 their funds can only move to the whitehat recovery address.
+// version 11 their funds can only move to the whitehat recovery address. Each
+// chain ID has its own list and whitehat; other chains have no list.
 package frozen
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	_ "embed"
+	"embed"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -32,9 +35,20 @@ import (
 // ActivationVersion is the first app version that enforces the rules.
 const ActivationVersion uint64 = 11
 
-// Whitehat is the only address listed accounts may send funds to.
-// TODO: confirm the recovery address before release.
-const Whitehat = "celestia1atuap9kfnt6y8ykvn3437e7j3z8qffh33pzt53"
+// The whitehat is the only address listed accounts may send funds to.
+const (
+	// TODO: confirm the recovery address before release.
+	MainnetWhitehat = "celestia1atuap9kfnt6y8ykvn3437e7j3z8qffh33pzt53"
+	MochaWhitehat   = "celestia1xk4tasrhcr3w6jyq4xzd8x6aapv9hmfuh8mcxn" // test key
+	CortoWhitehat   = "celestia1yny4dz396zd2vp85fnqynnnq6pnj00lz95xv09" // test key
+)
+
+// whitehats lists the chains with a list; each reads addresses/<chain ID>.txt.
+var whitehats = map[string]string{
+	appconsts.MainnetChainID: MainnetWhitehat,
+	appconsts.MochaChainID:   MochaWhitehat,
+	appconsts.CortoChainID:   CortoWhitehat,
+}
 
 // MaxFee caps the fee a tx with a listed signer may pay, so fees can't drain the account.
 var MaxFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1_000_000)))
@@ -42,39 +56,66 @@ var MaxFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1_000_
 // ErrFrozen rejects a tx or transfer that breaks the rules.
 var ErrFrozen = errorsmod.Register("frozen", 2, "account is frozen: funds can only move to the whitehat address")
 
-//go:embed addresses.txt
-var addressesFile string
+//go:embed addresses/*.txt
+var addressFiles embed.FS
 
-var (
-	whitehatAddr     = mustDecode(Whitehat)
-	feeCollectorAddr = authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-)
+var feeCollectorAddr = authtypes.NewModuleAddress(authtypes.FeeCollectorName)
+
+// network is the list and whitehat in force on one chain.
+type network struct {
+	list        map[string]struct{}
+	whitehat    sdk.AccAddress
+	whitehatStr string
+}
+
+func newNetwork(whitehat string, addrs []sdk.AccAddress) *network {
+	return &network{list: newSet(addrs), whitehat: mustDecode(whitehat), whitehatStr: whitehat}
+}
+
+// has reports whether addr is listed; a nil network lists nothing.
+func (n *network) has(addr []byte) bool {
+	if n == nil {
+		return false
+	}
+	_, ok := n.list[string(addr)]
+	return ok
+}
 
 // DistrKeeper reads a delegator's current withdraw address.
 type DistrKeeper interface {
 	GetDelegatorWithdrawAddr(ctx context.Context, delAddr sdk.AccAddress) (sdk.AccAddress, error)
 }
 
-// Rules holds the frozen list and enforces it as a bank send restriction and an ante decorator.
+// Rules holds the per-chain lists and enforces them as a bank send restriction and an ante decorator.
 type Rules struct {
-	list  map[string]struct{}
-	cdc   codec.Codec
-	distr DistrKeeper
+	networks map[string]*network // by chain ID
+	cdc      codec.Codec
+	distr    DistrKeeper
 }
 
-// NewRules returns rules for the embedded list; cdc resolves signers of messages nested in MsgExec.
+// NewRules returns rules for the embedded lists; cdc resolves signers of messages nested in MsgExec.
 func NewRules(cdc codec.Codec, distr DistrKeeper) *Rules {
-	return &Rules{list: embeddedList(), cdc: cdc, distr: distr}
+	return &Rules{networks: embeddedNetworks(), cdc: cdc, distr: distr}
 }
 
-// embeddedList is parsed once and shared read-only by every Rules.
-var embeddedList = sync.OnceValue(func() map[string]struct{} {
-	return newSet(parseList(addressesFile))
+// embeddedNetworks is parsed once and shared read-only by every Rules.
+var embeddedNetworks = sync.OnceValue(func() map[string]*network {
+	networks := make(map[string]*network, len(whitehats))
+	for chainID, whitehat := range whitehats {
+		bz, err := addressFiles.ReadFile("addresses/" + chainID + ".txt")
+		if err != nil {
+			panic(err)
+		}
+		networks[chainID] = newNetwork(whitehat, parseList(string(bz)))
+	}
+	return networks
 })
 
-// SetList replaces the list. Only tests should call it.
-func (r *Rules) SetList(addrs ...sdk.AccAddress) {
-	r.list = newSet(addrs)
+// SetNetwork sets chainID's list and whitehat. Only tests should call it.
+func (r *Rules) SetNetwork(chainID, whitehat string, addrs ...sdk.AccAddress) {
+	networks := maps.Clone(r.networks)
+	networks[chainID] = newNetwork(whitehat, addrs)
+	r.networks = networks
 }
 
 func newSet(addrs []sdk.AccAddress) map[string]struct{} {
@@ -85,10 +126,9 @@ func newSet(addrs []sdk.AccAddress) map[string]struct{} {
 	return set
 }
 
-// Has reports whether addr is listed.
-func (r *Rules) Has(addr []byte) bool {
-	_, ok := r.list[string(addr)]
-	return ok
+// Has reports whether addr is listed on chainID.
+func (r *Rules) Has(chainID string, addr []byte) bool {
+	return r.networks[chainID].has(addr)
 }
 
 // Active reports whether the rules apply at ctx's app version.
@@ -99,7 +139,9 @@ func Active(ctx sdk.Context) bool {
 
 // SendRestriction lets a listed account send only to the whitehat or the fee collector.
 func (r *Rules) SendRestriction(ctx context.Context, from, to sdk.AccAddress, _ sdk.Coins) (sdk.AccAddress, error) {
-	if !r.Has(from) || to.Equals(whitehatAddr) || to.Equals(feeCollectorAddr) || !Active(sdk.UnwrapSDKContext(ctx)) {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	n := r.networks[sdkCtx.ChainID()]
+	if !n.has(from) || bytes.Equal(to, n.whitehat) || bytes.Equal(to, feeCollectorAddr) || !Active(sdkCtx) {
 		return to, nil
 	}
 	return to, ErrFrozen
@@ -109,14 +151,15 @@ func (r *Rules) SendRestriction(ctx context.Context, from, to sdk.AccAddress, _ 
 // Fibre payment or withdraws rewards to a third party, unless every message it
 // signs is allowed.
 func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if len(r.list) == 0 || !Active(ctx) {
+	n := r.networks[ctx.ChainID()]
+	if n == nil || len(n.list) == 0 || !Active(ctx) {
 		return next(ctx, tx, simulate)
 	}
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return ctx, errorsmod.Wrap(ErrFrozen, "tx is not a FeeTx")
 	}
-	if r.Has(feeTx.FeeGranter()) {
+	if n.has(feeTx.FeeGranter()) {
 		return ctx, errorsmod.Wrap(ErrFrozen, "listed fee granter")
 	}
 	sigTx, ok := tx.(authsigning.SigVerifiableTx)
@@ -127,15 +170,15 @@ func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.A
 	if err != nil {
 		return ctx, err
 	}
-	signerListed := slices.ContainsFunc(signers, r.Has)
+	signerListed := slices.ContainsFunc(signers, n.has)
 	if signerListed && !feeTx.GetFee().IsAllLTE(MaxFee) {
 		return ctx, errorsmod.Wrapf(ErrFrozen, "fee %s exceeds %s", feeTx.GetFee(), MaxFee)
 	}
 	for _, msg := range tx.GetMsgs() {
-		if signerListed && !allowed(msg) {
+		if signerListed && !n.allowed(msg) {
 			return ctx, errorsmod.Wrapf(ErrFrozen, "%s not allowed", sdk.MsgTypeURL(msg))
 		}
-		if err := r.checkMsg(ctx, msg); err != nil {
+		if err := r.checkMsg(ctx, n, msg); err != nil {
 			return ctx, err
 		}
 	}
@@ -144,14 +187,14 @@ func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.A
 
 // checkMsg rejects Fibre payments from listed escrows, reward withdrawals to a
 // third party and, recursively, disallowed messages signed inside MsgExec.
-func (r *Rules) checkMsg(ctx sdk.Context, msg sdk.Msg) error {
+func (r *Rules) checkMsg(ctx sdk.Context, n *network, msg sdk.Msg) error {
 	switch m := msg.(type) {
 	case *distrtypes.MsgWithdrawDelegatorReward:
-		return r.checkWithdraw(ctx, m)
+		return r.checkWithdraw(ctx, n, m)
 	case *fibretypes.MsgPayForFibre:
-		return r.checkPromise(&m.PaymentPromise)
+		return n.checkPromise(&m.PaymentPromise)
 	case *fibretypes.MsgPaymentPromiseTimeout:
-		return r.checkPromise(&m.PaymentPromise)
+		return n.checkPromise(&m.PaymentPromise)
 	case *authz.MsgExec:
 		inner, err := m.GetMessages()
 		if err != nil {
@@ -162,10 +205,10 @@ func (r *Rules) checkMsg(ctx sdk.Context, msg sdk.Msg) error {
 			if err != nil {
 				return err
 			}
-			if !allowed(im) && slices.ContainsFunc(signers, r.Has) {
+			if !n.allowed(im) && slices.ContainsFunc(signers, n.has) {
 				return errorsmod.Wrapf(ErrFrozen, "%s not allowed in MsgExec", sdk.MsgTypeURL(im))
 			}
-			if err := r.checkMsg(ctx, im); err != nil {
+			if err := r.checkMsg(ctx, n, im); err != nil {
 				return err
 			}
 		}
@@ -175,39 +218,39 @@ func (r *Rules) checkMsg(ctx sdk.Context, msg sdk.Msg) error {
 
 // checkWithdraw lets a listed delegator withdraw only to itself or the whitehat.
 // It reads pre-tx state, so a withdraw address set in the same tx doesn't count.
-func (r *Rules) checkWithdraw(ctx sdk.Context, m *distrtypes.MsgWithdrawDelegatorReward) error {
+func (r *Rules) checkWithdraw(ctx sdk.Context, n *network, m *distrtypes.MsgWithdrawDelegatorReward) error {
 	del, err := sdk.AccAddressFromBech32(m.DelegatorAddress)
-	if err != nil || !r.Has(del) {
+	if err != nil || !n.has(del) {
 		return nil // the handler rejects a malformed address
 	}
 	withdrawAddr, err := r.distr.GetDelegatorWithdrawAddr(ctx, del)
 	if err != nil {
 		return err
 	}
-	if !withdrawAddr.Equals(del) && !withdrawAddr.Equals(whitehatAddr) {
+	if !bytes.Equal(withdrawAddr, del) && !bytes.Equal(withdrawAddr, n.whitehat) {
 		return errorsmod.Wrap(ErrFrozen, "withdraw address is neither the delegator nor the whitehat")
 	}
 	return nil
 }
 
-func (r *Rules) checkPromise(p *fibretypes.PaymentPromise) error {
+func (n *network) checkPromise(p *fibretypes.PaymentPromise) error {
 	// Address panics on a malformed key, and ProcessProposal skips msg ValidateBasic.
 	if len(p.SignerPublicKey.Key) != secp256k1.PubKeySize {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "payment promise signer key")
 	}
-	if r.Has(p.SignerPublicKey.Address()) {
+	if n.has(p.SignerPublicKey.Address()) {
 		return errorsmod.Wrap(ErrFrozen, "payment promise from a listed escrow")
 	}
 	return nil
 }
 
 // allowed is what a listed account may still sign; SendRestriction pins MsgSend's recipient.
-func allowed(msg sdk.Msg) bool {
+func (n *network) allowed(msg sdk.Msg) bool {
 	switch m := msg.(type) {
 	case *banktypes.MsgSend, *stakingtypes.MsgUndelegate, *distrtypes.MsgWithdrawDelegatorReward:
 		return true
 	case *distrtypes.MsgSetWithdrawAddress:
-		return m.WithdrawAddress == Whitehat
+		return m.WithdrawAddress == n.whitehatStr
 	}
 	return false
 }

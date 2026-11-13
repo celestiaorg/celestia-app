@@ -1,0 +1,5 @@
+# corto-1 test accounts for the frozen-account rules; their keys are test keys.
+# One bech32 account address per line; blank lines and lines starting with # are ignored.
+celestia1g4vjdrx32rq0vd4qckv4d93g05062lsprfdpmy
+celestia1j90mc4vqdu7j37y5s7ueh8e7vr2n3plft2qe5m
+celestia1xthdm5t5ad2kcqz2yewn97dwfzljflsfatzmel
