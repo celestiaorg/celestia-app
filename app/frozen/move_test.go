@@ -332,6 +332,29 @@ func TestMoveAll(t *testing.T) {
 	c.checkInvariants("after maturity")
 }
 
+func TestMoveAllCreatesDestination(t *testing.T) {
+	c := newChain(t, dbm.NewMemDB(), 2)
+	k := c.app.StakingKeeper
+	victim, dest, jailed := randAddr(), randAddr(), c.vals[0]
+	c.block(func(ctx sdk.Context) {
+		sh := c.delegate(ctx, victim, jailed, 50_000_000)
+		_, _, err := k.Undelegate(ctx, victim, jailed, sh)
+		require.NoError(t, err)
+		v, err := k.GetValidator(ctx, jailed)
+		require.NoError(t, err)
+		cons, err := v.GetConsAddr()
+		require.NoError(t, err)
+		require.NoError(t, k.Jail(ctx, cons))
+	})
+	c.block(func(ctx sdk.Context) {
+		require.False(t, c.app.AccountKeeper.HasAccount(ctx, dest))
+		_, err := frozen.MoveAll(ctx, c.keepers(), []sdk.AccAddress{victim}, dest)
+		require.NoError(t, err)
+		require.Equal(t, int64(50_000_000), c.app.BankKeeper.GetBalance(ctx, dest, denom).Amount.Int64())
+	})
+	c.checkInvariants("after")
+}
+
 func TestMoveAllRejectsDestination(t *testing.T) {
 	c := newChain(t, dbm.NewMemDB(), 1)
 	dest := sdk.MustAccAddressFromBech32(frozen.Destination)

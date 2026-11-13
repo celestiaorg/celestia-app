@@ -58,6 +58,10 @@ func MoveAll(ctx sdk.Context, k Keepers, addrs []sdk.AccAddress, dest sdk.AccAdd
 	if err != nil {
 		return nil, err
 	}
+	// Paying out stake to dest tracks the undelegation on its account, which must exist.
+	if !k.Account.HasAccount(ctx, dest) {
+		k.Account.SetAccount(ctx, k.Account.NewAccountWithAddress(ctx, dest))
+	}
 	out := make([]Moved, 0, len(addrs))
 	for _, a := range addrs {
 		if a.Equals(dest) {
