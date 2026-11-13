@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -91,6 +92,14 @@ func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusPar
 	return testApp, kr
 }
 
+// SetupTestAppWithoutOptimisticExecution is SetupTestAppWithGenesisValSetAndMaxSquareSize
+// with optimistic execution disabled, for ProcessProposal benchmarks.
+func SetupTestAppWithoutOptimisticExecution(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp, valSet, kr := newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(baseapp.DisableOptimisticExecution()), cparams, maxSquareSize, genAccounts...)
+	initialiseTestApp(testApp, valSet)
+	return testApp, kr
+}
+
 func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 	// first block
 	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
@@ -109,8 +118,48 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 	}
 }
 
+// WithBlockHash sets req.Hash to a stand-in for the CometBFT block hash that
+// commits to every executed field, so optimistic execution is reused only for the processed block.
+func WithBlockHash(req *abci.RequestFinalizeBlock) *abci.RequestFinalizeBlock {
+	req.Hash = nil
+	bz, err := req.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.Sum256(bz)
+	req.Hash = hash[:]
+	return req
+}
+
+// WithProposalBlockHash sets req.Hash to the WithBlockHash of the FinalizeBlock
+// request celestia-core sends once this proposal is decided (blob txs stripped).
+// Test apps run appconsts.Version.
+func WithProposalBlockHash(req *abci.RequestProcessProposal) *abci.RequestProcessProposal {
+	req.Hash = WithBlockHash(&abci.RequestFinalizeBlock{
+		Txs:                CoreFinalizeTxs(req.Txs, appconsts.Version),
+		DecidedLastCommit:  req.ProposedLastCommit,
+		Misbehavior:        req.Misbehavior,
+		Height:             req.Height,
+		Time:               req.Time,
+		NextValidatorsHash: req.NextValidatorsHash,
+		ProposerAddress:    req.ProposerAddress,
+		Header:             req.Header,
+	}).Hash
+	return req
+}
+
+// CoreFinalizeTxs is what celestia-core v0.43 sends FinalizeBlock for a block
+// of appVersion (state/execution.go unwrapBlobTxs).
+func CoreFinalizeTxs(blockTxs [][]byte, appVersion uint64) [][]byte {
+	txs := make([][]byte, len(blockTxs))
+	for i, tx := range blockTxs {
+		txs[i], _ = tmtypes.UnwrapBlobTx(tx, appVersion)
+	}
+	return txs
+}
+
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
-func NewTestApp() *app.App {
+func NewTestApp(baseAppOptions ...func(*baseapp.BaseApp)) *app.App {
 	db := dbm.NewMemDB()
 
 	return app.New(
@@ -120,7 +169,7 @@ func NewTestApp() *app.App {
 		0,
 		0,
 		EmptyAppOptions{},
-		baseapp.SetChainID(ChainID),
+		append([]func(*baseapp.BaseApp){baseapp.SetChainID(ChainID)}, baseAppOptions...)...,
 	)
 }
 
@@ -135,7 +184,10 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 // NewTestAppWithGenesisSetAndMaxSquareSize initializes a new app with genesis accounts and a specific max square size
 // and returns the testApp, validator set and keyring.
 func NewTestAppWithGenesisSetAndMaxSquareSize(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
-	testApp := NewTestApp()
+	return newTestAppWithGenesisSetAndMaxSquareSize(NewTestApp(), cparams, maxSquareSize, genAccounts...)
+}
+
+func newTestAppWithGenesisSetAndMaxSquareSize(testApp *app.App, cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
 	// hacky way of changing the gov max square size without changing the consts
