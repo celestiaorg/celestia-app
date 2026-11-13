@@ -180,6 +180,9 @@ func TestMaxCommissionRate(t *testing.T) {
 }
 
 func TestFrozenMoveAll(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestFrozenMoveAll in short mode")
+	}
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false).WithBlockHeight(1)
 	addrs, err := frozen.Addresses()
