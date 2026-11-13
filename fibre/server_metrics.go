@@ -55,6 +55,10 @@ type serverMetrics struct {
 	downloadShardDuration metric.Float64Histogram
 	downloadShardBytes    metric.Int64Counter
 
+	// packedShards records how many shards each packed object holds, i.e. the
+	// S3 PUT request reduction factor when object_storage.shards_per_object > 1.
+	packedShards metric.Int64Histogram
+
 	// Store operations
 	storePutDuration   metric.Float64Histogram
 	storeGetDuration   metric.Float64Histogram
@@ -183,6 +187,14 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating download_shard bytes counter: %w", err)
+	}
+
+	sm.packedShards, err = m.Int64Histogram("fibre.server.storage.packed.shards",
+		metric.WithDescription("Shards packed into one S3 object"),
+		metric.WithExplicitBucketBoundaries(1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating packed shards histogram: %w", err)
 	}
 
 	// Store operation metrics

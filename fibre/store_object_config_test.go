@@ -131,11 +131,26 @@ func TestObjectStorageEndpointHost(t *testing.T) {
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
 	cfg := testObjectStorageConfig()
 	want := cfg
+	want.ShardsPerObject = defaultShardsPerObject // Validate defaults the unset knob.
 	cfg.Region = " \tauto\n"
 	cfg.Bucket = " fibre-shards "
 	cfg.Prefix = " fibre "
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, want, cfg)
+}
+
+func TestObjectStorageConfigShardsPerObject(t *testing.T) {
+	cfg := testObjectStorageConfig()
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, defaultShardsPerObject, cfg.ShardsPerObject)
+
+	cfg = testObjectStorageConfig()
+	cfg.ShardsPerObject = maxShardsPerObject + 1
+	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
+
+	cfg = testObjectStorageConfig()
+	cfg.ShardsPerObject = -1
+	require.ErrorContains(t, cfg.Validate(), "shards_per_object")
 }
 
 func TestStoreRejectsUnstablePrefix(t *testing.T) {

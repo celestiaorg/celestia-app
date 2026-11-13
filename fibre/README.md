@@ -143,3 +143,36 @@ The charge per blob is `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` utia (see
 - `Put` is the convenience path: one blob, one `MsgPayForFibre`, submitted through the provided tx client. For custom transaction handling, use `Client.Upload` and submit the message yourself. Each PFF contains one promise, and each PFF transaction must contain exactly one message. `Upload` alone does not perform escrow auto-funding or local budget admission.
 - Uploaded data is retained by fibre servers for a limited window (the `shard_retention` chain parameter, plus whatever servers keep voluntarily). Fibre is not archival storage: download soon after publishing, or persist the data elsewhere.
 - The full API and configuration reference (`ClientConfig`, thresholds, timeouts, retries) is specified in [specs/src/fibre_client.md](../specs/src/fibre_client.md).
+
+## Packing shards into one S3 object (operators)
+
+In `storage_backend = object` mode a fibre server writes one S3 object per
+shard. A high-throughput server can hit the object store's PUT rate limits
+(`HTTP 503 SlowDown`, per-prefix PUT/s caps) before bandwidth is the
+bottleneck. `object_storage.shards_per_object` batches up to `N` shards into
+one PUT:
+
+```toml
+[store.object_storage]
+shards_per_object = 16   # default 1: one object per shard, no packing
+```
+
+Only PUTs get cheaper. Reads use a ranged GET per shard, and pruning costs
+more requests than the default path: packed objects are deleted one request
+per object, while plain shard objects are deleted 1,000 keys per request.
+Raise the setting only when the object store rate-limits uploads.
+
+- **Latency.** A batch uploads when it fills or after ~250 ms, so an upload can
+  wait that long for neighbours.
+- **Deletion.** A shard's accounted occupancy is released when it is pruned,
+  but the object's bytes stay until its last member is pruned.
+- **Compatibility.** Packed shards use an on-disk marker (`0x06`) that older
+  binaries cannot read. The default never writes it.
+- **Rollback.** Setting `shards_per_object` back to `1` stops new packing.
+  Shards packed earlier stay readable and prunable; keep object storage
+  configured until they are all pruned.
+- **Crashes.** A crash between a batch's PUT and its metadata commit can leave
+  an unreferenced object. It is never read; a bucket lifecycle rule reaps it.
+
+The mean of `fibre.server.storage.packed.shards` is the realised PUT reduction
+factor.

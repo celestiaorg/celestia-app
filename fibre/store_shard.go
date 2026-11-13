@@ -24,6 +24,9 @@ type shardBackend interface {
 type routedStorage struct {
 	primary   shardBackend
 	secondary shardBackend
+	// packed batches several shards into one object. It is non-nil only when
+	// packing is enabled or previously-packed shards still need reads or pruning.
+	packed *packedBackend
 	// objectMarkersPresent is captured when the store opens.
 	objectMarkersPresent bool
 }
@@ -37,7 +40,7 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 	if err != nil {
 		return nil, fmt.Errorf("opening local shard storage: %w", err)
 	}
-	object, objectMarkersPresent, err := openObjectBackend(ctx, cfg, db)
+	object, objectMarkersPresent, packedMarkersPresent, err := openObjectBackend(ctx, cfg, db)
 	if err != nil {
 		return nil, fmt.Errorf("opening object shard storage: %w", err)
 	}
@@ -48,6 +51,15 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 		storage = newRoutedStorage(local, object)
 	}
 	storage.objectMarkersPresent = objectMarkersPresent
+	// Only object mode packs new shards. Shards packed earlier stay readable
+	// and prunable in either mode.
+	shardsPerObject := 1
+	if cfg.StorageBackend == storageBackendObject {
+		shardsPerObject = cfg.ObjectStorage.ShardsPerObject
+	}
+	if backend, ok := object.(*objectBackend); ok && (shardsPerObject > 1 || packedMarkersPresent) {
+		storage.packed = newPackedBackend(backend, db, shardsPerObject)
+	}
 	return storage, nil
 }
 
@@ -57,6 +69,11 @@ func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 		backend.metrics = metrics
 	case *objectBackend:
 		backend.metrics = metrics
+	}
+	if s.packed != nil {
+		// The packed backend may wrap the object backend in the secondary slot
+		// (local mode with previously-packed shards), which the switch skips.
+		s.packed.object.metrics = metrics
 	}
 }
 
@@ -73,6 +90,9 @@ func (s *routedStorage) Put(ctx context.Context, marker []byte, commitment Commi
 }
 
 func (s *routedStorage) Get(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte) (*types.BlobShard, error) {
+	if s.isPacked(marker) {
+		return s.packed.get(ctx, marker)
+	}
 	backend, err := s.backendForMarker(marker)
 	if err != nil {
 		return nil, err
@@ -81,6 +101,11 @@ func (s *routedStorage) Get(ctx context.Context, marker []byte, commitment Commi
 }
 
 func (s *routedStorage) Has(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte) (bool, error) {
+	if s.isPacked(marker) {
+		// A packed marker is committed only after its object's PUT succeeds,
+		// so the object exists whenever the marker does. No HEAD is needed.
+		return true, nil
+	}
 	backend, err := s.backendForMarker(marker)
 	if err != nil {
 		return false, err
@@ -89,6 +114,9 @@ func (s *routedStorage) Has(ctx context.Context, marker []byte, commitment Commi
 }
 
 func (s *routedStorage) Delete(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte) error {
+	if s.isPacked(marker) {
+		return s.packed.delete(ctx, marker, promiseHash)
+	}
 	backend, err := s.backendForMarker(marker)
 	if err != nil {
 		return err
@@ -110,6 +138,11 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 	for i, shard := range shards {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if s.isPacked(shard.marker) {
+			// Packed shards leave their object one member at a time, like local ones.
+			local = append(local, i)
+			continue
 		}
 		backend, err := s.backendForMarker(shard.marker)
 		if err != nil {
@@ -188,8 +221,10 @@ func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash [
 	if err != nil {
 		return 0, err
 	}
-	if _, err := s.backend(tag); err != nil {
-		return 0, err
+	if !s.isPacked(marker) {
+		if _, err := s.backend(tag); err != nil {
+			return 0, err
+		}
 	}
 	if size > 0 {
 		return size, nil
@@ -225,6 +260,12 @@ func (s *routedStorage) backendForMarker(marker []byte) (shardBackend, error) {
 		return nil, err
 	}
 	return s.backend(tag)
+}
+
+// isPacked reports whether marker routes to the attached packed backend.
+func (s *routedStorage) isPacked(marker []byte) bool {
+	tag, _, err := decodeShardMarkerBackend(marker)
+	return err == nil && tag == packedObjectBackendTag && s.packed != nil
 }
 
 func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
