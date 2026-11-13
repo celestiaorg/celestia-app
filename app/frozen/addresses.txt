@@ -1,0 +1,6 @@
+# PLACEHOLDER: the real list of accounts with exposed keys is supplied at release.
+# One bech32 account address per line; blank lines and lines starting with # are ignored.
+# The three entries below encode "frozen_placeholder_N" and belong to no one.
+celestia1veex77n9de0hqmrpvdjksmmvv3jhyhe32xt9rn
+celestia1veex77n9de0hqmrpvdjksmmvv3jhyhejy47ndv
+celestia1veex77n9de0hqmrpvdjksmmvv3jhyhener2xs7
