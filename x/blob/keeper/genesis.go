@@ -22,6 +22,6 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 func (k Keeper) ExportGenesis(ctx context.Context) *types.GenesisState {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	genesis := types.DefaultGenesis()
-	genesis.Params = k.GetParams(sdkCtx)
+	genesis.Params = k.GetParamsForQuery(sdkCtx)
 	return genesis
 }
