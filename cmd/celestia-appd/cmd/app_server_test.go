@@ -38,7 +38,7 @@ func TestNewAppServerAppliesTimeoutFlags(t *testing.T) {
 }
 
 // TestDisableOptimisticExecution loads the config the way the start command
-// does and checks that the app.toml key or the env var turns OE off.
+// does and checks that the app.toml key (hand-written or generated) or the env var turns OE off.
 func TestDisableOptimisticExecution(t *testing.T) {
 	exe, err := os.Executable()
 	require.NoError(t, err)
@@ -47,10 +47,12 @@ func TestDisableOptimisticExecution(t *testing.T) {
 
 	for _, tc := range []struct {
 		name, appToml, env string
+		generated          bool
 		enabled            bool
 	}{
 		{name: "default", enabled: true},
 		{name: "app.toml", appToml: disableOptimisticExecutionKey + " = true\n", enabled: false},
+		{name: "generated app.toml", generated: true, enabled: false},
 		{name: "env", env: "true", enabled: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,6 +61,9 @@ func TestDisableOptimisticExecution(t *testing.T) {
 			if tc.appToml != "" {
 				require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o755))
 				require.NoError(t, os.WriteFile(filepath.Join(home, "config", "app.toml"), []byte(tc.appToml), 0o600))
+			}
+			if tc.generated {
+				flipGeneratedOEKey(t, home)
 			}
 			opts := startContext(t, home).Viper
 			opts.Set(flags.FlagChainID, "test")
@@ -69,4 +74,18 @@ func TestDisableOptimisticExecution(t *testing.T) {
 			require.Contains(t, logs.String(), fmt.Sprintf("optimistic execution enabled=%v", tc.enabled))
 		})
 	}
+}
+
+// flipGeneratedOEKey lets the first start write app.toml, checks the OE key is
+// top level (before any [section]) and sets it to true.
+func flipGeneratedOEKey(t *testing.T, home string) {
+	startContext(t, home)
+	path := filepath.Join(home, "config", "app.toml")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	topLevel, _, _ := strings.Cut(string(data), "\n[")
+	line := "\n" + disableOptimisticExecutionKey + " = false\n"
+	require.Contains(t, topLevel, line)
+	flipped := strings.Replace(string(data), line, "\n"+disableOptimisticExecutionKey+" = true\n", 1)
+	require.NoError(t, os.WriteFile(path, []byte(flipped), 0o600))
 }
