@@ -60,6 +60,7 @@ CELESTIA_V6_VERSION := v6.4.10
 CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
 CELESTIA_V9_VERSION := v9.0.8
+CELESTIA_V10_VERSION := v10.6.0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -86,6 +87,7 @@ ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v7-binaries
 	@$(MAKE) download-v8-binaries
 	@$(MAKE) download-v9-binaries
+	@$(MAKE) download-v10-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -100,7 +102,7 @@ install-standalone:
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries download-v10-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -209,6 +211,21 @@ download-v9-binaries:
 	esac; \
 	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V9_VERSION)"
 .PHONY: download-v9-binaries
+
+## download-v10-binaries: Download the celestia-app v10 binary for the current platform.
+download-v10-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V10_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v10_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v10_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v10_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v10_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V10_VERSION)"
+.PHONY: download-v10-binaries
 
 ## mod: Update all go.mod files.
 mod:
@@ -395,7 +412,7 @@ test-docker-e2e-upgrade-all:
 .PHONY: test-docker-e2e-upgrade-all
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries download-v10-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/... ./cmd/celestia-appd/cmd
 .PHONY: test-multiplexer

@@ -30,6 +30,9 @@ const (
 	// we can bump it as required.
 	celestiaNodeVersion    = "v0.34.1-corto"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
+	// celestiaNodeMaxAppVersion is the highest app version celestiaNodeVersion
+	// accepts headers for. Bump it with celestiaNodeVersion.
+	celestiaNodeMaxAppVersion uint64 = 10
 )
 
 // TestE2EFullStackPFB is an E2E test which tests the basic functionality of the entire stack.
@@ -47,6 +50,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	ctx := context.TODO()
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(min(appconsts.Version, celestiaNodeMaxAppVersion))
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID(appconsts.TestChainID).Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
@@ -136,8 +140,8 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM":                       celestiaCustom,
-				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                        celestiaCustom,
+				"P2P_NETWORK":                            celestia.GetChainID(),
 				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
@@ -160,8 +164,8 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM":                       tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
-				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                        tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
+				"P2P_NETWORK":                            celestia.GetChainID(),
 				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
