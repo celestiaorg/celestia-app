@@ -8,6 +8,8 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	evidencetypes "cosmossdk.io/x/evidence/types"
+	"cosmossdk.io/x/feegrant"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
@@ -16,7 +18,9 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -24,6 +28,9 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	gogoproto "github.com/cosmos/gogoproto/proto"
+	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -465,59 +472,134 @@ func TestCanonicalTxDecoderRejectsStringsAndDecimals(t *testing.T) {
 }
 
 // TestCanonicalTxDecoderAcceptsEncoderOutput checks that a tx the SDK's own
-// tx builder encodes, holding any registered message with every field set,
-// passes the encoding check.
+// tx builder encodes, holding any registered message with every field set
+// (Anys and oneofs included where a value fits), decodes to the same tx as
+// under the SDK decoder alone.
 func TestCanonicalTxDecoderAcceptsEncoderOutput(t *testing.T) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decode := config.TxConfig.TxDecoder()
-	checked := 0
+	sdkDecode := authtx.DefaultTxDecoder(config.Codec)
+	anys := candidateAnys(t)
+	checked, withAny := 0, 0
 	for _, url := range config.InterfaceRegistry.ListImplementations(sdk.MsgInterfaceProtoName) {
-		msg, err := config.InterfaceRegistry.Resolve(url)
-		require.NoError(t, err)
-		fillFields(reflect.ValueOf(msg).Elem(), 0)
-
-		builder := config.TxConfig.NewTxBuilder()
-		if err := builder.SetMsgs(msg); err != nil {
-			t.Logf("%s: cannot be set: %v", url, err)
-			continue
+		// Try each Any value until the SDK decoder accepts the tx.
+		accepted := false
+		for _, anyValue := range anys {
+			msg, err := config.InterfaceRegistry.Resolve(url)
+			require.NoError(t, err)
+			filled := fillFields(reflect.ValueOf(msg).Elem(), anyValue, 0)
+			raw, ok := encodeTx(t, config, msg)
+			if !ok {
+				t.Logf("%s: cannot be set", url)
+				break
+			}
+			sdkTx, sdkErr := sdkDecode(raw)
+			appTx, err := decode(raw)
+			if sdkErr != nil {
+				require.Error(t, err, url)
+				if filled {
+					continue
+				}
+				break
+			}
+			require.NoError(t, err, url)
+			require.Equal(t, protoTxBytes(t, sdkTx), protoTxBytes(t, appTx), url)
+			checked++
+			if filled {
+				withAny++
+			}
+			accepted = true
+			break
 		}
-		builder.SetMemo("memo")
-		builder.SetGasLimit(100_000)
-		builder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("utia", 1)))
-		raw, err := config.TxConfig.TxEncoder()(builder.GetTx())
-		require.NoError(t, err, url)
-		_, err = decode(raw)
-		if err != nil {
-			require.NotContains(t, err.Error(), "not canonically encoded", url)
-			t.Logf("%s: SDK decoder rejects it: %v", url, err)
-			continue
+		if !accepted {
+			t.Logf("%s: the SDK decoder rejects every filled form", url)
 		}
-		checked++
 	}
-	t.Logf("checked %d message types", checked)
+	t.Logf("checked %d message types, %d with an Any set", checked, withAny)
 	require.Greater(t, checked, 100)
+	require.Greater(t, withAny, 10)
+}
+
+func encodeTx(t *testing.T, config encoding.Config, msg sdk.Msg) ([]byte, bool) {
+	t.Helper()
+	builder := config.TxConfig.NewTxBuilder()
+	if err := builder.SetMsgs(msg); err != nil {
+		return nil, false
+	}
+	builder.SetMemo("memo")
+	builder.SetGasLimit(100_000)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("utia", 1)))
+	raw, err := config.TxConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return raw, true
+}
+
+func protoTxBytes(t *testing.T, tx sdk.Tx) []byte {
+	t.Helper()
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
+	require.True(t, ok)
+	bz, err := protoTx.GetProtoTx().Marshal()
+	require.NoError(t, err)
+	return bz
+}
+
+// candidateAnys returns values for Any fields: a message, public keys, an
+// authorization, a fee allowance, a proposal content, IBC client types and
+// evidence.
+func candidateAnys(t *testing.T) []*codectypes.Any {
+	t.Helper()
+	k1 := secp256k1.GenPrivKeyFromSecret([]byte("a")).PubKey()
+	k2 := secp256k1.GenPrivKeyFromSecret([]byte("b")).PubKey()
+	values := []gogoproto.Message{
+		banktypes.NewMsgSend(sdk.MustAccAddressFromBech32(testFrom), sdk.MustAccAddressFromBech32(testTo), sdk.NewCoins(sdk.NewInt64Coin("utia", 1))),
+		k1,
+		kmultisig.NewLegacyAminoPubKey(1, []cryptotypes.PubKey{k1, k2}),
+		authz.NewGenericAuthorization(msgSendURL),
+		&feegrant.BasicAllowance{SpendLimit: sdk.NewCoins(sdk.NewInt64Coin("utia", 1))},
+		&govv1beta1.TextProposal{Title: "title", Description: "description"},
+		&ibctm.ClientState{ChainId: "chain"},
+		&ibctm.Header{},
+		&evidencetypes.Equivocation{Height: 1, ConsensusAddress: testFrom},
+	}
+	out := make([]*codectypes.Any, len(values))
+	for i, v := range values {
+		a, err := codectypes.NewAnyWithValue(v)
+		require.NoError(t, err)
+		out[i] = a
+	}
+	return out
 }
 
 var (
 	intType  = reflect.TypeFor[sdkmath.Int]()
 	decType  = reflect.TypeFor[sdkmath.LegacyDec]()
 	timeType = reflect.TypeFor[time.Time]()
+	anyType  = reflect.TypeFor[*codectypes.Any]()
 )
 
-// fillFields sets every exported field of v to a non-default value. Anys and
-// oneofs stay empty.
-func fillFields(v reflect.Value, depth int) {
-	switch {
-	case v.Type() == intType:
+// fillFields sets every exported field of v to a non-default value, Any
+// fields to anyValue and oneofs to their first member. It reports whether it
+// set an Any.
+func fillFields(v reflect.Value, anyValue *codectypes.Any, depth int) bool {
+	switch v.Type() {
+	case intType:
 		v.Set(reflect.ValueOf(sdkmath.NewInt(7)))
-		return
-	case v.Type() == decType:
+		return false
+	case decType:
 		v.Set(reflect.ValueOf(sdkmath.LegacyNewDec(7)))
-		return
-	case v.Type() == timeType:
+		return false
+	case timeType:
 		v.Set(reflect.ValueOf(time.Unix(7, 0).UTC()))
-		return
+		return false
+	case anyType:
+		if depth > 3 {
+			return false
+		}
+		a := *anyValue
+		v.Set(reflect.ValueOf(&a))
+		return true
 	}
+	filled := false
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString("x")
@@ -529,29 +611,55 @@ func fillFields(v reflect.Value, depth int) {
 		v.SetUint(1)
 	case reflect.Array:
 		for i := range v.Len() {
-			fillFields(v.Index(i), depth)
+			filled = fillFields(v.Index(i), anyValue, depth) || filled
 		}
 	case reflect.Slice:
-		if depth > 3 || v.Type().Elem() == reflect.TypeFor[*codectypes.Any]() {
-			return
+		if depth > 3 {
+			return false
 		}
 		s := reflect.MakeSlice(v.Type(), 2, 2)
 		for i := range 2 {
-			fillFields(s.Index(i), depth+1)
+			filled = fillFields(s.Index(i), anyValue, depth+1) || filled
 		}
 		v.Set(s)
 	case reflect.Pointer:
-		if depth > 3 || v.Type() == reflect.TypeFor[*codectypes.Any]() {
-			return
+		if depth > 3 {
+			return false
 		}
 		p := reflect.New(v.Type().Elem())
-		fillFields(p.Elem(), depth+1)
+		filled = fillFields(p.Elem(), anyValue, depth+1)
 		v.Set(p)
 	case reflect.Struct:
-		for i := range v.NumField() {
-			if v.Type().Field(i).IsExported() && !strings.HasPrefix(v.Type().Field(i).Name, "XXX_") {
-				fillFields(v.Field(i), depth)
+		filled = fillStruct(v, anyValue, depth)
+	}
+	return filled
+}
+
+// fillStruct fills the exported fields of a struct, setting each oneof to
+// its first member.
+func fillStruct(v reflect.Value, anyValue *codectypes.Any, depth int) bool {
+	var wrappers []any
+	if w, ok := reflect.TypeAssert[interface{ XXX_OneofWrappers() []any }](v.Addr()); ok {
+		wrappers = w.XXX_OneofWrappers()
+	}
+	filled := false
+	for i := range v.NumField() {
+		sf := v.Type().Field(i)
+		if !sf.IsExported() || strings.HasPrefix(sf.Name, "XXX_") {
+			continue
+		}
+		if sf.Type.Kind() != reflect.Interface {
+			filled = fillFields(v.Field(i), anyValue, depth) || filled
+			continue
+		}
+		for _, w := range wrappers {
+			wv := reflect.New(reflect.TypeOf(w).Elem())
+			if depth <= 3 && wv.Type().Implements(sf.Type) {
+				filled = fillFields(wv.Elem(), anyValue, depth+1) || filled
+				v.Field(i).Set(wv)
+				break
 			}
 		}
 	}
+	return filled
 }
