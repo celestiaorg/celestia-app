@@ -33,6 +33,7 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -204,6 +205,9 @@ type App struct {
 	FibreKeeper         *fibrekeeper.Keeper
 	ValAddrKeeper       valaddrkeeper.Keeper
 
+	// FrozenRules restricts accounts with exposed keys from app version 11.
+	FrozenRules *frozen.Rules
+
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -296,6 +300,8 @@ func New(
 		govModuleAddr,
 		logger,
 	)
+	app.FrozenRules = frozen.NewRules(encodingConfig.Codec)
+	app.BankKeeper.AppendSendRestriction(app.FrozenRules.SendRestriction)
 
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
@@ -567,6 +573,7 @@ func New(
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.pffSigCache,
+		app.FrozenRules,
 	))
 
 	protoFiles, err := proto.MergedRegistry()
