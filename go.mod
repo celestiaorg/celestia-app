@@ -491,4 +491,4 @@ tool (
 	github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 )
 
-replace github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14.0.20261113133134-06f5fc6a95e9
+replace github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14.0.20261113205819-eb58a92dced0

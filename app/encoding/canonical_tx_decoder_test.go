@@ -139,6 +139,25 @@ func txRawBytes(body, authInfo []byte) []byte {
 	return appendBytesField(b, 3, bytes.Repeat([]byte{7}, 64))
 }
 
+// nestedUpgradeAny returns an Any holding a MsgSoftwareUpgrade whose plan
+// holds, in the deprecated upgraded_client_state Any that the SDK does not
+// unpack, another MsgSoftwareUpgrade, n times. Each level adds three messages
+// to the nesting depth: the Plan, the Any and the message in it.
+func nestedUpgradeAny(t *testing.T, n int) []byte {
+	t.Helper()
+	var inner *codectypes.Any
+	for range n + 1 {
+		msg := &upgradetypes.MsgSoftwareUpgrade{
+			Authority: testFrom,
+			Plan:      upgradetypes.Plan{Name: "v12", Height: 10, UpgradedClientState: inner}, //nolint:staticcheck // the deprecated field still decodes
+		}
+		bz, err := msg.Marshal()
+		require.NoError(t, err)
+		inner = &codectypes.Any{TypeUrl: "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade", Value: bz}
+	}
+	return anyBytes(inner.TypeUrl, inner.Value)
+}
+
 // fixture holds canonical pieces of a tx shared by the tests below.
 type fixture struct {
 	decode, sdkDecode sdk.TxDecoder
@@ -253,6 +272,12 @@ func TestCanonicalTxDecoderAccepts(t *testing.T) {
 				transfer = appendVarintField(transfer, 7, 1_794_000_000_000_000_000)
 				return txRawBytes(bodyBytes("", anyBytes("/ibc.applications.transfer.v1.MsgTransfer", transfer)), f.authInfo)
 			},
+		},
+		{
+			// The innermost Plan's Timestamp is message 98 deep, counting
+			// TxBody as 1; one more level puts it at 101.
+			name: "Anys nested to the depth limit",
+			raw:  func(t *testing.T) []byte { return txRawBytes(bodyBytes("", nestedUpgradeAny(t, 31)), f.authInfo) },
 		},
 		{
 			name: "uppercase hex address",
@@ -424,6 +449,11 @@ func TestCanonicalTxDecoderRejectsWireForms(t *testing.T) {
 				pfb = appendVarintField(pfb, 3, 6)
 				return txRawBytes(bodyBytes("", anyBytes("/celestia.blob.v1.MsgPayForBlobs", pfb)), f.authInfo)
 			}(),
+		},
+		{
+			// Counts an Any and the message in it as two levels.
+			name: "Anys nested deeper than the limit",
+			raw:  txRawBytes(bodyBytes("", nestedUpgradeAny(t, 32)), f.authInfo),
 		},
 		{
 			name: "messages nested deeper than the limit",
