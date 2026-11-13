@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"cosmossdk.io/core/header"
 	"cosmossdk.io/log"
@@ -143,14 +142,6 @@ func TestUpgradeInfoWrittenAtCommit(t *testing.T) {
 			_, err := testApp.FinalizeBlock(req)
 			require.NoError(t, err)
 		}},
-		{name: "optimistic execution of an earlier round aborted", run: func(t *testing.T, testApp *app.App, h int64) {
-			proposeAndProcess(t, testApp, h, []byte("block-a"))
-			// Let the optimistic run reach EndBlocker before the next round aborts it.
-			require.Never(t, func() bool { _, err := os.Stat(upgradeInfoPath(app.NodeHome)); return err == nil }, 200*time.Millisecond, 5*time.Millisecond)
-			req := proposeAndProcess(t, testApp, h, []byte("block-b"))
-			_, err := testApp.FinalizeBlock(req)
-			require.NoError(t, err)
-		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			testApp, home := newOptimisticTestApp(t)
@@ -166,6 +157,26 @@ func TestUpgradeInfoWrittenAtCommit(t *testing.T) {
 			require.Equal(t, want, readUpgradeInfo(t, home))
 		})
 	}
+}
+
+// TestUpgradeInfoFromDiscardedRunNotWritten checks that a plan recorded by a
+// discarded EndBlocker run is not written by the next committed block.
+func TestUpgradeInfoFromDiscardedRunNotWritten(t *testing.T) {
+	testApp, home := newEndBlockerTestApp(t)
+	h := testApp.LastBlockHeight() + 1
+	discarded, _ := testApp.NewUncachedContext(false, cmtproto.Header{Height: h}).CacheContext()
+	discarded = discarded.WithHeaderInfo(header.Info{Height: h})
+	setPendingUpgrade(t, testApp, discarded, appconsts.Version+1, h)
+	_, err := testApp.EndBlocker(discarded)
+	require.NoError(t, err)
+	_, err = testApp.UpgradeKeeper.GetUpgradePlan(discarded)
+	require.NoError(t, err, "discarded run must schedule an upgrade")
+
+	_, err = testApp.FinalizeBlock(stateFixBlock(h))
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+	require.NoFileExists(t, upgradeInfoPath(home))
 }
 
 // TestUpgradeInfoWriteFailureIsNotCommitted checks that a failed upgrade info
