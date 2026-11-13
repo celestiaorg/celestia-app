@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -81,6 +82,43 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	fibreParams.PaymentPromiseHeightWindow = 3_250
 	require.Equal(t, fibreParams, testApp.FibreKeeper.GetParams(ctx))
 	require.Equal(t, uint64((4 * time.Second).Nanoseconds()), testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx).MaxExpectedTimePerBlock)
+}
+
+// TestV11UpgradeSetsBlobParams checks that the v11 upgrade copies the blob
+// params from the legacy subspace when the blob store has none, so
+// BlobKeeper.GetParams needs no legacy fallback.
+func TestV11UpgradeSetsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	legacyParams := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, legacyParams)
+	blobStore := ctx.KVStore(testApp.GetKey(blobtypes.StoreKey))
+	blobStore.Delete([]byte(blobtypes.ParamsKey))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v11",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.True(t, blobStore.Has([]byte(blobtypes.ParamsKey)))
+	require.Equal(t, legacyParams, testApp.BlobKeeper.GetParams(ctx))
+}
+
+// TestV11UpgradeKeepsBlobParams checks that the v11 upgrade does not replace
+// blob params that are already in the blob store.
+func TestV11UpgradeKeepsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64))
+	params := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 32)
+	testApp.BlobKeeper.SetParams(ctx, params)
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v11",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.Equal(t, params, testApp.BlobKeeper.GetParams(ctx))
 }
 
 // seedV10BlockCountParams sets the mainnet v10 values of the parameters the
