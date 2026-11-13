@@ -162,7 +162,7 @@ Potential adversaries include:
   - Ownership is transferable (`TransferOwnership`), so that trust follows whoever holds it. The owner is set to the creator at creation.
   - Ownership can be renounced. An ISM with an empty `owner` is immutable: its verifying keys can never change again and ownership cannot be reclaimed. Integrators who want an ISM they do not have to trust should adopt a renounced ISM, or verify the owner field before adopting one.
   - Rotating the keys discards the merkle tree state proven under the previous keys, so nothing proven by a replaced program stays honored.
-  - ISMs created before owner key rotation existed (before v11) keep their creator as owner and became mutable at the upgrade. Routes that adopted such an ISM for its immutability should check whether its owner has renounced.
+  - ISMs created before owner key rotation existed (before v12) keep their creator as owner and became mutable at the upgrade. Routes that adopted such an ISM for its immutability should check whether its owner has renounced.
 
 ### Invariants
 

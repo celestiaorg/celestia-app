@@ -221,12 +221,12 @@ If you import celestia-app as a Go module, you may need to add some Go module `r
 
 ### Usage in tests
 
-If you are running celestia-app in tests, you may want to override the block time. Up to app version 10, blocks are paced by the `delayed_precommit_timeout` (~2.6 seconds per block); override it with the `--delayed-precommit-timeout` flag. From app version 11, blocks are paced by the `dynamic_timeout_commit` (800 ms floor on the block interval); override it with the `--dynamic-timeout-commit` flag.
+If you are running celestia-app in tests, you may want to override the block time. Up to app version 11, blocks are paced by the `delayed_precommit_timeout` (~2.6 seconds per block); override it with the `--delayed-precommit-timeout` flag. From app version 12, blocks are paced by the `dynamic_timeout_commit` (800 ms floor on the block interval); override it with the `--dynamic-timeout-commit` flag. Until the version renumbering lands, binaries built from `main` still run it as app version 11.
 
 ```shell
-# Start celestia-appd with a one-second block time (app version <= 10).
+# Start celestia-appd with a one-second block time (app version <= 11).
 celestia-appd start --delayed-precommit-timeout 1s
-# Start celestia-appd with a 200 ms block floor (app version >= 11).
+# Start celestia-appd with a 200 ms block floor (app version >= 12).
 celestia-appd start --dynamic-timeout-commit 200ms
 ```
 
@@ -352,6 +352,7 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 | celestia-app | celestia-core      | cosmos-sdk                  |
 |--------------|--------------------|-----------------------------|
 | `main`       | `v0.43.x`          | `main` (`v0.53.x` releases) |
+| `v11.x`      | `v0.42.x`          | `release/v0.52.x-celestia`  |
 | `v10.x`      | `v0.42.x`          | `release/v0.52.x-celestia`  |
 | `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia`  |
 | `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia`  |
