@@ -6,18 +6,9 @@ import (
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
-// gasPerAdditionalSDKMessage is the gas limit a tx must declare for every
-// message it counts against MaxSDKMessages beyond the first, for this node to
-// admit it to the mempool or include it in a proposal.
-//
-// A MsgExec with empty inner messages, or an ICA packet with junk entries, can
-// count hundreds of messages for a small fee and keep every other SDK tx out of
-// the block. Fees are paid on the gas limit, so this floor prices each counted
-// message. Honest messages use more than this much gas, so their gas limit
-// already covers it.
-//
-// This is a local mempool and proposal policy, not a validity rule:
-// ProcessProposal and FinalizeBlock still accept such a tx.
+// gasPerAdditionalSDKMessage is the gas limit a tx must declare for each
+// counted SDK message after the first. It applies only to mempool admission and
+// proposal construction, not to block validity.
 const gasPerAdditionalSDKMessage uint64 = 10_000
 
 // validateSDKMessageGas returns an error if the gas limit of tx, which counts
