@@ -2,6 +2,7 @@ package docker_e2e
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -26,6 +27,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cmtconsensus "github.com/cometbft/cometbft/consensus/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -364,12 +367,18 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
-	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
-	resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
-	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
-	s.Require().Equal(uint32(0), resp.Code, "try-upgrade tx failed with code %d", resp.Code)
+	rpcClient, err := validatorNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
 
-	tryUpgradeHeight := resp.Height
+	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
+	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
+
+	// Confirm the tx through CometBFT, not the app's gRPC server. The upgrade
+	// lands GetUpgradeHeightDelay blocks after MsgTryUpgrade, and on a fast
+	// chain the multiplexer can stop the old binary, and its gRPC server,
+	// before the TxClient's next confirmation poll.
+	tryUpgradeHeight := s.waitForTxInclusion(ctx, rpcClient, broadcastResp.TxHash)
 	s.T().Logf("MsgTryUpgrade included at height %d", tryUpgradeHeight)
 
 	// Wait for one block so that the upgrade transaction is committed
@@ -397,8 +406,6 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	// GetUpgrade didn't return a pending upgrade. Check if the upgrade has
 	// already been applied by querying ABCIInfo via the RPC client.
 	s.T().Logf("GetUpgrade returned no pending upgrade (err: %v); checking if the upgrade was already applied", getUpgradeErr)
-	rpcClient, err := validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client")
 
 	// The upgrade height follows from the height MsgTryUpgrade landed at.
 	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID)
@@ -455,6 +462,38 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 
 	s.T().Logf("Upgrade already applied: app_version=%d, computed upgrade height=%d", currentAppVersion, upgradeHeight)
 	return upgradeHeight
+}
+
+// waitForTxInclusion polls CometBFT's tx status until the tx with txHash is
+// committed, requires it to have succeeded and returns its height. CometBFT
+// answers these queries while the multiplexer swaps app binaries.
+func (s *CelestiaTestSuite) waitForTxInclusion(ctx context.Context, rpcClient rpcclient.Client, txHash string) int64 {
+	hash, err := hex.DecodeString(txHash)
+	s.Require().NoError(err, "failed to decode tx hash %s", txHash)
+
+	var (
+		res     *coretypes.ResultTxStatus
+		lastErr error
+	)
+	err = wait.ForCondition(ctx, time.Minute, 250*time.Millisecond, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res, lastErr = rpcClient.TxStatus(callCtx, hash)
+		if lastErr != nil {
+			return false, nil
+		}
+		switch res.Status {
+		case "COMMITTED":
+			return true, nil
+		case "REJECTED", "EVICTED":
+			return false, fmt.Errorf("tx %s is %s: %s", txHash, res.Status, res.Error)
+		default:
+			return false, nil
+		}
+	})
+	s.Require().NoError(err, "tx %s was not committed: last error: %v", txHash, lastErr)
+	s.Require().Equal(uint32(0), res.ExecutionCode, "tx %s failed with code %d: %s", txHash, res.ExecutionCode, res.Error)
+	return res.Height
 }
 
 // validateSignalTally queries the signal tally for the given app version and verifies
