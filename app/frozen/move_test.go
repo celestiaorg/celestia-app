@@ -262,9 +262,14 @@ func TestMoveAll(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, iter.Valid(), "victim %d has parked rewards", i)
 		iter.Close()
+		// Only the thief-set withdraw address stays; the account holds nothing to withdraw.
 		w, err := app.DistrKeeper.GetDelegatorWithdrawAddr(ctx, a)
 		require.NoError(t, err)
-		require.Equal(t, a, w)
+		if a.Equals(customWithdraw) {
+			require.Equal(t, thief, w)
+		} else {
+			require.Equal(t, a, w)
+		}
 		for _, id := range h.unbondingIDs {
 			require.False(t, ctx.KVStore(app.GetKey(stakingtypes.StoreKey)).Has(stakingtypes.GetUnbondingIndexKey(id)), "victim %d unbonding id %d", i, id)
 		}

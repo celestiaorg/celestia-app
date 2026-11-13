@@ -88,7 +88,7 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 	m := Moved{Address: a, Liquid: sdk.NewCoins(), Staked: sdkmath.ZeroInt(), Unbonding: sdkmath.ZeroInt(), Rewards: sdk.NewCoins()}
 
 	// Stake leaves without passing through the account, so a vesting schedule can't
-	// hold; dropping it also sends rewards to the withdraw address and frees all coins.
+	// hold; dropping it frees all coins.
 	if acc := k.Account.GetAccount(ctx, a); acc != nil {
 		if _, ok := acc.(vestexported.VestingAccount); ok {
 			k.Account.SetAccount(ctx, authtypes.NewBaseAccount(a, acc.GetPubKey(), acc.GetAccountNumber(), acc.GetSequence()))
@@ -98,23 +98,12 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 	if err != nil {
 		return m, err
 	}
-	// Withdrawals below pay the withdraw address; reset to a itself once done.
-	if len(dels) > 0 {
-		if err := k.Distr.SetDelegatorWithdrawAddr(ctx, a, dest); err != nil {
-			return m, err
-		}
-	}
 	for _, d := range dels {
 		valAddr, err := sdk.ValAddressFromBech32(d.ValidatorAddress)
 		if err != nil {
 			return m, err
 		}
-		// CIP-30 parks rewards on share changes instead of paying them, so withdraw first.
-		r, err := k.Distr.WithdrawDelegationRewards(ctx, a, valAddr)
-		if err != nil {
-			return m, err
-		}
-		m.Rewards = m.Rewards.Add(r...)
+		// Unbond parks the delegation's rewards (CIP-30); sweepParked pays them to dest.
 		amt, err := k.Staking.Unbond(ctx, a, valAddr, d.Shares)
 		if err != nil {
 			return m, err
@@ -123,11 +112,6 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 			return m, err
 		}
 		m.Staked = m.Staked.Add(amt)
-	}
-	if len(dels) > 0 {
-		if err := k.Distr.DeleteDelegatorWithdrawAddr(ctx, a, a); err != nil {
-			return m, err
-		}
 	}
 
 	ubds, err := k.Staking.GetAllUnbondingDelegations(ctx, a)
@@ -172,8 +156,8 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 	return m, nil
 }
 
-// sweepParked pays dest the rewards CIP-30 parked for a, including entries for
-// validators that no longer exist, which WithdrawDelegationRewards rejects.
+// sweepParked pays dest every reward CIP-30 parked for a, including those Unbond
+// just parked and entries for validators that no longer exist.
 func sweepParked(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress) (sdk.Coins, error) {
 	rng := collections.NewPrefixedPairRange[sdk.AccAddress, sdk.ValAddress](a)
 	var keys []collections.Pair[sdk.AccAddress, sdk.ValAddress]
