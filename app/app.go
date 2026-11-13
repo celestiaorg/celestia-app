@@ -407,7 +407,7 @@ func newApp(
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		encodingConfig.Codec, runtime.NewKVStoreService(keys[govtypes.StoreKey]), app.AccountKeeper, app.BankKeeper,
-		app.StakingKeeper, app.DistrKeeper, app.MsgServiceRouter(), govtypes.DefaultConfig(), govModuleAddr,
+		app.StakingKeeper, app.DistrKeeper, govMsgRouter{app.MsgServiceRouter()}, govtypes.DefaultConfig(), govModuleAddr,
 	)
 	// Set legacy router for backwards compatibility with gov v1beta1
 	app.GovKeeper.SetLegacyRouter(govv1beta1.NewRouter())
