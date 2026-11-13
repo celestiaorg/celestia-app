@@ -81,16 +81,14 @@ func (c *frozenChain) ctx() sdk.Context {
 
 // upgradeToV11 sets app version 11 and runs the v11 upgrade handler, as the v10 -> v11 transition does.
 func (c *frozenChain) upgradeToV11(t *testing.T) {
-	execBlock(t, c.app, func(ctx sdk.Context) { c.applyV11Upgrade(t, ctx) })
-}
-
-func (c *frozenChain) applyV11Upgrade(t *testing.T, ctx sdk.Context) {
-	cp, err := c.app.ConsensusKeeper.ParamsStore.Get(ctx)
-	require.NoError(t, err)
-	cp.Version.App = frozen.ActivationVersion
-	require.NoError(t, c.app.ConsensusKeeper.ParamsStore.Set(ctx, cp))
-	plan := upgradetypes.Plan{Name: fmt.Sprintf("v%d", frozen.ActivationVersion), Height: ctx.BlockHeight()}
-	require.NoError(t, c.app.UpgradeKeeper.ApplyUpgrade(ctx.WithConsensusParams(cp), plan))
+	execBlock(t, c.app, func(ctx sdk.Context) {
+		cp, err := c.app.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		cp.Version.App = frozen.ActivationVersion
+		require.NoError(t, c.app.ConsensusKeeper.ParamsStore.Set(ctx, cp))
+		plan := upgradetypes.Plan{Name: fmt.Sprintf("v%d", frozen.ActivationVersion), Height: ctx.BlockHeight()}
+		require.NoError(t, c.app.UpgradeKeeper.ApplyUpgrade(ctx.WithConsensusParams(cp), plan))
+	})
 }
 
 func requireOK(t *testing.T, res *abci.ExecTxResult, name string) {
@@ -106,79 +104,60 @@ func requireFrozen(t *testing.T, res *abci.ExecTxResult, name string) {
 
 func utia(n int64) sdk.Coins { return sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, n)) }
 
-// TestFrozenAccounts runs the v10 -> v11 transition: setup made with the
-// exposed key before v11 is cleaned up, then only the whitehat paths work.
+// TestFrozenAccounts runs the v10 -> v11 transition: grants and a withdraw
+// address set with the exposed key before v11 stay in state but can't move
+// funds anywhere except the whitehat.
 func TestFrozenAccounts(t *testing.T) {
-	c := newFrozenChain(t, "victim", "thief")
-	victim, thief := c.addr("victim"), c.addr("thief")
+	c := newFrozenChain(t, "victim", "victim2", "thief")
+	victim, victim2, thief := c.addr("victim"), c.addr("victim2"), c.addr("thief")
 	whitehat := sdk.MustAccAddressFromBech32(frozen.Whitehat)
-	c.app.FrozenRules.SetList(victim)
+	c.app.FrozenRules.SetList(victim, victim2)
 	vals, err := c.app.StakingKeeper.GetAllValidators(c.ctx())
 	require.NoError(t, err)
 	val := vals[0].OperatorAddress
 	tia := sdk.NewInt64Coin(appconsts.BondDenom, 1_000_000)
 	exp := testutil.GenesisTime.Add(365 * 24 * time.Hour)
+	genericGrant := func(msg sdk.Msg) *authz.MsgGrant {
+		g, err := authz.NewMsgGrant(victim, thief, authz.NewGenericAuthorization(sdk.MsgTypeURL(msg)), nil)
+		require.NoError(t, err)
+		return g
+	}
 
 	// v10: the rules are inactive, so the exposed key can set up grants and move funds.
 	sendAuth, err := authz.NewMsgGrant(victim, thief, banktypes.NewSendAuthorization(utia(100_000_000), nil), &exp)
-	require.NoError(t, err)
-	delegateAuth, err := authz.NewMsgGrant(victim, thief, authz.NewGenericAuthorization(sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})), nil)
 	require.NoError(t, err)
 	allowance, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, victim, thief)
 	require.NoError(t, err)
 	for name, msg := range map[string]sdk.Msg{
 		"delegate":          stakingtypes.NewMsgDelegate(victim.String(), val, tia.Add(tia)),
 		"authz send grant":  sendAuth,
-		"authz delegate":    delegateAuth,
+		"authz delegate":    genericGrant(&stakingtypes.MsgDelegate{}),
+		"authz withdraw":    genericGrant(&distrtypes.MsgWithdrawDelegatorReward{}),
 		"fee allowance":     allowance,
 		"withdraw to thief": distrtypes.NewMsgSetWithdrawAddress(victim, thief),
 		"send to thief":     banktypes.NewMsgSend(victim, thief, utia(1)),
 	} {
 		requireOK(t, c.deliver(t, "victim", []sdk.Msg{msg}), name)
 	}
-	// Grants from unlisted accounts to a listed one must survive the cleanup.
-	thiefAuth, err := authz.NewMsgGrant(thief, victim, authz.NewGenericAuthorization(sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})), nil)
-	require.NoError(t, err)
-	thiefAllowance, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, thief, victim)
-	require.NoError(t, err)
-	requireOK(t, c.deliver(t, "thief", []sdk.Msg{thiefAuth, thiefAllowance}), "unlisted grants")
-	grants, err := c.app.AuthzKeeper.GetAuthorizations(c.ctx(), thief, victim)
-	require.NoError(t, err)
-	require.Len(t, grants, 2)
+	requireOK(t, c.deliver(t, "victim2", []sdk.Msg{stakingtypes.NewMsgDelegate(victim2.String(), val, tia)}), "victim2 delegate")
 
 	c.upgradeToV11(t)
 
-	ctx := c.ctx()
-	grants, err = c.app.AuthzKeeper.GetAuthorizations(ctx, thief, victim)
+	// No migration: everything set up before v11 is still in state.
+	grants, err := c.app.AuthzKeeper.GetAuthorizations(c.ctx(), thief, victim)
 	require.NoError(t, err)
-	require.Empty(t, grants)
-	_, err = c.app.FeeGrantKeeper.GetAllowance(ctx, victim, thief)
-	require.Error(t, err)
-	withdrawAddr, err := c.app.DistrKeeper.GetDelegatorWithdrawAddr(ctx, victim)
+	require.Len(t, grants, 3)
+	withdrawAddr, err := c.app.DistrKeeper.GetDelegatorWithdrawAddr(c.ctx(), victim)
 	require.NoError(t, err)
-	require.Equal(t, victim, withdrawAddr)
-	grants, err = c.app.AuthzKeeper.GetAuthorizations(ctx, victim, thief)
-	require.NoError(t, err)
-	require.Len(t, grants, 1)
-	_, err = c.app.FeeGrantKeeper.GetAllowance(ctx, thief, victim)
-	require.NoError(t, err)
+	require.Equal(t, thief, withdrawAddr)
 
-	// The pre-upgrade grant is gone, so executing it fails.
-	stolen := authz.NewMsgExec(thief, []sdk.Msg{banktypes.NewMsgSend(victim, thief, utia(1))})
-	res := c.deliver(t, "thief", []sdk.Msg{&stolen})
-	require.NotEqual(t, uint32(0), res.Code)
-	require.Contains(t, res.Log, "authorization not found")
-
-	// Grants that survived anyway (e.g. a list update) are still contained.
-	execBlock(t, c.app, func(ctx sdk.Context) {
-		require.NoError(t, c.app.AuthzKeeper.SaveGrant(ctx, thief, victim, banktypes.NewSendAuthorization(utia(100_000_000), nil), nil))
-		require.NoError(t, c.app.AuthzKeeper.SaveGrant(ctx, thief, victim, authz.NewGenericAuthorization(sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})), nil))
-		require.NoError(t, c.app.FeeGrantKeeper.GrantAllowance(ctx, victim, thief, &feegrant.BasicAllowance{}))
-	})
-	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{&stolen}), "MsgExec MsgSend to thief")
-	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{new(authz.NewMsgExec(thief, []sdk.Msg{stakingtypes.NewMsgDelegate(victim.String(), val, tia)}))}), "MsgExec MsgDelegate")
-
-	// Listed fee granter, even with an allowance that survived.
+	// ...but none of it can move funds.
+	exec := func(msg sdk.Msg) []sdk.Msg { return []sdk.Msg{new(authz.NewMsgExec(thief, []sdk.Msg{msg}))} }
+	withdraw := distrtypes.NewMsgWithdrawDelegatorReward(victim.String(), val)
+	requireFrozen(t, c.deliver(t, "thief", exec(banktypes.NewMsgSend(victim, thief, utia(1)))), "MsgExec MsgSend to thief")
+	requireFrozen(t, c.deliver(t, "thief", exec(stakingtypes.NewMsgDelegate(victim.String(), val, tia))), "MsgExec MsgDelegate")
+	requireFrozen(t, c.deliver(t, "thief", exec(withdraw)), "MsgExec withdraw to thief")
+	requireFrozen(t, c.deliver(t, "victim", []sdk.Msg{withdraw}), "withdraw to thief")
 	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{banktypes.NewMsgSend(thief, thief, utia(1))}, user.SetFeeGranter(victim)), "fee granter")
 
 	warpToken := createWarpToken(t, c, thief)
@@ -205,12 +184,14 @@ func TestFrozenAccounts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, frozenCodespace, checkRes.Codespace, checkRes.Log)
 
-	// Allowed: move funds to the whitehat, unbond, and withdraw rewards.
+	// Allowed: move funds to the whitehat, withdraw rewards to self or the whitehat, unbond.
 	before := c.app.BankKeeper.GetBalance(c.ctx(), whitehat, appconsts.BondDenom)
 	requireOK(t, c.deliver(t, "victim", []sdk.Msg{banktypes.NewMsgSend(victim, whitehat, utia(5_000))}, user.SetFee(1_000_000)), "send to whitehat")
 	require.Equal(t, before.Amount.AddRaw(5_000), c.app.BankKeeper.GetBalance(c.ctx(), whitehat, appconsts.BondDenom).Amount)
-	requireOK(t, c.deliver(t, "victim", []sdk.Msg{distrtypes.NewMsgSetWithdrawAddress(victim, whitehat)}), "withdraw to whitehat")
-	requireOK(t, c.deliver(t, "victim", []sdk.Msg{distrtypes.NewMsgWithdrawDelegatorReward(victim.String(), val)}), "withdraw rewards")
+	requireOK(t, c.deliver(t, "victim2", []sdk.Msg{distrtypes.NewMsgWithdrawDelegatorReward(victim2.String(), val)}), "withdraw to self")
+	requireOK(t, c.deliver(t, "victim", []sdk.Msg{distrtypes.NewMsgSetWithdrawAddress(victim, whitehat)}), "withdraw address to whitehat")
+	requireOK(t, c.deliver(t, "victim", []sdk.Msg{withdraw}), "withdraw to whitehat")
+	requireOK(t, c.deliver(t, "thief", exec(withdraw)), "MsgExec withdraw to whitehat")
 	requireOK(t, c.deliver(t, "victim", []sdk.Msg{stakingtypes.NewMsgUndelegate(victim.String(), val, tia)}), "undelegate")
 	valAddr, err := sdk.ValAddressFromBech32(val)
 	require.NoError(t, err)

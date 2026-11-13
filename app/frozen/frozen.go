@@ -50,15 +50,21 @@ var (
 	feeCollectorAddr = authtypes.NewModuleAddress(authtypes.FeeCollectorName)
 )
 
+// DistrKeeper reads a delegator's current withdraw address.
+type DistrKeeper interface {
+	GetDelegatorWithdrawAddr(ctx context.Context, delAddr sdk.AccAddress) (sdk.AccAddress, error)
+}
+
 // Rules holds the frozen list and enforces it as a bank send restriction and an ante decorator.
 type Rules struct {
-	list map[string]struct{}
-	cdc  codec.Codec
+	list  map[string]struct{}
+	cdc   codec.Codec
+	distr DistrKeeper
 }
 
 // NewRules returns rules for the embedded list; cdc resolves signers of messages nested in MsgExec.
-func NewRules(cdc codec.Codec) *Rules {
-	return &Rules{list: embeddedList(), cdc: cdc}
+func NewRules(cdc codec.Codec, distr DistrKeeper) *Rules {
+	return &Rules{list: embeddedList(), cdc: cdc, distr: distr}
 }
 
 // embeddedList is parsed once and shared read-only by every Rules.
@@ -99,8 +105,9 @@ func (r *Rules) SendRestriction(ctx context.Context, from, to sdk.AccAddress, _ 
 	return to, ErrFrozen
 }
 
-// AnteHandle rejects txs where a listed account signs, grants the fee or
-// funds a Fibre payment, unless every message it signs is allowed.
+// AnteHandle rejects txs where a listed account signs, grants the fee, funds a
+// Fibre payment or withdraws rewards to a third party, unless every message it
+// signs is allowed.
 func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if len(r.list) == 0 || !Active(ctx) {
 		return next(ctx, tx, simulate)
@@ -128,17 +135,19 @@ func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.A
 		if signerListed && !allowed(msg) {
 			return ctx, errorsmod.Wrapf(ErrFrozen, "%s not allowed", sdk.MsgTypeURL(msg))
 		}
-		if err := r.checkMsg(msg); err != nil {
+		if err := r.checkMsg(ctx, msg); err != nil {
 			return ctx, err
 		}
 	}
 	return next(ctx, tx, simulate)
 }
 
-// checkMsg rejects Fibre payments from listed escrows and, recursively,
-// disallowed messages that a listed account signs inside MsgExec.
-func (r *Rules) checkMsg(msg sdk.Msg) error {
+// checkMsg rejects Fibre payments from listed escrows, reward withdrawals to a
+// third party and, recursively, disallowed messages signed inside MsgExec.
+func (r *Rules) checkMsg(ctx sdk.Context, msg sdk.Msg) error {
 	switch m := msg.(type) {
+	case *distrtypes.MsgWithdrawDelegatorReward:
+		return r.checkWithdraw(ctx, m)
 	case *fibretypes.MsgPayForFibre:
 		return r.checkPromise(&m.PaymentPromise)
 	case *fibretypes.MsgPaymentPromiseTimeout:
@@ -156,10 +165,27 @@ func (r *Rules) checkMsg(msg sdk.Msg) error {
 			if !allowed(im) && slices.ContainsFunc(signers, r.Has) {
 				return errorsmod.Wrapf(ErrFrozen, "%s not allowed in MsgExec", sdk.MsgTypeURL(im))
 			}
-			if err := r.checkMsg(im); err != nil {
+			if err := r.checkMsg(ctx, im); err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// checkWithdraw lets a listed delegator withdraw only to itself or the whitehat.
+// It reads pre-tx state, so a withdraw address set in the same tx doesn't count.
+func (r *Rules) checkWithdraw(ctx sdk.Context, m *distrtypes.MsgWithdrawDelegatorReward) error {
+	del, err := sdk.AccAddressFromBech32(m.DelegatorAddress)
+	if err != nil || !r.Has(del) {
+		return nil // the handler rejects a malformed address
+	}
+	withdrawAddr, err := r.distr.GetDelegatorWithdrawAddr(ctx, del)
+	if err != nil {
+		return err
+	}
+	if !withdrawAddr.Equals(del) && !withdrawAddr.Equals(whitehatAddr) {
+		return errorsmod.Wrap(ErrFrozen, "withdraw address is neither the delegator nor the whitehat")
 	}
 	return nil
 }

@@ -22,7 +22,7 @@ import (
 // TestEmbeddedList checks every address in the list is loaded, unique, and not the whitehat.
 func TestEmbeddedList(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	r := frozen.NewRules(enc.Codec)
+	r := frozen.NewRules(enc.Codec, nil)
 	bz, err := os.ReadFile("addresses.txt")
 	require.NoError(t, err)
 	seen := map[string]bool{}
@@ -48,7 +48,7 @@ func TestAnteHandle(t *testing.T) {
 	listedKey := secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey)
 	listed := sdk.AccAddress(listedKey.Address())
 	other := sdk.AccAddress([]byte("unlisted_address____"))
-	r := frozen.NewRules(enc.Codec)
+	r := frozen.NewRules(enc.Codec, nil)
 	r.SetList(listed)
 
 	run := func(version uint64, fee sdk.Coins, msgs ...sdk.Msg) error {
