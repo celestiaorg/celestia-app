@@ -15,7 +15,7 @@ const (
 func TestAddresses(t *testing.T) {
 	addrs, err := Addresses()
 	require.NoError(t, err)
-	require.NotEmpty(t, addrs)
+	require.Len(t, addrs, 41963)
 	_, err = sdk.AccAddressFromBech32(Destination)
 	require.NoError(t, err)
 }
