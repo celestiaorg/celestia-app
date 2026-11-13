@@ -323,9 +323,12 @@ func (s *IBCTestSuite) updateHostedClient(ctx context.Context, hostChain *cosmos
 
 // TestHyperlaneExportBelowTip restarts Celestia from an export below the last
 // height the relayer saw. A message sent in the dropped blocks stays delivered
-// on the EVM chain, and the next message reuses its nonce. A relayer that keeps
-// its database drops that message, because the database already holds one at
-// that nonce; a relayer with a fresh database delivers it.
+// on the EVM chain, and the next message reuses its nonce. A relayer with a
+// fresh database indexed from the new initial height delivers it.
+//
+// The old database is not reused: it keeps the dropped message on that nonce,
+// so the relayer skips the new one, and its indexer can resume at the old
+// message's block, which the new chain does not have, and stall.
 //
 // The suite uses a noop ISM and runs no Hyperlane validator, so how validators
 // sign a reused nonce is not checked here.
@@ -376,28 +379,17 @@ func (s *HyperlaneTestSuite) TestHyperlaneExportBelowTip() {
 	// longer holds its collateral.
 	s.Require().Equal(big.NewInt(800), s.QueryERC20Balance(ctx, reth, tokenRouter, rethRecipient), "EVM balance changed across the restart")
 
-	// The relayer keeps its database, which holds the dropped message on nonce n.
-	validator := chain.Validators[0]
-	s.restartRelayerOn(ctx, h.agent, h.deployer, validator, validator, r.initialHeight, relayerExportDB)
+	// Sent while the relayer is stopped.
 	sendToEVM(200) // the replacement, on nonce n
-	sendToEVM(50)  // the control, on nonce n+1
+	sendToEVM(50)  // the next message, on nonce n+1
 	sent := s.hyperlaneState(ctx, chain, cfg, celestiaRecipient, delivered.MessageId)["sent"]
 	s.Require().Equal(strconv.FormatUint(n+2, 10), sent, "the replacement did not reuse nonce n")
 
-	s.Run("reused nonce dropped by a kept database", func() {
-		// The control is delivered once the relayer has indexed past the
-		// replacement, so the replacement had its chance.
-		requireEVMBalance(850)
-		time.Sleep(30 * time.Second)
-		s.Require().Equal(big.NewInt(850), s.QueryERC20Balance(ctx, reth, tokenRouter, rethRecipient), "the replacement was delivered")
-		// A relayer that exited during the wait would also leave 850.
-		s.Require().NoError(h.agent.ContainerLifecycle.Running(ctx), "the relayer stopped during the wait")
-	})
-
-	// A fresh database indexed from the new chain stores the replacement and
-	// the control, the only messages above the initial height. Its processor
-	// waits at nonce 0 and reads the highest stored nonce only at start, so
-	// restart the relayer once both are stored.
+	// A fresh database indexed from the new chain stores both messages, the
+	// only ones above the initial height. Its processor waits at nonce 0 and
+	// reads the highest stored nonce only at start, so restart the relayer once
+	// both are stored.
+	validator := chain.Validators[0]
 	const recoveryDB = "relayer-db-recovery"
 	s.restartRelayerOn(ctx, h.agent, h.deployer, validator, validator, r.initialHeight, recoveryDB)
 	s.waitForStoredMessages(ctx, validator, h.agent, 2)
