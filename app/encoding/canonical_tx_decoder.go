@@ -166,112 +166,141 @@ func checkMessage(b []byte, info *messageInfo, depth int) error {
 		return notCanonical(info, "nested deeper than %d", maxCanonicalDepth)
 	}
 	var (
-		prev       protowire.Number
-		oneofsSeen uint64
-		present    uint64
-		typeURL    []byte
-		value      []byte
+		seen    fieldsSeen
+		typeURL []byte
+		value   []byte
 	)
 	for len(b) > 0 {
-		num, typ, n := protowire.ConsumeTag(b)
-		if n < 0 {
-			return notCanonical(info, "invalid tag")
-		}
-		if n != protowire.SizeTag(num) {
-			return notCanonical(info, "field %d tag is not minimal", num)
+		num, typ, f, n, err := seen.next(b, info)
+		if err != nil {
+			return err
 		}
 		b = b[n:]
-		f := info.fields[num]
-		if f == nil {
-			return notCanonical(info, "unknown field %d", num)
+		v, m, err := checkValue(b, info, f, num, typ, depth)
+		if err != nil {
+			return err
 		}
-		if num < prev || (num == prev && !f.repeats) {
-			return notCanonical(info, "field %d is out of order or repeated", num)
-		}
-		if f.oneof >= 0 && num != prev {
-			if f.oneof >= 64 || oneofsSeen&(1<<f.oneof) != 0 {
-				return notCanonical(info, "field %d sets a oneof twice", num)
-			}
-			oneofsSeen |= 1 << f.oneof
-		}
-		prev = num
-		present |= f.required
-
-		if f.packed {
-			if typ != protowire.BytesType {
-				return notCanonical(info, "field %d is not packed", num)
-			}
-			v, m, err := consumeBytes(b)
-			if err != nil {
-				return notCanonical(info, "field %d: %v", num, err)
-			}
-			if err := checkPacked(v, f.kind); err != nil {
-				return notCanonical(info, "field %d: %v", num, err)
-			}
-			b = b[m:]
-			continue
-		}
-		if typ != wireType(f.kind) {
-			return notCanonical(info, "field %d has wire type %d", num, typ)
-		}
-		var m int
-		switch typ {
-		case protowire.VarintType:
-			v, k := protowire.ConsumeVarint(b)
-			if k < 0 || k != protowire.SizeVarint(v) {
-				return notCanonical(info, "field %d varint is not minimal", num)
-			}
-			if !varintInRange(v, f.kind) {
-				return notCanonical(info, "field %d value is out of range", num)
-			}
-			m = k
-		case protowire.Fixed32Type:
-			if _, m = protowire.ConsumeFixed32(b); m < 0 {
-				return notCanonical(info, "field %d is truncated", num)
-			}
-		case protowire.Fixed64Type:
-			if _, m = protowire.ConsumeFixed64(b); m < 0 {
-				return notCanonical(info, "field %d is truncated", num)
-			}
-		case protowire.BytesType:
-			v, k, err := consumeBytes(b)
-			if err != nil {
-				return notCanonical(info, "field %d: %v", num, err)
-			}
-			m = k
-			if f.kind == protoreflect.StringKind && !utf8.Valid(v) {
-				return notCanonical(info, "field %d is not valid UTF-8", num)
-			}
-			if f.decimal && !canonicalDecimal(v) {
-				return notCanonical(info, "field %d is not a canonical decimal", num)
-			}
-			if f.kind == protoreflect.MessageKind {
-				sub, err := infoFor(f.msgName)
-				if err != nil {
-					return notCanonical(info, "field %d: %v", num, err)
-				}
-				if err := checkMessage(v, sub, depth+1); err != nil {
-					return err
-				}
-			}
-			if info.name == anyFullName {
-				switch num {
-				case 1:
-					typeURL = v
-				case 2:
-					value = v
-				}
+		if info.name == anyFullName {
+			switch num {
+			case 1:
+				typeURL = v
+			case 2:
+				value = v
 			}
 		}
 		b = b[m:]
 	}
-	if present != info.required {
+	if seen.present != info.required {
 		return notCanonical(info, "a non-nullable decimal field is missing")
 	}
 	if info.name == anyFullName {
 		return checkAnyValue(typeURL, value, depth)
 	}
 	return nil
+}
+
+// fieldsSeen tracks the fields checkMessage has read in one message.
+type fieldsSeen struct {
+	prev       protowire.Number
+	oneofsSeen uint64
+	present    uint64
+}
+
+// next reads the tag at the start of b and checks that its field is known,
+// in order, not a repeat of a singular field and not a second oneof member.
+// It returns the number of tag bytes read.
+func (s *fieldsSeen) next(b []byte, info *messageInfo) (protowire.Number, protowire.Type, *fieldInfo, int, error) {
+	num, typ, n := protowire.ConsumeTag(b)
+	if n < 0 {
+		return 0, 0, nil, 0, notCanonical(info, "invalid tag")
+	}
+	if n != protowire.SizeTag(num) {
+		return 0, 0, nil, 0, notCanonical(info, "field %d tag is not minimal", num)
+	}
+	f := info.fields[num]
+	if f == nil {
+		return 0, 0, nil, 0, notCanonical(info, "unknown field %d", num)
+	}
+	if num < s.prev || (num == s.prev && !f.repeats) {
+		return 0, 0, nil, 0, notCanonical(info, "field %d is out of order or repeated", num)
+	}
+	if f.oneof >= 0 && num != s.prev {
+		if f.oneof >= 64 || s.oneofsSeen&(1<<f.oneof) != 0 {
+			return 0, 0, nil, 0, notCanonical(info, "field %d sets a oneof twice", num)
+		}
+		s.oneofsSeen |= 1 << f.oneof
+	}
+	s.prev = num
+	s.present |= f.required
+	return num, typ, f, n, nil
+}
+
+// checkValue checks the value of field f at the start of b. It returns the
+// contents of a length-delimited value and the number of bytes read.
+func checkValue(b []byte, info *messageInfo, f *fieldInfo, num protowire.Number, typ protowire.Type, depth int) ([]byte, int, error) {
+	if f.packed {
+		if typ != protowire.BytesType {
+			return nil, 0, notCanonical(info, "field %d is not packed", num)
+		}
+		v, m, err := consumeBytes(b)
+		if err == nil {
+			err = checkPacked(v, f.kind)
+		}
+		if err != nil {
+			return nil, 0, notCanonical(info, "field %d: %v", num, err)
+		}
+		return v, m, nil
+	}
+	if typ != wireType(f.kind) {
+		return nil, 0, notCanonical(info, "field %d has wire type %d", num, typ)
+	}
+	switch typ {
+	case protowire.VarintType:
+		v, m := protowire.ConsumeVarint(b)
+		if m < 0 || m != protowire.SizeVarint(v) {
+			return nil, 0, notCanonical(info, "field %d varint is not minimal", num)
+		}
+		if !varintInRange(v, f.kind) {
+			return nil, 0, notCanonical(info, "field %d value is out of range", num)
+		}
+		return nil, m, nil
+	case protowire.Fixed32Type:
+		_, m := protowire.ConsumeFixed32(b)
+		if m < 0 {
+			return nil, 0, notCanonical(info, "field %d is truncated", num)
+		}
+		return nil, m, nil
+	case protowire.Fixed64Type:
+		_, m := protowire.ConsumeFixed64(b)
+		if m < 0 {
+			return nil, 0, notCanonical(info, "field %d is truncated", num)
+		}
+		return nil, m, nil
+	default: // BytesType, the only other type wireType returns
+		v, m, err := consumeBytes(b)
+		if err != nil {
+			return nil, 0, notCanonical(info, "field %d: %v", num, err)
+		}
+		return v, m, checkBytesValue(v, info, f, num, depth)
+	}
+}
+
+// checkBytesValue checks a string, bytes or message value of field f.
+func checkBytesValue(v []byte, info *messageInfo, f *fieldInfo, num protowire.Number, depth int) error {
+	if f.kind == protoreflect.StringKind && !utf8.Valid(v) {
+		return notCanonical(info, "field %d is not valid UTF-8", num)
+	}
+	if f.decimal && !canonicalDecimal(v) {
+		return notCanonical(info, "field %d is not a canonical decimal", num)
+	}
+	if f.kind != protoreflect.MessageKind {
+		return nil
+	}
+	sub, err := infoFor(f.msgName)
+	if err != nil {
+		return notCanonical(info, "field %d: %v", num, err)
+	}
+	return checkMessage(v, sub, depth+1)
 }
 
 // checkAnyValue checks the message packed in an Any. An Any without a type
