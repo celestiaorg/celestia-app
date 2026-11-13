@@ -12,10 +12,12 @@ import (
 	"cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -175,4 +177,24 @@ func TestMaxCommissionRate(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "commission rate cannot be greater than the max commission rate")
 	})
+}
+
+func TestFrozenMoveAll(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	addrs, err := frozen.Addresses()
+	require.NoError(t, err)
+	coins := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1_000))
+	for _, a := range addrs {
+		require.NoError(t, testApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, coins))
+		require.NoError(t, testApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, a, coins))
+	}
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}))
+
+	dest := sdk.MustAccAddressFromBech32(frozen.Destination)
+	require.Equal(t, int64(len(addrs))*1_000, testApp.BankKeeper.GetBalance(ctx, dest, appconsts.BondDenom).Amount.Int64())
+	for _, a := range addrs {
+		require.True(t, testApp.BankKeeper.GetBalance(ctx, a, appconsts.BondDenom).IsZero())
+	}
 }

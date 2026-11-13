@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
@@ -87,6 +88,35 @@ func (app App) RegisterUpgradeHandlers() {
 
 // v11Migrations holds the state changes of the v10 to v11 upgrade. It runs
 // after module migrations so that none of them can overwrite its writes.
-func (app App) v11Migrations(_ sdk.Context) error {
+func (app App) v11Migrations(ctx sdk.Context) error {
+	// Must stay last so it also sweeps funds earlier steps return to listed accounts.
+	return app.frozenMoveAll(ctx)
+}
+
+// frozenMoveAll moves everything held by the embedded frozen list to
+// frozen.Destination. It runs once, in the v11 upgrade.
+func (app App) frozenMoveAll(ctx sdk.Context) error {
+	addrs, err := frozen.Addresses()
+	if err != nil {
+		return err
+	}
+	dest, err := sdk.AccAddressFromBech32(frozen.Destination)
+	if err != nil {
+		return err
+	}
+	keepers := frozen.Keepers{Account: app.AccountKeeper, Bank: app.BankKeeper, Staking: app.StakingKeeper, Distr: app.DistrKeeper}
+	moved, err := frozen.MoveAll(ctx, keepers, addrs, dest)
+	if err != nil {
+		return err
+	}
+	bondDenom, err := app.StakingKeeper.BondDenom(ctx)
+	if err != nil {
+		return err
+	}
+	total := sdk.NewCoins()
+	for _, m := range moved {
+		total = total.Add(m.Total(bondDenom)...)
+	}
+	ctx.Logger().Info("moved frozen accounts", "accounts", len(moved), "destination", dest.String(), "total", total.String())
 	return nil
 }
