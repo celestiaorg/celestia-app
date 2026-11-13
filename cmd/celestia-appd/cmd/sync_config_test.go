@@ -227,7 +227,7 @@ func TestSyncConfigDoesNotPersistFlagsOrEnvironment(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("rpc.max_concurrent_heavy_requests", "88"))
 				want = 88
 			}
-			sctx, err := server.InterceptConfigsAndCreateContext(cmd, "", app.DefaultAppConfig(), app.DefaultConsensusConfig())
+			sctx, err := server.InterceptConfigsAndCreateContext(cmd, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 			require.NoError(t, err)
 			require.Equal(t, want, sctx.Config.RPC.MaxConcurrentHeavyRequests)
 			appPath := filepath.Join(home, "config", "app.toml")
@@ -530,7 +530,7 @@ func TestSyncAppConfigFile(t *testing.T) {
 	home := t.TempDir()
 	cmd := &cobra.Command{}
 	cmd.Flags().String("home", home, "")
-	_, err = server.InterceptConfigsAndCreateContext(cmd, serverconfig.DefaultConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+	_, err = server.InterceptConfigsAndCreateContext(cmd, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 	require.NoError(t, err)
 	added, _, err := syncConfigFile(filepath.Join(home, "config", "app.toml"), reference, false)
 	require.NoError(t, err)
@@ -630,7 +630,7 @@ func nodeAppConfig(t *testing.T, data []byte) serverconfig.Config {
 	start, _, err := NewRootCmd().Find([]string{"start"})
 	require.NoError(t, err)
 	require.NoError(t, start.Flags().Set(flags.FlagHome, home))
-	sctx, err := server.InterceptConfigsAndCreateContext(start, serverconfig.DefaultConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+	sctx, err := server.InterceptConfigsAndCreateContext(start, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 	require.NoError(t, err)
 	cfg, err := serverconfig.GetConfig(sctx.Viper)
 	require.NoError(t, err)

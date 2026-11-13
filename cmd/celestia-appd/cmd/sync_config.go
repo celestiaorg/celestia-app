@@ -130,7 +130,7 @@ func renderConsensusConfig() ([]byte, error) {
 // the start command uses for settings missing from the file, so adding a
 // setting does not change the node's effective configuration.
 func renderAppConfig() ([]byte, error) {
-	tmpl, err := template.New("app.toml").Parse(serverconfig.DefaultConfigTemplate)
+	tmpl, err := template.New("app.toml").Parse(appConfigTemplate)
 	if err != nil {
 		return nil, err
 	}

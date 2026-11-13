@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io"
-	"slices"
-	"sync"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
@@ -48,44 +51,48 @@ func TestDisableOptimisticExecutionFlag(t *testing.T) {
 	for _, disable := range []bool{false, true} {
 		t.Run(fmt.Sprintf("disable=%v", disable), func(t *testing.T) {
 			t.Parallel()
-			logs := &recordingLogger{msgs: &recorded{}}
+			var logs bytes.Buffer
+			logger := log.NewLogger(zerolog.SyncWriter(&logs), log.ColorOption(false))
 			cfg := newRollbackHome(t)
 			cfg.AppOptions.Set(FlagDisableOptimisticExecution, disable)
 			creator := func(_ log.Logger, db dbm.DB, w io.Writer, opts servertypes.AppOptions) servertypes.Application {
-				return NewAppServer(logs, db, w, opts)
+				return NewAppServer(logger, db, w, opts)
 			}
 			runNode(t, cfg, creator, 4)
 
-			require.True(t, logs.msgs.has(fmt.Sprintf("optimistic execution [enabled %v]", !disable)))
-			require.Equal(t, !disable, logs.msgs.has("OE started"), "speculative runs")
+			require.Contains(t, logs.String(), fmt.Sprintf("optimistic execution enabled=%v", !disable))
+			require.Equal(t, !disable, strings.Contains(logs.String(), "OE started"), "speculative runs")
 		})
 	}
 }
 
-type recorded struct {
-	mu   sync.Mutex
-	msgs []string
+// TestAppConfigDisablesOptimisticExecution checks that a generated app.toml has
+// the setting at top level and that setting it to true turns OE off.
+func TestAppConfigDisablesOptimisticExecution(t *testing.T) {
+	home := t.TempDir()
+	load := func() *server.Context {
+		start, _, err := NewRootCmd().Find([]string{"start"})
+		require.NoError(t, err)
+		require.NoError(t, start.Flags().Set(flags.FlagHome, home))
+		sctx, err := server.InterceptConfigsAndCreateContext(start, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+		require.NoError(t, err)
+		return sctx
+	}
+	require.Equal(t, false, load().Viper.Get(FlagDisableOptimisticExecution))
+
+	path := filepath.Join(home, "config", "app.toml")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	setting := FlagDisableOptimisticExecution + " = "
+	at := strings.Index(string(data), "\n"+setting+"false\n")
+	require.Positive(t, at)
+	require.Less(t, at, strings.Index(string(data), "\n["), "must precede the first [section]")
+	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(data), setting+"false", setting+"true", 1)), 0o600))
+
+	sctx := load()
+	sctx.Viper.Set(flags.FlagChainID, "test")
+	var logs bytes.Buffer
+	appServer := NewAppServer(log.NewLogger(zerolog.SyncWriter(&logs), log.ColorOption(false)), dbm.NewMemDB(), nil, sctx.Viper)
+	t.Cleanup(func() { require.NoError(t, appServer.Close()) })
+	require.Contains(t, logs.String(), "optimistic execution enabled=false")
 }
-
-func (r *recorded) add(msg string, kv []any) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.msgs = append(r.msgs, msg, fmt.Sprintf("%s %v", msg, kv))
-}
-
-func (r *recorded) has(msg string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return slices.Contains(r.msgs, msg)
-}
-
-// recordingLogger records the message of every log call at any level.
-type recordingLogger struct{ msgs *recorded }
-
-func (l *recordingLogger) Info(msg string, kv ...any)  { l.msgs.add(msg, kv) }
-func (l *recordingLogger) Error(msg string, kv ...any) { l.msgs.add(msg, kv) }
-func (l *recordingLogger) Debug(msg string, kv ...any) { l.msgs.add(msg, kv) }
-func (l *recordingLogger) Trace(msg string, kv ...any) { l.msgs.add(msg, kv) }
-func (l *recordingLogger) Warn(msg string, kv ...any)  { l.msgs.add(msg, kv) }
-func (l *recordingLogger) With(...any) log.Logger      { return l }
-func (l *recordingLogger) Impl() any                   { return l }
