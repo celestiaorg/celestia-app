@@ -11,9 +11,9 @@ import (
 // or false if unknown. It must not take app locks: Simulate holds them.
 type NextSequenceFn func(signer []byte) (uint64, bool)
 
-// SimulateSequenceDecorator lifts a lagging checkState sequence, unmetered, up
-// to the tx's when the tx uses the signer's next sequence, so gas estimation
-// does not depend on recheck progress. Any other sequence still fails as before.
+// SimulateSequenceDecorator raises a lagging checkState sequence, unmetered, to
+// the signer's next sequence, so during recheck only next passes and any other
+// sequence fails reporting next, as QuerySequence does.
 type SimulateSequenceDecorator struct {
 	ak   ante.AccountKeeper
 	next NextSequenceFn
@@ -31,25 +31,22 @@ func (d SimulateSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	if !ok {
 		return next(ctx, tx, simulate)
 	}
-	sigs, err := sigTx.GetSignaturesV2()
-	if err != nil {
-		return next(ctx, tx, simulate)
-	}
 	signers, err := sigTx.GetSigners()
-	if err != nil || len(signers) != len(sigs) {
+	if err != nil {
 		return next(ctx, tx, simulate)
 	}
 
 	unmetered := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-	for i, sig := range sigs {
-		acc := d.ak.GetAccount(unmetered, signers[i])
-		if acc == nil || sig.Sequence <= acc.GetSequence() {
+	for _, signer := range signers {
+		acc := d.ak.GetAccount(unmetered, signer)
+		if acc == nil {
 			continue
 		}
-		if want, ok := d.next(signers[i]); !ok || sig.Sequence != want {
+		want, ok := d.next(signer)
+		if !ok || want <= acc.GetSequence() {
 			continue
 		}
-		if err := acc.SetSequence(sig.Sequence); err != nil {
+		if err := acc.SetSequence(want); err != nil {
 			return ctx, err
 		}
 		d.ak.SetAccount(unmetered, acc)

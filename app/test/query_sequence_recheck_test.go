@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
@@ -353,7 +354,7 @@ func TestQuerySequenceReadOrderAcrossCommit(t *testing.T) {
 }
 
 // Simulate accepts only the signer's next sequence while checkState lags; a
-// used or skipped sequence still fails, so clients can resync from the error.
+// used or skipped sequence fails reporting next, so clients resync to it.
 func TestSimulateSequenceWhileRecheckLags(t *testing.T) {
 	h := newRecheckHarness(t, 1, true)
 	start := testutil.DirectQueryAccount(h.app, h.addrs[0]).GetSequence()
@@ -376,9 +377,13 @@ func TestSimulateSequenceWhileRecheckLags(t *testing.T) {
 
 	_, _, err = h.app.Simulate(h.sendTx(0, next))
 	require.NoError(t, err)
-	for _, seq := range []uint64{start, start + 10, next + 1} {
+	// start+5 is checkState's sequence but already pending in the pool.
+	for _, seq := range []uint64{start, start + 5, start + 10, next + 1} {
 		_, _, err = h.app.Simulate(h.sendTx(0, seq))
 		require.ErrorIs(t, err, sdkerrors.ErrWrongSequence, "sequence %d", seq)
+		expected, err := apperrors.ParseExpectedSequence(err.Error())
+		require.NoError(t, err)
+		require.Equal(t, next, expected, "sequence %d", seq)
 	}
 	require.NoError(t, h.pool.Update(h.app.LastBlockHeight(), coretypes.CachedTxFromTxs(coretypes.ToTxs(txs[:5])), resp.TxResults, nil, nil))
 }
