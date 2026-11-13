@@ -58,20 +58,15 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	checkTxCtx, ok := app.CheckState()
-	if !ok {
-		err := fmt.Errorf("checkState not set")
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	if msgCount := countExecutableMsgs(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if proofCount := countZKProofMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
+	if proofCount := countZKProofMsgs(sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if sigCount := countISMSignatures(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
+	if sigCount := countISMSignatures(sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxISMSignatures, "tx carries %d ISM signatures, limit is %d", sigCount, appconsts.MaxISMSignatures)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}

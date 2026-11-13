@@ -42,7 +42,7 @@ func TestFillDoesNotDecodeBlobTxsPastCap(t *testing.T) {
 
 	fill := func(txs [][]byte) (kept [][]byte, malformedLogs int) {
 		alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-		fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+		fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 		require.NoError(t, err)
 		fsb.validateBlobTx = func(bTx *blobtx.BlobTx) (bool, error) {
 			return false, blobtypes.ValidateBlobTx(txConfig, bTx, appconsts.SubtreeRootThreshold, appconsts.Version)

@@ -239,7 +239,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, nil, txConfig, fakeChannelKeeper{}, 64, 64)
+			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, nil, txConfig, 64, 64)
 			require.NoError(t, err)
 
 			db := dbm.NewMemDB()
@@ -290,7 +290,7 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	}
 
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 
 	db := dbm.NewMemDB()
@@ -472,7 +472,7 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			require.NoError(t, cms.LoadLatestVersion())
 			ctx := sdk.NewContext(cms, cmtproto.Header{}, false, log.NewNopLogger())
 
-			fsb, err := NewFilteredSquareBuilder(ante, router, txConfig, fakeChannelKeeper{}, tc.squareSize, appconsts.SubtreeRootThreshold)
+			fsb, err := NewFilteredSquareBuilder(ante, router, txConfig, tc.squareSize, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 			kept := fsb.Fill(ctx, tc.txs, math.MaxInt64)
 			require.Equal(t, tc.wantKept, kept)
@@ -490,7 +490,7 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			got, err := fsb.Build()
 			require.NoError(t, err)
 			alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-			ref, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, tc.squareSize, appconsts.SubtreeRootThreshold)
+			ref, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, tc.squareSize, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantKept, ref.Fill(ctx, tc.wantKept, math.MaxInt64))
 			want, err := ref.Build()

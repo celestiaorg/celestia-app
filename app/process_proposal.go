@@ -67,9 +67,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	var (
-		sdkMessageCount int
-		zkProofMsgCount int
-		ismSigCount     int
+		msgCounts       blockMsgCounts
 		sdkGas          uint64
 		pfbMessageCount int
 		pffMessageCount int
@@ -244,19 +242,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if zkProofMsgCount > appconsts.MaxZKProofMessages {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
-					return reject(), nil
-				}
-				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if ismSigCount > appconsts.MaxISMSignatures {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
-					return reject(), nil
-				}
-				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if sdkMessageCount > appconsts.MaxSDKMessages {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
+				if reason := msgCounts.add(msgs); reason != "" {
+					logInvalidPropBlock(app.Logger(), blockHeader, reason)
 					return reject(), nil
 				}
 				txGas := txGasLimit(sdkTx)
@@ -400,6 +387,34 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 		}
 	}
 	return nil, false
+}
+
+// blockMsgCounts holds the per-block message counts ProcessProposal caps for
+// txs that are not PayForFibre txs.
+type blockMsgCounts struct {
+	sdkMsgs  int
+	zkProofs int
+	ismSigs  int
+}
+
+// add counts msgs into c and returns why the block now exceeds a cap, or "" if
+// it does not. Like CheckTx and PrepareProposal, it checks the executable
+// message count first: that count stops once past its cap, while the weighted
+// counts walk every entry of an ICA payload.
+func (c *blockMsgCounts) add(msgs []sdk.Msg) string {
+	c.sdkMsgs += countExecutableMsgs(msgs)
+	if c.sdkMsgs > appconsts.MaxSDKMessages {
+		return fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages)
+	}
+	c.zkProofs += countZKProofMsgs(msgs)
+	if c.zkProofs > appconsts.MaxZKProofMessages {
+		return fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages)
+	}
+	c.ismSigs += countISMSignatures(msgs)
+	if c.ismSigs > appconsts.MaxISMSignatures {
+		return fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures)
+	}
+	return ""
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

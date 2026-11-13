@@ -150,7 +150,7 @@ func TestFillDropsLazySDKTxs(t *testing.T) {
 func newTestFill(t *testing.T, txConfig client.TxConfig, txs [][]byte) [][]byte {
 	t.Helper()
 	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
 	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())

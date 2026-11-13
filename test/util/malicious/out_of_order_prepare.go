@@ -51,7 +51,6 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		handler,
 		a.MsgServiceRouter(),
 		a.GetEncodingConfig().TxConfig,
-		a.IBCKeeper.ChannelKeeper,
 		a.MaxEffectiveSquareSize(sdkCtx),
 		appconsts.SubtreeRootThreshold,
 	)
