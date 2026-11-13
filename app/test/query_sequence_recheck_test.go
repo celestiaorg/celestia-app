@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
@@ -22,6 +23,8 @@ import (
 	"github.com/cometbft/cometbft/mempool/cat"
 	"github.com/cometbft/cometbft/proxy"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -33,20 +36,28 @@ import (
 // BlockExecutor.Commit does: FinalizeBlock, then Commit and Update (recheck)
 // under the mempool lock.
 type recheckHarness struct {
-	t      *testing.T
-	app    *app.App
-	pool   *cat.TxPool
-	conn   proxy.AppConnMempool
-	signer *user.Signer
-	names  []string
-	addrs  []sdk.AccAddress
+	t   *testing.T
+	app *app.App
+	// restart opens another app on app's database, as after a node restart.
+	restart func() *app.App
+	pool    *cat.TxPool
+	conn    proxy.AppConnMempool
+	signer  *user.Signer
+	names   []string
+	addrs   []sdk.AccAddress
 }
 
 func newRecheckHarness(t *testing.T, accounts int, wire bool) *recheckHarness {
 	t.Helper()
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	names := testfactory.GenerateAccounts(accounts)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), names...)
+	db := dbm.NewMemDB()
+	newApp := func() *app.App {
+		return app.New(log.NewNopLogger(), db, nil, 0, 0, testutil.EmptyAppOptions{}, baseapp.SetChainID(testutil.ChainID))
+	}
+	testApp := newApp()
+	genesis, _, kr := testutil.GenesisStateWithSingleValidator(testApp, names...)
+	testApp = testutil.InitialiseTestAppWithGenesis(testApp, app.DefaultConsensusParams(), genesis)
 	commitBlock(t, testApp)
 
 	client, err := proxy.NewLocalClientCreator(server.NewCometABCIWrapper(testApp)).NewABCIClient()
@@ -71,7 +82,7 @@ func newRecheckHarness(t *testing.T, accounts int, wire bool) *recheckHarness {
 	}
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, signerAccounts...)
 	require.NoError(t, err)
-	return &recheckHarness{t: t, app: testApp, pool: pool, conn: conn, signer: signer, names: names, addrs: addrs}
+	return &recheckHarness{t: t, app: testApp, restart: newApp, pool: pool, conn: conn, signer: signer, names: names, addrs: addrs}
 }
 
 // sendTx signs a self-send from account i at the given sequence.
@@ -386,4 +397,25 @@ func TestSimulateSequenceWhileRecheckLags(t *testing.T) {
 		require.Equal(t, next, expected, "sequence %d", seq)
 	}
 	require.NoError(t, h.pool.Update(h.app.LastBlockHeight(), coretypes.CachedTxFromTxs(coretypes.ToTxs(txs[:5])), resp.TxResults, nil, nil))
+}
+
+// A restarted app has no committed context until its first Commit, and its
+// checkState lacks the txs the pool still holds; Simulate accepts only next.
+func TestSimulateSequenceBeforeFirstCommit(t *testing.T) {
+	h := newRecheckHarness(t, 1, true)
+	start := testutil.DirectQueryAccount(h.app, h.addrs[0]).GetSequence()
+	for i := range uint64(5) {
+		require.NoError(t, h.addTx(h.sendTx(0, start+i)))
+	}
+	next := start + 5
+
+	restarted := h.restart()
+	restarted.SetPendingSequencer(h.pool)
+	_, _, err := restarted.Simulate(h.sendTx(0, next))
+	require.NoError(t, err)
+	_, _, err = restarted.Simulate(h.sendTx(0, start))
+	require.ErrorIs(t, err, sdkerrors.ErrWrongSequence)
+	expected, err := apperrors.ParseExpectedSequence(err.Error())
+	require.NoError(t, err)
+	require.Equal(t, next, expected)
 }

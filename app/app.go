@@ -816,8 +816,7 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.FibreKeeper,
 		app.sigCache,
 		app.CountSDKMessages,
-		// nextSequence takes only the CAT store's lock, so it is safe under Simulate's.
-		app.nextSequence,
+		app.pendingNextSequence,
 	)
 }
 

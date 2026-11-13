@@ -34,21 +34,34 @@ func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence)
 // nextSequence returns max(committed sequence, highest pending sequence + 1),
 // or false without an in-process mempool or a Commit since start. Lock free.
 func (app *App) nextSequence(signer []byte) (uint64, bool) {
-	p := app.pendingSequencer.Load()
-	if p == nil {
+	if app.pendingSequencer.Load() == nil {
 		return 0, false
 	}
 	// Mempool first: a tx it drops after a Commit is then in the state read below.
-	pending, hasPending := (*p).HighestPendingSequence(signer)
+	pendingNext, hasPending := app.pendingNextSequence(signer)
 	committed := app.committedCtx.Load()
 	if committed == nil {
 		return 0, false
 	}
 	sequence := app.accountSequence(*committed, signer)
-	if hasPending && pending != math.MaxUint64 && pending+1 > sequence {
-		sequence = pending + 1
+	if hasPending && pendingNext > sequence {
+		sequence = pendingNext
 	}
 	return sequence, true
+}
+
+// pendingNextSequence returns the signer's highest pending sequence + 1, or false
+// without an in-process mempool or a pending tx. Takes only the CAT store's lock.
+func (app *App) pendingNextSequence(signer []byte) (uint64, bool) {
+	p := app.pendingSequencer.Load()
+	if p == nil {
+		return 0, false
+	}
+	pending, ok := (*p).HighestPendingSequence(signer)
+	if !ok || pending == math.MaxUint64 {
+		return 0, false
+	}
+	return pending + 1, true
 }
 
 // storeCommittedContext caches a read-only context on the state Commit just

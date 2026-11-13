@@ -7,19 +7,19 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-// NextSequenceFn returns a signer's next sequence including its pending txs,
-// or false if unknown. It must not take app locks: Simulate holds them.
-type NextSequenceFn func(signer []byte) (uint64, bool)
+// PendingNextSequenceFn returns one past the signer's highest pending sequence,
+// or false if it has none. It must not take app locks: Simulate holds them.
+type PendingNextSequenceFn func(signer []byte) (uint64, bool)
 
-// SimulateSequenceDecorator raises a lagging checkState sequence, unmetered, to
-// the signer's next sequence, so during recheck only next passes and any other
-// sequence fails reporting next, as QuerySequence does.
+// SimulateSequenceDecorator raises a lagging checkState sequence, unmetered, past
+// the signer's pending txs (committed state never exceeds it here), so during
+// recheck only next passes and any other sequence fails reporting next.
 type SimulateSequenceDecorator struct {
 	ak   ante.AccountKeeper
-	next NextSequenceFn
+	next PendingNextSequenceFn
 }
 
-func NewSimulateSequenceDecorator(ak ante.AccountKeeper, next NextSequenceFn) SimulateSequenceDecorator {
+func NewSimulateSequenceDecorator(ak ante.AccountKeeper, next PendingNextSequenceFn) SimulateSequenceDecorator {
 	return SimulateSequenceDecorator{ak: ak, next: next}
 }
 
