@@ -101,7 +101,8 @@ type MonitorConfig struct {
 	// Interval is the time between two polls of the nodes.
 	Interval time.Duration
 	// StallTimeout is how long the highest node height may stay the same
-	// before the monitor reports a stalled chain.
+	// before the monitor reports a stalled chain. It also bounds how long the
+	// checked height may stay below the common height of all nodes.
 	StallTimeout time.Duration
 	// Every checks agreement only at heights that are a multiple of Every.
 	// Zero or one checks every height.
@@ -152,7 +153,8 @@ func (m *Monitor) Stop() error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(m.parent), m.cfg.FinalTimeout)
 	defer cancel()
 	if heights, reached := m.heights(ctx); len(reached) == len(m.nodes) {
-		if err := m.checkUpTo(ctx, m.nodes, commonHeight(heights)); err != nil {
+		err := m.checkUpTo(ctx, m.nodes, commonHeight(heights))
+		if _, ok := errors.AsType[*DivergenceError](err); ok {
 			m.fail(err)
 		}
 	}
@@ -178,8 +180,10 @@ func (m *Monitor) run(ctx context.Context) {
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
 
-	var lastHeight int64
+	var lastHeight, lastChecked int64
+	var lastBlockErr error
 	lastAdvance := time.Now()
+	lastCheckAdvance := lastAdvance
 	lastSeen := make(map[string]time.Time, len(m.nodes))
 	for _, n := range m.nodes {
 		lastSeen[n.Name()] = lastAdvance
@@ -219,10 +223,29 @@ func (m *Monitor) run(ctx context.Context) {
 		// Agreement: compare all nodes up to their common height. While a
 		// node does not answer, wait, so that no height skips that node.
 		if len(reached) == len(m.nodes) {
-			if err := m.checkUpTo(ctx, m.nodes, commonHeight(heights)); err != nil {
+			common := commonHeight(heights)
+			err := m.checkUpTo(ctx, m.nodes, common)
+			if _, ok := errors.AsType[*DivergenceError](err); ok {
 				m.fail(err)
 				return
 			}
+			if err != nil {
+				lastBlockErr = err
+			}
+			// A block query that keeps failing must not stop the checks
+			// while the chain moves on. Read the clock after the checks, so
+			// that a long catch-up counts as progress when it ends.
+			checkedAt := time.Now()
+			if checked := m.CheckedHeight(); checked > lastChecked || checked >= common {
+				lastChecked, lastCheckAdvance = checked, checkedAt
+			} else if checkedAt.Sub(lastCheckAdvance) > m.cfg.StallTimeout {
+				m.fail(fmt.Errorf("agreement checks are stuck at height %d for %s: %w: %s",
+					checked+1, m.cfg.StallTimeout, lastBlockErr, m.formatHeights(heights)))
+				return
+			}
+		} else {
+			// An unreachable node has its own timeout above.
+			lastCheckAdvance = now
 		}
 
 		select {
@@ -262,16 +285,13 @@ func commonHeight(heights map[string]int64) int64 {
 }
 
 // checkUpTo checks the heights above the last checked one up to common. It
-// returns only divergence errors; RPC errors are retried at the next poll.
+// stops at the first error. A DivergenceError is a failure; any other error
+// is an RPC error, and the height is retried at the next poll.
 func (m *Monitor) checkUpTo(ctx context.Context, nodes []Node, common int64) error {
 	for h := m.CheckedHeight() + 1; h <= common; h++ {
 		if h%m.cfg.Every == 0 {
-			err := CheckAgreement(ctx, nodes, h)
-			if _, ok := errors.AsType[*DivergenceError](err); ok {
+			if err := CheckAgreement(ctx, nodes, h); err != nil {
 				return err
-			}
-			if err != nil {
-				return nil
 			}
 		}
 		m.mu.Lock()

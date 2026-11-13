@@ -18,9 +18,12 @@ type fakeNode struct {
 	height    int64
 	grow      bool // advance one height per Height call
 	divergeAt int64
-	onlyAt    bool // diverge only at divergeAt, not above it
-	badBlock  bool // diverge on the block hash instead of the app hash
-	down      bool // fail every RPC
+	onlyAt    bool          // diverge only at divergeAt, not above it
+	badBlock  bool          // diverge on the block hash instead of the app hash
+	down      bool          // fail every RPC
+	blockErrs int           // fail this many Block calls; negative fails all of them
+	errAt     int64         // if set, blockErrs applies only to Block calls at this height
+	blockWait time.Duration // time each Block call takes
 	maxBlock  int64
 }
 
@@ -55,6 +58,11 @@ func (n *fakeNode) Block(_ context.Context, height int64) (BlockInfo, error) {
 	defer n.mu.Unlock()
 	if n.down {
 		return BlockInfo{}, fmt.Errorf("%s is down", n.name)
+	}
+	time.Sleep(n.blockWait)
+	if n.blockErrs != 0 && (n.errAt == 0 || height == n.errAt) {
+		n.blockErrs--
+		return BlockInfo{}, fmt.Errorf("%s block query failed", n.name)
 	}
 	if height > n.height {
 		return BlockInfo{}, fmt.Errorf("%s: height %d is above the latest height %d", n.name, height, n.height)
@@ -225,6 +233,43 @@ func TestMonitor(t *testing.T) {
 		), cfg)
 		eventually(t, "the monitor to fail", failed(m))
 		requireContains(t, m.Stop(), "b did not answer for", "a=")
+	})
+	t.Run("block queries that keep failing fail the monitor", func(t *testing.T) {
+		cfg := testMonitorConfig()
+		cfg.StallTimeout = 20 * time.Millisecond
+		m := StartMonitor(context.Background(), nodes(
+			&fakeNode{name: "a", height: 1, grow: true},
+			&fakeNode{name: "b", height: 1, grow: true, blockErrs: -1},
+		), cfg)
+		eventually(t, "the monitor to fail", failed(m))
+		requireContains(t, m.Stop(), "agreement checks are stuck at height 1", "b block query failed", "a=", "b=")
+	})
+	t.Run("a block query error right after a long catch-up is retried", func(t *testing.T) {
+		// Checking heights 1 to 101 takes longer than StallTimeout. Then
+		// height 102 fails at two polls in a row, which is not a stall.
+		cfg := testMonitorConfig()
+		cfg.StallTimeout = 50 * time.Millisecond
+		a := &fakeNode{name: "a", height: 100, grow: true, blockWait: time.Millisecond}
+		b := &fakeNode{name: "b", height: 100, grow: true, blockWait: time.Millisecond, blockErrs: 2, errAt: 102}
+		m := StartMonitor(context.Background(), nodes(a, b), cfg)
+		eventually(t, "height 105 to be checked", func() bool { return m.CheckedHeight() >= 105 || m.Err() != nil })
+		if err := m.Stop(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("a transient block query error is retried", func(t *testing.T) {
+		cfg := testMonitorConfig()
+		cfg.StallTimeout = time.Second
+		a := &fakeNode{name: "a", height: 1, grow: true}
+		b := &fakeNode{name: "b", height: 1, grow: true, blockErrs: 3}
+		m := StartMonitor(context.Background(), nodes(a, b), cfg)
+		eventually(t, "height 10 to be checked", func() bool { return m.CheckedHeight() >= 10 })
+		if err := m.Stop(); err != nil {
+			t.Fatal(err)
+		}
+		if b.maxBlock < 10 {
+			t.Fatalf("expected b to be asked for heights up to 10, got %d", b.maxBlock)
+		}
 	})
 }
 
