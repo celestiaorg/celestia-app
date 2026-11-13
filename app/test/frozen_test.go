@@ -153,8 +153,8 @@ func TestFrozenAccounts(t *testing.T) {
 	require.Equal(t, victim, withdrawAddr)
 
 	// The pre-upgrade grant is gone, so executing it fails.
-	stolen := banktypes.NewMsgSend(victim, thief, utia(1))
-	res := c.deliver(t, "thief", []sdk.Msg{new(authz.NewMsgExec(thief, []sdk.Msg{stolen}))})
+	stolen := authz.NewMsgExec(thief, []sdk.Msg{banktypes.NewMsgSend(victim, thief, utia(1))})
+	res := c.deliver(t, "thief", []sdk.Msg{&stolen})
 	require.NotEqual(t, uint32(0), res.Code)
 	require.Contains(t, res.Log, "authorization not found")
 
@@ -164,7 +164,7 @@ func TestFrozenAccounts(t *testing.T) {
 		require.NoError(t, c.app.AuthzKeeper.SaveGrant(ctx, thief, victim, authz.NewGenericAuthorization(sdk.MsgTypeURL(&stakingtypes.MsgDelegate{})), nil))
 		require.NoError(t, c.app.FeeGrantKeeper.GrantAllowance(ctx, victim, thief, &feegrant.BasicAllowance{}))
 	})
-	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{new(authz.NewMsgExec(thief, []sdk.Msg{stolen}))}), "MsgExec MsgSend to thief")
+	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{&stolen}), "MsgExec MsgSend to thief")
 	requireFrozen(t, c.deliver(t, "thief", []sdk.Msg{new(authz.NewMsgExec(thief, []sdk.Msg{stakingtypes.NewMsgDelegate(victim.String(), val, tia)}))}), "MsgExec MsgDelegate")
 
 	// Listed fee granter, even with an allowance that survived.
