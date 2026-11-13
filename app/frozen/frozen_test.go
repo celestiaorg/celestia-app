@@ -12,6 +12,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -62,4 +63,6 @@ func TestAnteHandle(t *testing.T) {
 	require.ErrorIs(t, run(frozen.ActivationVersion, fee, pff), frozen.ErrFrozen)
 	require.ErrorIs(t, run(frozen.ActivationVersion, fee, timeout), frozen.ErrFrozen)
 	require.NoError(t, run(frozen.ActivationVersion-1, fee, pff))
+	noKey := &fibretypes.MsgPaymentPromiseTimeout{Signer: other.String()}
+	require.ErrorIs(t, run(frozen.ActivationVersion, fee, noKey), sdkerrors.ErrInvalidPubKey)
 }
