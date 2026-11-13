@@ -1,6 +1,8 @@
 package frozen_test
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v11/app"
@@ -14,11 +16,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEmbeddedList checks every address in the list is loaded, unique, and not the whitehat.
 func TestEmbeddedList(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	r := frozen.NewRules(enc.Codec)
-	require.True(t, r.Has([]byte("frozen_placeholder_1")))
-	require.True(t, r.Has([]byte("frozen_placeholder_3")))
+	bz, err := os.ReadFile("addresses.txt")
+	require.NoError(t, err)
+	seen := map[string]bool{}
+	for _, line := range strings.Split(string(bz), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		addr := sdk.MustAccAddressFromBech32(line)
+		require.True(t, r.Has(addr), line)
+		require.False(t, seen[string(addr)], "duplicate %s", line)
+		seen[string(addr)] = true
+	}
+	require.Len(t, seen, 41_963)
 	require.False(t, r.Has(sdk.MustAccAddressFromBech32(frozen.Whitehat)))
 }
 
