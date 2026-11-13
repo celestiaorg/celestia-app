@@ -40,7 +40,7 @@ func embeddedAddrs() []sdk.AccAddress {
 		panic(err)
 	}
 	var out []sdk.AccAddress
-	for _, line := range strings.Split(string(bz), "\n") {
+	for line := range strings.SplitSeq(string(bz), "\n") {
 		if line != "" && !strings.HasPrefix(line, "#") {
 			out = append(out, sdk.MustAccAddressFromBech32(line))
 		}
@@ -135,7 +135,7 @@ func BenchmarkFrozenLookup(b *testing.B) {
 	for _, l := range frozenLists[1:] {
 		addrs := l.addrs()
 		n := len(addrs)
-		r := frozen.NewRules(enc.Codec)
+		r := frozen.NewRules(enc.Codec, nil)
 		r.SetList(addrs...)
 		b.Run(fmt.Sprintf("hit/n=%d", n), func(b *testing.B) {
 			i := 0
@@ -160,7 +160,7 @@ func TestFrozenListFootprint(t *testing.T) {
 	var e0, e1 runtime.MemStats
 	runtime.ReadMemStats(&e0)
 	start := time.Now()
-	embedded := frozen.NewRules(enc.Codec) // first call parses the embedded list
+	embedded := frozen.NewRules(enc.Codec, nil) // first call parses the embedded list
 	took := time.Since(start)
 	runtime.GC()
 	runtime.ReadMemStats(&e1)
@@ -173,7 +173,7 @@ func TestFrozenListFootprint(t *testing.T) {
 		var m0, m1 runtime.MemStats
 		runtime.ReadMemStats(&m0)
 		start := time.Now()
-		r := frozen.NewRules(enc.Codec)
+		r := frozen.NewRules(enc.Codec, nil)
 		r.SetList(addrs...)
 		took := time.Since(start)
 		runtime.GC()

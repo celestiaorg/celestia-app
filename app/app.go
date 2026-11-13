@@ -300,9 +300,6 @@ func New(
 		govModuleAddr,
 		logger,
 	)
-	app.FrozenRules = frozen.NewRules(encodingConfig.Codec)
-	app.BankKeeper.AppendSendRestriction(app.FrozenRules.SendRestriction)
-
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
 	app.StakingKeeper = stakingkeeper.NewKeeper(
@@ -312,6 +309,9 @@ func New(
 	app.MintKeeper = mintkeeper.NewKeeper(encodingConfig.Codec, keys[minttypes.StoreKey], app.StakingKeeper, app.AccountKeeper, app.BankKeeper, authtypes.FeeCollectorName)
 
 	app.DistrKeeper = distrkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[distrtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, authtypes.FeeCollectorName, govModuleAddr)
+	app.FrozenRules = frozen.NewRules(encodingConfig.Codec, app.DistrKeeper)
+	// Shared by every copy of BankKeeper handed to the keepers above.
+	app.BankKeeper.AppendSendRestriction(app.FrozenRules.SendRestriction)
 
 	app.SlashingKeeper = slashingkeeper.NewKeeper(
 		encodingConfig.Codec, encodingConfig.Amino, runtime.NewKVStoreService(keys[slashingtypes.StoreKey]), app.StakingKeeper, govModuleAddr,

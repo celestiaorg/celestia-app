@@ -87,6 +87,6 @@ func (app App) RegisterUpgradeHandlers() {
 
 // v11Migrations holds the state changes of the v10 to v11 upgrade. It runs
 // after module migrations so that none of them can overwrite its writes.
-func (app App) v11Migrations(ctx sdk.Context) error {
-	return app.FrozenWhitehatUpgrade(ctx)
+func (app App) v11Migrations(_ sdk.Context) error {
+	return nil
 }
