@@ -12,10 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -32,11 +36,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// gasPerAdditionalSDKMessage mirrors the unexported constant in app.
-const gasPerAdditionalSDKMessage = 5_000
-
 // TestSDKMessageGasAdmission checks that a tx whose gas limit does not cover
-// gasPerAdditionalSDKMessage per counted SDK message beyond the first is kept out of the mempool
+// GasPerAdditionalSDKMessage per counted SDK message beyond the first is kept out of the mempool
 // and out of proposals this node builds, while blocks that include one stay
 // valid.
 func TestSDKMessageGasAdmission(t *testing.T) {
@@ -87,7 +88,7 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 
 	// Enough gas to execute each attack, but less than the per-message floor.
 	const underpaidGas = 1_000_000
-	floor := uint64(appconsts.MaxSDKMessages-1) * gasPerAdditionalSDKMessage
+	floor := uint64(appconsts.MaxSDKMessages-1) * appconsts.GasPerAdditionalSDKMessage
 
 	s0, addr0 := signer(0)
 	execAttack := createTx(s0, underpaidGas, emptyExecs(addr0)...)
@@ -95,6 +96,9 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 	icaAttack := createTx(s1, underpaidGas, junkICAPacket(addr1))
 	s2, addr2 := signer(2)
 	paidExec := createTx(s2, floor, emptyExecs(addr2)...)
+	// Same shape and sequence as paidExec, one gas below the floor.
+	justUnderExec := createTx(s2, floor-1, emptyExecs(addr2)...)
+	const floorErr = "needs a gas limit of at least"
 
 	// Honest txs with many messages, each with a gas limit close to what it uses.
 	s6, addr6 := signer(6)
@@ -124,6 +128,13 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 		}
 	})
 
+	t.Run("CheckTx rejects a tx one gas below the floor", func(t *testing.T) {
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: justUnderExec, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, sdkerrors.ErrOutOfGas.ABCICode(), resp.Code, resp.Log)
+		require.Contains(t, resp.Log, floorErr)
+	})
+
 	t.Run("CheckTx accepts a tx that pays the floor", func(t *testing.T) {
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: paidExec, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
@@ -138,6 +149,35 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, sendTxs, resp.Txs)
+	})
+
+	t.Run("PrepareProposal applies the floor exactly", func(t *testing.T) {
+		for _, tc := range []struct {
+			tx   []byte
+			want [][]byte
+		}{
+			{justUnderExec, nil},
+			{paidExec, [][]byte{paidExec}},
+		} {
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    [][]byte{tc.tx},
+				Height: testApp.LastBlockHeight() + 1,
+				Time:   time.Now(),
+			})
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.want, resp.Txs)
+		}
+	})
+
+	t.Run("CheckTx rejects a blob tx with more than one message", func(t *testing.T) {
+		s, addr := signer(2)
+		pfb, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), 100, 1)
+		txBytes := createTx(s, underpaidGas, pfb, send(addr))
+		blobTx, err := tx.MarshalBlobTx(txBytes, blobs...)
+		require.NoError(t, err)
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: blobTx, Type: abci.CheckTxType_New})
+		require.ErrorIs(t, err, blobtypes.ErrMultipleMsgsInBlobTx)
+		require.Equal(t, blobtypes.ErrMultipleMsgsInBlobTx.ABCICode(), resp.Code, resp.Log)
 	})
 
 	t.Run("ProcessProposal accepts an underpaid tx", func(t *testing.T) {
@@ -168,14 +208,16 @@ func TestSDKMessageGasAdmission(t *testing.T) {
 		weights := []int64{int64(len(honestSends)), int64(1 + len(honestSends))}
 		for i, res := range resp.TxResults {
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
-			require.GreaterOrEqual(t, res.GasUsed, (weights[i]-1)*gasPerAdditionalSDKMessage)
+			require.GreaterOrEqual(t, res.GasUsed, (weights[i]-1)*int64(appconsts.GasPerAdditionalSDKMessage))
 		}
 	})
 }
 
 // TestSDKMessageGasFloorBelowCheapHonestMessages checks that the cheapest honest
 // messages simulate to at least the floor, so a tx whose gas limit is its
-// simulated gas, with no multiplier, passes CheckTx.
+// simulated gas, with no multiplier, passes CheckTx. The cheapest case, 50
+// MsgRevokeAllowance, simulates to about 347k gas, so it passes while the
+// floor is at most about 7,090 per message after the first.
 func TestSDKMessageGasFloorBelowCheapHonestMessages(t *testing.T) {
 	const n = 50
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -275,7 +317,7 @@ func TestSDKMessageGasFloorBelowCheapHonestMessages(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				gasInfo, _, err := testApp.Simulate(createTx(tc.signer, 50_000_000, tc.msgs...))
 				require.NoError(t, err)
-				floor := uint64(tc.weight-1) * gasPerAdditionalSDKMessage
+				floor := uint64(tc.weight-1) * appconsts.GasPerAdditionalSDKMessage
 				require.GreaterOrEqual(t, gasInfo.GasUsed, floor)
 
 				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: createTx(tc.signer, gasInfo.GasUsed, tc.msgs...), Type: abci.CheckTxType_New})

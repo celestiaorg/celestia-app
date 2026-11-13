@@ -82,6 +82,13 @@ const (
 	// MaxSquareSize is the governance-modifiable max square size. Set via the
 	// v9 upgrade handler to handle 32 MiB blocks.
 	MaxSquareSize uint64 = 256
+
+	// GasPerAdditionalSDKMessage is the gas limit a tx must declare for each
+	// message it counts against MaxSDKMessages beyond the first. CheckTx and
+	// PrepareProposal apply it; it is not charged and does not affect block
+	// validity. It stays below the ~6,000 gas each extra MsgRevokeAllowance
+	// adds, the cheapest honest message measured.
+	GasPerAdditionalSDKMessage uint64 = 5_000
 )
 
 // MinCommissionRate is 20%.

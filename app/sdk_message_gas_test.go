@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -33,10 +34,10 @@ func TestValidateSDKMessageGas(t *testing.T) {
 		wantErr  bool
 	}{
 		{"one message needs no gas", withGas(0), 1, false},
-		{"two messages at the floor", withGas(gasPerAdditionalSDKMessage), 2, false},
-		{"two messages below the floor", withGas(gasPerAdditionalSDKMessage - 1), 2, true},
-		{"many messages at the floor", withGas(599 * gasPerAdditionalSDKMessage), 600, false},
-		{"many messages below the floor", withGas(599*gasPerAdditionalSDKMessage - 1), 600, true},
+		{"two messages at the floor", withGas(appconsts.GasPerAdditionalSDKMessage), 2, false},
+		{"two messages below the floor", withGas(appconsts.GasPerAdditionalSDKMessage - 1), 2, true},
+		{"many messages at the floor", withGas(599 * appconsts.GasPerAdditionalSDKMessage), 600, false},
+		{"many messages below the floor", withGas(599*appconsts.GasPerAdditionalSDKMessage - 1), 600, true},
 		{"tx that is not a protobuf tx", msgsTx{}, 2, true},
 		{"nil proto tx", protoTx{}, 2, true},
 		{"proto tx without AuthInfo", protoTx{tx: &txtypes.Tx{}}, 2, true},

@@ -38,6 +38,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	if isBlob {
+		// No SDK message gas floor: ValidateBlobTx allows exactly one message.
 		return app.handleBlobCheckTx(req, btx)
 	}
 
