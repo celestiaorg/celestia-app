@@ -676,6 +676,9 @@ func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte
 	if gas := tx.GetGas(); gas > 0 {
 		txBuilder.SetGasLimit(gas)
 	}
+	if timeoutHeight := tx.GetTimeoutHeight(); timeoutHeight > 0 {
+		txBuilder.SetTimeoutHeight(timeoutHeight)
+	}
 
 	_, _, err = client.signer.signTransaction(txBuilder)
 	if err != nil {
