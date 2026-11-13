@@ -233,10 +233,12 @@ func (m *Monitor) run(ctx context.Context) {
 				lastBlockErr = err
 			}
 			// A block query that keeps failing must not stop the checks
-			// while the chain moves on.
+			// while the chain moves on. Read the clock after the checks, so
+			// that a long catch-up counts as progress when it ends.
+			checkedAt := time.Now()
 			if checked := m.CheckedHeight(); checked > lastChecked || checked >= common {
-				lastChecked, lastCheckAdvance = checked, now
-			} else if now.Sub(lastCheckAdvance) > m.cfg.StallTimeout {
+				lastChecked, lastCheckAdvance = checked, checkedAt
+			} else if checkedAt.Sub(lastCheckAdvance) > m.cfg.StallTimeout {
 				m.fail(fmt.Errorf("agreement checks are stuck at height %d for %s: %w: %s",
 					checked+1, m.cfg.StallTimeout, lastBlockErr, m.formatHeights(heights)))
 				return
