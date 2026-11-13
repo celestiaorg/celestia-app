@@ -7,6 +7,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -60,17 +61,20 @@ func NewRules(cdc codec.Codec) *Rules {
 
 // embeddedList is parsed once and shared read-only by every Rules.
 var embeddedList = sync.OnceValue(func() map[string]struct{} {
-	r := &Rules{}
-	r.SetList(parseList(addressesFile)...)
-	return r.list
+	return newSet(parseList(addressesFile))
 })
 
 // SetList replaces the list. Only tests should call it.
 func (r *Rules) SetList(addrs ...sdk.AccAddress) {
-	r.list = make(map[string]struct{}, len(addrs))
+	r.list = newSet(addrs)
+}
+
+func newSet(addrs []sdk.AccAddress) map[string]struct{} {
+	set := make(map[string]struct{}, len(addrs))
 	for _, a := range addrs {
-		r.list[string(a)] = struct{}{}
+		set[string(a)] = struct{}{}
 	}
+	return set
 }
 
 // Has reports whether addr is listed.
@@ -114,10 +118,7 @@ func (r *Rules) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.A
 	if err != nil {
 		return ctx, err
 	}
-	signerListed := false
-	for _, s := range signers {
-		signerListed = signerListed || r.Has(s)
-	}
+	signerListed := slices.ContainsFunc(signers, r.Has)
 	if signerListed && !feeTx.GetFee().IsAllLTE(MaxFee) {
 		return ctx, errorsmod.Wrapf(ErrFrozen, "fee %s exceeds %s", feeTx.GetFee(), MaxFee)
 	}
@@ -150,10 +151,8 @@ func (r *Rules) checkMsg(msg sdk.Msg) error {
 			if err != nil {
 				return err
 			}
-			for _, s := range signers {
-				if r.Has(s) && !allowed(im) {
-					return errorsmod.Wrapf(ErrFrozen, "%s not allowed in MsgExec", sdk.MsgTypeURL(im))
-				}
+			if !allowed(im) && slices.ContainsFunc(signers, r.Has) {
+				return errorsmod.Wrapf(ErrFrozen, "%s not allowed in MsgExec", sdk.MsgTypeURL(im))
 			}
 			if err := r.checkMsg(im); err != nil {
 				return err
