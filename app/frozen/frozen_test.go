@@ -23,7 +23,7 @@ func TestEmbeddedList(t *testing.T) {
 	bz, err := os.ReadFile("addresses.txt")
 	require.NoError(t, err)
 	seen := map[string]bool{}
-	for _, line := range strings.Split(string(bz), "\n") {
+	for line := range strings.SplitSeq(string(bz), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
