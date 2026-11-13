@@ -87,6 +87,15 @@ func (app App) RegisterUpgradeHandlers() {
 
 // v11Migrations holds the state changes of the v10 to v11 upgrade. It runs
 // after module migrations so that none of them can overwrite its writes.
-func (app App) v11Migrations(_ sdk.Context) error {
-	return nil
+func (app App) v11Migrations(ctx sdk.Context) error {
+	if ctx.ChainID() != appconsts.CortoChainID {
+		return nil
+	}
+	// Set directly: the staking param filter only accepts appconsts.UnbondingTime.
+	params, err := app.StakingKeeper.GetParams(ctx)
+	if err != nil {
+		return err
+	}
+	params.UnbondingTime = appconsts.CortoUnbondingTime
+	return app.StakingKeeper.SetParams(ctx, params)
 }
