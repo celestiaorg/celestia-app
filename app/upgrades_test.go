@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,10 +13,12 @@ import (
 	"cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -97,9 +100,26 @@ func TestV11CortoUnbondingTime(t *testing.T) {
 			dels, err := testApp.StakingKeeper.GetValidatorDelegations(ctx, valAddr)
 			require.NoError(t, err)
 			delAddr := sdk.MustAccAddressFromBech32(dels[0].DelegatorAddress)
-			completion, _, err := testApp.StakingKeeper.Undelegate(ctx, delAddr, valAddr, math.LegacyNewDec(1))
+			completion, amount, err := testApp.StakingKeeper.Undelegate(ctx, delAddr, valAddr, dels[0].Shares.QuoInt64(2))
 			require.NoError(t, err)
 			require.Equal(t, ctx.BlockTime().Add(want), completion)
+
+			// The staking end blocker pays the tokens out at maturity.
+			balance := testApp.BankKeeper.GetBalance(ctx, delAddr, appconsts.BondDenom).Amount
+			matured := ctx.WithBlockTime(completion).WithBlockHeight(ctx.BlockHeight() + 1)
+			_, err = testApp.StakingKeeper.EndBlocker(matured)
+			require.NoError(t, err)
+			require.Equal(t, balance.Add(amount), testApp.BankKeeper.GetBalance(matured, delAddr, appconsts.BondDenom).Amount)
+
+			if chainID != appconsts.CortoChainID {
+				return
+			}
+			// If the delegator is listed, the payout can only go to the whitehat.
+			testApp.FrozenRules.SetNetwork(chainID, frozen.CortoWhitehat, delAddr)
+			v11 := matured.WithConsensusParams(cmtproto.ConsensusParams{Version: &cmtproto.VersionParams{App: appconsts.Version}})
+			payout := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amount))
+			require.ErrorIs(t, testApp.BankKeeper.SendCoins(v11, delAddr, sdk.AccAddress(bytes.Repeat([]byte{9}, 20)), payout), frozen.ErrFrozen)
+			require.NoError(t, testApp.BankKeeper.SendCoins(v11, delAddr, sdk.MustAccAddressFromBech32(frozen.CortoWhitehat), payout))
 		})
 	}
 }
