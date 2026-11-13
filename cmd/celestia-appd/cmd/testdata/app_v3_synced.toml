@@ -81,9 +81,6 @@ app-db-backend = ""
 # If this is set to zero, the query can consume an unbounded amount of gas.
 query-gas-limit = "0"
 
-# Execute blocks only in FinalizeBlock, not speculatively from ProcessProposal. Per node; consensus is unaffected.
-disable-optimistic-execution = false
-
 ###############################################################################
 ###                         Telemetry Configuration                         ###
 ###############################################################################

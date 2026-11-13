@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	dbm "github.com/cosmos/cosmos-db"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cast"
@@ -24,14 +23,6 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		timeoutCommit = cast.ToDuration(v)
 	}
 
-	baseAppOptions := server.DefaultBaseappOptions(appOptions)
-	disableOE := cast.ToBool(appOptions.Get(FlagDisableOptimisticExecution))
-	if disableOE {
-		// app.New enables it first, so this later option wins.
-		baseAppOptions = append(baseAppOptions, baseapp.DisableOptimisticExecution())
-	}
-	logger.Info("optimistic execution", "enabled", !disableOE)
-
 	celestiaApp := app.New(
 		logger,
 		db,
@@ -39,7 +30,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		delayedPrecommitTimeout,
 		timeoutCommit,
 		appOptions,
-		baseAppOptions...,
+		server.DefaultBaseappOptions(appOptions)...,
 	)
 	if v := appOptions.Get(DynamicTimeoutCommitFlag); v != nil {
 		celestiaApp.SetDynamicTimeoutCommit(cast.ToDuration(v))

@@ -45,8 +45,6 @@ func unsupportedFlags(appVersion uint64) map[string]struct{} {
 	result := map[string]struct{}{}
 	if appVersion <= 10 {
 		result[DynamicTimeoutCommitFlag] = struct{}{}
-		// v10 and earlier have no optimistic execution to disable.
-		result[FlagDisableOptimisticExecution] = struct{}{}
 	}
 	if appVersion <= 9 {
 		result[flagOTelEndpoint] = struct{}{}
