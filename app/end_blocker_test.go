@@ -79,7 +79,7 @@ func TestEndBlockerUpgrade(t *testing.T) {
 		plan, err := testApp.UpgradeKeeper.GetUpgradePlan(ctx)
 		require.NoError(t, err)
 		require.Equal(t, want, plan)
-		require.Equal(t, want, readUpgradeInfo(t, home))
+		require.NoFileExists(t, upgradeInfoPath(home), "written at Commit, not in EndBlocker")
 
 		require.False(t, testApp.SignalKeeper.IsUpgradePending(ctx))
 		tally, err := testApp.SignalKeeper.VersionTally(ctx, &signaltypes.QueryVersionTallyRequest{Version: current + 1})
@@ -104,44 +104,125 @@ func TestEndBlockerUpgrade(t *testing.T) {
 // EndBlocker fails FinalizeBlock and leaves committed state unchanged.
 func TestEndBlockerUpgradeFailureIsNotCommitted(t *testing.T) {
 	current := appconsts.Version
-	tests := []struct {
-		name      string
-		pastBlock bool
-		breakDisk bool
-		wantErr   string
+	testApp, _ := newEndBlockerTestApp(t)
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
+	lastHeight := testApp.LastBlockHeight()
+	// The plan height would be before the current block.
+	setPendingUpgrade(t, testApp, ctx, current+1, lastHeight-1)
+
+	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: lastHeight + 1, Time: util.GenesisTime})
+	require.ErrorContains(t, err, "failed to schedule upgrade")
+
+	require.Equal(t, lastHeight, testApp.LastBlockHeight())
+	ctx = testApp.NewUncachedContext(false, cmtproto.Header{})
+	require.True(t, testApp.SignalKeeper.IsUpgradePending(ctx))
+	appVersion, err := testApp.AppVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, current, appVersion)
+	_, err = testApp.UpgradeKeeper.GetUpgradePlan(ctx)
+	require.ErrorIs(t, err, upgradetypes.ErrNoUpgradePlanFound)
+}
+
+// TestUpgradeInfoWrittenAtCommit checks that upgrade-info.json appears only
+// when the block that schedules the upgrade is committed, including when
+// FinalizeBlock is served by optimistic execution.
+func TestUpgradeInfoWrittenAtCommit(t *testing.T) {
+	current := appconsts.Version
+	for _, tc := range []struct {
+		name string
+		// run executes height h up to, not including, Commit.
+		run func(t *testing.T, testApp *app.App, h int64)
 	}{
-		{name: "schedule failure", pastBlock: true, wantErr: "failed to schedule upgrade"},
-		{name: "disk write failure", breakDisk: true, wantErr: "failed to dump upgrade info to disk"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			testApp, home := newEndBlockerTestApp(t)
-			ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
-			lastHeight := testApp.LastBlockHeight()
-			upgradeHeight := lastHeight + 1
-			if tc.pastBlock {
-				// The plan height would be before the current block.
-				upgradeHeight = lastHeight - 1
-			}
-			setPendingUpgrade(t, testApp, ctx, current+1, upgradeHeight)
-			if tc.breakDisk {
-				// A directory in place of the upgrade info file makes the write fail.
-				require.NoError(t, os.MkdirAll(upgradeInfoPath(home), 0o700))
-			}
-
-			_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: lastHeight + 1, Time: util.GenesisTime})
-			require.ErrorContains(t, err, tc.wantErr)
-
-			require.Equal(t, lastHeight, testApp.LastBlockHeight())
-			ctx = testApp.NewUncachedContext(false, cmtproto.Header{})
-			require.True(t, testApp.SignalKeeper.IsUpgradePending(ctx))
-			appVersion, err := testApp.AppVersion(ctx)
+		{name: "finalize block", run: func(t *testing.T, testApp *app.App, h int64) {
+			_, err := testApp.FinalizeBlock(stateFixBlock(h))
 			require.NoError(t, err)
-			require.Equal(t, current, appVersion)
-			_, err = testApp.UpgradeKeeper.GetUpgradePlan(ctx)
-			require.ErrorIs(t, err, upgradetypes.ErrNoUpgradePlanFound)
+		}},
+		{name: "optimistic execution served", run: func(t *testing.T, testApp *app.App, h int64) {
+			req := proposeAndProcess(t, testApp, h, []byte("block-a"))
+			_, err := testApp.FinalizeBlock(req)
+			require.NoError(t, err)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testApp, home := newOptimisticTestApp(t)
+			h := testApp.LastBlockHeight() + 1
+			setPendingUpgrade(t, testApp, testApp.NewUncachedContext(false, cmtproto.Header{}), current+1, h)
+
+			tc.run(t, testApp, h)
+			require.NoFileExists(t, upgradeInfoPath(home), "upgrade info published before Commit")
+
+			_, err := testApp.Commit()
+			require.NoError(t, err)
+			want := upgradetypes.Plan{Name: fmt.Sprintf("v%d", current+1), Height: h + 1}
+			require.Equal(t, want, readUpgradeInfo(t, home))
 		})
 	}
+}
+
+// TestUpgradeInfoFromDiscardedRunNotWritten checks that a plan recorded by a
+// discarded EndBlocker run is not written by the next committed block.
+func TestUpgradeInfoFromDiscardedRunNotWritten(t *testing.T) {
+	testApp, home := newEndBlockerTestApp(t)
+	h := testApp.LastBlockHeight() + 1
+	discarded, _ := testApp.NewUncachedContext(false, cmtproto.Header{Height: h}).CacheContext()
+	discarded = discarded.WithHeaderInfo(header.Info{Height: h})
+	setPendingUpgrade(t, testApp, discarded, appconsts.Version+1, h)
+	_, err := testApp.EndBlocker(discarded)
+	require.NoError(t, err)
+	_, err = testApp.UpgradeKeeper.GetUpgradePlan(discarded)
+	require.NoError(t, err, "discarded run must schedule an upgrade")
+
+	_, err = testApp.FinalizeBlock(stateFixBlock(h))
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+	require.NoFileExists(t, upgradeInfoPath(home))
+}
+
+// TestUpgradeInfoWriteFailureIsNotCommitted checks that a failed upgrade info
+// write fails Commit before the block is committed.
+func TestUpgradeInfoWriteFailureIsNotCommitted(t *testing.T) {
+	testApp, home := newEndBlockerTestApp(t)
+	lastHeight := testApp.LastBlockHeight()
+	setPendingUpgrade(t, testApp, testApp.NewUncachedContext(false, cmtproto.Header{}), appconsts.Version+1, lastHeight+1)
+	// A directory in place of the upgrade info file makes the write fail.
+	require.NoError(t, os.MkdirAll(upgradeInfoPath(home), 0o700))
+
+	_, err := testApp.FinalizeBlock(stateFixBlock(lastHeight + 1))
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.ErrorContains(t, err, "failed to dump upgrade info to disk")
+	require.Equal(t, lastHeight, testApp.LastBlockHeight())
+}
+
+// newOptimisticTestApp is newEndBlockerTestApp with optimistic execution on.
+func newOptimisticTestApp(t *testing.T) (*app.App, string) {
+	t.Helper()
+	home := setNodeHome(t)
+	testApp := app.New(log.NewNopLogger(), tmdb.NewMemDB(), nil, 0, 0, util.EmptyAppOptions{},
+		baseapp.SetChainID(util.ChainID), baseapp.SetOptimisticExecution())
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp)
+	testApp = util.InitialiseTestAppWithGenesis(testApp, app.DefaultConsensusParams(), genesisState)
+	finalizeAndCommit(t, testApp)
+	return testApp, home
+}
+
+// proposeAndProcess runs PrepareProposal and an accepted ProcessProposal for
+// height h, which starts optimistic execution, and returns the matching block.
+func proposeAndProcess(t *testing.T, testApp *app.App, h int64, hash []byte) *abci.RequestFinalizeBlock {
+	t.Helper()
+	req := stateFixBlock(h)
+	req.Hash = hash
+	prop, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{Height: h, Time: req.Time})
+	require.NoError(t, err)
+	pp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Txs: prop.Txs, SquareSize: prop.SquareSize, DataRootHash: prop.DataRootHash,
+		Hash: hash, Height: h, Time: req.Time, Header: req.Header,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, pp.Status)
+	req.Txs = prop.Txs
+	return req
 }
 
 // TestNewAppWithPendingV11Upgrade checks that a node restarted at the v11
