@@ -5,19 +5,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// GetParams gets all parameters as types.Params
+// GetParams gets all parameters as types.Params. InitGenesis, the blob 2 -> 3
+// migration and the v11 upgrade (Migrator.EnsureParams) guarantee that the
+// store has them.
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.ParamsKey))
-	if len(bz) == 0 {
-		// fallback to legacy subspace
-		// this is required because the prepare proposal handler
-		// makes use of this value before the params are migrated.
-		var params types.Params
-		k.legacySubspace.GetParamSet(ctx, &params)
-		return params
-	}
-
 	var params types.Params
 	k.cdc.MustUnmarshal(bz, &params)
 	return params
