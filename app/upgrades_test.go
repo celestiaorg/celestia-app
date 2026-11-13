@@ -66,6 +66,44 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	require.Equal(t, moduleVersions, gotModuleVersions)
 }
 
+// TestV11CortoUnbondingTime checks that the v11 upgrade shortens unbonding on
+// Corto only.
+func TestV11CortoUnbondingTime(t *testing.T) {
+	for _, chainID := range []string{appconsts.CortoChainID, appconsts.MochaChainID, appconsts.MainnetChainID} {
+		t.Run(chainID, func(t *testing.T) {
+			testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+			ctx := testApp.NewContext(false).WithBlockHeight(1).WithChainID(chainID)
+			before, err := testApp.StakingKeeper.GetParams(ctx)
+			require.NoError(t, err)
+			want := before.UnbondingTime
+			if chainID == appconsts.CortoChainID {
+				want = appconsts.CortoUnbondingTime
+			}
+
+			require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+				Name:   "v11",
+				Height: ctx.BlockHeight(),
+			}))
+
+			params, err := testApp.StakingKeeper.GetParams(ctx)
+			require.NoError(t, err)
+			require.Equal(t, want, params.UnbondingTime)
+
+			// A new undelegation completes after the chain's unbonding time.
+			vals, err := testApp.StakingKeeper.GetAllValidators(ctx)
+			require.NoError(t, err)
+			valAddr, err := sdk.ValAddressFromBech32(vals[0].OperatorAddress)
+			require.NoError(t, err)
+			dels, err := testApp.StakingKeeper.GetValidatorDelegations(ctx, valAddr)
+			require.NoError(t, err)
+			delAddr := sdk.MustAccAddressFromBech32(dels[0].DelegatorAddress)
+			completion, _, err := testApp.StakingKeeper.Undelegate(ctx, delAddr, valAddr, math.LegacyNewDec(1))
+			require.NoError(t, err)
+			require.Equal(t, ctx.BlockTime().Add(want), completion)
+		})
+	}
+}
+
 // TestNewAppWithPendingV11Upgrade checks that a node restarted at the v11
 // upgrade height loads its existing stores. The v11 upgrade adds no stores, so
 // it must not install an upgrade store loader.
