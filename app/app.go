@@ -477,6 +477,18 @@ func New(
 		govModuleAddr,
 		enablePromiseCache,
 	)
+	// Validators must not sign promises that a frozen escrow can never settle.
+	app.FibreKeeper.SetPromiseSignerCheck(func(ctx sdk.Context, signer sdk.AccAddress) error {
+		if !app.FrozenRules.Has(ctx.ChainID(), signer) {
+			return nil
+		}
+		// Query contexts carry no consensus params, so read the version from state.
+		version, err := app.AppVersion(ctx)
+		if err != nil || version < frozen.ActivationVersion {
+			return err
+		}
+		return frozen.ErrFrozen
+	})
 
 	/****  Module Options ****/
 
