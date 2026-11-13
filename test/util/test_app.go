@@ -119,8 +119,11 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
 func NewTestApp(baseAppOptions ...func(*baseapp.BaseApp)) *app.App {
-	db := dbm.NewMemDB()
+	return NewTestAppWithDB(dbm.NewMemDB(), baseAppOptions...)
+}
 
+// NewTestAppWithDB is NewTestApp on db; reusing a db simulates a node restart.
+func NewTestAppWithDB(db dbm.DB, baseAppOptions ...func(*baseapp.BaseApp)) *app.App {
 	return app.New(
 		TestAppLogger,
 		db,

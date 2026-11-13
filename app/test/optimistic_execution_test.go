@@ -2,11 +2,13 @@ package app_test
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -20,6 +22,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -31,6 +34,7 @@ import (
 type oePair struct {
 	t          *testing.T
 	a, b       *app.App
+	aDB        dbm.DB // a's state, to restart it
 	appVersion uint64 // core's state.Version.Consensus.App
 	proposer   []byte
 	valHash    []byte
@@ -45,7 +49,8 @@ func newOEPair(t *testing.T, numAccounts int, appVersion uint64) *oePair {
 	accounts := testfactory.GenerateAccounts(numAccounts)
 	cparams := app.DefaultConsensusParams()
 	cparams.Version.App = appVersion
-	a := testutil.NewTestApp()
+	aDB := dbm.NewMemDB()
+	a := testutil.NewTestAppWithDB(aDB)
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(a, accounts...)
 	a = testutil.InitialiseTestAppWithGenesis(a, cparams, genesis)
 	b := testutil.InitialiseTestAppWithGenesis(testutil.NewTestApp(), cparams, genesis)
@@ -74,6 +79,7 @@ func newOEPair(t *testing.T, numAccounts int, appVersion uint64) *oePair {
 		t:          t,
 		a:          a,
 		b:          b,
+		aDB:        aDB,
 		appVersion: appVersion,
 		proposer:   valSet.Validators[0].Address,
 		valHash:    valSet.Hash(),
@@ -295,4 +301,44 @@ func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
 		p.finalize(prop.Txs, height, blockTime, hash, false)
 		p.differentialHeight()
 	})
+}
+
+// TestOptimisticExecutionKeepsDowngradeCheck: a freshly started binary missing the last applied
+// upgrade's handler must halt in its first FinalizeBlock, even after an optimistic run.
+func TestOptimisticExecutionKeepsDowngradeCheck(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		otherHash bool
+	}{
+		{name: "same block decided"},
+		{name: "different block decided", otherHash: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newOEPair(t, 4, appconsts.Version)
+			doneKey := binary.BigEndian.AppendUint64([]byte{upgradetypes.DoneByte}, 1)
+			for _, testApp := range []*app.App{p.a, p.b} {
+				ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight()})
+				ctx.KVStore(testApp.GetKey(upgradetypes.StoreKey)).Set(append(doneKey, "v99"...), []byte{1})
+			}
+			prop, height, blockTime, hash := p.propose(nil)
+			p.finalize(prop.Txs, height, blockTime, hash, false)
+
+			p.a = testutil.NewTestAppWithDB(p.aDB)
+			name, _, err := p.a.UpgradeKeeper.GetLastCompletedUpgrade(p.a.NewContext(true))
+			require.NoError(t, err)
+			require.Equal(t, "v99", name)
+			require.False(t, p.a.UpgradeKeeper.HasHandler(name))
+
+			prop, height, blockTime, hash = p.propose(nil)
+			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, p.processProposal(prop, height, blockTime, hash))
+			if tc.otherHash {
+				blockTime, hash = blockTime.Add(time.Second), blockHash(height, []byte("other block"))
+			}
+			_, err = p.a.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Hash: hash, Height: height, Time: blockTime,
+				ProposerAddress: p.proposer, NextValidatorsHash: p.valHash, Header: p.blockHeader(height, blockTime),
+			})
+			require.ErrorContains(t, err, "upgrade handler is missing for v99")
+		})
+	}
 }
