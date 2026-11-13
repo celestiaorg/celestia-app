@@ -40,4 +40,9 @@ var (
 
 	// ErrTxExceedsMaxSDKGas is returned when a tx's gas limit exceeds a single block's SDK gas budget.
 	ErrTxExceedsMaxSDKGas = errors.Register(AppErrorsCodespace, 11150, "transaction gas limit exceeds maximum allowed SDK gas per block")
+
+	// ErrPacketForward is the error that every packet-forward-middleware
+	// error acknowledgement carries. Its ABCI code is the only error
+	// information committed in the acknowledgement.
+	ErrPacketForward = errors.Register(AppErrorsCodespace, 11151, "packet forward middleware error")
 )
