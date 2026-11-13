@@ -101,10 +101,13 @@ func TestProposalBeginBlockParity(t *testing.T) {
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 	require.Equal(t, before, read(testApp.NewProposalContext(header)))
 
-	_, err = testApp.FinalizeBlock(testutil.WithBlockHash(&abci.RequestFinalizeBlock{
+	finalize := testutil.WithBlockHash(&abci.RequestFinalizeBlock{
 		Height: req.Height,
 		Time:   req.Time,
-	}))
+	})
+	// Only the speculative result, served for this hash, ignores the later time.
+	finalize.Time = req.Time.Add(time.Hour)
+	_, err = testApp.FinalizeBlock(finalize)
 	require.NoError(t, err)
 	_, err = testApp.Commit()
 	require.NoError(t, err)

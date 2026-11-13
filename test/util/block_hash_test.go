@@ -6,15 +6,18 @@ import (
 	"time"
 
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/go-square/v4/share"
+	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProposalBlockHashMatchesFinalizeBlock(t *testing.T) {
 	plainTx, innerTx := []byte("plain tx"), []byte("inner tx")
-	blobTx, err := tmtypes.MarshalBlobTx(innerTx, &tmproto.Blob{NamespaceId: bytes.Repeat([]byte{1}, 28), Data: []byte("data")})
+	blob, err := share.NewV0Blob(share.MustNewV0Namespace(bytes.Repeat([]byte{1}, 10)), []byte("data"))
+	require.NoError(t, err)
+	blobTx, err := squaretx.MarshalBlobTx(innerTx, blob)
 	require.NoError(t, err)
 	blockTime := time.Unix(1_700_000_000, 0).UTC()
 	header := &tmproto.Header{ChainID: "test", Height: 3, Time: blockTime}

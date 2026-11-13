@@ -133,9 +133,10 @@ func WithBlockHash(req *abci.RequestFinalizeBlock) *abci.RequestFinalizeBlock {
 
 // WithProposalBlockHash sets req.Hash to the WithBlockHash of the FinalizeBlock
 // request celestia-core sends once this proposal is decided (blob txs stripped).
+// Test apps run appconsts.Version.
 func WithProposalBlockHash(req *abci.RequestProcessProposal) *abci.RequestProcessProposal {
 	req.Hash = WithBlockHash(&abci.RequestFinalizeBlock{
-		Txs:                CoreFinalizeTxs(req.Txs),
+		Txs:                CoreFinalizeTxs(req.Txs, appconsts.Version),
 		DecidedLastCommit:  req.ProposedLastCommit,
 		Misbehavior:        req.Misbehavior,
 		Height:             req.Height,
@@ -147,15 +148,12 @@ func WithProposalBlockHash(req *abci.RequestProcessProposal) *abci.RequestProces
 	return req
 }
 
-// CoreFinalizeTxs is the loop celestia-core runs on the block txs before
-// FinalizeBlock (state/execution.go applyBlock).
-func CoreFinalizeTxs(blockTxs [][]byte) [][]byte {
+// CoreFinalizeTxs is what celestia-core v0.43 sends FinalizeBlock for a block
+// of appVersion (state/execution.go unwrapBlobTxs).
+func CoreFinalizeTxs(blockTxs [][]byte, appVersion uint64) [][]byte {
 	txs := make([][]byte, len(blockTxs))
 	for i, tx := range blockTxs {
-		if blobTx, isBlobTx := tmtypes.UnmarshalBlobTx(tx); isBlobTx {
-			tx = blobTx.Tx
-		}
-		txs[i] = tx
+		txs[i], _ = tmtypes.UnwrapBlobTx(tx, appVersion)
 	}
 	return txs
 }
