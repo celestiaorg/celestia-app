@@ -28,3 +28,16 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 func (k Keeper) SetParamsLegacy(ctx sdk.Context, params types.Params) {
 	k.legacySubspace.SetParamSet(ctx, &params)
 }
+
+// GetParamsForQuery is GetParams for queries and exports. They can read a
+// store version from before the blob 2 -> 3 migration (an archival node
+// serves old heights with this binary), where the params are only in the
+// legacy subspace. Do not use it in the state machine: use GetParams there.
+func (k Keeper) GetParamsForQuery(ctx sdk.Context) types.Params {
+	if ctx.KVStore(k.storeKey).Has([]byte(types.ParamsKey)) {
+		return k.GetParams(ctx)
+	}
+	var params types.Params
+	k.legacySubspace.GetParamSet(ctx, &params)
+	return params
+}
