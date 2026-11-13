@@ -24,6 +24,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -251,6 +252,31 @@ func TestFrozenBankRoutes(t *testing.T) {
 	send.ToAddress = whitehat.String()
 	_, err = c.app.MsgServiceRouter().Handler(send)(v11, send)
 	require.NoError(t, err)
+}
+
+// TestFrozenFibreEscrow checks validators stop approving promises from a
+// listed escrow once v11 is active, since they could never be settled.
+func TestFrozenFibreEscrow(t *testing.T) {
+	c := newFrozenChain(t)
+	listedKey, unlistedKey := secp256k1.GenPrivKey(), secp256k1.GenPrivKey()
+	listed := sdk.AccAddress(listedKey.PubKey().Address())
+	c.app.FrozenRules.SetNetwork("test-chain", frozen.MainnetWhitehat, listed)
+
+	validate := func(key *secp256k1.PrivKey) error {
+		ctx := c.ctx().WithChainID("test-chain").WithBlockTime(testutil.GenesisTime.Add(time.Hour))
+		pub := key.PubKey().(*secp256k1.PubKey)
+		deposit := sdk.NewInt64Coin(appconsts.BondDenom, 5_000_000)
+		c.app.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{Signer: sdk.AccAddress(pub.Address()).String(), Balance: deposit, AvailableBalance: deposit})
+		promise := buildSignedPromise(t, ctx.BlockHeight(), ctx.BlockTime().Add(-time.Minute), *pub, key)
+		_, err := c.app.FibreKeeper.ValidatePaymentPromise(ctx, &fibretypes.QueryValidatePaymentPromiseRequest{Promise: promise})
+		return err
+	}
+	require.NoError(t, validate(listedKey), "before v11")
+	c.upgradeToV11(t)
+	err := validate(listedKey)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), frozen.ErrFrozen.Error())
+	require.NoError(t, validate(unlistedKey), "unlisted escrow")
 }
 
 func withAppVersion(ctx sdk.Context, v uint64) sdk.Context {
