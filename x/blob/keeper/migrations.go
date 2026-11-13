@@ -28,3 +28,13 @@ func (m *Migrator) MigrateParams(ctx sdk.Context) error {
 	m.keeper.SetParams(ctx, params)
 	return nil
 }
+
+// EnsureParams runs MigrateParams if the blob store has no params. Every
+// network that ran the blob 2 -> 3 migration or started from genesis already
+// has them, so on those networks it writes nothing.
+func (m *Migrator) EnsureParams(ctx sdk.Context) error {
+	if ctx.KVStore(m.keeper.storeKey).Has([]byte(blobtypes.ParamsKey)) {
+		return nil
+	}
+	return m.MigrateParams(ctx)
+}
