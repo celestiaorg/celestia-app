@@ -250,11 +250,10 @@ func (t *autoTransport) observeDial(mode string, fallback bool) {
 
 func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error) {
 	var d net.Dialer
-	raw, err := d.DialContext(ctx, "tcp", addr)
+	tcp, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	tcp := &stallConn{Conn: raw}
 	if t.forceTLS || t.modes.useTLS(t.host) {
 		t.observeDial(transportModeTLS, false)
 		return tcp, nil
@@ -286,42 +285,7 @@ func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error)
 		return nil, fmt.Errorf("redialing for TLS after plaintext probe failed: %w", err)
 	}
 	t.observeDial(transportModeTLS, true)
-	return &stallConn{Conn: tcp2}, nil
-}
-
-// writeStallTimeout bounds a single socket write on a client connection. One
-// write carries at most a write buffer of data, so a healthy peer takes it in
-// milliseconds. A var so tests can shorten it.
-var writeStallTimeout = 10 * time.Second
-
-// stallConn fails a write the peer does not take within [writeStallTimeout]
-// and closes the connection.
-//
-// A peer that grants flow-control window and then stops reading blocks gRPC's
-// writer inside Write for as long as the connection stays open. Everything
-// queued behind that write stays reachable, and streams cancelled meanwhile
-// stay active because only the writer removes them, so gRPC drains the
-// transport when the channel goes idle or closes instead of closing it. The
-// connection, its goroutines and the queued upload rows (see [rowOwner]) are
-// then never released.
-//
-// Failing the write alone is not enough: gRPC's client writer exits on a write
-// error and leaves closing the connection to the reader, which never wakes on
-// a peer that is silent but connected. Closing here wakes it, and the reader
-// then closes the transport, which drops the queue.
-type stallConn struct {
-	net.Conn
-}
-
-func (c *stallConn) Write(p []byte) (int, error) {
-	if err := c.SetWriteDeadline(time.Now().Add(writeStallTimeout)); err != nil {
-		return 0, err
-	}
-	n, err := c.Conn.Write(p)
-	if err != nil {
-		_ = c.Close()
-	}
-	return n, err
+	return tcp2, nil
 }
 
 // autoCreds runs the TLS handshake over a TLS connection and treats a
