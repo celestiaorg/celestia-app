@@ -151,7 +151,6 @@ celestia.fibre.v1.EventWithdrawFromEscrowExecuted
 celestia.fibre.v1.EventWithdrawFromEscrowRequest
 celestia.forwarding.v1.EventTokenForwarded
 celestia.minfee.v1.EventUpdateMinfeeParams
-celestia.valaddr.v1.EventSetFibreProviderInfo
 celestia.zkism.v1.EventCreateInterchainSecurityModule
 celestia.zkism.v1.EventSubmitMessages
 celestia.zkism.v1.EventUpdateInterchainSecurityModule
@@ -186,3 +185,5 @@ hyperlane.warp.v1.EventSendRemoteTransfer
 hyperlane.warp.v1.EventSetToken
 hyperlane.warp.v1.EventUnrollRemoteRouter
 ```
+
+`x/valaddr` emits the untyped string event `set_fibre_provider_info` (attributes `validator_consensus_address`, `host`) rather than a typed event.
