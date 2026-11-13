@@ -35,8 +35,10 @@ const (
 	pffServerHeader     = 8
 )
 
-// pffServerPowers are unequal so the quorum prefix depends on which
-// validators signed: 2/3 of 10 is reached by {4,3}, {4,2,1} or {3,2,1}+4.
+// pffServerPowers are token balances. Each is an exact multiple of the
+// consensus power reduction, so the keeper and modelCertificate treat them as
+// consensus powers 1, 2, 3 and 4. 2/3 of 10 is reached by {4,2}, {4,3},
+// {4,2,1} or {3,2,1}.
 var pffServerPowers = []int64{1_000_000, 2_000_000, 3_000_000, 4_000_000}
 
 var (
@@ -216,8 +218,10 @@ func modelCertificate(signBytes []byte, height int64, sigs [][]byte) bool {
 		return false
 	}
 	total := int64(0)
-	for _, p := range pffServerPowers {
-		total += p
+	powers := make([]int64, len(pffServerPowers))
+	for i, tokens := range pffServerPowers {
+		powers[i] = tokens / sdk.DefaultPowerReduction.Int64()
+		total += powers[i]
 	}
 	required, power := total*2/3, int64(0)
 	for i, sig := range sigs {
@@ -227,7 +231,7 @@ func modelCertificate(signBytes []byte, height int64, sigs [][]byte) bool {
 		if !pffServerValKeys[i].PubKey().VerifySignature(signBytes, sig) {
 			return false
 		}
-		if power += pffServerPowers[i]; power >= required {
+		if power += powers[i]; power >= required {
 			return true
 		}
 	}

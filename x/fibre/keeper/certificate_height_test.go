@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"context"
 
 	"cosmossdk.io/math"
@@ -77,6 +78,67 @@ func (suite *MsgServerTestSuite) TestCertificateVerifiesAgainstSigningSet() {
 	}
 	signatures, err := sigSet.Signatures()
 	suite.Require().NoError(err)
+
+	msg := &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: signatures}
+	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+}
+
+// TestCertificateAcceptsConsensusPowerQuorum is a client certificate that sits
+// exactly on floor(2/3) of CometBFT voting power. Reward dust on a validator
+// who did not sign makes the same signatures one utia short of floor(2/3) of
+// raw token balances, which must not reject the certificate.
+func (suite *MsgServerTestSuite) TestCertificateAcceptsConsensusPowerQuorum() {
+	const powerReduction = 1_000_000
+	// Decreasing powers keep CometBFT's ordering identical to this slice.
+	powers := []int64{300, 200, 100}
+	// Dust sits on the validator who does not sign.
+	remainders := []int64{0, 2, 0}
+
+	keys := make([]ed25519.PrivKey, len(powers))
+	cometVals := make([]*core.Validator, len(powers))
+	vals := make([]stakingtypes.Validator, len(powers))
+	for i, power := range powers {
+		keys[i] = ed25519.GenPrivKey()
+		cometVals[i] = core.NewValidator(keys[i].PubKey(), power)
+		pk, err := cryptocodec.FromCmtPubKeyInterface(keys[i].PubKey())
+		suite.Require().NoError(err)
+		anyPubKey, err := codectypes.NewAnyWithValue(pk)
+		suite.Require().NoError(err)
+		vals[i] = stakingtypes.Validator{
+			OperatorAddress: sdk.ValAddress(keys[i].PubKey().Address()).String(),
+			ConsensusPubkey: anyPubKey,
+			Tokens:          math.NewInt(power*powerReduction + remainders[i]),
+			Status:          stakingtypes.Bonded,
+		}
+	}
+	signingSet := validator.Set{ValidatorSet: core.NewValidatorSet(cometVals), Height: uint64(suite.ctx.BlockHeight())}
+	for i, val := range signingSet.Validators {
+		suite.Require().True(bytes.Equal(keys[i].PubKey().Address(), val.Address), "CometBFT reordered the set")
+	}
+
+	height := suite.ctx.BlockHeight()
+	suite.stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
+		height - 1: {Header: cmtproto.Header{Height: height - 1}, Valset: vals},
+	}
+
+	signerPubKey, privKey, _ := suite.newSigner()
+	promise := suite.createPaymentPromise(signerPubKey, privKey)
+	pp := fibre.PaymentPromise{}
+	suite.Require().NoError(pp.FromProto(&promise))
+	signBytes, err := pp.SignBytes()
+	suite.Require().NoError(err)
+
+	sigSet := signingSet.NewSignatureSet(fibre.DefaultProtocolParams.SafetyThreshold, signBytes)
+	for _, i := range []int{0, 2} {
+		val, found := signingSet.GetByAddress(keys[i].PubKey().Address())
+		suite.Require().True(found)
+		signature, err := keys[i].Sign(signBytes)
+		suite.Require().NoError(err)
+		_, err = sigSet.Add(val, signature)
+		suite.Require().NoError(err)
+	}
+	signatures, err := sigSet.Signatures()
+	suite.Require().NoError(err, "client reached quorum on CometBFT voting power")
 
 	msg := &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: signatures}
 	suite.Require().NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
