@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -70,8 +71,11 @@ func TestDisableOptimisticExecution(t *testing.T) {
 
 			var logs bytes.Buffer
 			logger := log.NewLogger(zerolog.SyncWriter(&logs), log.ColorOption(false), log.LevelOption(zerolog.InfoLevel))
-			NewAppServer(logger, dbm.NewMemDB(), nil, opts)
+			celestiaApp, ok := NewAppServer(logger, dbm.NewMemDB(), nil, opts).(*app.App)
+			require.True(t, ok)
 			require.Contains(t, logs.String(), fmt.Sprintf("optimistic execution enabled=%v", tc.enabled))
+			// BaseApp has no accessor for OE; its unexported optimisticExec is nil iff OE is off.
+			require.Equal(t, tc.enabled, !reflect.ValueOf(celestiaApp.BaseApp).Elem().FieldByName("optimisticExec").IsNil())
 		})
 	}
 }
