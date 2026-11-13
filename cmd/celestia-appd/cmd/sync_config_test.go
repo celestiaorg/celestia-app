@@ -627,12 +627,17 @@ func nodeAppConfig(t *testing.T, data []byte) serverconfig.Config {
 	home := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(home, "config", "app.toml"), data, 0o600))
+	cfg, err := serverconfig.GetConfig(startContext(t, home).Viper)
+	require.NoError(t, err)
+	return cfg
+}
+
+// startContext loads the configs in home the way the start command does.
+func startContext(t *testing.T, home string) *server.Context {
 	start, _, err := NewRootCmd().Find([]string{"start"})
 	require.NoError(t, err)
 	require.NoError(t, start.Flags().Set(flags.FlagHome, home))
 	sctx, err := server.InterceptConfigsAndCreateContext(start, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 	require.NoError(t, err)
-	cfg, err := serverconfig.GetConfig(sctx.Viper)
-	require.NoError(t, err)
-	return cfg
+	return sctx
 }

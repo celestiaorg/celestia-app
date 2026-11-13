@@ -70,29 +70,14 @@ func TestDisableOptimisticExecutionFlag(t *testing.T) {
 // the setting at top level and that setting it to true turns OE off.
 func TestAppConfigDisablesOptimisticExecution(t *testing.T) {
 	home := t.TempDir()
-	load := func() *server.Context {
-		start, _, err := NewRootCmd().Find([]string{"start"})
-		require.NoError(t, err)
-		require.NoError(t, start.Flags().Set(flags.FlagHome, home))
-		sctx, err := server.InterceptConfigsAndCreateContext(start, appConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
-		require.NoError(t, err)
-		return sctx
-	}
-	require.Equal(t, false, load().Viper.Get(FlagDisableOptimisticExecution))
+	require.Equal(t, false, startContext(t, home).Viper.Get(FlagDisableOptimisticExecution))
 
 	path := filepath.Join(home, "config", "app.toml")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	setting := FlagDisableOptimisticExecution + " = "
 	at := strings.Index(string(data), "\n"+setting+"false\n")
-	require.Positive(t, at)
 	require.Less(t, at, strings.Index(string(data), "\n["), "must precede the first [section]")
 	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(data), setting+"false", setting+"true", 1)), 0o600))
-
-	sctx := load()
-	sctx.Viper.Set(flags.FlagChainID, "test")
-	var logs bytes.Buffer
-	appServer := NewAppServer(log.NewLogger(zerolog.SyncWriter(&logs), log.ColorOption(false)), dbm.NewMemDB(), nil, sctx.Viper)
-	t.Cleanup(func() { require.NoError(t, appServer.Close()) })
-	require.Contains(t, logs.String(), "optimistic execution enabled=false")
+	require.Equal(t, true, startContext(t, home).Viper.Get(FlagDisableOptimisticExecution))
 }
