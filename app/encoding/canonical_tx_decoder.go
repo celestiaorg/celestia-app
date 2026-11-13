@@ -3,14 +3,17 @@ package encoding
 import (
 	"errors"
 	"fmt"
+	"math/bits"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 	"google.golang.org/protobuf/encoding/protowire"
+	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -26,8 +29,11 @@ const anyFullName = "google.protobuf.Any"
 // It rejects unknown fields (non-critical ones included), fields that are out
 // of ascending field-number order or repeated when singular, two members of
 // one oneof, non-minimal varints, tags and length prefixes, the wrong wire
-// type (including packed versus unpacked repeated scalars) and integers out
-// of range for their type. It does not require the bytes to equal what
+// type (including packed versus unpacked repeated scalars), integers out of
+// range for their type, strings that are not valid UTF-8, and math.Int or
+// LegacyDec values that are left out (when not nullable), empty or not in
+// canonical decimal form (no sign but a leading minus, no leading zeros, no
+// "0x" or "_"). It does not require the bytes to equal what
 // gogoproto would write: proto3 default values may be written out and empty
 // messages may be left out.
 //
@@ -72,12 +78,19 @@ type fieldInfo struct {
 	oneof int
 	// msg is the type of a message field, resolved on first use.
 	msgName protoreflect.FullName
+	// decimal marks a math.Int or LegacyDec custom type field.
+	decimal bool
+	// required is the bit of a non-nullable singular decimal field in
+	// messageInfo.required, or 0.
+	required uint64
 }
 
 // messageInfo describes a message type. Instances are cached and immutable.
 type messageInfo struct {
 	name   protoreflect.FullName
 	fields map[protowire.Number]*fieldInfo
+	// required has a bit for each field that must be present.
+	required uint64
 }
 
 var messageInfos sync.Map // protoreflect.FullName -> *messageInfo
@@ -125,6 +138,16 @@ func infoFor(name protoreflect.FullName) (*messageInfo, error) {
 		if f.kind == protoreflect.MessageKind {
 			f.msgName = fd.Message().FullName()
 		}
+		customType, nullable := gogoOptions(fd)
+		f.decimal = strings.HasSuffix(customType, "math.Int") || strings.HasSuffix(customType, "math.LegacyDec")
+		if f.decimal && !nullable && !fd.IsList() {
+			n := bits.OnesCount64(info.required)
+			if n == 64 {
+				return nil, fmt.Errorf("%s has too many required fields", name)
+			}
+			f.required = 1 << n
+			info.required |= f.required
+		}
 		info.fields[fd.Number()] = f
 	}
 	v, _ := messageInfos.LoadOrStore(name, info)
@@ -145,6 +168,7 @@ func checkMessage(b []byte, info *messageInfo, depth int) error {
 	var (
 		prev       protowire.Number
 		oneofsSeen uint64
+		present    uint64
 		typeURL    []byte
 		value      []byte
 	)
@@ -171,6 +195,7 @@ func checkMessage(b []byte, info *messageInfo, depth int) error {
 			oneofsSeen |= 1 << f.oneof
 		}
 		prev = num
+		present |= f.required
 
 		if f.packed {
 			if typ != protowire.BytesType {
@@ -214,6 +239,12 @@ func checkMessage(b []byte, info *messageInfo, depth int) error {
 				return notCanonical(info, "field %d: %v", num, err)
 			}
 			m = k
+			if f.kind == protoreflect.StringKind && !utf8.Valid(v) {
+				return notCanonical(info, "field %d is not valid UTF-8", num)
+			}
+			if f.decimal && !canonicalDecimal(v) {
+				return notCanonical(info, "field %d is not a canonical decimal", num)
+			}
 			if f.kind == protoreflect.MessageKind {
 				sub, err := infoFor(f.msgName)
 				if err != nil {
@@ -233,6 +264,9 @@ func checkMessage(b []byte, info *messageInfo, depth int) error {
 			}
 		}
 		b = b[m:]
+	}
+	if present != info.required {
+		return notCanonical(info, "a non-nullable decimal field is missing")
 	}
 	if info.name == anyFullName {
 		return checkAnyValue(typeURL, value, depth)
@@ -351,4 +385,56 @@ func fieldValue(b []byte, num protowire.Number) []byte {
 		b = b[m:]
 	}
 	return nil
+}
+
+// canonicalDecimal reports whether v is an integer in the form math.Int and
+// LegacyDec write: an optional minus, then digits without leading zeros, and
+// not "-0".
+func canonicalDecimal(v []byte) bool {
+	if len(v) > 0 && v[0] == '-' {
+		v = v[1:]
+		if len(v) == 1 && v[0] == '0' {
+			return false
+		}
+	}
+	if len(v) == 0 || (v[0] == '0' && len(v) > 1) {
+		return false
+	}
+	for _, c := range v {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// gogoOptions returns a field's gogoproto customtype (extension 65003) and
+// nullable (extension 65001, true unless set to false) options.
+func gogoOptions(fd protoreflect.FieldDescriptor) (customType string, nullable bool) {
+	nullable = true
+	b, err := protov2.Marshal(fd.Options())
+	if err != nil {
+		return "", true
+	}
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			break
+		}
+		b = b[n:]
+		switch {
+		case num == 65003 && typ == protowire.BytesType:
+			v, _ := protowire.ConsumeBytes(b)
+			customType = string(v)
+		case num == 65001 && typ == protowire.VarintType:
+			v, _ := protowire.ConsumeVarint(b)
+			nullable = v != 0
+		}
+		m := protowire.ConsumeFieldValue(num, typ, b)
+		if m < 0 {
+			break
+		}
+		b = b[m:]
+	}
+	return customType, nullable
 }

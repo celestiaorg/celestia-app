@@ -370,7 +370,7 @@ func TestCanonicalTxDecoderRejectsWireForms(t *testing.T) {
 					Plan: upgradetypes.Plan{
 						Name:                "v12",
 						Height:              10,
-						UpgradedClientState: &codectypes.Any{TypeUrl: msgSendURL, Value: appendBytesField(f.send, nonCriticalField, []byte("x"))},
+						UpgradedClientState: &codectypes.Any{TypeUrl: msgSendURL, Value: appendBytesField(f.send, nonCriticalField, []byte("x"))}, //nolint:staticcheck // the deprecated field still decodes
 					},
 				}
 				bz, err := msg.Marshal()
@@ -420,6 +420,40 @@ func TestCanonicalTxDecoderRejectsWireForms(t *testing.T) {
 			name: "messages nested deeper than the limit",
 			raw:  txRawBytes(f.body, authInfoRaw(signerInfoBytes(f.pubKey, modeInfoMulti(60), 1), f.feeCoin)),
 		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requireRejected(t, f, tc.raw)
+		})
+	}
+}
+
+// TestCanonicalTxDecoderRejectsStringsAndDecimals covers invalid UTF-8 and
+// math.Int / LegacyDec values that are missing or not in decimal form.
+func TestCanonicalTxDecoderRejectsStringsAndDecimals(t *testing.T) {
+	f := newFixture(t)
+	sendWithAmount := func(amount []byte) []byte {
+		return txRawBytes(bodyBytes("", anyBytes(msgSendURL, msgSendBytes(testFrom, testTo, coinBytes("utia", amount)))), f.authInfo)
+	}
+	testCases := []struct {
+		name string
+		raw  []byte
+	}{
+		{"invalid UTF-8 memo", txRawBytes(bodyBytes("\xff", f.sendAny), f.authInfo)},
+		{"invalid UTF-8 string in a message", txRawBytes(bodyBytes("", anyBytes(msgSendURL, msgSendBytes(testFrom, testTo+"\xff", coinBytes("utia", []byte("1"))))), f.authInfo)},
+		{"invalid UTF-8 in a message nested in MsgExec", txRawBytes(bodyBytes("", anyBytes(msgExecURL, msgExecBytes(
+			anyBytes(msgSendURL, msgSendBytes(testFrom, testTo, coinBytes("utia\xff", []byte("1")))),
+		))), f.authInfo)},
+		{"coin amount left out of a message", sendWithAmount(nil)},
+		{"empty fee amount", txRawBytes(f.body, authInfoBytes(f.pubKey, coinBytes("utia", []byte{})))},
+		{"fee amount with a plus sign", txRawBytes(f.body, authInfoBytes(f.pubKey, coinBytes("utia", []byte("+1000"))))},
+		{"hexadecimal coin amount", sendWithAmount([]byte("0x10"))},
+		{"coin amount with an underscore", sendWithAmount([]byte("1_0"))},
+		{"coin amount with a leading zero", sendWithAmount([]byte("01"))},
+		{"negative zero coin amount", sendWithAmount([]byte("-0"))},
+		{"empty coin amount nested in MsgExec", txRawBytes(bodyBytes("", anyBytes(msgExecURL, msgExecBytes(
+			anyBytes(msgSendURL, msgSendBytes(testFrom, testTo, coinBytes("utia", []byte{}))),
+		))), f.authInfo)},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

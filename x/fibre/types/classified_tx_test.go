@@ -180,6 +180,9 @@ func TestClassifyTxs(t *testing.T) {
 // outer TxRaw, where body_bytes is a scalar and a repeated occurrence
 // resolves to the last one; classification decoding into the embedded-message
 // cosmostx.Tx instead would merge duplicate bodies and disagree with the SDK.
+// The app decoder now rejects duplicate bodies, so for them only the
+// rejection is checked: a block holding such a tx is invalid whatever its
+// classification.
 func TestTryParseFibreTxSDKParity(t *testing.T) {
 	decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
@@ -193,18 +196,23 @@ func TestTryParseFibreTxSDKParity(t *testing.T) {
 	normalBody := marshalTxBody(t, sendAny)
 
 	tests := []struct {
-		name    string
-		txBytes []byte
+		name     string
+		txBytes  []byte
+		rejected bool
 	}{
-		{"single fibre body", bodyField(t, fibreBody)},
-		{"single normal body", bodyField(t, normalBody)},
-		{"fibre and normal messages in one body", marshalTx(t, fibreAny, sendAny)},
-		{"duplicate bodies [fibre, normal]", append(bodyField(t, fibreBody), bodyField(t, normalBody)...)},
-		{"duplicate bodies [normal, fibre]", append(bodyField(t, normalBody), bodyField(t, fibreBody)...)},
+		{"single fibre body", bodyField(t, fibreBody), false},
+		{"single normal body", bodyField(t, normalBody), false},
+		{"fibre and normal messages in one body", marshalTx(t, fibreAny, sendAny), false},
+		{"duplicate bodies [fibre, normal]", append(bodyField(t, fibreBody), bodyField(t, normalBody)...), true},
+		{"duplicate bodies [normal, fibre]", append(bodyField(t, normalBody), bodyField(t, fibreBody)...), true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			sdkTx, err := decoder(tc.txBytes)
+			if tc.rejected {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err, "every vector must be decodable so the parity check is not vacuous")
 			msgs := sdkTx.GetMsgs()
 			_, firstIsPFF := msgs[0].(*fibretypes.MsgPayForFibre)

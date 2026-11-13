@@ -41,6 +41,13 @@ func TestNonCanonicalTxRejected(t *testing.T) {
 				return append(protowire.AppendTag(body, 3, protowire.VarintType), 0x81, 0x00)
 			},
 		},
+		{
+			name: "invalid UTF-8 memo",
+			mutate: func(body []byte) []byte {
+				body = protowire.AppendTag(body, 2, protowire.BytesType)
+				return protowire.AppendBytes(body, []byte{0xff})
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
