@@ -53,6 +53,7 @@ func (m Moved) Total(bondDenom string) sdk.Coins {
 
 // MoveAll moves every delegation, unbonding entry, reward and balance of addrs to
 // dest. Stake stays with the same validators, so voting power doesn't change.
+// addrs must not contain dest; ParseList rejects it.
 func MoveAll(ctx sdk.Context, k Keepers, addrs []sdk.AccAddress, dest sdk.AccAddress) ([]Moved, error) {
 	bondDenom, err := k.Staking.BondDenom(ctx)
 	if err != nil {
@@ -64,9 +65,6 @@ func MoveAll(ctx sdk.Context, k Keepers, addrs []sdk.AccAddress, dest sdk.AccAdd
 	}
 	out := make([]Moved, 0, len(addrs))
 	for _, a := range addrs {
-		if a.Equals(dest) {
-			return nil, fmt.Errorf("destination %s is listed", dest)
-		}
 		m, err := move(ctx, k, a, dest, bondDenom)
 		if err != nil {
 			return nil, fmt.Errorf("moving %s: %w", a, err)
@@ -160,21 +158,17 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 // just parked and entries for validators that no longer exist.
 func sweepParked(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress) (sdk.Coins, error) {
 	rng := collections.NewPrefixedPairRange[sdk.AccAddress, sdk.ValAddress](a)
-	var keys []collections.Pair[sdk.AccAddress, sdk.ValAddress]
 	total := sdk.NewCoins()
 	err := k.Distr.UserOutstandingRewards.Walk(ctx, rng,
-		func(key collections.Pair[sdk.AccAddress, sdk.ValAddress], v distrtypes.UserOutstandingRewards) (bool, error) {
-			keys = append(keys, key)
+		func(_ collections.Pair[sdk.AccAddress, sdk.ValAddress], v distrtypes.UserOutstandingRewards) (bool, error) {
 			total = total.Add(v.Rewards...)
 			return false, nil
 		})
 	if err != nil {
 		return nil, err
 	}
-	for _, key := range keys {
-		if err := k.Distr.UserOutstandingRewards.Remove(ctx, key); err != nil {
-			return nil, err
-		}
+	if err := k.Distr.UserOutstandingRewards.Clear(ctx, rng); err != nil {
+		return nil, err
 	}
 	if !total.IsZero() {
 		if err := k.Bank.SendCoinsFromModuleToAccount(ctx, distrtypes.ModuleName, dest, total); err != nil {

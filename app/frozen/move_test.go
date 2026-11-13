@@ -359,10 +359,3 @@ func TestMoveAllCreatesDestination(t *testing.T) {
 	})
 	c.checkInvariants("after")
 }
-
-func TestMoveAllRejectsDestination(t *testing.T) {
-	c := newChain(t, dbm.NewMemDB(), 1)
-	dest := sdk.MustAccAddressFromBech32(frozen.Destination)
-	_, err := frozen.MoveAll(c.ctx(), c.keepers(), []sdk.AccAddress{randAddr(), dest}, dest)
-	require.ErrorContains(t, err, "is listed")
-}

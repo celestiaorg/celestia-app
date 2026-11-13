@@ -109,13 +109,9 @@ func (app App) frozenMoveAll(ctx sdk.Context) error {
 	if err != nil {
 		return err
 	}
-	bondDenom, err := app.StakingKeeper.BondDenom(ctx)
-	if err != nil {
-		return err
-	}
 	total := sdk.NewCoins()
 	for _, m := range moved {
-		total = total.Add(m.Total(bondDenom)...)
+		total = total.Add(m.Total(appconsts.BondDenom)...)
 	}
 	ctx.Logger().Info("moved frozen accounts", "accounts", len(moved), "destination", dest.String(), "total", total.String())
 	return nil
