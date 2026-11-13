@@ -101,6 +101,8 @@ func TestUploadCodecReleasesRowsAfterConnectionStalls(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Shard: &types.BlobShard{Rows: rows}}
 
+	// Connect first, so the deadline covers only the stalled upload.
+	require.True(t, client.(*fibreClientCloser).WaitReady(t.Context()))
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 	_, err = client.UploadShard(ctx, req, grpc.ForceCodecV2(codec))
