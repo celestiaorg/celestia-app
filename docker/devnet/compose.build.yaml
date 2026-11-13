@@ -1,0 +1,10 @@
+---
+services:
+  validator:
+    build:
+      context: ../..
+      dockerfile: docker/devnet/Dockerfile
+      target: validator
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}

@@ -30,6 +30,7 @@ func NewAnteHandler(
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
+	sdkMessageCounter SDKMessageCounter,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -54,6 +55,10 @@ func NewAnteHandler(
 		// Ensure that the tx's gas price is >= the network minimum gas price.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
+		// Ensure that every signer public key has the length of its type.
+		// Contract: must be called before SetPubKeyDecorator, which panics on
+		// a wrong-length key.
+		NewPubKeySizeDecorator(),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -71,6 +76,17 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// Charge gas for every message counted against MaxSDKMessages beyond
+		// the first, including those MsgExec and ICA packets dispatch.
+		// Side effect: consumes gas from the gas meter.
+		NewSDKMessageGasDecorator(sdkMessageCounter),
+		// Charge gas for the signatures a Hyperlane MsgProcessMessage carries.
+		// Side effect: consumes gas from the gas meter.
+		NewISMSignatureGasDecorator(),
+		// Reject multisig ISMs whose validator set exceeds the cap.
+		NewMultisigISMValidatorsDecorator(),
+		// Reject MsgModuleQuerySafe with more than MaxModuleQuerySafeRequests requests.
+		NewModuleQuerySafeRequestsDecorator(),
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).

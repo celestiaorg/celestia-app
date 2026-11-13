@@ -115,7 +115,7 @@ func TestNewClient_KeepsDefaultDialerOutOfConfig(t *testing.T) {
 
 var testNamespace = share.MustNewV0Namespace([]byte("test"))
 
-func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
+func makeTestBlobV0(t testing.TB, sizeBytes int) *fibre.Blob {
 	t.Helper()
 	data := make([]byte, sizeBytes)
 	_, err := rand.Read(data)
@@ -131,7 +131,7 @@ func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
 	return blob
 }
 
-func makeTestValidators(t *testing.T, n int) ([]*core.Validator, []cmted25519.PrivKey) {
+func makeTestValidators(t testing.TB, n int) ([]*core.Validator, []cmted25519.PrivKey) {
 	t.Helper()
 	stakes := make([]int64, n)
 	for i := range n {
@@ -140,7 +140,7 @@ func makeTestValidators(t *testing.T, n int) ([]*core.Validator, []cmted25519.Pr
 	return makeTestValidatorsWithStakes(t, stakes)
 }
 
-func makeTestValidatorsWithStakes(t *testing.T, stakes []int64) ([]*core.Validator, []cmted25519.PrivKey) {
+func makeTestValidatorsWithStakes(t testing.TB, stakes []int64) ([]*core.Validator, []cmted25519.PrivKey) {
 	t.Helper()
 	validators := make([]*core.Validator, len(stakes))
 	privKeys := make([]cmted25519.PrivKey, len(stakes))
@@ -156,7 +156,7 @@ func makeTestValidatorsWithStakes(t *testing.T, stakes []int64) ([]*core.Validat
 	return validators, privKeys
 }
 
-func makeTestKeyring(t *testing.T) keyring.Keyring {
+func makeTestKeyring(t testing.TB) keyring.Keyring {
 	t.Helper()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := keyring.NewInMemory(encCfg.Codec)

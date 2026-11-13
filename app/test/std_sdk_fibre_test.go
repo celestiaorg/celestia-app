@@ -24,7 +24,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		}
 		txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(s.getValidatorName()))
 		require.NoError(err)
-		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.FeeTxOpts(10_000_000)...)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.Code)
 	})
@@ -38,7 +38,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		}
 		txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(s.getValidatorName()))
 		require.NoError(err)
-		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.FeeTxOpts(10_000_000)...)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.Code)
 		// TxStatus reports a tx as committed before the app commits its block,

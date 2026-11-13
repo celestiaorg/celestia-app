@@ -222,10 +222,19 @@ type App struct {
 	// sigCache skips repeat signature verification across ante passes, the
 	// fibre message server and every ABCI phase. It is in memory only.
 	sigCache *sigcache.Cache
+	// txHandoff passes BaseApp the decode CheckTx already holds.
+	txHandoff *txHandoff
+	// oeTxs strips BlobTxs from the txs optimistic execution runs.
+	oeTxs *oeTxsTransform
+	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
+	// rechecks, at most one per mempool slot.
+	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
-	treePool                *wrapper.TreePool
+	treePool *wrapper.TreePool
+	// Test-only overrides of the app version's timeouts; 0 means unset.
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
+	dynamicTimeoutCommit    time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
@@ -237,7 +246,7 @@ type App struct {
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
 // delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
-// default value from appconsts.
+// app version's value from appconsts.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -247,11 +256,40 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	return newApp(logger, db, traceStore, delayedPrecommitTimeout, timeoutCommit, appOpts, true, baseAppOptions...)
+}
+
+// NewForExport returns an app that has not loaded any version, so the caller
+// can load a specific height.
+func NewForExport(
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
+	appOpts servertypes.AppOptions,
+	baseAppOptions ...func(*baseapp.BaseApp),
+) *App {
+	return newApp(logger, db, traceStore, delayedPrecommitTimeout, timeoutCommit, appOpts, false, baseAppOptions...)
+}
+
+func newApp(
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
+	appOpts servertypes.AppOptions,
+	loadLatest bool,
+	baseAppOptions ...func(*baseapp.BaseApp),
+) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
+	handoff := &txHandoff{}
+	oeTxs := &oeTxsTransform{}
 
 	// Prepended so a caller's DisableOptimisticExecution wins.
-	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(stripBlobTxs))}, baseAppOptions...)
-	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(oeTxs.strip))}, baseAppOptions...)
+	baseApp := baseapp.NewBaseApp(Name, logger, db, handoff.decoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
 	baseApp.SetInterfaceRegistry(encodingConfig.InterfaceRegistry)
@@ -261,14 +299,6 @@ func New(
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
-
-	if delayedPrecommitTimeout == 0 {
-		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
-	}
-
-	if timeoutCommit == 0 {
-		timeoutCommit = appconsts.TimeoutCommit
-	}
 
 	maxTxs := mempoolMaxTxs(appOpts)
 
@@ -280,6 +310,9 @@ func New(
 		txCache:                 NewTxCache(),
 		proposalCache:           newProposalCache(),
 		sigCache:                NewSigCache(maxTxs),
+		txHandoff:               handoff,
+		oeTxs:                   oeTxs,
+		recheckTxs:              newRecheckTxCache(maxTxs),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
@@ -591,6 +624,9 @@ func New(
 	}
 
 	app.encodingConfig = encodingConfig
+	if !loadLatest {
+		return app
+	}
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(err)
 	}
@@ -609,7 +645,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(res.AppVersion)
 
 	return res, nil
 }
@@ -671,10 +707,11 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
+			currentVersion = signalUpgrade.AppVersion
 		}
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(currentVersion)
 
 	return res, nil
 }
@@ -696,7 +733,11 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res.TimeoutInfo = app.TimeoutInfo(appVersion)
 	return res, nil
 }
 
@@ -774,7 +815,16 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.sigCache,
+		app.CountSDKMessages,
 	)
+}
+
+// CountSDKMessages returns how many messages msgs execute, counting the
+// messages that MsgExec and ICA packets dispatch. Unlike the per-block budget
+// count, it reads no state, so the ante handler charges the same gas for it in
+// every phase.
+func (app *App) CountSDKMessages(msgs []sdk.Msg) int {
+	return countSDKMessageGasWeight(msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.
@@ -956,17 +1006,37 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-func (app *App) TimeoutInfo() abci.TimeoutInfo {
-	return abci.TimeoutInfo{
-		TimeoutPropose:          appconsts.TimeoutPropose,
-		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           app.timeoutCommit,
-		TimeoutPrevote:          appconsts.TimeoutPrevote,
-		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
-		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
-		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
-		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
+// TimeoutInfo returns the consensus timeouts of appVersion, the version in
+// state, with the test-only overrides applied.
+func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
+	t := appconsts.GetConsensusTimeouts(appVersion)
+	if app.timeoutCommit != 0 {
+		t.TimeoutCommit = app.timeoutCommit
 	}
+	if app.delayedPrecommitTimeout != 0 {
+		t.DelayedPrecommitTimeout = app.delayedPrecommitTimeout
+	}
+	// Only override versions that pace dynamically, so <= v10 keeps the legacy path.
+	if app.dynamicTimeoutCommit != 0 && t.DynamicTimeoutCommit != 0 {
+		t.DynamicTimeoutCommit = app.dynamicTimeoutCommit
+	}
+	return abci.TimeoutInfo{
+		TimeoutPropose:          t.TimeoutPropose,
+		TimeoutProposeDelta:     t.TimeoutProposeDelta,
+		TimeoutCommit:           t.TimeoutCommit,
+		TimeoutPrevote:          t.TimeoutPrevote,
+		TimeoutPrevoteDelta:     t.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        t.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   t.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: t.DelayedPrecommitTimeout,
+		DynamicTimeoutCommit:    t.DynamicTimeoutCommit,
+	}
+}
+
+// SetDynamicTimeoutCommit overrides a non-zero DynamicTimeoutCommit of the app
+// version when d is non-zero. Only for tests; call it before the app serves ABCI.
+func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
+	app.dynamicTimeoutCommit = d
 }
 
 // Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
@@ -975,5 +1045,6 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
+	app.recheckTxs.sweep()
 	return app.BaseApp.Commit()
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Validator recovery: roll back a node or verify its app hash.
+# Validator recovery: roll back or restart a node, move it to a new chain, or
+# verify it.
 # Run "recovery.sh --help" for usage.
 
 set -euo pipefail
@@ -11,7 +12,12 @@ Usage: recovery.sh <mode> [flags]
 Modes:
   rollback   stop the node, roll back to --height, delete the snapshots
              above it, start the node
-  verify     wait for --check-height and compare its app hash
+  restart    stop the node, set halt-height and halt-time to 0, start the
+             node; install the fixed release first
+  new-chain  check the new genesis, stop the node, move the old chain data
+             aside, put the genesis in place, start the node and wait for
+             new blocks
+  verify     wait for --check-height and compare its app hash or chain-id
 
 Common flags:
   --home DIR             node home as the binary sees it (default ~/.celestia-app)
@@ -32,9 +38,26 @@ rollback:
   --check-height H       after the start, check the app hash at height H
   --expect-app-hash HEX  expected app hash at --check-height
 
+restart:
+  --check-height H       after the start, check the app hash at height H
+  --expect-app-hash HEX  expected app hash at --check-height
+
+new-chain:
+  --genesis FILE|URL     new genesis.json (required)
+  --genesis-sha256 HEX   published SHA-256 of the genesis (required)
+  --chain-id ID          chain-id of the new chain (required)
+  --peers LIST           persistent_peers to set, id@host:port,...
+  --genesis is read where the script runs, on the host with docker.
+
+  The node keeps its keys, the signer state and the tx index. The rest of
+  data/ moves to data/recovery-backup-<sha>; delete it once the new chain runs.
+  The signer state must be below the initial height of the genesis.
+
 verify:
   --check-height H       height to check (required)
-  --expect-app-hash HEX  expected app hash (required)
+  --expect-app-hash HEX  expected app hash
+  --chain-id ID          expected chain-id
+  One of --expect-app-hash and --chain-id is required.
 
 With docker, paths are inside the container, and commands run in a one-off
 container with the node's volumes. After an interruption, run again with the same flags.
@@ -54,6 +77,10 @@ HEIGHT=""
 FORCE=0
 CHECK_HEIGHT=""
 EXPECT_APP_HASH=""
+GENESIS=""
+GENESIS_SHA=""
+CHAIN_ID=""
+PEERS=""
 
 die() {
     echo "error: $*" >&2
@@ -91,6 +118,10 @@ parse_args() {
         --height) HEIGHT=$2 ;;
         --check-height) CHECK_HEIGHT=$2 ;;
         --expect-app-hash) EXPECT_APP_HASH=$2 ;;
+        --genesis) GENESIS=$2 ;;
+        --genesis-sha256) GENESIS_SHA=$2 ;;
+        --chain-id) CHAIN_ID=$2 ;;
+        --peers) PEERS=$2 ;;
         *) die "unknown flag: $1" ;;
         esac
         shift 2
@@ -100,10 +131,33 @@ parse_args() {
 check_args() {
     case "$MODE" in
     rollback) [[ "$HEIGHT" =~ ^[1-9][0-9]*$ ]] || die "rollback needs --height, a positive number" ;;
-    verify) [ -n "$CHECK_HEIGHT" ] || die "verify needs --check-height and --expect-app-hash" ;;
+    restart) ;;
+    new-chain)
+        if [ -z "$GENESIS" ] || [ -z "$CHAIN_ID" ]; then
+            die "new-chain needs --genesis, --genesis-sha256 and --chain-id"
+        fi
+        if [[ "$NODE_HOME" != /* || "$NODE_HOME/" == *"/./"* || "$NODE_HOME/" == *"/../"* ]]; then
+            die "new-chain needs an absolute --home without . or .."
+        fi
+        while [[ "$NODE_HOME" == *"//"* ]]; do
+            NODE_HOME=${NODE_HOME//\/\//\/}
+        done
+        NODE_HOME=${NODE_HOME%/}
+        [ -n "$NODE_HOME" ] || die "new-chain needs a --home other than /"
+        [[ "$GENESIS_SHA" =~ ^[0-9a-fA-F]{64}$ ]] || die "--genesis-sha256 must be 64 hex characters"
+        GENESIS_SHA=$(lower "$GENESIS_SHA")
+        if [ -n "$PEERS" ] && ! [[ "$PEERS" =~ ^[0-9a-f]{40}@[A-Za-z0-9.:_-]+:[0-9]+(,[0-9a-f]{40}@[A-Za-z0-9.:_-]+:[0-9]+)*$ ]]; then
+            die "--peers must be id@host:port,..."
+        fi
+        ;;
+    verify)
+        if [ -z "$CHECK_HEIGHT" ] || [ -z "$EXPECT_APP_HASH$CHAIN_ID" ]; then
+            die "verify needs --check-height and --expect-app-hash or --chain-id"
+        fi
+        ;;
     *) die "unknown mode: $MODE" ;;
     esac
-    if [ -n "$CHECK_HEIGHT$EXPECT_APP_HASH" ] && { [ -z "$CHECK_HEIGHT" ] || [ -z "$EXPECT_APP_HASH" ]; }; then
+    if [ "$MODE" != verify ] && [ -n "$CHECK_HEIGHT$EXPECT_APP_HASH" ] && { [ -z "$CHECK_HEIGHT" ] || [ -z "$EXPECT_APP_HASH" ]; }; then
         die "--check-height and --expect-app-hash go together"
     fi
     if [ -n "$CHECK_HEIGHT" ] && ! [[ "$CHECK_HEIGHT" =~ ^[1-9][0-9]*$ ]]; then
@@ -171,11 +225,20 @@ run_bin() {
     in_node "$BIN" "$@"
 }
 
+# in_node_stdin is in_node with stdin passed to the command.
+in_node_stdin() {
+    if [ "$SETUP" = docker ]; then
+        "${DOCKER_RUN[@]}" -i --entrypoint "$1" "$IMAGE" "${@:2}"
+    else
+        "$@"
+    fi
+}
+
 # change prints a state-changing command and runs it unless --dry-run is set.
 change() {
     local cmd=("$@")
     case "$1" in
-    in_node) cmd=("${@:2}") ;;
+    in_node | in_node_stdin) cmd=("${@:2}") ;;
     run_bin) cmd=("$BIN" "${@:2}") ;;
     esac
     echo "+ ${cmd[*]}"
@@ -298,10 +361,10 @@ precheck() {
     if [ -n "$REMOTE_SIGNER" ]; then
         echo "warning: signer state not checked; check the remote signer by hand"
     fi
-    if [ -n "$HALT" ]; then
+    if [ -n "$HALT" ] && [ "$MODE" = rollback ]; then
         echo "warning: app.toml sets $HALT; the node stops again there"
     fi
-    if [ "$INDEXER" = kv ]; then
+    if [ "$INDEXER" = kv ] && [ "$MODE" = rollback ]; then
         echo "warning: the kv tx index keeps results from before the rollback; tx and block search above height $HEIGHT can be wrong"
     fi
     free=$(in_node df -Pk "$NODE_HOME/data" | awk 'NR == 2 { print $4 }')
@@ -319,19 +382,32 @@ upper() {
     tr '[:lower:]' '[:upper:]' <<<"$1"
 }
 
-# verify_app_hash waits for CHECK_HEIGHT and compares its app hash with EXPECT_APP_HASH.
+lower() {
+    tr '[:upper:]' '[:lower:]' <<<"$1"
+}
+
+# verify_app_hash waits for CHECK_HEIGHT, then compares its app hash with
+# EXPECT_APP_HASH and the node's chain-id with CHAIN_ID, if they are set.
+# WAIT seconds is how long it waits (default 600).
 verify_app_hash() {
-    local deadline=$((SECONDS + 600)) got
+    local deadline=$((SECONDS + ${WAIT:-600})) got
     echo "waiting for height $CHECK_HEIGHT"
     until [ "$(rpc_height)" -ge "$CHECK_HEIGHT" ]; do
         [ "$SECONDS" -lt "$deadline" ] || die "the node did not reach height $CHECK_HEIGHT"
         sleep 2
     done
-    got=$(curl -sf -m 5 "$RPC/block?height=$CHECK_HEIGHT" | jq -r .result.block.header.app_hash)
-    if [ "$(upper "$got")" != "$(upper "$EXPECT_APP_HASH")" ]; then
-        die "app hash at height $CHECK_HEIGHT is $got, expected $EXPECT_APP_HASH"
+    if [ -n "$CHAIN_ID" ]; then
+        got=$(curl -sf -m 5 "$RPC/status" | jq -r .result.node_info.network)
+        [ "$got" = "$CHAIN_ID" ] || die "the node is on chain-id $got, expected $CHAIN_ID"
+        echo "chain-id $CHAIN_ID at height $CHECK_HEIGHT"
     fi
-    echo "app hash at height $CHECK_HEIGHT matches"
+    if [ -n "$EXPECT_APP_HASH" ]; then
+        got=$(curl -sf -m 5 "$RPC/block?height=$CHECK_HEIGHT" | jq -r .result.block.header.app_hash)
+        if [ "$(upper "$got")" != "$(upper "$EXPECT_APP_HASH")" ]; then
+            die "app hash at height $CHECK_HEIGHT is $got, expected $EXPECT_APP_HASH"
+        fi
+        echo "app hash at height $CHECK_HEIGHT matches"
+    fi
 }
 
 # delete_snapshots deletes the local state sync snapshots above HEIGHT. They hold
@@ -367,6 +443,31 @@ mode_rollback() {
     if [ -z "$REMOTE_SIGNER" ]; then
         change in_node rm -f "$SIGNER_SUM"
     fi
+    verify_after_start
+}
+
+# clear_halt sets halt-height and halt-time to 0 in app.toml, so the node does
+# not stop again at the old halt. The previous file is kept as app.toml.bak.
+# The file is rewritten in place, so a bind-mounted app.toml keeps working.
+clear_halt() {
+    if [ -z "$HALT" ]; then
+        return 0
+    fi
+    # shellcheck disable=SC2016
+    change in_node sh -c 'cp "$1" "$1.bak" && sed -E "$2" "$1.bak" > "$1"' sh "$NODE_HOME/config/app.toml" \
+        's/^([[:space:]]*halt-(height|time)[[:space:]]*=).*/\1 0/'
+}
+
+mode_restart() {
+    precheck
+    svc_stop
+    clear_halt
+    svc_start
+    verify_after_start
+}
+
+# verify_after_start checks the app hash at CHECK_HEIGHT once the node runs.
+verify_after_start() {
     if [ -z "$EXPECT_APP_HASH" ] || [ "$DRY_RUN" = 1 ]; then
         return 0
     fi
@@ -375,6 +476,221 @@ mode_rollback() {
     else
         verify_app_hash
     fi
+}
+
+# fetch_genesis downloads or copies the new genesis to GENESIS_FILE, checks its
+# SHA-256 and chain-id, and reads its initial height and genesis time.
+fetch_genesis() {
+    local sum
+    GENESIS_FILE=$(mktemp)
+    trap 'rm -f "$GENESIS_FILE"' EXIT
+    case "$GENESIS" in
+    http://* | https://*) curl -fsSL -m 600 -o "$GENESIS_FILE" "$GENESIS" || die "failed to download $GENESIS" ;;
+    *) cp "$GENESIS" "$GENESIS_FILE" || die "cannot read $GENESIS" ;;
+    esac
+    sum=$(sha256sum "$GENESIS_FILE" | awk '{ print $1 }')
+    [ "$sum" = "$GENESIS_SHA" ] || die "genesis SHA-256 is $sum, expected $GENESIS_SHA"
+    read -r GENESIS_CHAIN_ID INITIAL_HEIGHT GENESIS_TIME < <(jq -r \
+        '[.chain_id, (.initial_height | tonumber), (.genesis_time | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)] | @tsv' \
+        "$GENESIS_FILE") || die "cannot parse the genesis"
+    [ "$GENESIS_CHAIN_ID" = "$CHAIN_ID" ] || die "genesis chain-id is $GENESIS_CHAIN_ID, expected $CHAIN_ID"
+    [[ "$INITIAL_HEIGHT" =~ ^[1-9][0-9]*$ ]] || die "genesis initial height is $INITIAL_HEIGHT"
+    echo "genesis $GENESIS_SHA: chain-id $CHAIN_ID, initial height $INITIAL_HEIGHT"
+    BACKUP=$NODE_HOME/data/recovery-backup-${GENESIS_SHA:0:12}
+}
+
+# check_signer_height refuses a local signer state at or above the initial
+# height: the node would not sign there. Resetting it instead could let the
+# validator sign an old height again.
+check_signer_height() {
+    local signed
+    if [ -n "$REMOTE_SIGNER" ]; then
+        echo "warning: check by hand that the remote signer state is below height $INITIAL_HEIGHT"
+        return 0
+    fi
+    signed=$(in_node jq -r .height "$PV_STATE")
+    [[ "$signed" =~ ^[0-9]+$ ]] || die "cannot read the height in $PV_STATE"
+    if [ "$signed" -ge "$INITIAL_HEIGHT" ]; then
+        die "signer state is at height $signed, not below the initial height $INITIAL_HEIGHT"
+    fi
+}
+
+# home_path prints a config.toml path as an absolute path without "//" or "./" parts.
+# A path with ".." is refused: its data/ entry cannot be told safely.
+home_path() {
+    local path=$1
+    case "$path" in
+    /*) ;;
+    *) path=$NODE_HOME/$path ;;
+    esac
+    [[ "$path/" != *"/../"* ]] || die "config path with .. is not supported: $1"
+    while [[ "$path" == *"//"* ]]; do
+        path=${path//\/\//\/}
+    done
+    while [[ "$path" == *"/./"* ]]; do
+        path=${path//\/.\//\/}
+    done
+    echo "$path"
+}
+
+# data_entry prints the entry of data/ that holds path, or nothing.
+data_entry() {
+    local rest
+    case "$1" in
+    "$NODE_HOME/data/"*) rest=${1#"$NODE_HOME/data/"}; echo "${rest%%/*}" ;;
+    esac
+}
+
+# load_keys reads the key paths from config.toml and lists the data/ entries
+# that replace_data keeps: the tx index and any entry holding a key or the
+# signer state.
+load_keys() {
+    PV_KEY=$(toml_value priv_validator_key_file)
+    PV_KEY=$(home_path "${PV_KEY:-config/priv_validator_key.json}")
+    NODE_KEY=$(toml_value node_key_file)
+    NODE_KEY=$(home_path "${NODE_KEY:-config/node_key.json}")
+    PV_STATE=$(home_path "$PV_STATE")
+    REAL_DATA=$(in_node readlink -f "$NODE_HOME/data") || die "cannot resolve $NODE_HOME/data"
+    KEEP=(tx_index.db)
+    local path entry
+    for path in "$PV_STATE" "$PV_KEY" "$NODE_KEY"; do
+        while IFS= read -r entry; do
+            KEEP+=("$entry")
+        done < <(keep_entries "$path")
+    done
+}
+
+# keep_entries prints the data/ entries that hold path, as written and with
+# links resolved.
+keep_entries() {
+    local real
+    data_entry "$1"
+    real=$(in_node readlink -f "$1" 2>/dev/null) || return 0
+    case "$real" in
+    "$REAL_DATA/"*) real=${real#"$REAL_DATA/"}; echo "${real%%/*}" ;;
+    esac
+}
+
+# toml_has succeeds if config.toml sets the key, even to "".
+toml_has() {
+    grep -Eq "^[[:space:]]*$1[[:space:]]*=" <<<"$CONFIG"
+}
+
+# check_layout refuses config.toml paths that replace_data does not handle.
+# It runs after load_keys: the WAL must not be in a kept entry.
+check_layout() {
+    local key want value entry k
+    for key in db_dir=data blockstore_dir=data genesis_file=config/genesis.json addr_book_file=config/addrbook.json; do
+        want=${key#*=}
+        key=${key%%=*}
+        toml_has "$key" || continue
+        value=$(toml_value "$key")
+        # An empty blockstore_dir means db_dir.
+        if [ -z "$value" ] && [ "$key" = blockstore_dir ]; then
+            continue
+        fi
+        value=$(home_path "$value")
+        [ "${value%/}" = "$NODE_HOME/$want" ] || die "new-chain supports only the default $key, not \"$(toml_value "$key")\""
+    done
+    value=data/cs.wal/wal
+    if toml_has wal_file; then
+        value=$(toml_value wal_file)
+    fi
+    entry=$(data_entry "$(home_path "$value")")
+    for k in "${KEEP[@]}"; do
+        if [ "$entry" = "$k" ]; then
+            entry=""
+        fi
+    done
+    [ -n "$entry" ] || die "new-chain needs wal_file in data/, apart from the keys and the signer state, not \"$value\""
+}
+
+# require_keys aborts if the node key, or the key and state of a local signer,
+# is missing.
+require_keys() {
+    in_node test -r "$NODE_KEY" || die "node key not found: $NODE_KEY"
+    if [ -z "$REMOTE_SIGNER" ]; then
+        in_node test -r "$PV_KEY" || die "validator key not found: $PV_KEY"
+    fi
+    require_signer_state
+}
+
+# replace_data moves the old chain data to BACKUP, keeping the entries in KEEP,
+# and puts the new genesis in place. BACKUP/.done marks it done, so a re-run
+# after the node started on the new chain keeps the new data.
+replace_data() {
+    # shellcheck disable=SC2016
+    change in_node sh -c 'set -e
+    data=$1 backup=$2 config=$3
+    shift 3
+    mkdir -p "$backup"
+    for f in "$data"/* "$data"/.[!.]* "$data"/..?*; do
+        if [ ! -e "$f" ] && [ ! -L "$f" ]; then continue; fi
+        skip=0
+        for k in "$@"; do
+            if [ -n "$k" ] && [ "$f" = "$data/$k" ]; then skip=1; fi
+        done
+        if [ "$f" = "$backup" ] || [ "$skip" = 1 ]; then continue; fi
+        mv "$f" "$backup/"
+    done
+    for f in genesis.json addrbook.json; do
+        if [ -f "$config/$f" ] && [ ! -e "$backup/$f" ]; then cp "$config/$f" "$backup/$f"; fi
+    done
+    rm -f "$config/addrbook.json"' sh "$NODE_HOME/data" "$BACKUP" "$NODE_HOME/config" "${KEEP[@]}"
+    # shellcheck disable=SC2016
+    change in_node_stdin sh -c 'set -e; cat > "$1.tmp"; mv "$1.tmp" "$1"; touch "$2/.done"' sh \
+        "$NODE_HOME/config/genesis.json" "$BACKUP" <"$GENESIS_FILE"
+    echo "old chain data moved to $BACKUP; delete it once the new chain runs"
+}
+
+# set_peers sets persistent_peers in config.toml to PEERS. The edit is made in a
+# temporary file first, then copied over config.toml, which keeps its inode.
+set_peers() {
+    if [ -z "$PEERS" ]; then
+        return 0
+    fi
+    # shellcheck disable=SC2016
+    change in_node sh -c 'set -e; sed -E "$2" "$1" > "$1.tmp"; cp "$1" "$1.bak"; cat "$1.tmp" > "$1"; rm "$1.tmp"' sh \
+        "$NODE_HOME/config/config.toml" "s|^([[:space:]]*persistent_peers[[:space:]]*=).*|\\1 \"$PEERS\"|"
+}
+
+mode_new_chain() {
+    local done=0
+    fetch_genesis
+    load_keys
+    check_layout
+    precheck
+    require_keys
+    if in_node test -f "$BACKUP/.done"; then
+        done=1
+        echo "data already replaced, old data in $BACKUP"
+    else
+        check_signer_height
+    fi
+    svc_stop
+    if [ "$done" = 0 ]; then
+        # Check again: the node may have signed until it stopped.
+        check_signer_height
+        replace_data
+    fi
+    require_keys
+    clear_halt
+    set_peers
+    svc_start
+    if [ "$DRY_RUN" = 1 ]; then
+        return 0
+    fi
+    CHECK_HEIGHT=$((INITIAL_HEIGHT + 1))
+    if [ "$SETUP" = none ]; then
+        echo "start the node, then run: recovery.sh verify --chain-id $CHAIN_ID --check-height $CHECK_HEIGHT"
+        return 0
+    fi
+    # The chain starts at the genesis time, once 2/3 of the voting power is online.
+    WAIT=$((GENESIS_TIME - $(date +%s) + 1800))
+    if [ "$WAIT" -lt 600 ]; then
+        WAIT=600
+    fi
+    verify_app_hash
 }
 
 mode_verify() {
@@ -393,7 +709,7 @@ main() {
     if [ "$MODE" != verify ]; then
         load_config
     fi
-    "mode_$MODE"
+    "mode_${MODE//-/_}"
 }
 
 main "$@"

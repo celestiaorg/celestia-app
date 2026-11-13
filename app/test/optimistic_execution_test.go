@@ -15,8 +15,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,20 +29,22 @@ import (
 // validator path (ProcessProposal, then a FinalizeBlock served by optimistic
 // execution), b the replay path (FinalizeBlock alone).
 type oePair struct {
-	t         *testing.T
-	a, b      *app.App
-	proposer  []byte
-	valHash   []byte
-	accounts  []string
-	next      int
-	newSigner func(int) *user.Signer
-	now       time.Time
+	t          *testing.T
+	a, b       *app.App
+	appVersion uint64 // core's state.Version.Consensus.App
+	proposer   []byte
+	valHash    []byte
+	accounts   []string
+	next       int
+	newSigner  func(int) *user.Signer
+	now        time.Time
 }
 
-func newOEPair(t *testing.T, numAccounts int) *oePair {
+func newOEPair(t *testing.T, numAccounts int, appVersion uint64) *oePair {
 	t.Helper()
 	accounts := testfactory.GenerateAccounts(numAccounts)
 	cparams := app.DefaultConsensusParams()
+	cparams.Version.App = appVersion
 	a := testutil.NewTestApp()
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(a, accounts...)
 	a = testutil.InitialiseTestAppWithGenesis(a, cparams, genesis)
@@ -61,17 +65,21 @@ func newOEPair(t *testing.T, numAccounts int) *oePair {
 		}
 	}
 	require.Equal(t, a.LastCommitID().Hash, b.LastCommitID().Hash)
+	version, err := a.AppVersion(a.NewContext(true))
+	require.NoError(t, err)
+	require.Equal(t, appVersion, version)
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	return &oePair{
-		t:         t,
-		a:         a,
-		b:         b,
-		proposer:  valSet.Validators[0].Address,
-		valHash:   valSet.Hash(),
-		accounts:  accounts,
-		newSigner: newSignerFactory(t, kr, enc.TxConfig, accounts, queryAccountInfo(a, accounts, kr)),
-		now:       time.Now(),
+		t:          t,
+		a:          a,
+		b:          b,
+		appVersion: appVersion,
+		proposer:   valSet.Validators[0].Address,
+		valHash:    valSet.Hash(),
+		accounts:   accounts,
+		newSigner:  newSignerFactory(t, kr, enc.TxConfig, accounts, queryAccountInfo(a, accounts, kr)),
+		now:        time.Now(),
 	}
 }
 
@@ -94,7 +102,7 @@ func (p *oePair) mixedTxs() [][]byte {
 		idx, signer := p.nextSigner()
 		from := signer.Account(p.accounts[idx]).Address()
 		msg := banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
-		tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		tx, _, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultSDKTxOpts()...)
 		require.NoError(p.t, err)
 		txs = append(txs, tx)
 	}
@@ -140,7 +148,7 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 		Time:               blockTime,
 		ProposerAddress:    p.proposer,
 		NextValidatorsHash: p.valHash,
-		Header:             blockHeader(height, blockTime),
+		Header:             p.blockHeader(height, blockTime),
 	})
 	require.NoError(p.t, err)
 	return resp.Status
@@ -151,7 +159,8 @@ func (p *oePair) processProposal(prop *abci.ResponsePrepareProposal, height int6
 // With served, a's request carries a later time that only a speculative result ignores.
 func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, hash []byte, served bool) {
 	p.t.Helper()
-	txs := coreFinalizeTxs(blockTxs)
+	header := p.blockHeader(height, blockTime)
+	txs := coreFinalizeTxs(blockTxs, header)
 	resps := make([]*abci.ResponseFinalizeBlock, 0, 2)
 	for _, testApp := range []*app.App{p.a, p.b} {
 		reqTime := blockTime
@@ -165,7 +174,7 @@ func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, 
 			Time:               reqTime,
 			ProposerAddress:    p.proposer,
 			NextValidatorsHash: p.valHash,
-			Header:             blockHeader(height, reqTime),
+			Header:             p.blockHeader(height, reqTime),
 		})
 		require.NoError(p.t, err)
 		resps = append(resps, resp)
@@ -181,21 +190,25 @@ func (p *oePair) finalize(blockTxs [][]byte, height int64, blockTime time.Time, 
 		require.NoError(p.t, err)
 	}
 	require.Equal(p.t, p.b.LastCommitID().Hash, p.a.LastCommitID().Hash, "height %d: commit hash", height)
+	// Core takes the next block's app version from here (state/execution.go updateState).
+	if v := resps[1].ConsensusParamUpdates.GetVersion(); v != nil {
+		p.appVersion = v.App
+	}
 }
 
-func blockHeader(height int64, blockTime time.Time) *cmtproto.Header {
-	return &cmtproto.Header{ChainID: testutil.ChainID, Height: height, Time: blockTime}
+func (p *oePair) blockHeader(height int64, blockTime time.Time) *cmtproto.Header {
+	return &cmtproto.Header{
+		Version: cmtversion.Consensus{App: p.appVersion},
+		ChainID: testutil.ChainID, Height: height, Time: blockTime,
+	}
 }
 
-// coreFinalizeTxs is the loop celestia-core runs on the block txs before
-// FinalizeBlock (state/execution.go applyBlock).
-func coreFinalizeTxs(blockTxs [][]byte) [][]byte {
+// coreFinalizeTxs is what celestia-core sends FinalizeBlock for the block
+// (state/execution.go unwrapBlobTxs).
+func coreFinalizeTxs(blockTxs [][]byte, header *cmtproto.Header) [][]byte {
 	txs := make([][]byte, len(blockTxs))
 	for i, tx := range blockTxs {
-		if blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx); isBlobTx {
-			tx = blobTx.Tx
-		}
-		txs[i] = tx
+		txs[i], _ = coretypes.UnwrapBlobTx(tx, header.Version.App)
 	}
 	return txs
 }
@@ -212,19 +225,42 @@ func (p *oePair) differentialHeight() {
 // TestOptimisticExecutionMatchesReplay checks that a FinalizeBlock served by
 // optimistic execution equals one computed without ProcessProposal, which is
 // what a replaying or non-optimistic node computes.
+// Core unwraps BlobTxs with different rules before and from app version 11.
 func TestOptimisticExecutionMatchesReplay(t *testing.T) {
-	p := newOEPair(t, 18)
-	for range 3 {
-		p.differentialHeight()
+	for _, appVersion := range []uint64{10, appconsts.Version} {
+		t.Run(fmt.Sprintf("v%d", appVersion), func(t *testing.T) {
+			p := newOEPair(t, 18, appVersion)
+			for range 3 {
+				p.differentialHeight()
+			}
+			require.Equal(t, int64(4), p.a.LastBlockHeight())
+		})
 	}
-	require.Equal(t, int64(4), p.a.LastBlockHeight())
+
+	t.Run("v10 to v11 upgrade", func(t *testing.T) {
+		original := app.NodeHome
+		app.NodeHome = t.TempDir() // the upgrade writes upgrade-info.json here
+		t.Cleanup(func() { app.NodeHome = original })
+		p := newOEPair(t, 24, 10)
+		upgrade, err := p.a.AppCodec().Marshal(&signaltypes.Upgrade{AppVersion: appconsts.Version, UpgradeHeight: 3})
+		require.NoError(t, err)
+		for _, testApp := range []*app.App{p.a, p.b} {
+			ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight()})
+			ctx.KVStore(testApp.GetKey(signaltypes.StoreKey)).Set(signaltypes.UpgradeKey, upgrade)
+		}
+		// Heights 2 and 3 are v10 blocks; 3's EndBlocker upgrades, so 4 is v11.
+		for _, want := range []uint64{10, 10, appconsts.Version, appconsts.Version} {
+			require.Equal(t, want, p.appVersion)
+			p.differentialHeight()
+		}
+	})
 }
 
 // TestOptimisticExecutionDiscardedOnOtherBlock covers the abort paths: the
 // decided block differs from the processed one, the same proposal is processed
 // in two rounds, and a rejected proposal precedes FinalizeBlock.
 func TestOptimisticExecutionDiscardedOnOtherBlock(t *testing.T) {
-	p := newOEPair(t, 48)
+	p := newOEPair(t, 48, appconsts.Version)
 
 	t.Run("different block decided", func(t *testing.T) {
 		propX, height, blockTime, hashX := p.propose(p.mixedTxs())

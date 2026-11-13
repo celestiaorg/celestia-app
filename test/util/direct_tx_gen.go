@@ -172,7 +172,7 @@ func SendTxsWithAccounts(
 	chainid string,
 	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
-	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
+	opts := append(blobfactory.DefaultSDKTxOpts(), extraOpts...)
 
 	txs := make([]coretypes.Tx, len(accounts))
 	signer, err := user.NewSigner(kr, enc, chainid)

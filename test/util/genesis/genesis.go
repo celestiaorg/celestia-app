@@ -277,6 +277,13 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 		)
 	case 4, 5, 6, 7, 8, 9, 10, 11:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, simtestutil.EmptyAppOptions{})
+		mods := g.genOps
+		if g.appVersion < 11 {
+			// Older embedded binaries parse this genesis and reject fields
+			// their zkism, mint, distribution and ibc modules do not know. Apply
+			// the strips last so they also cover state set by earlier modifiers.
+			mods = append(append([]Modifier{}, mods...), StripZkismV11Fields(), StripMintGenesisFields(), StripForkGenesisFields())
+		}
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),
 			g.ecfg,
@@ -285,7 +292,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			gentxs,
 			g.accounts,
 			g.GenesisTime,
-			g.genOps...,
+			mods...,
 		)
 	default:
 		return nil, fmt.Errorf("unknown app version %d", g.appVersion)

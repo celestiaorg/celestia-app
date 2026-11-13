@@ -25,7 +25,9 @@ updates:
 
   # Docker
   - package-ecosystem: docker
-    directory: "/docker"
+    directories:
+      - "/docker"
+      - "/docker/devnet"
     commit-message:
       prefix: "chore(deps): [medium] "
     schedule:

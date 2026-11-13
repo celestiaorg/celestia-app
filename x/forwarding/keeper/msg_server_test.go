@@ -605,57 +605,72 @@ func TestForward_AddressMismatchWhenTokenIDChanges(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrAddressMismatch)
 }
 
+// TestForward_SyntheticToken covers permissionless synthetic tokens (denom
+// "hyperlane/<id>") and native synthetic tokens created via
+// MsgCreateNativeSyntheticToken (custom OriginDenom).
 func TestForward_SyntheticToken(t *testing.T) {
-	ctx := createTestContext()
-	destDomain := uint32(999)
-	destRecipient := "0x00000000000000000000000000000000000000000000000000000000cafebabe"
-	signer := sdk.AccAddress([]byte("signer______________"))
-	bankKeeper := NewMockBankKeeper()
-	warpKeeper := NewMockWarpKeeper()
-	hyperlaneKeeper := NewMockHyperlaneKeeper()
-
-	synthToken := createTestHypToken(2, "uusdc", warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
-	forwardAddr, err := deriveTestForwardAddress(destDomain, destRecipient, synthToken.Id.String())
-	require.NoError(t, err)
-
-	warpKeeper.Tokens = append(warpKeeper.Tokens, synthToken)
-	warpKeeper.EnrolledRouters[2] = map[uint32]warptypes.RemoteRouter{
-		destDomain: {Gas: math.NewInt(250000)},
-	}
-	hyperlaneKeeper.QuotedFee = sdk.NewCoins()
-
-	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
-	warpKeeper.TransferMessageId = messageId
-	synthDenom := "hyperlane/" + synthToken.Id.String()
-	warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
-		senderAddr, _ := sdk.AccAddressFromBech32(sender)
-		senderBalances := bankKeeper.Balances[senderAddr.String()]
-		bankKeeper.Balances[senderAddr.String()] = senderBalances.Sub(sdk.NewCoin(synthDenom, math.NewInt(75)))
+	testCases := []struct {
+		name        string
+		originDenom string
+	}{
+		{name: "permissionless synthetic", originDenom: "hyperlane/0x" + padHex(2)},
+		{name: "native synthetic", originDenom: "uusdc"},
 	}
 
-	bankKeeper.Balances[forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin(synthDenom, math.NewInt(75)),
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(11)),
-	)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := createTestContext()
+			destDomain := uint32(999)
+			destRecipient := "0x00000000000000000000000000000000000000000000000000000000cafebabe"
+			signer := sdk.AccAddress([]byte("signer______________"))
+			bankKeeper := NewMockBankKeeper()
+			warpKeeper := NewMockWarpKeeper()
+			hyperlaneKeeper := NewMockHyperlaneKeeper()
 
-	k := keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper)
-	msgServer := keeper.NewMsgServerImpl(k)
+			synthToken := createTestHypToken(2, tc.originDenom, warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
+			forwardAddr, err := deriveTestForwardAddress(destDomain, destRecipient, synthToken.Id.String())
+			require.NoError(t, err)
 
-	msg := types.NewMsgForward(
-		signer.String(),
-		forwardAddr.String(),
-		destDomain,
-		destRecipient,
-		synthToken.Id.String(),
-		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
-	)
+			warpKeeper.Tokens = append(warpKeeper.Tokens, synthToken)
+			warpKeeper.EnrolledRouters[2] = map[uint32]warptypes.RemoteRouter{
+				destDomain: {Gas: math.NewInt(250000)},
+			}
+			hyperlaneKeeper.QuotedFee = sdk.NewCoins()
 
-	resp, err := msgServer.Forward(ctx, msg)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, synthDenom, resp.Denom)
-	require.Equal(t, math.NewInt(75), resp.Amount)
-	require.Equal(t, messageId.String(), resp.MessageId)
-	require.True(t, bankKeeper.GetBalance(ctx, forwardAddr, synthDenom).IsZero())
-	require.Equal(t, math.NewInt(11), bankKeeper.GetBalance(ctx, forwardAddr, appconsts.BondDenom).Amount)
+			messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+			warpKeeper.TransferMessageId = messageId
+			synthDenom := synthToken.OriginDenom
+			warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+				senderAddr, _ := sdk.AccAddressFromBech32(sender)
+				senderBalances := bankKeeper.Balances[senderAddr.String()]
+				bankKeeper.Balances[senderAddr.String()] = senderBalances.Sub(sdk.NewCoin(synthDenom, math.NewInt(75)))
+			}
+
+			bankKeeper.Balances[forwardAddr.String()] = sdk.NewCoins(
+				sdk.NewCoin(synthDenom, math.NewInt(75)),
+				sdk.NewCoin(appconsts.BondDenom, math.NewInt(11)),
+			)
+
+			k := keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper)
+			msgServer := keeper.NewMsgServerImpl(k)
+
+			msg := types.NewMsgForward(
+				signer.String(),
+				forwardAddr.String(),
+				destDomain,
+				destRecipient,
+				synthToken.Id.String(),
+				sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+			)
+
+			resp, err := msgServer.Forward(ctx, msg)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.Equal(t, synthDenom, resp.Denom)
+			require.Equal(t, math.NewInt(75), resp.Amount)
+			require.Equal(t, messageId.String(), resp.MessageId)
+			require.True(t, bankKeeper.GetBalance(ctx, forwardAddr, synthDenom).IsZero())
+			require.Equal(t, math.NewInt(11), bankKeeper.GetBalance(ctx, forwardAddr, appconsts.BondDenom).Amount)
+		})
+	}
 }

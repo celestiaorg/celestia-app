@@ -19,11 +19,15 @@ func appExporter(
 	appOptions servertypes.AppOptions,
 	modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
-	application := app.New(logger, db, traceStore, 0, 0, appOptions)
-	if height != -1 {
-		if err := application.LoadHeight(height); err != nil {
-			return servertypes.ExportedApp{}, err
-		}
+	application := app.NewForExport(logger, db, traceStore, 0, 0, appOptions)
+	var err error
+	if height == -1 {
+		err = application.LoadLatestVersion()
+	} else {
+		err = application.LoadHeight(height)
+	}
+	if err != nil {
+		return servertypes.ExportedApp{}, err
 	}
 	return application.ExportAppStateAndValidators(forZeroHeight, jailWhiteList, modulesToExport)
 }

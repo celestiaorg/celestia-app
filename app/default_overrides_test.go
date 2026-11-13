@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 	"github.com/stretchr/testify/assert"
@@ -52,12 +53,12 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.False(t, cfg.GRPC.Enable)
 	assert.False(t, cfg.GRPCWeb.Enable)
 
-	assert.Equal(t, uint64(1500), cfg.StateSync.SnapshotInterval)
+	assert.Equal(t, uint64(4_875), cfg.StateSync.SnapshotInterval)
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
 	assert.Equal(t, "", cfg.MinGasPrices)
 
 	assert.Equal(t, appconsts.DefaultUpperBoundMaxBytes*2, cfg.GRPC.MaxRecvMsgSize)
-	assert.Equal(t, appconsts.MinRetainBlocks, cfg.MinRetainBlocks)
+	assert.Equal(t, uint64(9_750), cfg.MinRetainBlocks)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
@@ -89,7 +90,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			MaxTxBytes:     appconsts.MaxTxSize,
 			MaxTxsBytes:    appconsts.MempoolSize,
 			TTLDuration:    0 * time.Second,
-			TTLNumBlocks:   36,
+			TTLNumBlocks:   117,
 			Type:           tmcfg.MempoolTypeCAT,
 			MaxGossipDelay: time.Second * 20,
 		}
@@ -97,8 +98,9 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	})
 
 	t.Run("consensus overrides", func(t *testing.T) {
-		assert.Equal(t, appconsts.TimeoutPropose, got.Consensus.TimeoutPropose)
-		assert.Equal(t, appconsts.TimeoutCommit, got.Consensus.TimeoutCommit)
+		assert.Equal(t, 3000*time.Millisecond, got.Consensus.TimeoutPropose)
+		assert.Equal(t, 100*time.Millisecond, got.Consensus.TimeoutCommit)
+		assert.False(t, got.Consensus.SkipTimeoutCommit)
 		assert.Equal(t, 10*time.Millisecond, got.Consensus.PeerGossipSleepDuration)
 	})
 
@@ -116,6 +118,16 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	t.Run("block sync overrides", func(t *testing.T) {
 		assert.False(t, got.BlockSync.VerifyData)
 	})
+}
+
+func Test_stakingDefaultGenesis(t *testing.T) {
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
+	raw := stakingModule{}.DefaultGenesis(enc.Codec)
+	got := stakingtypes.GenesisState{}
+	enc.Codec.MustUnmarshalJSON(raw, &got)
+
+	assert.Equal(t, appconsts.UnbondingTime, got.Params.UnbondingTime)
+	assert.Equal(t, uint32(32_500), got.Params.HistoricalEntries)
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
@@ -138,7 +150,7 @@ func Test_ibcDefaultGenesis(t *testing.T) {
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
-	assert.Equal(t, uint64((13 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
+	assert.Equal(t, uint64((4 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
 }
 
 func Test_slashingDefaultGenesis(t *testing.T) {
@@ -149,7 +161,7 @@ func Test_slashingDefaultGenesis(t *testing.T) {
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, math.LegacyNewDecWithPrec(1, 3), got.Params.MinSignedPerWindow)
-	assert.Equal(t, int64(10_000), got.Params.SignedBlocksWindow)
+	assert.Equal(t, int64(32_500), got.Params.SignedBlocksWindow)
 	assert.Equal(t, time.Minute*1, got.Params.DowntimeJailDuration)
 	assert.Equal(t, math.LegacyNewDecWithPrec(2, 2), got.Params.SlashFractionDoubleSign)
 	assert.Equal(t, math.LegacyZeroDec(), got.Params.SlashFractionDowntime)
@@ -160,6 +172,6 @@ func TestEvidenceParams(t *testing.T) {
 	mebibyte := int64(1048576)
 
 	assert.Equal(t, appconsts.MaxAgeDuration, got.MaxAgeDuration)
-	assert.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.MaxAgeNumBlocks)
+	assert.Equal(t, int64(1_011_000), got.MaxAgeNumBlocks)
 	assert.Equal(t, mebibyte, got.MaxBytes)
 }

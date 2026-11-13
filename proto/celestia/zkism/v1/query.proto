@@ -21,9 +21,15 @@ service Query {
     option (google.api.http).get = "/celestia/zkism/v1/isms";
   }
 
-  // Messages defines an rpc method for querying authorized Hyperlane message IDs.
-  rpc Messages(QueryMessagesRequest) returns (QueryMessagesResponse) {
-    option (google.api.http).get = "/celestia/zkism/v1/messages/{id}";
+  // MerkleTreeState defines an rpc method for querying the proven source chain merkle tree state of an ISM.
+  rpc MerkleTreeState(QueryMerkleTreeStateRequest) returns (QueryMerkleTreeStateResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/isms/{id}/merkle_tree_state";
+  }
+
+  // RootHistory defines an rpc method for querying the replaced state roots and merkle tree states an ISM still
+  // accepts.
+  rpc RootHistory(QueryRootHistoryRequest) returns (QueryRootHistoryResponse) {
+    option (google.api.http).get = "/celestia/zkism/v1/isms/{id}/root_history";
   }
 }
 
@@ -53,18 +59,30 @@ message QueryIsmsResponse {
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
-// QueryMessagesRequest is the request type for the Messages rpc method.
-message QueryMessagesRequest {
+// QueryMerkleTreeStateRequest is the request type for the MerkleTreeState rpc method.
+message QueryMerkleTreeStateRequest {
   // id is the hex-encoded ISM identifier.
   string id = 1;
-  // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 
-// QueryMessagesResponse is the response type for the Messages rpc method.
-message QueryMessagesResponse {
-  // messages is a list of authorized Hyperlane message IDs.
-  repeated string messages = 1;
-  // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+// QueryMerkleTreeStateResponse is the response type for the MerkleTreeState rpc method.
+message QueryMerkleTreeStateResponse {
+  // tree_state is the latest proven source chain merkle tree state.
+  MerkleTreeState tree_state = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryRootHistoryRequest is the request type for the RootHistory rpc method.
+message QueryRootHistoryRequest {
+  // id is the hex-encoded ISM identifier.
+  string id = 1;
+}
+
+// QueryRootHistoryResponse is the response type for the RootHistory rpc method.
+message QueryRootHistoryResponse {
+  // root_history_size is the number of replaced roots the ISM keeps.
+  uint32 root_history_size = 1;
+  // state_roots are the replaced state roots still accepted for membership proofs, oldest first.
+  repeated RootHistoryEntry state_roots = 2 [(gogoproto.nullable) = false];
+  // tree_states are the replaced merkle tree states still accepted for message verification, oldest first.
+  repeated RootHistoryEntry tree_states = 3 [(gogoproto.nullable) = false];
 }

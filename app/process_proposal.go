@@ -46,6 +46,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
+	// Core unwraps with block.Version.App, which it checked equals this (state/validation.go).
+	app.oeTxs.appVersion = ctx.ConsensusParams().Version.GetApp()
+
 	// Read the max square size before the ante loop. The loop reassigns ctx to
 	// the context returned by the ante handler, which carries a finite gas meter
 	// scoped to the last transaction. Reading it after the loop would meter this
@@ -69,6 +72,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	var (
 		sdkMessageCount int
 		zkProofMsgCount int
+		ismSigCount     int
+		sdkGas          uint64
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -91,7 +96,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 		if cached == nil {
-			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTxNoCopy(rawTx)
 			if isBlobTx {
 				if err != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
@@ -209,6 +214,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
+		// FinalizeBlock runs these message checks before the ante handler, so
+		// a tx failing them would be included without paying fees.
+		if err := validateTxMsgs(sdkTx, app.MsgServiceRouter()); err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("tx %d failed message validation", idx), err)
+			return reject(), nil
+		}
+
 		// Handle non-blob transactions. This also validates MsgPayForFibre txs
 		// (plain SDK txs, not wrapped in BlobTx).
 		if !isBlobTx {
@@ -240,11 +252,22 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
 					return reject(), nil
 				}
+				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				if ismSigCount > appconsts.MaxISMSignatures {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
+					return reject(), nil
+				}
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil
 				}
+				txGas := txGasLimit(sdkTx)
+				if !fitsSDKGas(sdkGas, txGas) {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK gas of %d", appconsts.MaxSDKGas))
+					return reject(), nil
+				}
+				sdkGas += txGas
 			}
 
 			// we need to increment the sequence for every transaction so that

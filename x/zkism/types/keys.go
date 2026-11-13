@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"strings"
 
 	"cosmossdk.io/collections"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 )
 
 const (
@@ -15,9 +15,6 @@ const (
 
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
-
-	// MaxPaginationLimit is the maximum number of items returned in a paginated query.
-	MaxPaginationLimit = 100
 
 	// MinStateBytes is the minimum size of the trusted ism state (32 bytes).
 	MinStateBytes = 32
@@ -30,13 +27,20 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
-	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
-	MaxMessageIdsCount = 1_000_000
+	// StateMembershipValuesVersion is the layout version of state membership public values. The membership
+	// program commits it as the first byte so that public values produced by any other program version are
+	// rejected before the proof is verified.
+	StateMembershipValuesVersion = 1
 
-	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
+	// StateMembershipValuesBytes is the exact size of public values payloads associated
 	// with state membership proofs.
-	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
-	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
+	// Calculated as: 1 (Version) + 32 (StateRoot) + 32 (MerkleTreeAddress) + 32 (TreeRoot) + 4 (Count)
+	// This can never equal the length of a legacy message id payload, which is 72 + 32 * n bytes.
+	StateMembershipValuesBytes = 1 + 32 + 32 + 32 + 4
+
+	// MerkleProofMetadataBytes is the exact size of the metadata provided when verifying a message.
+	// Calculated as: 4 (leaf index) + TreeDepth * 32 (merkle branch)
+	MerkleProofMetadataBytes = 4 + (util.TreeDepth * 32)
 
 	// groth16VkeyCurvePointsSize is the size of the 6 curve points that
 	// precede the G1.K length prefix in a serialized BN254 verifying key.
@@ -58,18 +62,20 @@ const (
 	// Groth16VkeySize is the exact expected size of a serialized Groth16
 	// verifying key for the BN254 curve with 5 public inputs (SP1 v6 scheme).
 	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
-	// 6 × compressed G1 points (192 bytes) + uint32 CommitmentKeys length (4 bytes) +
-	// uint32 PublicAndCommitmentCommitted length (4 bytes) = 492.
+	// 6 × compressed G1 points (192 bytes) + uint32 PublicAndCommitmentCommitted
+	// length (4 bytes) + uint32 CommitmentKeys length (4 bytes) = 492.
 	Groth16VkeySize = 492
 
-	// groth16VkeyCommitmentKeysOffset is the byte offset of the uint32
-	// CommitmentKeys length prefix in a serialized BN254 verifying key.
-	// 288 (curve points) + 4 (G1.K length) + 96 (3 × G1.K elements) = 388.
-	groth16VkeyCommitmentKeysOffset = groth16VkeyCurvePointsSize + 4 + (Groth16VkeyG1KLength * 32)
+	// legacyGroth16VkeyG1KLength is the number of G1.K elements in an SP1 v5
+	// verifying key (2 public inputs). Only genesis validation accepts it, for
+	// ISMs created before the SP1 v6 verifier.
+	legacyGroth16VkeyG1KLength = 3
 
-	// groth16VkeyPubCommittedOffset is the byte offset of the uint32
-	// PublicAndCommitmentCommitted length prefix in a serialized BN254 verifying key.
-	groth16VkeyPubCommittedOffset = groth16VkeyCommitmentKeysOffset + 4
+	// DefaultRootHistorySize is used when an ISM's root history size is 0.
+	DefaultRootHistorySize = 64
+
+	// MaxRootHistorySize bounds the history scanned by Verify and SubmitMessages.
+	MaxRootHistorySize = 256
 
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
@@ -78,9 +84,14 @@ const (
 )
 
 var (
-	IsmsKeyPrefix               = collections.NewPrefix(0)
-	MessageKeyPrefix            = collections.NewPrefix(1)
-	MessageProofSubmittedPrefix = collections.NewPrefix(2)
+	IsmsKeyPrefix = collections.NewPrefix(0)
+	// Prefix 1 held authorized message IDs before messages were verified against the proven merkle tree root (v11).
+	// The entries are left in place because nothing reads them and deleting an attacker-sized set in the upgrade
+	// block is unbounded work. Do not reuse prefix 1.
+	// Prefix 2 held the legacy per-state-root submission flag; entries are left in place. Do not reuse prefix 2.
+	MerkleTreeStateKeyPrefix = collections.NewPrefix(3)
+	StateRootHistoryPrefix   = collections.NewPrefix(4)
+	TreeStateHistoryPrefix   = collections.NewPrefix(5)
 
 	// groth16VkeyPointOffsets are the byte offsets of the six leading curve
 	// points (G1.Alpha, G1.Beta, G2.Beta, G2.Gamma, G1.Delta, G2.Delta) in a
@@ -91,12 +102,36 @@ var (
 
 // ValidateGroth16Vkey checks that a serialized Groth16 verifying key has the
 // expected total size and that the internal length prefixes (G1.K,
-// CommitmentKeys, and PublicAndCommitmentCommitted) have their expected values.
+// PublicAndCommitmentCommitted, and CommitmentKeys) have their expected values.
 // This must be called before passing the key to gnark's deserializer to
 // prevent OOM from inflated length prefixes.
 func ValidateGroth16Vkey(vkey []byte) error {
-	if len(vkey) != Groth16VkeySize {
-		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(vkey))
+	return validateGroth16VkeyLayout(vkey, Groth16VkeyG1KLength)
+}
+
+// ValidateGenesisGroth16Vkey is ValidateGroth16Vkey for an imported ISM. It
+// also accepts the SP1 v5 layout with legacyGroth16VkeyG1KLength G1.K
+// elements, which ISMs created before the SP1 v6 verifier still hold, with the
+// same checks. MsgCreateInterchainSecurityModule keeps the SP1 v6 layout only.
+func ValidateGenesisGroth16Vkey(vkey []byte) error {
+	if len(vkey) == groth16VkeySize(legacyGroth16VkeyG1KLength) {
+		return validateGroth16VkeyLayout(vkey, legacyGroth16VkeyG1KLength)
+	}
+	return ValidateGroth16Vkey(vkey)
+}
+
+// groth16VkeySize returns the size of a serialized compressed BN254 verifying
+// key with g1kLen G1.K elements and no commitments: the curve points, the G1.K
+// length prefix and elements, and the two empty commitment length prefixes.
+func groth16VkeySize(g1kLen int) int {
+	return groth16VkeyCurvePointsSize + 4 + g1kLen*32 + 4 + 4
+}
+
+// validateGroth16VkeyLayout checks that vkey is a compressed BN254 verifying key
+// with exactly g1kLen G1.K elements and no commitments.
+func validateGroth16VkeyLayout(vkey []byte, g1kLen int) error {
+	if size := groth16VkeySize(g1kLen); len(vkey) != size {
+		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", size, len(vkey))
 	}
 
 	// The length-prefix offsets below are only correct when every leading curve
@@ -110,37 +145,45 @@ func ValidateGroth16Vkey(vkey []byte) error {
 		}
 	}
 
-	g1kLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
-	if g1kLen != Groth16VkeyG1KLength {
-		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", Groth16VkeyG1KLength, g1kLen)
+	gotG1KLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
+	if gotG1KLen != uint32(g1kLen) {
+		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", g1kLen, gotG1KLen)
 	}
 
-	commitmentKeysLen := binary.BigEndian.Uint32(vkey[groth16VkeyCommitmentKeysOffset : groth16VkeyCommitmentKeysOffset+4])
-	if commitmentKeysLen != 0 {
-		return fmt.Errorf("groth16 vkey CommitmentKeys length must be 0, got %d", commitmentKeysLen)
-	}
-
-	pubCommittedLen := binary.BigEndian.Uint32(vkey[groth16VkeyPubCommittedOffset : groth16VkeyPubCommittedOffset+4])
+	// gnark reads PublicAndCommitmentCommitted right after G1.K, then the
+	// CommitmentKeys count.
+	pubCommittedOffset := groth16VkeyCurvePointsSize + 4 + g1kLen*32
+	pubCommittedLen := binary.BigEndian.Uint32(vkey[pubCommittedOffset : pubCommittedOffset+4])
 	if pubCommittedLen != 0 {
 		return fmt.Errorf("groth16 vkey PublicAndCommitmentCommitted length must be 0, got %d", pubCommittedLen)
 	}
 
+	commitmentKeysOffset := pubCommittedOffset + 4
+	commitmentKeysLen := binary.BigEndian.Uint32(vkey[commitmentKeysOffset : commitmentKeysOffset+4])
+	if commitmentKeysLen != 0 {
+		return fmt.Errorf("groth16 vkey CommitmentKeys length must be 0, got %d", commitmentKeysLen)
+	}
+
+	return nil
+}
+
+// EffectiveRootHistorySize returns the number of replaced roots an ISM with the given configured size keeps.
+func EffectiveRootHistorySize(size uint32) uint32 {
+	if size == 0 {
+		return DefaultRootHistorySize
+	}
+	return size
+}
+
+// ValidateRootHistorySize checks that a configured root history size does not exceed MaxRootHistorySize.
+func ValidateRootHistorySize(size uint32) error {
+	if size > MaxRootHistorySize {
+		return fmt.Errorf("root history size must not exceed %d, got %d", MaxRootHistorySize, size)
+	}
 	return nil
 }
 
 // EncodeHex is a convenience function to encode byte slices as 0x prefixed hexadecimal strings.
 func EncodeHex(bz []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(bz))
-}
-
-// DecodeHex is a convenience function to decode 0x prefixed hexadecimal strings as byte slices.
-func DecodeHex(s string) ([]byte, error) {
-	s = strings.TrimPrefix(s, "0x")
-
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }

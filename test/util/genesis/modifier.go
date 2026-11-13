@@ -10,13 +10,17 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
 // Modifier allows for arbitrary changes to be made on the genesis state
@@ -113,4 +117,119 @@ func FundAccounts(codec codec.Codec, addresses []sdk.AccAddress, balance sdk.Coi
 		state[banktypes.ModuleName] = codec.MustMarshalJSON(&bankGenState)
 		return state
 	}
+}
+
+// zkismV11Fields are the zkism genesis fields introduced in app version 11.
+var zkismV11Fields = []string{"tree_states", "state_root_history", "tree_state_history"}
+
+// zkismV11IsmFields are the fields of each zkism genesis ism introduced in app version 11.
+var zkismV11IsmFields = []string{"root_history_size", "state_height"}
+
+// StripZkismV11Fields removes the zkism genesis fields introduced in app
+// version 11, which older binaries reject as unknown.
+func StripZkismV11Fields() Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		raw, ok := state[zkismtypes.ModuleName]
+		if !ok {
+			return state
+		}
+
+		var zkismState map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &zkismState); err != nil {
+			panic(fmt.Sprintf("invalid zkism genesis state: %v", err))
+		}
+		for _, field := range zkismV11Fields {
+			delete(zkismState, field)
+		}
+
+		if rawIsms, ok := zkismState["isms"]; ok {
+			var isms []map[string]json.RawMessage
+			if err := json.Unmarshal(rawIsms, &isms); err != nil {
+				panic(fmt.Sprintf("invalid zkism genesis isms: %v", err))
+			}
+			for _, ism := range isms {
+				for _, field := range zkismV11IsmFields {
+					delete(ism, field)
+				}
+			}
+			bz, err := json.Marshal(isms)
+			if err != nil {
+				panic(fmt.Sprintf("marshal zkism genesis isms: %v", err))
+			}
+			zkismState["isms"] = bz
+		}
+
+		bz, err := json.Marshal(zkismState)
+		if err != nil {
+			panic(fmt.Sprintf("marshal zkism genesis state: %v", err))
+		}
+		state[zkismtypes.ModuleName] = bz
+		return state
+	}
+}
+
+// StripMintGenesisFields removes the minter and genesis_time fields from the
+// mint genesis state, which binaries for app versions below 11 reject.
+func StripMintGenesisFields() Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		raw, ok := state[minttypes.ModuleName]
+		if !ok {
+			return state
+		}
+
+		var mintState map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &mintState); err != nil {
+			panic(fmt.Sprintf("invalid mint genesis state: %v", err))
+		}
+		delete(mintState, "minter")
+		delete(mintState, "genesis_time")
+
+		bz, err := json.Marshal(mintState)
+		if err != nil {
+			panic(fmt.Sprintf("marshal mint genesis state: %v", err))
+		}
+		state[minttypes.ModuleName] = bz
+		return state
+	}
+}
+
+// StripForkGenesisFields removes the distribution and ibc channel genesis
+// fields added by the cosmos-sdk and ibc-go forks, which binaries for app
+// versions below 11 reject as unknown.
+func StripForkGenesisFields() Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		stripFields(state, distrtypes.ModuleName, nil, "user_outstanding_rewards")
+		stripFields(state, ibcexported.ModuleName, []string{"channel_genesis"},
+			"upgrades", "counterparty_upgrades", "error_receipts", "pruning_sequence_starts", "recv_start_sequences")
+		return state
+	}
+}
+
+// stripFields deletes fields from the JSON object at path inside a module's genesis state.
+func stripFields(state map[string]json.RawMessage, module string, path []string, fields ...string) {
+	raw, ok := state[module]
+	if !ok {
+		return
+	}
+	state[module] = stripJSONFields(raw, path, fields)
+}
+
+// stripJSONFields returns raw with fields removed from the object at path.
+func stripJSONFields(raw json.RawMessage, path []string, fields []string) json.RawMessage {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		panic(fmt.Sprintf("invalid genesis state: %v", err))
+	}
+	if len(path) == 0 {
+		for _, f := range fields {
+			delete(obj, f)
+		}
+	} else if inner, ok := obj[path[0]]; ok {
+		obj[path[0]] = stripJSONFields(inner, path[1:], fields)
+	}
+	bz, err := json.Marshal(obj)
+	if err != nil {
+		panic(fmt.Sprintf("marshal genesis state: %v", err))
+	}
+	return bz
 }

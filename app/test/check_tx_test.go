@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
@@ -85,6 +86,79 @@ func TestCheckTxZKProofMessageLimit(t *testing.T) {
 					})
 				}
 			}
+		}
+	}
+}
+
+// CheckTx must reject ISM signature work that cannot fit in any proposal before
+// the sender is charged, through every dispatch path. An ICA packet naming a
+// MsgProcessMessage fails closed regardless of its metadata.
+func TestCheckTxISMSignatureLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	seedICAHostChannel(t, testApp)
+
+	for _, count := range []int{appconsts.MaxISMSignatures, appconsts.MaxISMSignatures + 1} {
+		msg := &hyperlanetypes.MsgProcessMessage{Metadata: ismMetadataHex(count)}
+		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{msg})
+		for name, wrapped := range map[string][]sdk.Msg{"direct": {msg}, "authz": {&exec}} {
+			for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+				t.Run(fmt.Sprintf("%d/%s/%s", count, name, checkType), func(t *testing.T) {
+					rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, wrapped...)
+					resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+					require.NoError(t, err)
+					if count > appconsts.MaxISMSignatures {
+						require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					} else {
+						// These unsigned fixtures fail later validation, but exactly
+						// one block's work must pass the admission budget check.
+						require.NotEqual(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+					}
+				})
+			}
+		}
+	}
+
+	payload, err := icatypes.SerializeCosmosTx(encodingConfig.Codec, []sdk.Msg{&hyperlanetypes.MsgProcessMessage{Metadata: "0x"}}, icaEncoding)
+	require.NoError(t, err)
+	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+	recv := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), "signer")
+	t.Run("ICA fails closed", func(t *testing.T) {
+		rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, recv)
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+		require.NoError(t, err)
+		require.Equal(t, apperr.ErrTxExceedsMaxISMSignatures.ABCICode(), resp.Code, resp.Log)
+	})
+}
+
+// CheckTx must reject a tx whose gas limit alone exceeds MaxSDKGas, since no
+// proposal can include it.
+func TestCheckTxSDKGasLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+
+	for _, gas := range []uint64{appconsts.MaxSDKGas, appconsts.MaxSDKGas + 1} {
+		for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+			t.Run(fmt.Sprintf("%d/%s", gas, checkType), func(t *testing.T) {
+				builder := encodingConfig.TxConfig.NewTxBuilder()
+				require.NoError(t, builder.SetMsgs(msg))
+				builder.SetGasLimit(gas)
+				rawTx, err := encodingConfig.TxConfig.TxEncoder()(builder.GetTx())
+				require.NoError(t, err)
+
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: rawTx})
+				require.NoError(t, err)
+				if gas > appconsts.MaxSDKGas {
+					require.Equal(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				} else {
+					// This unsigned fixture fails later validation, but a tx
+					// declaring exactly one block's gas must pass the budget check.
+					require.NotEqual(t, apperr.ErrTxExceedsMaxSDKGas.ABCICode(), resp.Code, resp.Log)
+				}
+			})
 		}
 	}
 }
@@ -206,8 +280,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				return dtx.Tx
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				return innerTx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
 		},
@@ -399,8 +473,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				wrappedTx, err := coretypes.MarshalIndexWrapper(dtx.Tx, 0)
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(innerTx, 0)
 				require.NoError(t, err)
 				return wrappedTx
 			},
@@ -469,6 +543,26 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "MsgModuleQuerySafe with more than MaxModuleQuerySafeRequests requests, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The message weighs exactly MaxSDKMessages, so the count alone
+				// admits it, but it would take a whole block's SDK message budget.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				// Pay for every request so the request limit, not gas, rejects it.
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: sdkerrors.ErrInvalidRequest.ABCICode(),
+		},
+		{
 			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -532,6 +626,26 @@ func TestCheckTx(t *testing.T) {
 				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "blob tx whose inner tx is an index wrapper, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				wrapped, err := tx.MarshalIndexWrapper(innerBlobTx.Tx, 12345)
+				require.NoError(t, err)
+				outer, err := tx.MarshalBlobTx(wrapped, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
+			},
+			expectedABCICode: blobtypes.ErrNestedIndexWrapper.ABCICode(),
 		},
 	}
 

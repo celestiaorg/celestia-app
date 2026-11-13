@@ -2,6 +2,44 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v11.0.0
+
+### Node Operators (v11.0.0)
+
+Every validator MUST run a v11 binary (with its celestia-core) before the v11 activation height: v11 paces blocks with the new `TimeoutInfo.dynamic_timeout_commit`, which older celestia-core versions ignore.
+
+On startup, a v11 binary raises `ttl-num-blocks` below 117 to 117 (was 36) and `min-retain-blocks` between 1 and 9,749 to 9,750 (was 3,000). New `app.toml` files get `snapshot-interval = 4875` (was 1500). These keep their durations at 0.8s blocks; between installing the binary and the v11 activation they apply at ~2.6s blocks, so the TTL is ~5 minutes and retention ~7 hours until then.
+
+### State Machine Changes (v11.0.0)
+
+**Block time**: the v11 consensus timeouts pace blocks with an 800 ms `dynamic_timeout_commit` floor on the block interval instead of the ~2.6s `delayed_precommit_timeout` + `timeout_commit` sleep. `timeout_commit` is 100 ms and `delayed_precommit_timeout` is 0; propose/prevote/precommit timeouts are 3000/2000/2000 ms (500 ms per-round deltas). App versions up to 10 keep their timeouts.
+
+**Block-count parameters**: the v11 upgrade handler sets the block-count parameters to their v10 values × 3.25 (2.6s / 0.8s), replacing any value set by governance: `slashing.SignedBlocksWindow` 10,000 → 32,500, `staking.HistoricalEntries` 10,000 → 32,500 and `fibre.PaymentPromiseHeightWindow` 1,000 → 3,250. It also lowers IBC `MaxExpectedTimePerBlock` from 13s to 4s. Upgrade height delays are 108,000 / 216,000 / 756,000 blocks on Corto / Mocha / Mainnet. `consensus.evidence.MaxAgeNumBlocks` becomes 1,011,000 (was 404,400): the 337h unbonding period at a 1.2s average block time, so the evidence window stays within it only while blocks average at most 1.2s.
+
+**Throughput**: per-block limits (32 MiB `MaxBytes`, square size, PFB/PFF caps) are unchanged, so the maximum data rate rises with the block rate, up to ~40 MiB/s at 0.8s blocks (~12 MiB/s at 2.6s).
+
+**`x/signal`**:
+
+- The 5/6 upgrade threshold is computed exactly as `ceil(total_power * 5 / 6)`. The previous 18-digit decimal 5/6 could round the threshold one or more below the exact ceiling once total voting power reached 5e17; at current voting power the threshold is unchanged.
+- The exported `signal.Threshold` function is removed. It returned the rounded decimal and was no longer used.
+
+**`x/valaddr`**:
+
+- `MsgSetFibreProviderInfo` only accepts a host in canonical `host:port` form whose host is an IP literal or a host name. Hosts such as `unix:9090`, `passthrough:9090`, `[host]:80`, `host:+80` and `host:080` are rejected.
+
+**`x/zkism`**:
+
+- Messages are verified against a proven source chain merkle tree root instead of a proven list of message ids. `SubmitMessages` stores the root and leaf count from fixed 101-byte public values (`version (u8) || state_root || merkle_tree_address || tree_root || count (u32)`), and each message is delivered with merkle proof metadata (`leaf_index (u32, big-endian) || 32 x 32-byte branch`). Proofs produced by the previous membership program are rejected.
+- Existing ISMs keep working only after their owner installs the new program's verifying keys with `UpdateVerifyingKeys`. Until then no message verifies for that ISM.
+- ISM owners can replace the verifying keys (`UpdateVerifyingKeys`), and transfer or renounce ownership (`TransferOwnership`). Anyone relying on an ISM must trust its current owner; a renounced ISM (empty `owner`) is immutable. ISMs created before v11 keep their creator as owner and are mutable from the upgrade until that owner renounces. Rotating the keys discards the merkle tree state proven under the previous keys.
+- `UpdateVerifyingKeys` counts toward the per-block ZK proof message cap and, like the other proof-work messages, is rejected inside governance proposals.
+- At most one state transition proof and one membership proof are accepted per ISM per block; a second one fails with `ErrAlreadyUpdatedInBlock` (code 15). The ISM records `state_height` and the merkle tree state records `height` for this. Gas simulation skips this check.
+- Each ISM stores at most `root_history_size` replaced state roots and at most `root_history_size` replaced merkle tree states at any time (default 64, at most 256). `SubmitMessages` accepts a proof against any kept state root and `Verify` accepts a merkle proof against any kept tree root, so a root update between proving and inclusion no longer invalidates in-flight proofs. The owner sets the size at creation or with `UpdateRootHistorySize`; the `RootHistory` query lists the kept roots.
+- The genesis field `submissions` is deprecated: it is ignored on import and no longer exported. Genesis gains `state_root_history` and `tree_state_history`.
+- The zkism genesis section no longer contains `messages`. A genesis file exported by a v10 binary must have `app_state.zkism.messages` removed before a v11 binary can load it.
+
+See the [x/zkism README](../../x/zkism/README.md) for details.
+
 ## v10.0.0
 
 ### Node Operators (v10.0.0)

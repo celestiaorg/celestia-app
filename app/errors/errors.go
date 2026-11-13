@@ -34,4 +34,10 @@ var (
 
 	// ErrTxExceedsMaxZKProofMessages is returned when a tx's proof work exceeds a single block's budget.
 	ErrTxExceedsMaxZKProofMessages = errors.Register(AppErrorsCodespace, 11148, "transaction exceeds maximum allowed ZK proof message count")
+
+	// ErrTxExceedsMaxISMSignatures is returned when a tx's Hyperlane ISM signature work exceeds a single block's budget.
+	ErrTxExceedsMaxISMSignatures = errors.Register(AppErrorsCodespace, 11149, "transaction exceeds maximum allowed ISM signature count")
+
+	// ErrTxExceedsMaxSDKGas is returned when a tx's gas limit exceeds a single block's SDK gas budget.
+	ErrTxExceedsMaxSDKGas = errors.Register(AppErrorsCodespace, 11150, "transaction gas limit exceeds maximum allowed SDK gas per block")
 )

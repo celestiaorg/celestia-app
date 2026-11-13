@@ -24,6 +24,26 @@ func (rp RowProof) Validate(root []byte) error {
 	if len(rp.Proofs) != len(rp.RowRoots) {
 		return fmt.Errorf("the number of proofs %d must equal the number of row roots %d", len(rp.Proofs), len(rp.RowRoots))
 	}
+	for i, proof := range rp.Proofs {
+		if proof == nil {
+			return fmt.Errorf("nil proof for row %d", int64(rp.StartRow)+int64(i))
+		}
+		if expected := int64(rp.StartRow) + int64(i); proof.Index != expected {
+			return fmt.Errorf("proof index %d does not match claimed row %d", proof.Index, expected)
+		}
+		if proof.Total != rp.Proofs[0].Total {
+			return fmt.Errorf("proof total %d does not match the first proof's total %d", proof.Total, rp.Proofs[0].Total)
+		}
+		// The data root commits to a power-of-two number of roots.
+		if proof.Total < 4 || proof.Total&(proof.Total-1) != 0 {
+			return fmt.Errorf("proof total %d must be a power of two of at least 4", proof.Total)
+		}
+		// The data root commits to the row roots followed by the column
+		// roots, so a row root must live in the first half of the leaves.
+		if proof.Index >= proof.Total/2 {
+			return fmt.Errorf("proof index %d is not a row root index (total leaves %d)", proof.Index, proof.Total)
+		}
+	}
 	if !rp.VerifyProof(root) {
 		return errors.New("row proof failed to verify")
 	}
@@ -34,7 +54,13 @@ func (rp RowProof) Validate(root []byte) error {
 // VerifyProof verifies that all the row roots in this RowProof exist in a
 // Merkle tree with the given root. Returns true if all proofs are valid.
 func (rp RowProof) VerifyProof(root []byte) bool {
+	if len(rp.Proofs) != len(rp.RowRoots) {
+		return false
+	}
 	for i, proof := range rp.Proofs {
+		if proof == nil {
+			return false
+		}
 		err := proof.Verify(root, rp.RowRoots[i])
 		if err != nil {
 			return false

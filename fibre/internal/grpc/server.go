@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
-	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
@@ -19,17 +18,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Connection and stream caps bound how many requests run at once; receive
-// memory is bounded by request admission (see admission.go and ADR-031).
+// Connection and stream caps are for safety and fairness; receive memory is
+// bounded by request admission (see admission.go and ADR-031).
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
 // memory for them, and rejects oversized DownloadShard requests before copying
 // them.
 const (
-	// DefaultMaxConnections is the default total connection cap.
-	DefaultMaxConnections = 16
+	// DefaultMaxConnectionsPerIP caps connections per source IP (IPv6 by /64).
+	DefaultMaxConnectionsPerIP = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
-	DefaultMaxConcurrentStreams = 13
+	DefaultMaxConcurrentStreams = 100
+	// globalConnLimit is a fixed fd-safety cap.
+	globalConnLimit = 4096
 
 	// Fixed receive windows (>=65535) disable BDP tuning; the stream window only
 	// bounds a paused stream, since RecvMsg grants a whole-message window.
@@ -37,7 +38,7 @@ const (
 	initialConnWindowSize = 16 << 20
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
-	// LimitListener slot with a stalled handshake for the 120s gRPC default.
+	// connection slot with a stalled handshake for the 120s gRPC default.
 	connectionTimeout = 15 * time.Second
 
 	// maxHeaderListSize caps request headers, which grpc buffers before any
@@ -63,17 +64,20 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	conns                *limitedListener
 	adm                  *admission
+	releaseDecoded       func(any)     // frees request decode state; nil for none
 	done                 chan struct{} // closed when Serve returns
 	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
 }
 
-// Listen creates a [Server] bound to listenAddr that admits requests per admCfg.
+// Listen creates a [Server] bound to listenAddr that admits requests per admCfg
+// and fail-fast caps connections per source IP (maxConnectionsPerIP, 0 disables).
 // The underlying [grpc.Server] is created lazily by [Server.Register] so callers
 // can defer building credentials until after the listener address is known
 // (e.g., for TLS certs that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int, admCfg AdmissionConfig) (*Server, error) {
+func Listen(listenAddr string, maxConnectionsPerIP, maxConcurrentStreams int, admCfg AdmissionConfig) (*Server, error) {
 	adm, err := newAdmission(admCfg)
 	if err != nil {
 		return nil, err
@@ -82,16 +86,20 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int, admCfg 
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
-	// Cap total connections so a peer cannot dodge the per-connection stream cap
-	// by opening many connections.
-	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, adm: adm, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	conns := newLimitedListener(listener, globalConnLimit, maxConnectionsPerIP)
+	return &Server{
+		listener:             conns,
+		conns:                conns,
+		adm:                  adm,
+		maxConcurrentStreams: uint32(maxConcurrentStreams),
+	}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
 // fibre service. It must be called exactly once before [Server.Serve].
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
+		grpc.WriteBufferSize(writeBufferSize),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.InitialWindowSize(initialWindowSize),
 		grpc.InitialConnWindowSize(initialConnWindowSize),
@@ -116,7 +124,7 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 // RegisterService implements [grpc.ServiceRegistrar] for extra services such as
 // gRPC health, admitting their requests too. Use it between Register and Serve.
 func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl any) {
-	s.server.RegisterService(admitServiceDesc(sd, s.adm), impl)
+	s.server.RegisterService(admitServiceDesc(sd, s.adm, s.releaseDecoded), impl)
 }
 
 // deadlineTap bounds server-side handling of one request. grpc uses the returned
@@ -130,19 +138,24 @@ func deadlineTap(ctx context.Context, _ *tap.Info) (context.Context, error) {
 // admitServiceDesc serves every unary method of sd through admitHandler. Streaming
 // methods are left unregistered (Fibre has none; health Watch is unsupported), so
 // grpc rejects them as Unimplemented before reading a body.
-func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission) *grpc.ServiceDesc {
+func admitServiceDesc(sd *grpc.ServiceDesc, adm *admission, releaseDecoded func(any)) *grpc.ServiceDesc {
 	out := *sd
 	out.Methods, out.Streams = nil, nil
 	for _, m := range sd.Methods {
-		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm)})
+		reserveMaxSpace := sd.ServiceName == types.Fibre_serviceDesc.ServiceName && m.MethodName == "DownloadShard"
+		out.Streams = append(out.Streams, grpc.StreamDesc{StreamName: m.MethodName, Handler: admitHandler(m, adm, reserveMaxSpace, releaseDecoded)})
 	}
 	return &out
 }
 
 // admitHandler serves a unary method as a stream handler so the request is
-// admitted before it is read; the generated handler's dec reads it. Unary
-// interceptors do not run here, so panics are recovered inline.
-func admitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
+// admitted before it is read; the generated handler's dec reads it. With
+// reserveMaxSpace the max reservation is kept until the handler returns, covering
+// a response the handler builds (DownloadShard). Unary interceptors set as server
+// options do not run here, so panics are recovered inline. releaseDecoded, if set,
+// runs on the message dec was asked to decode when the stream handler returns,
+// including when RecvMsg failed after the codec had already decoded it.
+func admitHandler(m grpc.MethodDesc, adm *admission, reserveMaxSpace bool, releaseDecoded func(any)) grpc.StreamHandler {
 	return func(srv any, ss grpc.ServerStream) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -158,11 +171,27 @@ func admitHandler(m grpc.MethodDesc, adm *admission) grpc.StreamHandler {
 		}
 		defer res.release()
 
+		// The codec may retain state for v before RecvMsg's end-of-stream check
+		// fails, in which case the generated handler returns without running.
+		// Generated unary handlers call dec once.
+		var decoded any
+		if releaseDecoded != nil {
+			defer func() {
+				if decoded != nil {
+					releaseDecoded(decoded)
+				}
+			}()
+		}
 		dec := func(v any) error {
+			decoded = v
 			if err := ss.RecvMsg(v); err != nil {
 				return err
 			}
-			res.received(msgSize(v))
+			size := msgSize(v)
+			if reserveMaxSpace {
+				size = adm.reservation
+			}
+			res.received(size)
 			return nil
 		}
 		resp, err := m.Handler(srv, ctx, dec, nil)
@@ -190,6 +219,26 @@ func msgSize(v any) int64 {
 		return int64(proto.Size(m))
 	}
 	return 0
+}
+
+// Stats is a snapshot of the admission and connection limiters.
+type Stats struct {
+	ReservedBytes   int64 // request bytes reserved against the budget
+	WaitingRequests int64 // requests waiting for budget
+	OpenConns       int64 // admitted open connections
+	RejectedGlobal  int64 // connections rejected by the global cap, total
+	RejectedPerIP   int64 // connections rejected by the per-IP cap, total
+}
+
+// Stats returns the limiters' current counts.
+func (s *Server) Stats() Stats {
+	return Stats{
+		ReservedBytes:   s.adm.reserved.Load(),
+		WaitingRequests: s.adm.waiting.Load(),
+		OpenConns:       s.conns.open.Load(),
+		RejectedGlobal:  s.conns.rejectedGlobal.Load(),
+		RejectedPerIP:   s.conns.rejectedPerIP.Load(),
+	}
 }
 
 // Done is closed once Serve returned. Err then says why; nil after Stop.

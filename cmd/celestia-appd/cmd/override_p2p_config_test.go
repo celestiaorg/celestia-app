@@ -9,6 +9,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -36,7 +37,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -51,7 +52,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    250 * mebibyte,
 			expectedRecvRate:    250 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -59,13 +60,13 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
 		{
-			name: "Override TTLNumBlocks when less than 36",
+			name: "Override TTLNumBlocks when less than the minimum",
 			setupConfig: func(cfg *tmcfg.Config) {
 				cfg.Mempool.TTLNumBlocks = 12
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -87,13 +88,13 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			expectedMempoolType: tmcfg.MempoolTypeCAT,
 		},
 		{
-			name: "Preserve TTLNumBlocks when greater than 36",
+			name: "Preserve TTLNumBlocks when greater than the minimum",
 			setupConfig: func(cfg *tmcfg.Config) {
-				cfg.Mempool.TTLNumBlocks = 100
+				cfg.Mempool.TTLNumBlocks = 200
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   100,
+			expectedTTLBlocks:   200,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -107,7 +108,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -121,7 +122,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -135,7 +136,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 30 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -149,7 +150,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -163,7 +164,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -182,7 +183,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -196,7 +197,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -210,7 +211,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -224,7 +225,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  8388608,
@@ -238,7 +239,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 			},
 			expectedSendRate:    200 * mebibyte,
 			expectedRecvRate:    200 * mebibyte,
-			expectedTTLBlocks:   36,
+			expectedTTLBlocks:   appconsts.MempoolTTLNumBlocks,
 			expectedTTLDur:      0,
 			expectedGossipDelay: 20 * time.Second,
 			expectedMaxTxBytes:  10 * mebibyte,
@@ -359,7 +360,7 @@ func TestOverrideP2PConfig_ConfigPersistence(t *testing.T) {
 	// Verify in-memory config was modified
 	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
 	require.Equal(t, int64(200*mebibyte), modifiedCfg.P2P.SendRate)
-	require.Equal(t, int64(36), modifiedCfg.Mempool.TTLNumBlocks)
+	require.Equal(t, appconsts.MempoolTTLNumBlocks, modifiedCfg.Mempool.TTLNumBlocks)
 
 	// Read the config file again to verify it wasn't changed on disk
 	fileConfig, err := loadCometBFTConfig(configPath, tempDir)
