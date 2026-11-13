@@ -3,7 +3,6 @@ package frozen
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"cosmossdk.io/collections"
 	sdkmath "cosmossdk.io/math"
@@ -91,7 +90,7 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 			k.Account.SetAccount(ctx, authtypes.NewBaseAccount(a, acc.GetPubKey(), acc.GetAccountNumber(), acc.GetSequence()))
 		}
 	}
-	dels, err := k.Staking.GetDelegatorDelegations(ctx, a, math.MaxUint16)
+	dels, err := k.Staking.GetAllDelegatorDelegations(ctx, a)
 	if err != nil {
 		return m, err
 	}
@@ -127,7 +126,7 @@ func move(ctx sdk.Context, k Keepers, a, dest sdk.AccAddress, bondDenom string) 
 		}
 	}
 
-	ubds, err := k.Staking.GetUnbondingDelegations(ctx, a, math.MaxUint16)
+	ubds, err := k.Staking.GetAllUnbondingDelegations(ctx, a)
 	if err != nil {
 		return m, err
 	}
