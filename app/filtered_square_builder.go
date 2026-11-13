@@ -119,6 +119,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
+		// Proposal policy only, mirroring CheckTx.
+		if err := validateSDKMessageGas(sdkTx, execMsgCount); err != nil {
+			logger.Debug("skipping tx whose gas limit does not cover its SDK messages", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
 
 		if !fsb.builder.AppendTx(tx) {
 			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
