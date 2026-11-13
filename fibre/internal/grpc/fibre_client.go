@@ -18,6 +18,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// clientIdleTimeout is how long a client connection may have no RPCs before
+// gRPC closes it. A var so tests can shorten it.
+var clientIdleTimeout = 20 * time.Second
+
 // Client combines [FibreClient] with [io.Closer] to manage the lifecycle
 // of both the client and its underlying connection.
 type Client interface {
@@ -155,7 +159,7 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 		opts := make([]grpclib.DialOption, 0, 5+len(transportOpts))
 		opts = append(opts,
 			grpclib.WithLocalDNSResolution(),
-			grpclib.WithIdleTimeout(20*time.Second),
+			grpclib.WithIdleTimeout(clientIdleTimeout),
 			grpclib.WithWriteBufferSize(writeBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
