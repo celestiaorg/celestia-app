@@ -27,6 +27,7 @@ jobs:
           bash scripts/hardfork/recovery_test.sh
           bash scripts/e2e_dockerfile_test.sh
           bash scripts/check_test_results_test.sh
+          bash scripts/check_build_info_test.sh
         timeout-minutes: 10
 
   test-e2e-compile:
