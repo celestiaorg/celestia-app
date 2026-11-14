@@ -74,57 +74,80 @@ type pfmMemoFrame struct {
 func pfmMemoWithinLimits(bz []byte, forwardMemo bool) bool {
 	dec := json.NewDecoder(bytes.NewReader(bz))
 	dec.UseNumber()
-	var stack []pfmMemoFrame
+	w := pfmMemoWalker{forwardMemo: forwardMemo}
 	for {
 		tok, err := dec.Token()
 		if errors.Is(err, io.EOF) {
 			return true
 		}
-		if err != nil {
+		if err != nil || !w.next(tok) {
 			return false
 		}
-		var top *pfmMemoFrame
-		if n := len(stack); n > 0 {
-			top = &stack[n-1]
-		}
-		if key, ok := tok.(string); ok && top != nil && top.object && top.expectKey {
-			if top.fold {
-				key = foldJSONKey(key)
-			}
-			if _, repeated := top.keys[key]; repeated {
-				return false
-			}
-			top.keys[key] = struct{}{}
-			top.key = key
-			top.expectKey = false
-			continue
-		}
-		if delim, ok := tok.(json.Delim); ok && (delim == '}' || delim == ']') {
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		// tok starts a value. In an object, a key follows the value.
-		if top != nil && top.object {
-			top.expectKey = true
-		}
-		switch t := tok.(type) {
-		case json.Delim:
-			if len(stack) == maxPFMForwardMemoDepth {
-				return false
-			}
-			f := pfmMemoFrame{object: t == '{', expectKey: true}
-			if f.object {
-				f.keys = make(map[string]struct{})
-				f.forward = forwardMemo && len(stack) == 1 && top.key == "FORWARD"
-				f.fold = forwardMemo && (len(stack) == 0 || f.forward)
-			}
-			stack = append(stack, f)
-		case string:
-			if top != nil && top.forward && top.key == "NEXT" && !pfmStringNextWithinLimits(t) {
-				return false
-			}
-		}
 	}
+}
+
+// pfmMemoWalker holds the objects and arrays that pfmMemoWithinLimits is
+// inside.
+type pfmMemoWalker struct {
+	forwardMemo bool
+	stack       []pfmMemoFrame
+}
+
+// next takes the next token and reports whether the memo is still within
+// limits.
+func (w *pfmMemoWalker) next(tok json.Token) bool {
+	var top *pfmMemoFrame
+	if n := len(w.stack); n > 0 {
+		top = &w.stack[n-1]
+	}
+	if key, ok := tok.(string); ok && top != nil && top.object && top.expectKey {
+		return top.addKey(key)
+	}
+	if delim, ok := tok.(json.Delim); ok && (delim == '}' || delim == ']') {
+		w.stack = w.stack[:len(w.stack)-1]
+		return true
+	}
+	// tok starts a value. In an object, a key follows the value.
+	if top != nil && top.object {
+		top.expectKey = true
+	}
+	switch t := tok.(type) {
+	case json.Delim:
+		return w.open(t == '{', top)
+	case string:
+		return top == nil || !top.forward || top.key != "NEXT" || pfmStringNextWithinLimits(t)
+	}
+	return true
+}
+
+// open enters an object or an array whose parent is top, and reports
+// whether the depth is within the limit.
+func (w *pfmMemoWalker) open(object bool, top *pfmMemoFrame) bool {
+	if len(w.stack) == maxPFMForwardMemoDepth {
+		return false
+	}
+	f := pfmMemoFrame{object: object, expectKey: true}
+	if object {
+		f.keys = make(map[string]struct{})
+		f.forward = w.forwardMemo && len(w.stack) == 1 && top.key == "FORWARD"
+		f.fold = w.forwardMemo && (len(w.stack) == 0 || f.forward)
+	}
+	w.stack = append(w.stack, f)
+	return true
+}
+
+// addKey records key in the object f and reports whether it is new.
+func (f *pfmMemoFrame) addKey(key string) bool {
+	if f.fold {
+		key = foldJSONKey(key)
+	}
+	if _, repeated := f.keys[key]; repeated {
+		return false
+	}
+	f.keys[key] = struct{}{}
+	f.key = key
+	f.expectKey = false
+	return true
 }
 
 // pfmStringNextWithinLimits reports whether the memo s held by a string
