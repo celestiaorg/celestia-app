@@ -31,4 +31,10 @@ var (
 	// ErrNonCanonicalBlobTx is returned when a blob tx is not canonically
 	// encoded (e.g. unknown or repeated protobuf fields used as padding).
 	ErrNonCanonicalBlobTx = errors.Register(AppErrorsCodespace, 11147, "blob tx is not canonically encoded")
+
+	// ErrPacketForward is the error that every packet-forward-middleware
+	// error acknowledgement carries. Its ABCI code is the only error
+	// information committed in the acknowledgement. It uses the same code as
+	// on main; 11148-11150 are taken on main and stay unused here.
+	ErrPacketForward = errors.Register(AppErrorsCodespace, 11151, "packet forward middleware error")
 )
