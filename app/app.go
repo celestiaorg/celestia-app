@@ -395,7 +395,7 @@ func New(
 	transferStack = pfmIBCMiddleware{packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-	)}
+	), app.PacketForwardKeeper}
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
