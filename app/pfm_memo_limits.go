@@ -1,8 +1,8 @@
 package app
 
 import (
-	"bytes"
 	"encoding/json"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -22,8 +22,10 @@ const maxPFMForwardMemoDepth = 16
 // deeply nested, has no repeated key, and has a forward.next of an accepted
 // form. These limits make the work of packet-forward-middleware for the
 // memo, and for each retry, linear in its length.
+//
+// memo must be valid JSON; validateForwardMemo checks that first.
 func pfmForwardMemoWithinLimits(memo string) bool {
-	return len(memo) <= maxPFMForwardMemoLength && pfmMemoWithinLimits([]byte(memo), true)
+	return len(memo) <= maxPFMForwardMemoLength && pfmWalkMemo(memo, true)
 }
 
 // pfmMemoFrame is an object or array that pfmMemoWithinLimits is inside.
@@ -45,19 +47,22 @@ type pfmMemoFrame struct {
 // pfmMemoWithinLimits reports whether the JSON value bz nests at most
 // maxPFMForwardMemoDepth levels and repeats no object key. For a forward
 // memo, the keys that encoding/json matches to struct fields compare without
-// case, and forward.next must be an accepted form.
+// case, and forward.next must be an accepted form. bz that is not one valid
+// JSON value is outside the limits.
+func pfmMemoWithinLimits(bz []byte, forwardMemo bool) bool {
+	return json.Valid(bz) && pfmWalkMemo(string(bz), forwardMemo)
+}
+
+// pfmWalkMemo is pfmMemoWithinLimits for s that is known to be valid JSON.
 //
 // main reads the tokens with json.Decoder.Token. This filter reads the same
-// tokens with pfmNextToken, which is several times faster, so that its cost
-// stays a small multiple of decoding the packet data. bz must be one valid
-// JSON value; anything else is outside the limits.
-func pfmMemoWithinLimits(bz []byte, forwardMemo bool) bool {
-	if !json.Valid(bz) {
-		return false
-	}
+// tokens with pfmNextToken, which is several times faster: it does not
+// allocate for a token, and it returns strings as substrings of s. This
+// keeps the filter cost a small multiple of decoding the packet data.
+func pfmWalkMemo(s string, forwardMemo bool) bool {
 	w := pfmMemoWalker{forwardMemo: forwardMemo}
 	for i := 0; ; {
-		tok, end, ok := pfmNextToken(bz, i)
+		tok, end, ok := pfmNextToken(s, i)
 		if !ok {
 			return true
 		}
@@ -68,42 +73,73 @@ func pfmMemoWithinLimits(bz []byte, forwardMemo bool) bool {
 	}
 }
 
-// pfmNextToken returns the token that starts at or after bz[i] in the valid
-// JSON text bz, as json.Decoder.Token with UseNumber returns it, and the
-// index after it. ok is false at the end of bz.
-func pfmNextToken(bz []byte, i int) (tok json.Token, end int, ok bool) {
-	for i < len(bz) && (bz[i] == ' ' || bz[i] == '\t' || bz[i] == '\r' || bz[i] == '\n' || bz[i] == ',' || bz[i] == ':') {
+// pfmToken is a JSON token, as json.Decoder.Token returns it.
+type pfmToken struct {
+	// kind is the delimiter for '{', '}', '[' and ']', '"' for a string,
+	// 'n' for null, and 'v' for a number, true or false.
+	kind byte
+	// text is the decoded content of a string, or the text of a number,
+	// true or false.
+	text string
+}
+
+// pfmNextToken returns the token that starts at or after s[i] in the valid
+// JSON text s, and the index after it. ok is false at the end of s. It does
+// not panic on other input.
+func pfmNextToken(s string, i int) (tok pfmToken, end int, ok bool) {
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n' || s[i] == ',' || s[i] == ':') {
 		i++
 	}
-	if i >= len(bz) {
-		return nil, i, false
+	if i >= len(s) {
+		return pfmToken{}, i, false
 	}
-	switch c := bz[i]; c {
+	switch c := s[i]; c {
 	case '{', '}', '[', ']':
-		return json.Delim(c), i + 1, true
+		return pfmToken{kind: c}, i + 1, true
 	case '"':
-		end = skipString(bz, i)
-		raw := bz[i+1 : end-1]
-		if bytes.IndexByte(raw, '\\') < 0 && utf8.Valid(raw) {
-			return string(raw), end, true
+		end = skipJSONString(s, i)
+		raw := s[i+1 : max(end-1, i+1)]
+		if strings.IndexByte(raw, '\\') < 0 && utf8.ValidString(raw) {
+			return pfmToken{kind: '"', text: raw}, end, true
 		}
-		// Decode escapes, and replace invalid UTF-8 as encoding/json does.
-		var s string
-		_ = json.Unmarshal(bz[i:end], &s)
-		return s, end, true
-	case 't':
-		return true, i + 4, true
-	case 'f':
-		return false, i + 5, true
+		return pfmToken{kind: '"', text: unquoteJSONString(raw)}, end, true
 	case 'n':
-		return nil, i + 4, true
+		return pfmToken{kind: 'n'}, i + 4, true
 	}
-	// A number.
+	// A number, true or false.
 	end = i + 1
-	for end < len(bz) && (bz[end] >= '0' && bz[end] <= '9' || bz[end] == '.' || bz[end] == 'e' || bz[end] == 'E' || bz[end] == '+' || bz[end] == '-') {
+	for end < len(s) && strings.IndexByte(" \t\r\n,:]}", s[end]) < 0 {
 		end++
 	}
-	return json.Number(bz[i:end]), end, true
+	return pfmToken{kind: 'v', text: s[i:end]}, end, true
+}
+
+// unquoteJSONString decodes the raw content of a valid JSON string as
+// encoding/json does: it decodes escapes, and replaces invalid UTF-8 and
+// lone surrogate escapes with U+FFFD.
+func unquoteJSONString(raw string) string {
+	var sb strings.Builder
+	sb.Grow(len(raw))
+	bz := []byte(raw)
+	for i := 0; i < len(bz); {
+		r, n := decodeStringRune(bz, i)
+		sb.WriteRune(r)
+		i += n
+	}
+	return sb.String()
+}
+
+// skipJSONString returns the index after the JSON string that starts at s[i].
+func skipJSONString(s string, i int) int {
+	for i++; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '"':
+			return i + 1
+		}
+	}
+	return len(s)
 }
 
 // pfmMemoWalker holds the objects and arrays that pfmMemoWithinLimits is
@@ -115,15 +151,15 @@ type pfmMemoWalker struct {
 
 // next takes the next token and reports whether the memo is still within
 // limits.
-func (w *pfmMemoWalker) next(tok json.Token) bool {
+func (w *pfmMemoWalker) next(tok pfmToken) bool {
 	var top *pfmMemoFrame
 	if n := len(w.stack); n > 0 {
 		top = &w.stack[n-1]
 	}
-	if key, ok := tok.(string); ok && top != nil && top.object && top.expectKey {
-		return top.addKey(key)
+	if tok.kind == '"' && top != nil && top.object && top.expectKey {
+		return top.addKey(tok.text)
 	}
-	if delim, ok := tok.(json.Delim); ok && (delim == '}' || delim == ']') {
+	if tok.kind == '}' || tok.kind == ']' {
 		w.stack = w.stack[:len(w.stack)-1]
 		return true
 	}
@@ -134,8 +170,8 @@ func (w *pfmMemoWalker) next(tok json.Token) bool {
 	if top != nil && top.forward && top.key == "NEXT" && !pfmForwardNextWithinLimits(tok) {
 		return false
 	}
-	if delim, ok := tok.(json.Delim); ok {
-		return w.open(delim == '{', top)
+	if tok.kind == '{' || tok.kind == '[' {
+		return w.open(tok.kind == '{', top)
 	}
 	return true
 }
@@ -143,14 +179,12 @@ func (w *pfmMemoWalker) next(tok json.Token) bool {
 // pfmForwardNextWithinLimits reports whether tok, the first token of
 // forward.next, starts an accepted form: null, an object, or a string
 // (pfmStringNextWithinLimits).
-func pfmForwardNextWithinLimits(tok json.Token) bool {
-	switch t := tok.(type) {
-	case nil:
+func pfmForwardNextWithinLimits(tok pfmToken) bool {
+	switch tok.kind {
+	case 'n', '{':
 		return true
-	case json.Delim:
-		return t == '{'
-	case string:
-		return pfmStringNextWithinLimits(t)
+	case '"':
+		return pfmStringNextWithinLimits(tok.text)
 	default:
 		return false
 	}
@@ -204,8 +238,7 @@ func pfmStringNextWithinLimits(s string) bool {
 // pfmNextMemoWithinLimits reports whether memo, valid JSON, is an object
 // within the depth and repeated-key limits.
 func pfmNextMemoWithinLimits(memo string) bool {
-	bz := []byte(memo)
-	return bytes.TrimLeft(bz, " \t\r\n")[0] == '{' && pfmMemoWithinLimits(bz, false)
+	return strings.TrimLeft(memo, " \t\r\n")[0] == '{' && pfmWalkMemo(memo, false)
 }
 
 // foldJSONKey folds key the way encoding/json does to match an object key

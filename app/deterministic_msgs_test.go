@@ -636,7 +636,8 @@ func TestPFMForwardMemoDepthLimitIs16(t *testing.T) {
 }
 
 // TestPFMNextTokenMatchesDecoder checks that pfmNextToken returns the same
-// tokens as json.Decoder.Token, which the limit check on main uses.
+// tokens as json.Decoder.Token with UseNumber, which the limit check on main
+// uses.
 func TestPFMNextTokenMatchesDecoder(t *testing.T) {
 	for _, s := range []string{
 		`{}`, `[]`, `null`, `true`, `-1.5e+10`, `"x"`,
@@ -644,6 +645,8 @@ func TestPFMNextTokenMatchesDecoder(t *testing.T) {
 		`{"forward":{"receiver":"r","next":"{\"a\":\"\\u00e9\"}","Next":null}}`,
 		`{"\u0061":"\ud83d\ude00","\ud800":"\/\b\f\n\r\t","é":"ſ"}`,
 		"{\"\xff\":\"\xfe\",\"a\xffb\":1}",
+		`{"\ud800\u0041":"\udc00\ud800\udc00\"\\","\u00e9\u0301":"a\u0000b"}`,
+		"{\"\xed\xa0\x80\\n\":\"\xc3\\t\xa9\xf0\x9f\x98\"}",
 		pfmRepeatedNextMemo(),
 	} {
 		require.True(t, json.Valid([]byte(s)), s)
@@ -659,11 +662,27 @@ func TestPFMNextTokenMatchesDecoder(t *testing.T) {
 		}
 		var got []json.Token
 		for i := 0; ; {
-			tok, end, ok := pfmNextToken([]byte(s), i)
+			tok, end, ok := pfmNextToken(s, i)
 			if !ok {
 				break
 			}
-			got = append(got, tok)
+			switch tok.kind {
+			case '{', '}', '[', ']':
+				got = append(got, json.Delim(tok.kind))
+			case '"':
+				got = append(got, tok.text)
+			case 'n':
+				got = append(got, nil)
+			case 'v':
+				switch tok.text {
+				case "true":
+					got = append(got, true)
+				case "false":
+					got = append(got, false)
+				default:
+					got = append(got, json.Number(tok.text))
+				}
+			}
 			i = end
 		}
 		require.Equal(t, want, got, s)
