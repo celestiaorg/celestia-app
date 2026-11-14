@@ -10,6 +10,7 @@ import (
 	pfmtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -94,6 +95,51 @@ func TestPFMForwardTimeout(t *testing.T) {
 			var inFlight pfmtypes.InFlightPacket
 			require.NoError(t, celestiaApp.AppCodec().Unmarshal(bz, &inFlight))
 			require.Equal(t, tc.wantTimeout, inFlight.Timeout)
+		})
+	}
+}
+
+// TestPFMForwardMemoWithoutMetadata checks memos with a "forward" key whose
+// forward metadata decodes to nil. Such a memo must get the fixed
+// packet-forward-middleware error acknowledgement, so the receive succeeds.
+// A memo that packet-forward-middleware treats as a plain transfer must still
+// be received as one.
+func TestPFMForwardMemoWithoutMetadata(t *testing.T) {
+	const fixedErrorAck = `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
+	successAck := string(channeltypes.NewResultAcknowledgement([]byte{byte(1)}).Acknowledgement())
+
+	coordinator, celestia, chainA, chainB := SetupTest(t)
+	pathA := ibctesting.NewTransferPath(chainA, celestia)
+	pathB := ibctesting.NewTransferPath(celestia, chainB)
+	coordinator.Setup(pathA)
+	coordinator.Setup(pathB)
+	forward := fmt.Sprintf(`{"receiver":%q,"port":"transfer","channel":%q}`,
+		chainB.SenderAccount.GetAddress().String(), pathB.EndpointA.ChannelID)
+
+	testCases := []struct {
+		name    string
+		memo    string
+		wantAck string
+	}{
+		{"Forward null after forward", `{"forward":` + forward + `,"Forward":null}`, fixedErrorAck},
+		{"FORWARD null after forward", `{"forward":` + forward + `,"FORWARD":null}`, fixedErrorAck},
+		{"Forward object then forward null", `{"Forward":` + forward + `,"forward":null}`, successAck},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			msg := transfertypes.NewMsgTransfer(pathA.EndpointA.ChannelConfig.PortID, pathA.EndpointA.ChannelID,
+				sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000)), chainA.SenderAccount.GetAddress().String(),
+				celestia.SenderAccount.GetAddress().String(), clienttypes.NewHeight(1, 100000), 0, tc.memo)
+			res, err := chainA.SendMsgs(msg)
+			require.NoError(t, err)
+			packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
+			require.NoError(t, err)
+			require.NoError(t, pathA.EndpointB.UpdateClient())
+			recvRes, err := pathA.EndpointB.RecvPacketWithResult(packet)
+			require.NoError(t, err, "the receive must succeed")
+			ack, err := ibctesting.ParseAckFromEvents(recvRes.GetEvents())
+			require.NoError(t, err)
+			require.Equal(t, tc.wantAck, string(ack))
 		})
 	}
 }

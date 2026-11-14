@@ -21,7 +21,11 @@ func transferPacketData(t *testing.T, memo string) []byte {
 	return data
 }
 
-func TestHasOutOfRangePFMTimeout(t *testing.T) {
+// TestRejectPFMForwardMemo checks which forward memos the wrapper rejects
+// before packet-forward-middleware runs: a numeric timeout outside the int64
+// range, and a memo that has a "forward" key but decodes to no forward
+// metadata.
+func TestRejectPFMForwardMemo(t *testing.T) {
 	testCases := []struct {
 		name string
 		memo string
@@ -74,28 +78,45 @@ func TestHasOutOfRangePFMTimeout(t *testing.T) {
 		{"duplicate timeout, last null", `{"forward":{"timeout":1e19,"timeout":null}}`, false},
 		{"duplicate timeout, last string", `{"forward":{"timeout":1e19,"timeout":"10m"}}`, false},
 		{"out of range with another invalid field", `{"forward":{"timeout":1e19,"retries":300}}`, true},
+		// A memo with a non-null "forward" key is a forward memo. If the
+		// forward metadata decodes to nil, the memo is rejected.
+		{"Forward null after forward", `{"forward":{"receiver":"r"},"Forward":null}`, true},
+		{"FORWARD null after forward", `{"forward":{"receiver":"r"},"FORWARD":null}`, true},
+		{"escaped Forward null after forward", `{"forward":{"receiver":"r"},"Forw\u0061rd":null}`, true},
+		{"Forward null after empty forward", `{"forward":{},"Forward":null}`, true},
+		{"Forward null before forward", `{"Forward":null,"forward":{"receiver":"r"}}`, false},
+		{"forward object then forward null", `{"forward":{"receiver":"r"},"forward":null}`, false},
+		{"escaped forward null after forward", `{"forward":{"receiver":"r"},"forw\u0061rd":null}`, false},
+		{"Forward object then forward null", `{"Forward":{"receiver":"r"},"forward":null}`, false},
+		{"Forward null then invalid Forward", `{"forward":{"receiver":"r"},"Forward":null,"Forward":5}`, false},
+		{"Forward null then Forward object", `{"forward":{"receiver":"r"},"Forward":null,"Forward":{"receiver":"r"}}`, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, hasOutOfRangePFMTimeout(transferPacketData(t, tc.memo)))
+			require.Equal(t, tc.want, rejectPFMForwardMemo(transferPacketData(t, tc.memo)))
 		})
 	}
 
 	t.Run("not transfer packet data", func(t *testing.T) {
 		for _, data := range [][]byte{nil, {}, []byte("not json"), []byte(`{"forward":{"timeout":1e19}}`), {0xff, 0x00}} {
-			require.False(t, hasOutOfRangePFMTimeout(data))
+			require.False(t, rejectPFMForwardMemo(data))
 		}
 	})
 }
 
-// TestPFMIBCMiddlewareRejectsOutOfRangeTimeout checks that the wrapper answers
+// TestPFMIBCMiddlewareRejectsForwardMemo checks that the wrapper answers
 // before packet-forward-middleware runs. The wrapped middleware is a zero
 // value, so calling it would panic.
-func TestPFMIBCMiddlewareRejectsOutOfRangeTimeout(t *testing.T) {
-	ctx := sdk.NewContext(nil, cmtproto.Header{}, false, log.NewNopLogger())
-	packet := channeltypes.Packet{Data: transferPacketData(t, `{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","timeout":1e19}}`)}
-	ack := pfmIBCMiddleware{}.OnRecvPacket(ctx, packet, nil)
-	require.False(t, ack.Success())
-	require.Equal(t, `{"error":"ABCI code: 11151: error handling packet: see events for details"}`, string(ack.Acknowledgement()))
-	require.Empty(t, ctx.EventManager().Events())
+func TestPFMIBCMiddlewareRejectsForwardMemo(t *testing.T) {
+	for _, memo := range []string{
+		`{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","timeout":1e19}}`,
+		`{"forward":{"receiver":"r","port":"transfer","channel":"channel-0"},"Forward":null}`,
+	} {
+		ctx := sdk.NewContext(nil, cmtproto.Header{}, false, log.NewNopLogger())
+		packet := channeltypes.Packet{Data: transferPacketData(t, memo)}
+		ack := pfmIBCMiddleware{}.OnRecvPacket(ctx, packet, nil)
+		require.False(t, ack.Success())
+		require.Equal(t, `{"error":"ABCI code: 11151: error handling packet: see events for details"}`, string(ack.Acknowledgement()))
+		require.Empty(t, ctx.EventManager().Events())
+	}
 }

@@ -12,12 +12,19 @@ import (
 // depends on the CPU architecture.
 const pfmTimeoutLimit = float64(1 << 63)
 
-// hasOutOfRangePFMTimeout reports whether packet-forward-middleware would
-// read the forward timeout of this packet from a JSON number outside the
-// int64 range. It decodes the packet the way packet-forward-middleware does:
-// ICS-20 packet data, a memo with a "forward" key, then the memo into a
-// struct whose "forward.timeout" field matches the same JSON keys.
-func hasOutOfRangePFMTimeout(packetData []byte) bool {
+// rejectPFMForwardMemo reports whether the wrapper must reject this packet
+// before packet-forward-middleware runs. It decodes the packet the way
+// packet-forward-middleware does: ICS-20 packet data, a memo with a
+// non-null "forward" key, then the memo into a struct whose "forward" and
+// "forward.timeout" fields match the same JSON keys. It rejects a forward
+// memo when:
+//   - the forward metadata decodes to nil, which packet-forward-middleware
+//     does not handle, or
+//   - the forward timeout is a JSON number outside the int64 range.
+//
+// A memo that packet-forward-middleware treats as a plain transfer, or
+// fails to decode, is not rejected here.
+func rejectPFMForwardMemo(packetData []byte) bool {
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packetData, &data); err != nil {
 		return false
@@ -33,8 +40,13 @@ func hasOutOfRangePFMTimeout(packetData []byte) bool {
 	}
 	// Any error here also makes packet-forward-middleware fail to parse the
 	// memo, so it returns an error acknowledgement anyway.
-	if err := json.Unmarshal([]byte(data.Memo), &memo); err != nil || memo.Forward == nil {
+	if err := json.Unmarshal([]byte(data.Memo), &memo); err != nil {
 		return false
+	}
+	if memo.Forward == nil {
+		// A later key that matches "forward" without case, set to null,
+		// leaves no forward metadata.
+		return true
 	}
 	return memo.Forward.Timeout.outOfRange
 }
