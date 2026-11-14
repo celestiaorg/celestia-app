@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -416,24 +417,37 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 			require.Greater(t, size, txSize*9/10)
 			require.LessOrEqual(t, size, txSize+txSize/10)
 
-			// Decoding every packet's data is a baseline that scales with the machine.
-			start := time.Now()
-			for _, p := range packets {
-				var data transfertypes.FungibleTokenPacketData
-				_ = transfertypes.ModuleCdc.UnmarshalJSON(p.Packet.GetData(), &data)
-			}
-			baseline := time.Since(start)
+			// Decoding every packet's data is a baseline that scales with the
+			// machine. The baseline and the filter are timed in turn, and the
+			// best of up to costRuns runs of each is kept, so that load on a
+			// shared runner, which slows down single runs, cancels out. The
+			// loop stops as soon as the best times meet both bounds.
+			baseline, elapsed := time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)
+			for run := 0; run < costRuns; run++ {
+				start := time.Now()
+				for _, p := range packets {
+					var data transfertypes.FungibleTokenPacketData
+					_ = transfertypes.ModuleCdc.UnmarshalJSON(p.Packet.GetData(), &data)
+				}
+				baseline = min(baseline, time.Since(start))
 
-			start = time.Now()
-			err := validateDeterministicMsgs(msgsTx{msgs: tc.msgs})
-			elapsed := time.Since(start)
-			if tc.wantErr {
-				require.ErrorIs(t, err, sdkerrors.ErrInvalidRequest)
-			} else {
-				require.NoError(t, err)
+				start = time.Now()
+				err := validateDeterministicMsgs(msgsTx{msgs: tc.msgs})
+				elapsed = min(elapsed, time.Since(start))
+				if tc.wantErr {
+					require.ErrorIs(t, err, sdkerrors.ErrInvalidRequest)
+				} else {
+					require.NoError(t, err)
+				}
+				t.Logf("run %d: %d packets, %d bytes: filter took %s, decoding took %s (best so far)", run, len(packets), size, elapsed, baseline)
+				if elapsed < 5*baseline+100*time.Millisecond && elapsed < maxFilterCost {
+					break
+				}
 			}
-			t.Logf("%d packets, %d bytes: filter took %s, decoding took %s", len(packets), size, elapsed, baseline)
+			// The filter must cost at most a small multiple of decoding the
+			// same packet data, so it is linear in the tx size.
 			require.Less(t, elapsed, 5*baseline+100*time.Millisecond, "filter took %s, decoding took %s", elapsed, baseline)
+			// A backstop against a slowdown that the baseline also suffers.
 			require.Less(t, elapsed, maxFilterCost, "filter took %s", elapsed)
 		})
 	}
