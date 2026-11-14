@@ -95,7 +95,7 @@ func (app App) RegisterUpgradeHandlers() {
 }
 
 // rescaleForBlockInterval sets the parameters whose meaning depends on the
-// block time to their values for v11's 0.8s blocks.
+// block time to their values for v12's 0.8s blocks.
 func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 	consensusParams, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
 	if err != nil {

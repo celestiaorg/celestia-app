@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 11
+	Version uint64 = 12
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -32,7 +32,7 @@ const (
 	GasPerBlobByte       uint32 = 8
 	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
-	// 3-5x the expected block time. From v11 the dynamic timeout commit floors
+	// 3-5x the expected block time. From v12 the dynamic timeout commit floors
 	// the block interval at 800ms, so this value is 4 seconds (5x).
 	MaxExpectedTimePerBlock = 4 * time.Second
 

@@ -63,15 +63,15 @@ const (
 	EvidenceMaxAgeV8Blocks  = 242640
 	EvidenceMaxAgeV9Blocks  = 559940
 	EvidenceMaxAgeV10Blocks = 404400
-	EvidenceMaxAgeV11Blocks = 1011000
+	EvidenceMaxAgeV12Blocks = 1011000
 
-	// IBC MaxExpectedTimePerBlock for v11: 5x the 0.8s block (in nanoseconds)
-	MaxExpectedTimePerBlockV11Ns = uint64(4 * time.Second)
+	// IBC MaxExpectedTimePerBlock for v12: 5x the 0.8s block (in nanoseconds)
+	MaxExpectedTimePerBlockV12Ns = uint64(4 * time.Second)
 
-	// Block counts the v11 upgrade rescales x3.25 for 0.8s blocks.
-	SignedBlocksWindowV11         = int64(32_500)
-	HistoricalEntriesV11          = uint32(32_500)
-	PaymentPromiseHeightWindowV11 = uint64(3_250)
+	// Block counts the v12 upgrade rescales x3.25 for 0.8s blocks.
+	SignedBlocksWindowV12         = int64(32_500)
+	HistoricalEntriesV12          = uint32(32_500)
+	PaymentPromiseHeightWindowV12 = uint64(3_250)
 
 	// Block params for v9
 	MaxBytesV9 = 32 * 1024 * 1024 // 32 MiB
@@ -124,9 +124,12 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			baseAppVersion:   9,
 			targetAppVersion: 10,
 		},
+		// The v11.x branch defines the 10 -> 11 upgrade and this image has no
+		// v11 binary to embed yet, so jump from v10 straight to v12. Replace
+		// with 10 -> 11 and 11 -> 12 once a v11 release is embedded.
 		{
 			baseAppVersion:   10,
-			targetAppVersion: 11,
+			targetAppVersion: 12,
 		},
 	}
 
@@ -535,20 +538,20 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
-	// v11 consensus timeouts: 800ms dynamic timeout commit paces blocks.
+	// v12 consensus timeouts: 800ms dynamic timeout commit paces blocks.
 	s.validateTimeoutInfo(ctx, node, cfg)
 	s.validatePacing(ctx, node, upgradeHeight)
-	// Block-count parameters rescaled x3.25 by the v11 upgrade handler.
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV11Blocks, appVersion)
+	// Block-count parameters rescaled x3.25 by the v12 upgrade handler.
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV12Blocks, appVersion)
 	s.validateBlockCountParams(ctx, node)
-	// IBC MaxExpectedTimePerBlock lowered to 4s by the v11 upgrade handler.
+	// IBC MaxExpectedTimePerBlock lowered to 4s by the v12 upgrade handler.
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB
 	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the v11 values, or the start-flag overrides the test chain
+// parameters match the v12 values, or the start-flag overrides the test chain
 // runs with.
 func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, cfg *dockerchain.Config) {
 	rpcClient, err := node.GetRPCClient()
@@ -581,7 +584,7 @@ type pacingSample struct {
 
 // validatePacing polls core's round state for 10 heights from upgradeHeight+3 and
 // checks that the dynamic timeout commit spaces height starts.
-// ABCIInfo alone can't show what core uses; v11 timeouts apply from H+2.
+// ABCIInfo alone can't show what core uses; v12 timeouts apply from H+2.
 func (s *CelestiaTestSuite) validatePacing(ctx context.Context, node tastoratypes.ChainNode, upgradeHeight int64) {
 	const heights = 10
 	rpcClient, err := node.GetRPCClient()
@@ -658,7 +661,7 @@ func checkPacing(samples map[int64]pacingSample, timeoutCommit time.Duration) er
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and
-// validates that the v11 upgrade set MaxExpectedTimePerBlock to 4s.
+// validates that the v12 upgrade set MaxExpectedTimePerBlock to 4s.
 func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
 	client, err := getIBCConnectionQueryClient(node)
 	s.Require().NoError(err)
@@ -666,27 +669,27 @@ func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context,
 	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
 	s.Require().NoError(err, "failed to query IBC connection params")
 
-	s.Require().Equal(MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock,
-		"v11 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock)
+	s.Require().Equal(MaxExpectedTimePerBlockV12Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v12 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV12Ns, resp.Params.MaxExpectedTimePerBlock)
 }
 
 // validateBlockCountParams validates the slashing, staking and fibre block
-// counts the v11 upgrade rescales.
+// counts the v12 upgrade rescales.
 func (s *CelestiaTestSuite) validateBlockCountParams(ctx context.Context, node tastoratypes.ChainNode) {
 	dcNode, ok := node.(*tastoradockertypes.ChainNode)
 	s.Require().True(ok && dcNode.GrpcConn != nil, "node should be a docker chain node with a gRPC connection")
 
 	slashing, err := slashingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &slashingtypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query slashing params")
-	s.Require().Equal(SignedBlocksWindowV11, slashing.Params.SignedBlocksWindow, "SignedBlocksWindow mismatch")
+	s.Require().Equal(SignedBlocksWindowV12, slashing.Params.SignedBlocksWindow, "SignedBlocksWindow mismatch")
 
 	staking, err := stakingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &stakingtypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query staking params")
-	s.Require().Equal(HistoricalEntriesV11, staking.Params.HistoricalEntries, "HistoricalEntries mismatch")
+	s.Require().Equal(HistoricalEntriesV12, staking.Params.HistoricalEntries, "HistoricalEntries mismatch")
 
 	fibre, err := fibretypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &fibretypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query fibre params")
-	s.Require().Equal(PaymentPromiseHeightWindowV11, fibre.Params.PaymentPromiseHeightWindow, "PaymentPromiseHeightWindow mismatch")
+	s.Require().Equal(PaymentPromiseHeightWindowV12, fibre.Params.PaymentPromiseHeightWindow, "PaymentPromiseHeightWindow mismatch")
 }
 
 // validateBlockParams queries consensus params and validates max_bytes.

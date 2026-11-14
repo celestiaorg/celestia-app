@@ -104,7 +104,7 @@ func (c *Config) WithDelayedPrecommitTimeout(d time.Duration) *Config {
 }
 
 // WithDynamicTimeoutCommit sets the DynamicTimeoutCommit, the floor on the
-// block interval from app version 11, in the app options and returns the Config.
+// block interval from app version 12, in the app options and returns the Config.
 func (c *Config) WithDynamicTimeoutCommit(d time.Duration) *Config {
 	c.AppOptions.Set(DynamicTimeoutCommitFlag, d)
 	return c
@@ -163,7 +163,7 @@ func DefaultConfig() *Config {
 		WithSuppressLogs(true).
 		WithDelayedPrecommitTimeout(200 * time.Millisecond).
 		WithTimeoutCommit(time.Millisecond).
-		// 1ns, not 0 (unset), so the v11 800ms floor doesn't slow tests down.
+		// 1ns, not 0 (unset), so the v12 800ms floor doesn't slow tests down.
 		WithDynamicTimeoutCommit(time.Nanosecond)
 }
 
