@@ -11,6 +11,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         with:
           go-version-file: "go.mod"
+      - name: Test the build info check
+        run: bash scripts/check_build_info_test.sh
       - name: build
         run: make build
 
