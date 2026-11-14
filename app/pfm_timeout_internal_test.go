@@ -412,3 +412,13 @@ func TestPFMRetryMemoWithinLimits(t *testing.T) {
 		})
 	}
 }
+
+// TestPFMForwardMemoDepthLimitIs16 checks the depth limit at 16 levels and
+// one past it, for a forward memo, a string next and a retried memo.
+func TestPFMForwardMemoDepthLimitIs16(t *testing.T) {
+	for depth, want := range map[int]bool{16: false, 17: true} {
+		require.Equal(t, want, rejectPFMForwardMemo(transferPacketData(t, pfmForwardMemo(depth, 0))), "forward memo depth %d", depth)
+		require.Equal(t, want, rejectPFMForwardMemo(transferPacketData(t, pfmForwardMemoWithNext(jsonString(nestedJSON(depth)), 0))), "string next depth %d", depth)
+		require.Equal(t, !want, pfmRetryMemoWithinLimits(nestedJSON(depth)), "retry memo depth %d", depth)
+	}
+}
