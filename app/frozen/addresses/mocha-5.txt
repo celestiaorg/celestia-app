@@ -1,0 +1,5 @@
+# mocha-5 test accounts for the frozen-account rules; their keys are test keys.
+# One bech32 account address per line; blank lines and lines starting with # are ignored.
+celestia1kuzawt83w7uxtf5uthv9lssrt8fk7y09sqfucf
+celestia1s04naks7e0x786e78zue3s0w9ckeg5tq5qkry0
+celestia1k78zw3ht35kwaxj2zm2n8v478v3ex0jwgjjlfn

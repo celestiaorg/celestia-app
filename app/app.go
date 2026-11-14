@@ -33,6 +33,7 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -204,6 +205,9 @@ type App struct {
 	FibreKeeper         *fibrekeeper.Keeper
 	ValAddrKeeper       valaddrkeeper.Keeper
 
+	// FrozenRules restricts accounts with exposed keys from app version 11.
+	FrozenRules *frozen.Rules
+
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -296,7 +300,6 @@ func New(
 		govModuleAddr,
 		logger,
 	)
-
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
 	app.StakingKeeper = stakingkeeper.NewKeeper(
@@ -306,6 +309,9 @@ func New(
 	app.MintKeeper = mintkeeper.NewKeeper(encodingConfig.Codec, keys[minttypes.StoreKey], app.StakingKeeper, app.AccountKeeper, app.BankKeeper, authtypes.FeeCollectorName)
 
 	app.DistrKeeper = distrkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[distrtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, authtypes.FeeCollectorName, govModuleAddr)
+	app.FrozenRules = frozen.NewRules(encodingConfig.Codec, app.DistrKeeper)
+	// Shared by every copy of BankKeeper handed to the keepers above.
+	app.BankKeeper.AppendSendRestriction(app.FrozenRules.SendRestriction)
 
 	app.SlashingKeeper = slashingkeeper.NewKeeper(
 		encodingConfig.Codec, encodingConfig.Amino, runtime.NewKVStoreService(keys[slashingtypes.StoreKey]), app.StakingKeeper, govModuleAddr,
@@ -471,6 +477,18 @@ func New(
 		govModuleAddr,
 		enablePromiseCache,
 	)
+	// Validators must not sign promises that a frozen escrow can never settle.
+	app.FibreKeeper.SetPromiseSignerCheck(func(ctx sdk.Context, signer sdk.AccAddress) error {
+		if !app.FrozenRules.Has(ctx.ChainID(), signer) {
+			return nil
+		}
+		// Query contexts carry no consensus params, so read the version from state.
+		version, err := app.AppVersion(ctx)
+		if err != nil || version < frozen.ActivationVersion {
+			return err
+		}
+		return frozen.ErrFrozen
+	})
 
 	/****  Module Options ****/
 
@@ -567,6 +585,7 @@ func New(
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.pffSigCache,
+		app.FrozenRules,
 	))
 
 	protoFiles, err := proto.MergedRegistry()

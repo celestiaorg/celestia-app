@@ -103,6 +103,11 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	if k.checkSigner != nil {
+		if err := k.checkSigner(ctx, sdk.AccAddress(req.Promise.SignerPublicKey.Address())); err != nil {
+			return nil, status.Error(codes.FailedPrecondition, err.Error())
+		}
+	}
 
 	// Reserve the promise against the validator-local budget to close the
 	// double-spend window between this validation and on-chain settlement.
