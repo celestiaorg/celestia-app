@@ -6,7 +6,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 )
 
 // shardReader reads the binary shard format without copying its payload slices.

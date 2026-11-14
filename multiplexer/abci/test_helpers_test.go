@@ -11,7 +11,7 @@ import (
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )

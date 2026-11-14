@@ -2,7 +2,7 @@ package types
 
 import (
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

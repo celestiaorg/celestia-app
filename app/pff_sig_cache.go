@@ -1,7 +1,7 @@
 package app
 
 import (
-	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
+	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
