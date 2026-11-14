@@ -122,10 +122,13 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 	govParams := govv1.DefaultParams()
 	zero := time.Duration(0)
 	govParams.MaxDepositPeriod = &zero
-	proposal, err := govv1.NewMsgSubmitProposal([]sdk.Msg{&govv1.MsgUpdateParams{Authority: authtypes.NewModuleAddress(govtypes.ModuleName).String(), Params: govParams}},
-		sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 10_000_000)), badSigner.String(), "", "title", "summary", false)
-	require.NoError(t, err)
-	badMsgs = append(badMsgs, []sdk.Msg{proposal})
+	govProposal := func(proposer sdk.AccAddress) sdk.Msg {
+		msg, err := govv1.NewMsgSubmitProposal([]sdk.Msg{&govv1.MsgUpdateParams{Authority: authtypes.NewModuleAddress(govtypes.ModuleName).String(), Params: govParams}},
+			sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 100_000_000)), proposer.String(), "", "title", "summary", false)
+		require.NoError(t, err)
+		return msg
+	}
+	badMsgs = append(badMsgs, []sdk.Msg{govProposal(badSigner)})
 	badTxs := signTxs(2, badMsgs...)
 
 	t.Run("CheckTx rejects divergent forward memos", func(t *testing.T) {
@@ -184,8 +187,14 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 
 	t.Run("FinalizeBlock executes divergent forward memos", func(t *testing.T) {
 		signer := celestia.SenderAccount.GetAddress()
-		for _, packet := range append(badPackets, execPacket) {
-			res, err := celestia.SendMsgs(recvMsg(packet, signer))
+		msgs := make([]sdk.Msg, 0, len(badPackets)+2)
+		for _, packet := range badPackets {
+			msgs = append(msgs, recvMsg(packet, signer))
+		}
+		exec := authz.NewMsgExec(signer, []sdk.Msg{recvMsg(execPacket, signer)})
+		msgs = append(msgs, &exec, govProposal(signer))
+		for _, msg := range msgs {
+			res, err := celestia.SendMsgs(msg)
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
 		}
