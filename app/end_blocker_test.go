@@ -36,12 +36,15 @@ func TestEndBlockerUpgrade(t *testing.T) {
 		requireNoUpgradeScheduled(t, testApp, ctx, home, current)
 	})
 
+	// A pending upgrade that does not raise the app version is cleared at its
+	// activation height, so it can not block signalling (PROTOCO-3757).
 	tests := []struct {
-		name       string
-		appVersion uint64
-		height     int64
+		name        string
+		appVersion  uint64
+		height      int64
+		wantPending bool
 	}{
-		{name: "before activation height", appVersion: current, height: upgradeHeight - 1},
+		{name: "before activation height", appVersion: current, height: upgradeHeight - 1, wantPending: true},
 		{name: "equal version", appVersion: current + 1, height: upgradeHeight},
 		{name: "lower version", appVersion: current + 2, height: upgradeHeight},
 	}
@@ -55,6 +58,7 @@ func TestEndBlockerUpgrade(t *testing.T) {
 			_, err := testApp.EndBlocker(ctx)
 			require.NoError(t, err)
 			requireNoUpgradeScheduled(t, testApp, ctx, home, tc.appVersion)
+			require.Equal(t, tc.wantPending, testApp.SignalKeeper.IsUpgradePending(ctx))
 		})
 	}
 
