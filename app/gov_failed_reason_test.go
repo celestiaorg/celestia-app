@@ -25,6 +25,7 @@ import (
 func TestGovFailedReasonHasNoErrorText(t *testing.T) {
 	govAddr := authtypes.NewModuleAddress(govtypes.ModuleName)
 	negative := -time.Second
+	zero := time.Duration(0)
 
 	testCases := []struct {
 		name string
@@ -35,6 +36,14 @@ func TestGovFailedReasonHasNoErrorText(t *testing.T) {
 			name: "gov params with negative max deposit period",
 			msg: func(p govv1.Params) sdk.Msg {
 				p.MaxDepositPeriod = &negative
+				return &govv1.MsgUpdateParams{Authority: govAddr.String(), Params: p}
+			},
+			want: "proposal message failed: codespace undefined, code 1",
+		},
+		{
+			name: "gov params with zero max deposit period",
+			msg: func(p govv1.Params) sdk.Msg {
+				p.MaxDepositPeriod = &zero
 				return &govv1.MsgUpdateParams{Authority: govAddr.String(), Params: p}
 			},
 			want: "proposal message failed: codespace undefined, code 1",

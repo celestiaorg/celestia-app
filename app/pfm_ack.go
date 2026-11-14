@@ -28,6 +28,17 @@ type pfmIBCMiddleware struct {
 
 // OnRecvPacket implements porttypes.IBCModule.
 func (m pfmIBCMiddleware) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, relayer sdk.AccAddress) ibcexported.Acknowledgement {
+	// Reject, before packet-forward-middleware runs, a forward memo with a
+	// numeric timeout outside the int64 range (its conversion to
+	// time.Duration depends on the CPU architecture) or with no forward
+	// metadata after decoding (packet-forward-middleware does not handle it),
+	// or a forward memo outside the limits of pfmForwardMemoWithinLimits
+	// (too long, too deep or with a repeated key, which would make
+	// packet-forward-middleware do work that grows faster than the memo).
+	if rejectPFMForwardMemo(packet.GetData()) {
+		ctx.Logger().Info("rejected packet-forward-middleware forward memo")
+		return channeltypes.NewErrorAcknowledgement(apperrors.ErrPacketForward)
+	}
 	ack := m.IBCMiddleware.OnRecvPacket(ctx, packet, relayer)
 	if fixed, ok := fixedPFMErrorAck(ctx, ack); ok {
 		return fixed
