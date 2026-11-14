@@ -1,9 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -161,9 +163,13 @@ func TestValidateDeterministicMsgs(t *testing.T) {
 		packet := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-0", "transfer", "channel-1", channeltypes.Packet{}.TimeoutHeight, 1)
 		return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), channeltypes.Packet{}.TimeoutHeight, addr.String())
 	}
-	recvRaw := func(data []byte) sdk.Msg {
-		packet := channeltypes.NewPacket(data, 1, "transfer", "channel-0", "transfer", "channel-1", channeltypes.Packet{}.TimeoutHeight, 1)
+	recvRaw := func(data []byte, port string) sdk.Msg {
+		packet := channeltypes.NewPacket(data, 1, port, "channel-0", port, "channel-1", channeltypes.Packet{}.TimeoutHeight, 1)
 		return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), channeltypes.Packet{}.TimeoutHeight, addr.String())
+	}
+	badData := transfertypes.NewFungibleTokenPacketData("utia", "1", "sender", "receiver", forwardMemo(`,"timeout":1e19`)).GetBytes()
+	ics20 := func(extra string) []byte {
+		return []byte(`{"amount":"1","denom":"utia","receiver":"r","sender":"s"` + extra + `}`)
 	}
 	exec := func(msg sdk.Msg) sdk.Msg {
 		m := authz.NewMsgExec(addr, []sdk.Msg{msg})
@@ -193,7 +199,17 @@ func TestValidateDeterministicMsgs(t *testing.T) {
 		{"no packets", []sdk.Msg{send}, false},
 		{"valid forward", []sdk.Msg{good}, false},
 		{"non-forward memo", []sdk.Msg{recv(`{"wasm":{}}`)}, false},
-		{"non-ICS-20 packet data", []sdk.Msg{recvRaw([]byte(`{"forward":5}`))}, false},
+		{"bad forward to another port", []sdk.Msg{recvRaw(badData, "icahost")}, false},
+		{"bad forward to transfer port", []sdk.Msg{recvRaw(badData, transfertypes.PortID)}, true},
+		{"packet data at size limit", []sdk.Msg{recvRaw(ics20(`,"memo":"`+strings.Repeat("a", maxTransferPacketDataSize-len(ics20(`,"memo":""`)))+`"`), transfertypes.PortID)}, false},
+		{"packet data over size limit", []sdk.Msg{recvRaw(ics20(`,"memo":"`+strings.Repeat("a", maxTransferPacketDataSize)+`"`), transfertypes.PortID)}, true},
+		{"packet data over size limit to another port", []sdk.Msg{recvRaw(ics20(`,"memo":"`+strings.Repeat("a", maxTransferPacketDataSize)+`"`), "icahost")}, false},
+		{"packet data with escaped field name", []sdk.Msg{recvRaw(ics20(`,"\u006demo":"x"`), transfertypes.PortID)}, false},
+		{"packet data with unknown key", []sdk.Msg{recvRaw(ics20(`,"forward":5`), transfertypes.PortID)}, true},
+		{"packet data with case variant key", []sdk.Msg{recvRaw(ics20(`,"Memo":"x"`), transfertypes.PortID)}, true},
+		{"packet data with duplicate memo", []sdk.Msg{recvRaw(ics20(`,"memo":"","memo":"x"`), transfertypes.PortID)}, true},
+		{"packet data not an object", []sdk.Msg{recvRaw([]byte(`[1]`), transfertypes.PortID)}, false},
+		{"packet data null", []sdk.Msg{recvRaw([]byte(`null`), transfertypes.PortID)}, false},
 		{"bad forward", []sdk.Msg{send, bad}, true},
 		{"bad forward after good", []sdk.Msg{good, bad}, true},
 		{"bad forward in MsgExec", []sdk.Msg{exec(bad)}, true},
@@ -222,67 +238,146 @@ func TestValidateDeterministicMsgsNamesPacket(t *testing.T) {
 	packet := channeltypes.NewPacket(data.GetBytes(), 42, "transfer", "channel-3", "transfer", "channel-9", channeltypes.Packet{}.TimeoutHeight, 1)
 	msg := channeltypes.NewMsgRecvPacket(packet, []byte("proof"), channeltypes.Packet{}.TimeoutHeight, sdk.AccAddress("addr________________").String())
 	err := validateDeterministicMsgs(msgsTx{msgs: []sdk.Msg{msg}})
-	require.ErrorContains(t, err, "packet transfer/channel-3/42 to transfer/channel-9")
+	require.ErrorContains(t, err, `packet 42 from "transfer"/"channel-3" to "transfer"/"channel-9"`)
+
+	msg.Packet.SourcePort = "%s\xff\n" + strings.Repeat("A", 1<<20)
+	err = validateDeterministicMsgs(msgsTx{msgs: []sdk.Msg{msg}})
+	require.Error(t, err)
+	require.Less(t, len(err.Error()), 1000)
+	require.True(t, utf8.ValidString(err.Error()))
+	require.NotContains(t, err.Error(), "\n")
 }
 
 // TestValidateDeterministicMsgsCost checks that the filter cost stays linear in
-// the tx size for worst-case memos in an 8 MiB tx.
+// the tx size for worst-case packets in an 8 MiB tx.
 func TestValidateDeterministicMsgsCost(t *testing.T) {
 	const txSize = 8 << 20
 	addr := sdk.AccAddress("addr________________").String()
-	recv := func(memo string) sdk.Msg {
-		data := transfertypes.NewFungibleTokenPacketData("utia", "1", "sender", "receiver", memo)
-		packet := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-0", "transfer", "channel-1", channeltypes.Packet{}.TimeoutHeight, 1)
+	recvData := func(data []byte, port string) *channeltypes.MsgRecvPacket {
+		packet := channeltypes.NewPacket(data, 1, port, "channel-0", port, "channel-1", channeltypes.Packet{}.TimeoutHeight, 1)
 		return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), channeltypes.Packet{}.TimeoutHeight, addr)
 	}
-	// fill returns memo with filler repeated until the memo is about size bytes.
+	recv := func(memo string) *channeltypes.MsgRecvPacket {
+		return recvData(transfertypes.NewFungibleTokenPacketData("utia", "1", "sender", "receiver", memo).GetBytes(), transfertypes.PortID)
+	}
+	// fill returns filler repeated between prefix and suffix up to about size bytes.
 	fill := func(prefix, filler, suffix string, size int) string {
 		return prefix + strings.Repeat(filler, (size-len(prefix)-len(suffix))/len(filler)) + suffix
 	}
-	// deep returns a memo nested with open and closing until it is about size bytes.
+	// deep returns a memo nested with open and closing up to about size bytes.
 	deep := func(prefix, open, closing, suffix string, size int) string {
 		n := (size - len(prefix) - len(suffix) - 1) / (len(open) + len(closing))
 		return prefix + strings.Repeat(open, n) + `1` + strings.Repeat(closing, n) + suffix
 	}
-	// repeated returns enough copies of a msg with memo to fill the tx.
-	repeated := func(memo string) []sdk.Msg {
-		msgs := make([]sdk.Msg, txSize/len(memo))
+	// repeated returns enough copies of msg to fill the tx.
+	repeated := func(msg *channeltypes.MsgRecvPacket) []sdk.Msg {
+		msgs := make([]sdk.Msg, txSize/msg.Size())
 		for i := range msgs {
-			msgs[i] = recv(memo)
+			msgs[i] = msg
 		}
 		return msgs
+	}
+	// distinctKeys returns ICS-20 packet data of about size bytes with distinct unknown keys.
+	distinctKeys := func(size int) []byte {
+		var sb strings.Builder
+		sb.WriteString(`{`)
+		for i := 0; sb.Len() < size-64; i++ {
+			fmt.Fprintf(&sb, `"%x":1,`, i)
+		}
+		sb.WriteString(`"amount":"1","denom":"utia","receiver":"r","sender":"s","memo":""}`)
+		return []byte(sb.String())
 	}
 	fwdPrefix := `{"forward":{"receiver":"r","port":"transfer","channel":"channel-7","next":`
 	maxMemo := transfertypes.MaximumMemoLength
 	deepNext := fwdPrefix + strings.Repeat(`{"a":`, maxForwardMemoDepth-3) + fill(`{`, `"a":1,`, `"a":1}`, maxMemo-len(fwdPrefix)-6*maxForwardMemoDepth) + strings.Repeat(`}`, maxForwardMemoDepth-3) + `}}`
 	require.LessOrEqual(t, len(deepNext), maxMemo)
 	require.NoError(t, validateForwardMemo(deepNext))
+	// recvMax returns a packet with the largest memo from build whose packet
+	// data stays within the size limit.
+	recvMax := func(build func(size int) string) *channeltypes.MsgRecvPacket {
+		for size := maxTransferPacketDataSize; ; {
+			msg := recv(build(size))
+			if n := len(msg.Packet.Data); n <= maxTransferPacketDataSize {
+				return msg
+			} else {
+				size = size*maxTransferPacketDataSize/n - 100
+			}
+		}
+	}
+	// tiny is the smallest MsgRecvPacket that carries a valid forward memo.
+	tiny := &channeltypes.MsgRecvPacket{
+		Packet: channeltypes.Packet{
+			Sequence: 1, SourcePort: "p", SourceChannel: "c", DestinationPort: transfertypes.PortID, DestinationChannel: "c",
+			Data: []byte(`{"amount":"1","denom":"u","memo":"{\"forward\":{\"receiver\":\"r\",\"port\":\"tr\",\"channel\":\"channel-0\"}}","receiver":"r","sender":"s"}`),
+		},
+		Signer: "s",
+	}
+	require.NoError(t, validateDeterministicMsgs(msgsTx{msgs: []sdk.Msg{tiny}}))
+	// proposal returns a proposal that fills the tx with copies of msg.
+	proposal := func(msg *channeltypes.MsgRecvPacket) []sdk.Msg {
+		msgs := repeated(msg)
+		p, err := govv1.NewMsgSubmitProposal(msgs, nil, addr, "", "title", "summary", false)
+		require.NoError(t, err)
+		p, err = govv1.NewMsgSubmitProposal(msgs[:len(msgs)*txSize/p.Size()], nil, addr, "", "title", "summary", false)
+		require.NoError(t, err)
+		return []sdk.Msg{p}
+	}
 
 	testCases := []struct {
 		name    string
 		msgs    []sdk.Msg
 		wantErr bool
 	}{
-		{"max-size forwards at depth limit with duplicate keys", repeated(deepNext), false},
-		{"max-size forwards nested too deep", repeated(deep(fwdPrefix, `{"a":`, `}`, `}}`, maxMemo)), true},
-		{"max-size forwards with alternating nesting", repeated(deep(fwdPrefix, `{"a":[`, `]}`, `}}`, maxMemo)), true},
-		{"deep memo without forward", []sdk.Msg{recv(deep(``, `{"a":`, `}`, ``, txSize))}, false},
-		{"deep memo with forward", []sdk.Msg{recv(deep(fwdPrefix, `{"a":`, `}`, `}}`, txSize))}, true},
-		{"alternating nesting with forward", []sdk.Msg{recv(deep(fwdPrefix, `{"a":[`, `]}`, `}}`, txSize))}, true},
-		{"many keys without forward", []sdk.Msg{recv(fill(`{`, `"a":1,`, `"b":2}`, txSize))}, false},
-		{"many empty keys without forward", []sdk.Msg{recv(fill(`{`, `"":1,`, `"b":2}`, txSize))}, false},
-		{"many keys with null forward", []sdk.Msg{recv(fill(`{"forward":null,`, `"a":1,`, `"b":2}`, txSize))}, false},
-		{"many escaped keys with forward", []sdk.Msg{recv(fill(`{"forward":{},`, `"\u0061":1,`, `"b":2}`, txSize))}, true},
-		{"long string", []sdk.Msg{recv(fill(`"`, `a`, `"`, txSize))}, false},
-		{"long string with forward", []sdk.Msg{recv(fill(`{"forward":{"receiver":"`, `a`, `","port":"transfer","channel":"channel-7"}}`, txSize))}, true},
+		{"max-size forwards at depth limit with duplicate keys", repeated(recv(deepNext)), false},
+		{"max-size forwards with long numeric timeout", repeated(recv(forwardMemo(`,"timeout":0.` + strings.Repeat("0", maxMemo-200)))), false},
+		{"max-size forwards nested too deep", repeated(recv(deep(fwdPrefix, `{"a":`, `}`, `}}`, maxMemo))), true},
+		{"max-size forwards with alternating nesting", repeated(recv(deep(fwdPrefix, `{"a":[`, `]}`, `}}`, maxMemo))), true},
+		{"large deep memos without forward", repeated(recvMax(func(n int) string { return deep(``, `{"a":`, `}`, ``, n) })), false},
+		{"large alternating memos without forward", repeated(recvMax(func(n int) string { return deep(``, `{"a":[`, `]}`, ``, n) })), false},
+		{"large memos with many keys", repeated(recvMax(func(n int) string { return fill(`{`, `"a":1,`, `"b":2}`, n) })), false},
+		{"large memos with many empty keys", repeated(recvMax(func(n int) string { return fill(`{`, `"":1,`, `"b":2}`, n) })), false},
+		{"large memos with many keys and null forward", repeated(recvMax(func(n int) string { return fill(`{"forward":null,`, `"a":1,`, `"b":2}`, n) })), false},
+		{"large memos with many escaped keys", repeated(recvMax(func(n int) string { return fill(`{`, `"\u0061":1,`, `"b":2}`, n) })), false},
+		{"large string memos", repeated(recvMax(func(n int) string { return fill(`"`, `a`, `"`, n) })), false},
+		{"large escaped string memos", repeated(recvMax(func(n int) string { return fill(`"`, `<`, `"`, n) })), false},
+		{"large forward memos", repeated(recvMax(func(n int) string {
+			return fill(`{"forward":{"receiver":"`, `a`, `","port":"transfer","channel":"channel-7"}}`, n)
+		})), true},
+		{"one 8 MiB packet", []sdk.Msg{recv(fill(`"`, `a`, `"`, txSize))}, true},
+		{"distinct unknown keys on the transfer port", []sdk.Msg{recvData(distinctKeys(txSize), transfertypes.PortID)}, true},
+		{"distinct unknown keys within the size limit", repeated(recvData(distinctKeys(maxTransferPacketDataSize-200), transfertypes.PortID)), true},
+		{"distinct unknown keys on another port", []sdk.Msg{recvData(distinctKeys(txSize), "icahost")}, false},
+		{"duplicate memo keys", repeated(recvData([]byte(fill(`{"amount":"1","denom":"utia","receiver":"r","sender":"s",`, `"memo":"",`, `"memo":""}`, maxTransferPacketDataSize)), transfertypes.PortID)), true},
+		{"many small forwards in a proposal", proposal(recv(forwardMemo(``))), false},
+		{"many tiny forwards in a proposal", proposal(tiny), false},
+		{"many tiny forwards", repeated(tiny), false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// The filter must decode each packet's data, so that cost is the baseline.
-			start := time.Now()
+			var packets []*channeltypes.MsgRecvPacket
 			for _, msg := range tc.msgs {
+				if p, ok := msg.(*govv1.MsgSubmitProposal); ok {
+					inner, err := p.GetMsgs()
+					require.NoError(t, err)
+					for _, m := range inner {
+						packets = append(packets, m.(*channeltypes.MsgRecvPacket))
+					}
+					continue
+				}
+				packets = append(packets, msg.(*channeltypes.MsgRecvPacket))
+			}
+			size := 0
+			for _, msg := range tc.msgs {
+				size += msg.(interface{ Size() int }).Size()
+			}
+			require.Greater(t, size, txSize*9/10)
+			require.LessOrEqual(t, size, txSize+txSize/10)
+
+			// Decoding every packet's data is a baseline that scales with the machine.
+			start := time.Now()
+			for _, p := range packets {
 				var data transfertypes.FungibleTokenPacketData
-				require.NoError(t, transfertypes.ModuleCdc.UnmarshalJSON(msg.(*channeltypes.MsgRecvPacket).Packet.GetData(), &data))
+				_ = transfertypes.ModuleCdc.UnmarshalJSON(p.Packet.GetData(), &data)
 			}
 			baseline := time.Since(start)
 
@@ -294,8 +389,9 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			t.Logf("filter took %s, decoding took %s", elapsed, baseline)
+			t.Logf("%d packets, %d bytes: filter took %s, decoding took %s", len(packets), size, elapsed, baseline)
 			require.Less(t, elapsed, 5*baseline+100*time.Millisecond, "filter took %s, decoding took %s", elapsed, baseline)
+			require.Less(t, elapsed, maxFilterCost, "filter took %s", elapsed)
 		})
 	}
 }

@@ -56,15 +56,14 @@ func validateDeterministicMsgs(tx sdk.Tx) error {
 func checkDeterministicMsg(msg sdk.Msg) error {
 	switch m := msg.(type) {
 	case *channeltypes.MsgRecvPacket:
-		var data transfertypes.FungibleTokenPacketData
-		if err := transfertypes.ModuleCdc.UnmarshalJSON(m.Packet.GetData(), &data); err != nil {
-			// Packet forward middleware passes such packets on unchanged.
+		p := m.Packet
+		// Only the transfer port routes to the packet forward middleware.
+		if p.DestinationPort != transfertypes.PortID {
 			return nil
 		}
-		if err := validateForwardMemo(data.Memo); err != nil {
-			p := m.Packet
-			return sdkerrors.ErrInvalidRequest.Wrapf("unsupported packet-forward memo in packet %s/%s/%d to %s/%s: %s",
-				p.SourcePort, p.SourceChannel, p.Sequence, p.DestinationPort, p.DestinationChannel, err)
+		if err := validateTransferPacketData(p.Data); err != nil {
+			return sdkerrors.ErrInvalidRequest.Wrapf("unsupported packet-forward memo in packet %d from %q/%q to %q/%q: %s",
+				p.Sequence, truncate(p.SourcePort), truncate(p.SourceChannel), truncate(p.DestinationPort), truncate(p.DestinationChannel), err)
 		}
 	case *govv1.MsgUpdateParams:
 		if p := m.Params.MaxDepositPeriod; p != nil && *p <= 0 {
@@ -72,6 +71,56 @@ func checkDeterministicMsg(msg sdk.Msg) error {
 		}
 	}
 	return nil
+}
+
+// maxTransferPacketDataSize is the largest ICS-20 packet data inspected before
+// the ante handler. It fits an ibc-go sender's largest memo and receiver, a
+// 1023-byte sender, a 78-digit amount and a 16 KiB denom trace, each with every
+// byte JSON-escaped to six bytes, plus 1 KiB for the field names.
+const maxTransferPacketDataSize = 6*(transfertypes.MaximumMemoLength+transfertypes.MaximumReceiverLength+1023+78+16<<10) + 1<<10
+
+// ics20Fields are the JSON keys of ICS-20 packet data.
+var ics20Fields = []string{"amount", "denom", "memo", "receiver", "sender"}
+
+// validateTransferPacketData returns an error if data is too large, holds a
+// key other than the ICS-20 fields or a field twice, or carries a forward memo
+// that validateForwardMemo rejects. Packet data the middleware cannot decode is
+// passed on unchanged, so it is allowed.
+func validateTransferPacketData(data []byte) error {
+	if len(data) > maxTransferPacketDataSize {
+		return fmt.Errorf("packet data is longer than %d bytes", maxTransferPacketDataSize)
+	}
+	seen := make(map[string]bool, len(ics20Fields))
+	var keyErr error
+	scanObject(data, func(key, _ []byte) {
+		for _, name := range ics20Fields {
+			if exact, _ := matchKey(key, name); exact {
+				if seen[name] {
+					keyErr = fmt.Errorf("packet data holds %q twice", name)
+				}
+				seen[name] = true
+				return
+			}
+		}
+		keyErr = fmt.Errorf("packet data holds a key other than the ICS-20 fields")
+	})
+	if keyErr != nil {
+		return keyErr
+	}
+	var ftpd transfertypes.FungibleTokenPacketData
+	if err := transfertypes.ModuleCdc.UnmarshalJSON(data, &ftpd); err != nil {
+		return nil
+	}
+	return validateForwardMemo(ftpd.Memo)
+}
+
+// truncate shortens s for an error message.
+func truncate(s string) string {
+	const maxLen = 64
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
 }
 
 // maxForwardMemoDepth is the deepest JSON nesting accepted in a forward memo.
