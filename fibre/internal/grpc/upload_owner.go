@@ -33,7 +33,7 @@ func NewUploadCodec(retain func() bool, release func()) *UploadCodec {
 
 func (c *UploadCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
-		return marshalUploadShardRequestScatter(req, &c.rows)
+		return marshalUploadShardRequestScatter(req, c.pool, &c.rows)
 	}
 	return c.pooledCodec.Marshal(v)
 }

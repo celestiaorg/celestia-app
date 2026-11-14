@@ -93,17 +93,21 @@ func scatterFramingSize(req *types.UploadShardRequest) int {
 	return size
 }
 
-// marshalUploadShardRequestScatter marshals req. With a nil owner every view
-// is a plain mem.SliceBuffer. Otherwise each row data view holds a reference
-// on owner until gRPC frees it; rows below the pooling threshold are copied
-// instead, since gRPC would not ref-count them. Framing and RLC views are
-// GC-owned either way.
-func marshalUploadShardRequestScatter(req *types.UploadShardRequest, owner *rowOwner) (mem.BufferSlice, error) {
-	f := scatterFraming{buf: make([]byte, 0, scatterFramingSize(req))}
+// marshalUploadShardRequestScatter takes framing from pool when it is large
+// enough to pool and hands it to gRPC as one ref-counted buffer that returns
+// to pool after the write.
+//
+// With a nil owner every other view is a plain mem.SliceBuffer. Otherwise each
+// row data view holds a reference on owner until gRPC frees it; rows below the
+// pooling threshold are copied instead, since gRPC would not ref-count them.
+// RLC views are GC-owned either way.
+func marshalUploadShardRequestScatter(req *types.UploadShardRequest, pool mem.BufferPool, owner *rowOwner) (mem.BufferSlice, error) {
+	f := newScatterFraming(pool, scatterFramingSize(req))
 	if req.Shard != nil {
 		f.segs = make([]scatterSegment, 0, len(req.Shard.Rows)+2)
 	}
 	if err := f.appendPromise(req.Promise); err != nil {
+		f.discard()
 		return nil, err
 	}
 	f.appendShard(uploadShardRequestFieldShard, req.Shard)
@@ -133,6 +137,10 @@ type scatterFraming struct {
 	buf       []byte
 	segs      []scatterSegment
 	flushFrom int
+
+	// pooled is buf's backing array when it came from pool; nil when GC-owned.
+	pool   mem.BufferPool
+	pooled *[]byte
 }
 
 // scatterSegment indexes a byte range within the framing buffer (not a slice)
@@ -141,6 +149,21 @@ type scatterSegment struct {
 	start, end int
 	data       []byte // zero-copy slice to append after buf[start:end]; nil = none
 	row        bool   // data is row data
+}
+
+func newScatterFraming(pool mem.BufferPool, size int) scatterFraming {
+	if mem.IsBelowBufferPoolingThreshold(size) {
+		return scatterFraming{buf: make([]byte, 0, size)}
+	}
+	pooled := pool.Get(size)
+	return scatterFraming{buf: (*pooled)[:0], pool: pool, pooled: pooled}
+}
+
+// discard returns pooled framing that will not be handed to gRPC.
+func (f *scatterFraming) discard() {
+	if f.pooled != nil {
+		f.pool.Put(f.pooled)
+	}
 }
 
 // splice ends the current framing segment and queues data after it.
@@ -226,9 +249,22 @@ func (f *scatterFraming) views(owner *rowOwner) (mem.BufferSlice, error) {
 		views = append(views, b)
 		bs = append(bs, &views[len(views)-1])
 	}
+	addFraming := func(start, end int) { add(f.buf[start:end]) }
+	if f.pooled != nil && cap(f.buf) != cap(*f.pooled) {
+		// buf outgrew the pooled buffer and was reallocated on the heap:
+		// return the pooled one and keep the framing GC-owned.
+		f.discard()
+		f.pooled = nil
+	}
+	if f.pooled != nil {
+		*f.pooled = f.buf
+		root := mem.NewBuffer(f.pooled, f.pool)
+		defer root.Free() // each framing slice holds its own reference
+		addFraming = func(start, end int) { bs = append(bs, root.Slice(start, end)) }
+	}
 	for _, seg := range f.segs {
 		if seg.end > seg.start {
-			add(f.buf[seg.start:seg.end])
+			addFraming(seg.start, seg.end)
 		}
 		switch {
 		case seg.data == nil:
