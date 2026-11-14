@@ -51,6 +51,9 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":600000000000}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"forward":{"receiver":"osmo1r","port":"transfer","channel":"channel-2"}}}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":"{\"forward\":{\"receiver\":\"osmo1r\",\"port\":\"transfer\",\"channel\":\"channel-2\"}}"}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","retries":null,"next":null}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"memo":"😀"}}}`,
+		`{"Forward":{"receiver":"x","port":"a/b","channel":"{CH}"}}`,
 	}
 	badMemos := []string{
 		`{"forward":{"receiver":"x","port":"a/b","channel":"{CH}"}}`,
