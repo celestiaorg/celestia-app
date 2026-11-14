@@ -194,7 +194,20 @@ func TestRejectPFMForwardMemoLimits(t *testing.T) {
 		{"string next with repeated nested key", pfmForwardMemoWithNext(jsonString(`{"a":{"b":1,"b":2}}`), 0), true},
 		{"string next holding a JSON string", pfmForwardMemoWithNext(jsonString(jsonString(`{"a":1}`)), 0), true},
 		{"string next, not JSON", pfmForwardMemoWithNext(jsonString(`{"a":`), 0), false},
-		{"string next, number", pfmForwardMemoWithNext(jsonString(`5`), 0), false},
+		// A string next that holds JSON must hold an object, as an honest
+		// memo does. A string next that is not JSON is left to
+		// packet-forward-middleware, which fails to encode it.
+		{"string next, number", pfmForwardMemoWithNext(jsonString(`5`), 0), true},
+		{"string next, null", pfmForwardMemoWithNext(jsonString(`null`), 0), true},
+		{"string next, true", pfmForwardMemoWithNext(jsonString(`true`), 0), true},
+		{"string next, array", pfmForwardMemoWithNext(jsonString(`[{"a":1}]`), 0), true},
+		{"string next, object", pfmForwardMemoWithNext(jsonString(` {"a":[1]} `), 0), false},
+		{"next null", pfmForwardMemoWithNext(`null`, 0), false},
+		{"next number", pfmForwardMemoWithNext(`5`, 0), true},
+		{"next true", pfmForwardMemoWithNext(`true`, 0), true},
+		{"next array", pfmForwardMemoWithNext(`[{"a":1}]`, 0), true},
+		{"Next key case, next array", `{"forward":{"receiver":"r","Next":[]}}`, true},
+		{"next key in a nested object is not forward.next", `{"forward":{"receiver":"r","next":{"next":[1]}},"a":{"next":5}}`, false},
 		{"Next key case, string next over depth limit", `{"forward":{"receiver":"r","NEXT":` + jsonString(nestedJSON(maxPFMForwardMemoDepth+1)) + `}}`, true},
 		// Memos that packet-forward-middleware does not forward are not
 		// bounded here.
@@ -278,8 +291,10 @@ func pfmMemoWork(t *testing.T, memo string) uint64 {
 // largest memo.
 func TestPFMForwardMemoWorkIsBounded(t *testing.T) {
 	// The forwarded memo can be six times longer than the memo, because
-	// json.Marshal escapes '<', '>' and '&'.
-	const workBound = 2 * maxPFMForwardMemoDepth * 6 * ibctransfertypes.MaximumMemoLength
+	// json.Marshal escapes '<', '>' and '&' in six bytes and prints a short
+	// number such as 1e20 in full. The work reads each byte of it at every
+	// nesting level, a few times.
+	const workBound = 4 * maxPFMForwardMemoDepth * 6 * ibctransfertypes.MaximumMemoLength
 
 	// Repeated next keys under the length limit and at depth 3.
 	var keys strings.Builder
@@ -304,7 +319,7 @@ func TestPFMForwardMemoWorkIsBounded(t *testing.T) {
 	}
 	amplified := map[string]string{
 		"nested next":        pfmForwardMemo(4000, 0),
-		"nested string next": pfmForwardMemoWithNext(jsonString(nestedJSON(3000)), 0),
+		"nested string next": pfmForwardMemoWithNext(jsonString(nestedJSON(3900)), 0),
 		"repeated next keys": repeatedNext,
 		// Its cost is in moving keys, not in allocation.
 		"repeated keys in next": pfmForwardMemoWithNext(`{`+dupKeys.String()+`}`, 0),
@@ -330,10 +345,17 @@ func TestPFMForwardMemoWorkIsBounded(t *testing.T) {
 		return strings.Repeat(`{"a":`, maxPFMForwardMemoDepth-3) + `"` + strings.Repeat("<", n) + `"` + strings.Repeat(`}`, maxPFMForwardMemoDepth-3)
 	}
 	htmlLen := ibctransfertypes.MaximumMemoLength - len(pfmForwardMemoWithNext(deepHTML(0), 0))
+	// encoding/json decodes each number to a float64 and prints 1e20 with
+	// 21 digits.
+	deepNumbers := func(n int) string {
+		return strings.Repeat(`{"a":`, maxPFMForwardMemoDepth-3) + `[1` + strings.Repeat(`,1e20`, n) + `]` + strings.Repeat(`}`, maxPFMForwardMemoDepth-3)
+	}
+	numbers := (ibctransfertypes.MaximumMemoLength - len(pfmForwardMemoWithNext(deepNumbers(0), 0))) / len(`,1e20`)
 	for name, memo := range map[string]string{
-		"object next":  pfmForwardMemo(maxPFMForwardMemoDepth, ibctransfertypes.MaximumMemoLength),
-		"string next":  pfmForwardMemoWithNext(jsonString(nestedJSON(maxPFMForwardMemoDepth)), ibctransfertypes.MaximumMemoLength),
-		"html in next": pfmForwardMemoWithNext(deepHTML(htmlLen), 0),
+		"object next":     pfmForwardMemo(maxPFMForwardMemoDepth, ibctransfertypes.MaximumMemoLength),
+		"string next":     pfmForwardMemoWithNext(jsonString(nestedJSON(maxPFMForwardMemoDepth)), ibctransfertypes.MaximumMemoLength),
+		"html in next":    pfmForwardMemoWithNext(deepHTML(htmlLen), 0),
+		"numbers in next": pfmForwardMemoWithNext(deepNumbers(numbers), ibctransfertypes.MaximumMemoLength),
 	} {
 		require.Len(t, memo, ibctransfertypes.MaximumMemoLength, name)
 		require.False(t, rejectPFMForwardMemo(transferPacketData(t, memo)), name)
@@ -352,5 +374,41 @@ func TestPFMMemoWithinLimitsMalformed(t *testing.T) {
 			pfmMemoWithinLimits([]byte(bz), false)
 			pfmStringNextWithinLimits(bz)
 		}, bz)
+	}
+}
+
+// TestPFMRetryMemoWithinLimits checks the limits on the memo of a forwarded
+// packet that times out, which packet-forward-middleware decodes and encodes
+// again to retry it.
+func TestPFMRetryMemoWithinLimits(t *testing.T) {
+	maxLen := 6 * ibctransfertypes.MaximumMemoLength
+	pad := func(n int) string {
+		head := `{"forward":{"receiver":"`
+		return head + strings.Repeat("r", n-len(head)-3) + `"}}`
+	}
+	testCases := []struct {
+		name string
+		memo string
+		want bool
+	}{
+		{"no memo", ``, true},
+		{"2-hop", `{"forward":{"receiver":"r2","port":"transfer","channel":"channel-1"}}`, true},
+		{"depth at limit", nestedJSON(maxPFMForwardMemoDepth), true},
+		{"depth over limit", nestedJSON(maxPFMForwardMemoDepth + 1), false},
+		{"depth 2000", nestedJSON(2000), false},
+		{"repeated key", `{"a":1,"a":2}`, false},
+		{"keys differ in case", `{"a":1,"A":2}`, true},
+		{"length at limit", pad(maxLen), true},
+		{"length over limit", pad(maxLen + 1), false},
+		{"not JSON", `hello`, false},
+		{"array", `[1]`, false},
+		{"number", `5`, false},
+		{"null", `null`, false},
+		{"string", `"{}"`, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, pfmRetryMemoWithinLimits(tc.memo))
+		})
 	}
 }

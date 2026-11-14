@@ -12,19 +12,11 @@ import (
 // depends on the CPU architecture.
 const pfmTimeoutLimit = float64(1 << 63)
 
-// rejectPFMForwardMemo reports whether the wrapper must reject this packet
-// before packet-forward-middleware runs. It decodes the packet the way
-// packet-forward-middleware does: ICS-20 packet data, a memo with a
-// non-null "forward" key, then the memo into a struct whose "forward" and
-// "forward.timeout" fields match the same JSON keys. It rejects a forward
-// memo when:
-//   - the memo is outside the limits that pfmForwardMemoWithinLimits checks,
-//   - the forward metadata decodes to nil, which packet-forward-middleware
-//     does not handle, or
-//   - the forward timeout is a JSON number outside the int64 range.
-//
-// A memo that packet-forward-middleware treats as a plain transfer, or
-// fails to decode, is not rejected here.
+// rejectPFMForwardMemo reports whether the wrapper must reject a packet
+// before packet-forward-middleware runs. It rejects a forward memo that is
+// outside pfmForwardMemoWithinLimits, decodes to no forward metadata, or has
+// a numeric timeout outside the int64 range. Other memos are left to
+// packet-forward-middleware.
 func rejectPFMForwardMemo(packetData []byte) bool {
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packetData, &data); err != nil {

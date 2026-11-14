@@ -179,6 +179,9 @@ func TestPFMForwardMemoDepth(t *testing.T) {
 		{"string next at depth limit", strconv.Quote(nested(maxDepth)), nested(maxDepth)},
 		{"string next over depth limit", strconv.Quote(nested(maxDepth + 1)), ""},
 		{"repeated key", `{"a":1,"a":2}`, ""},
+		// packet-forward-middleware cannot encode a string next that is not
+		// JSON, so it returns an error acknowledgement.
+		{"string next not JSON", strconv.Quote("hello"), ""},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

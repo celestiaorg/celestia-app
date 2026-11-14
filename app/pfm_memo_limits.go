@@ -11,41 +11,19 @@ import (
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 )
 
-// maxPFMForwardMemoLength is the longest forward memo accepted, in bytes. It
-// is the limit that ibc-go applies to the memo of a MsgTransfer, so a packet
-// sent by an ibc-go chain is never longer.
+// maxPFMForwardMemoLength is the longest forward memo accepted, in bytes.
+// ibc-go applies the same limit to the memo of a MsgTransfer.
 const maxPFMForwardMemoLength = transfertypes.MaximumMemoLength
 
-// maxPFMForwardMemoDepth is the deepest JSON nesting of objects and arrays
-// accepted in a forward memo, and in the memo held by a string forward.next.
-// packet-forward-middleware encodes forward.next again to make the memo of
-// the forwarded packet, and decodes and encodes that memo again each time
-// the forwarded packet times out and is retried. Each encoding re-reads the
-// bytes at every nesting level, so the work grows with the depth times the
-// length. A memo nests two levels per hop ({"forward":{"next":...}}), so 32
-// levels allow 15 hops, or a few hops followed by a nested memo for the last
-// chain. Real routes use far fewer.
+// maxPFMForwardMemoDepth is the deepest JSON nesting accepted in a forward
+// memo. The work to encode forward.next grows with the depth times the
+// length. 32 levels allow 15 hops.
 const maxPFMForwardMemoDepth = 32
 
-// pfmForwardMemoWithinLimits reports whether a forward memo is within the
-// limits that bound the work packet-forward-middleware does for it:
-//   - the memo is at most maxPFMForwardMemoLength bytes,
-//   - the memo nests at most maxPFMForwardMemoDepth levels,
-//   - no object in the memo repeats a key. encoding/json decodes each
-//     repeated "forward" or "next" key again into the same value, and the
-//     ordered map that holds next handles repeated keys in quadratic time.
-//     The keys of the memo and of the forward object compare the way
-//     encoding/json matches struct fields (without case); other keys compare
-//     exactly, as the ordered map keeps them.
-//   - a string forward.next, which is the memo of the forwarded packet, is
-//     within the same depth and repeated-key limits, and does not hold a
-//     JSON string (which a retry would unwrap into another memo).
-//
-// With these limits, the work for one packet and for each retry is linear
-// in maxPFMForwardMemoLength with a factor of maxPFMForwardMemoDepth. The
-// memo of the forwarded packet can be longer than the original memo, up to
-// six times, because json.Marshal escapes '<', '>' and '&'. The check reads
-// memo in one pass and does not panic on any input.
+// pfmForwardMemoWithinLimits reports whether a forward memo is short, not
+// deeply nested, has no repeated key, and has a forward.next of an accepted
+// form. These limits make the work of packet-forward-middleware for the
+// memo, and for each retry, linear in its length.
 func pfmForwardMemoWithinLimits(memo string) bool {
 	return len(memo) <= maxPFMForwardMemoLength && pfmMemoWithinLimits([]byte(memo), true)
 }
@@ -67,10 +45,9 @@ type pfmMemoFrame struct {
 }
 
 // pfmMemoWithinLimits reports whether the JSON value bz nests at most
-// maxPFMForwardMemoDepth levels and has no repeated object key. When
-// forwardMemo is true, bz is a forward memo: the keys of the memo and of its
-// forward object compare without case, and a string forward.next is checked
-// with pfmStringNextWithinLimits.
+// maxPFMForwardMemoDepth levels and repeats no object key. For a forward
+// memo, the keys that encoding/json matches to struct fields compare without
+// case, and forward.next must be an accepted form.
 func pfmMemoWithinLimits(bz []byte, forwardMemo bool) bool {
 	dec := json.NewDecoder(bytes.NewReader(bz))
 	dec.UseNumber()
@@ -111,13 +88,29 @@ func (w *pfmMemoWalker) next(tok json.Token) bool {
 	if top != nil && top.object {
 		top.expectKey = true
 	}
-	switch t := tok.(type) {
-	case json.Delim:
-		return w.open(t == '{', top)
-	case string:
-		return top == nil || !top.forward || top.key != "NEXT" || pfmStringNextWithinLimits(t)
+	if top != nil && top.forward && top.key == "NEXT" && !pfmForwardNextWithinLimits(tok) {
+		return false
+	}
+	if delim, ok := tok.(json.Delim); ok {
+		return w.open(delim == '{', top)
 	}
 	return true
+}
+
+// pfmForwardNextWithinLimits reports whether tok, the first token of
+// forward.next, starts an accepted form: null, an object, or a string
+// (pfmStringNextWithinLimits).
+func pfmForwardNextWithinLimits(tok json.Token) bool {
+	switch t := tok.(type) {
+	case nil:
+		return true
+	case json.Delim:
+		return t == '{'
+	case string:
+		return pfmStringNextWithinLimits(t)
+	default:
+		return false
+	}
 }
 
 // open enters an object or an array whose parent is top, and reports
@@ -150,21 +143,37 @@ func (f *pfmMemoFrame) addKey(key string) bool {
 	return true
 }
 
-// pfmStringNextWithinLimits reports whether the memo s held by a string
-// forward.next is within limits. packet-forward-middleware uses s as the
-// memo of the forwarded packet, and decodes it again if that packet times
-// out and is retried.
+// pfmStringNextWithinLimits reports whether a string forward.next is
+// accepted. It becomes the memo of the forwarded packet, so if it is JSON it
+// must pass pfmNextMemoWithinLimits.
 func pfmStringNextWithinLimits(s string) bool {
-	bz := []byte(s)
-	if !json.Valid(bz) {
+	if !json.Valid([]byte(s)) {
 		// packet-forward-middleware fails to encode it and returns an error
 		// acknowledgement.
 		return true
 	}
-	if bytes.TrimLeft(bz, " \t\r\n")[0] == '"' {
-		return false
+	return pfmNextMemoWithinLimits(s)
+}
+
+// maxPFMRetryMemoLength is the longest forwarded memo that may be retried.
+// json.Marshal can make forward.next up to six times longer.
+const maxPFMRetryMemoLength = 6 * maxPFMForwardMemoLength
+
+// pfmRetryMemoWithinLimits reports whether a forwarded packet with this memo
+// may be retried after a timeout. Every memo forwarded under these limits
+// passes; one forwarded before them may not.
+func pfmRetryMemoWithinLimits(memo string) bool {
+	if memo == "" {
+		return true
 	}
-	return pfmMemoWithinLimits(bz, false)
+	return len(memo) <= maxPFMRetryMemoLength && json.Valid([]byte(memo)) && pfmNextMemoWithinLimits(memo)
+}
+
+// pfmNextMemoWithinLimits reports whether memo, valid JSON, is an object
+// within the depth and repeated-key limits.
+func pfmNextMemoWithinLimits(memo string) bool {
+	bz := []byte(memo)
+	return bytes.TrimLeft(bz, " \t\r\n")[0] == '{' && pfmMemoWithinLimits(bz, false)
 }
 
 // foldJSONKey folds key the way encoding/json does to match an object key

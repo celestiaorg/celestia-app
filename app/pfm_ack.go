@@ -6,7 +6,9 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
@@ -21,20 +23,17 @@ const (
 // pfmIBCMiddleware wraps packet-forward-middleware so that the error
 // acknowledgements it returns from OnRecvPacket contain no Go error text.
 // ibc-go commits the hash of the acknowledgement, so its bytes are part of
-// consensus.
+// consensus. It also rejects forward memos, and stops retries of forwarded
+// packets, that would cost work not bounded by the memo limits.
 type pfmIBCMiddleware struct {
 	packetforward.IBCMiddleware
+	keeper *packetforwardkeeper.Keeper
 }
 
 // OnRecvPacket implements porttypes.IBCModule.
 func (m pfmIBCMiddleware) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, relayer sdk.AccAddress) ibcexported.Acknowledgement {
-	// Reject, before packet-forward-middleware runs, a forward memo with a
-	// numeric timeout outside the int64 range (its conversion to
-	// time.Duration depends on the CPU architecture) or with no forward
-	// metadata after decoding (packet-forward-middleware does not handle it),
-	// or a forward memo outside the limits of pfmForwardMemoWithinLimits
-	// (too long, too deep or with a repeated key, which would make
-	// packet-forward-middleware do work that grows faster than the memo).
+	// Reject forward memos that would give different results on different
+	// nodes or cost unbounded work (see rejectPFMForwardMemo).
 	if rejectPFMForwardMemo(packet.GetData()) {
 		ctx.Logger().Info("rejected packet-forward-middleware forward memo")
 		return channeltypes.NewErrorAcknowledgement(apperrors.ErrPacketForward)
@@ -44,6 +43,25 @@ func (m pfmIBCMiddleware) OnRecvPacket(ctx sdk.Context, packet channeltypes.Pack
 		return fixed
 	}
 	return ack
+}
+
+// OnTimeoutPacket implements porttypes.IBCModule. For a forwarded packet
+// whose memo is outside pfmRetryMemoWithinLimits, it does not retry. It
+// gives up the way packet-forward-middleware does when no retries are left.
+func (m pfmIBCMiddleware) OnTimeoutPacket(ctx sdk.Context, packet channeltypes.Packet, relayer sdk.AccAddress) error {
+	var data transfertypes.FungibleTokenPacketData
+	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil || pfmRetryMemoWithinLimits(data.Memo) {
+		return m.IBCMiddleware.OnTimeoutPacket(ctx, packet, relayer)
+	}
+	inFlight, err := m.keeper.TimeoutShouldRetry(ctx, packet)
+	if inFlight == nil || err != nil {
+		// Not a forwarded packet, or no retries left.
+		return m.IBCMiddleware.OnTimeoutPacket(ctx, packet, relayer)
+	}
+	ctx.Logger().Info("not retrying forwarded packet with a memo outside limits", "sequence", packet.Sequence)
+	m.keeper.RemoveInFlightPacket(ctx, packet)
+	return m.keeper.WriteAcknowledgementForForwardedPacket(ctx, packet, data, inFlight,
+		channeltypes.NewErrorAcknowledgement(apperrors.ErrPacketForward))
 }
 
 // pfmICS4Wrapper wraps the ICS4Wrapper that packet-forward-middleware uses
