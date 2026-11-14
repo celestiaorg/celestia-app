@@ -90,32 +90,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-<<<<<<< HEAD
 	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
-=======
-	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
 	dec := recoverTxDecoder(logger.Error, fsb.txConfig.TxDecoder())
-
-	// Warm the signature cache across every CPU before filling. Failures are
-	// not recorded, so the fill still performs and decides each check itself.
-	if fsb.preverifyPFF != nil {
-		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
-		for i := range payForFibreTxs {
-			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
-				break
-			}
-			if fsb.decodeFibreTx(logger, dec, &payForFibreTxs[i]) {
-				decoded = append(decoded, payForFibreTxs[i].decoded)
-			}
-		}
-		fsb.preverifyPFF(ctx, decoded)
-	}
->>>>>>> 4858864 (fix(app): [high] drop a tx that panics in PrepareProposal instead of aborting (#8604))
 
 	var (
 		sdkMessageCount = 0
 		pfbMessageCount = 0
-		dec             = fsb.txConfig.TxDecoder()
 		n               = 0
 		m               = 0
 	)
@@ -254,13 +234,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	return kept
 }
 
-// runAnteHandler runs the ante handler on one tx and returns a panic as an
-// error. HandlePanicDecorator re-panics, and an unrecovered panic would abort
-// the whole PrepareProposal, so the tx is dropped instead. ProcessProposal
-// rejects a block that holds such a tx, so dropping it changes no block
-// validity rule. Callers run it on a per-tx CacheContext and commit only on
-// success, so a panicking tx leaves no writes behind. Out-of-gas panics are
-// already returned as errors by the SetUpContextDecorator.
+// runAnteHandler runs the ante handler and returns any panic as an error.
+// Callers commit their per-tx CacheContext only on success, discarding writes on failure.
 func (fsb *FilteredSquareBuilder) runAnteHandler(ctx sdk.Context, sdkTx sdk.Tx) (newCtx sdk.Context, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -309,13 +284,8 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
-<<<<<<< HEAD
 	payForFibreTxs = make([][]byte, 0, len(rawTxs))
-	dec := txConfig.TxDecoder()
-=======
-	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
 	dec := recoverTxDecoder(logger.Error, txConfig.TxDecoder())
->>>>>>> 4858864 (fix(app): [high] drop a tx that panics in PrepareProposal instead of aborting (#8604))
 
 	for _, rawTx := range rawTxs {
 		// this check in theory shouldn't get hit, as txs should be filtered
@@ -384,7 +354,7 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 // accepted fibre txs.
 func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs [][]byte) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
-	dec := fsb.txConfig.TxDecoder()
+	dec := recoverTxDecoder(logger.Error, fsb.txConfig.TxDecoder())
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
@@ -466,4 +436,15 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	}
 
 	return fibreTxs
+}
+
+// lazyTxHash hashes a tx only when a log line is written.
+type lazyTxHash []byte
+
+func (h lazyTxHash) String() string {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).String()
+}
+
+func (h lazyTxHash) MarshalJSON() ([]byte, error) {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).MarshalJSON()
 }
