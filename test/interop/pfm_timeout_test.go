@@ -2,8 +2,10 @@ package interop
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v11/app"
@@ -12,6 +14,7 @@ import (
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -146,8 +149,8 @@ func TestPFMForwardMemoWithoutMetadata(t *testing.T) {
 }
 
 // TestPFMForwardMemoDepth checks the committed result of forward memos at
-// and past the nesting depth limit, and of an honest 2-hop memo whose next
-// value is an object. A memo that nests too deep gets the fixed
+// and past the nesting depth limit, with an object or a string next, with a
+// repeated key, and of an honest 2-hop memo whose next value is an object. A memo that nests too deep gets the fixed
 // packet-forward-middleware error acknowledgement and is not forwarded.
 func TestPFMForwardMemoDepth(t *testing.T) {
 	const fixedErrorAck = `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
@@ -173,6 +176,9 @@ func TestPFMForwardMemoDepth(t *testing.T) {
 		{"2-hop", secondHop, secondHop},
 		{"depth at limit", nested(maxDepth - 2), nested(maxDepth - 2)},
 		{"depth over limit", nested(maxDepth - 1), ""},
+		{"string next at depth limit", strconv.Quote(nested(maxDepth)), nested(maxDepth)},
+		{"string next over depth limit", strconv.Quote(nested(maxDepth + 1)), ""},
+		{"repeated key", `{"a":1,"a":2}`, ""},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -203,4 +209,48 @@ func TestPFMForwardMemoDepth(t *testing.T) {
 			require.Equal(t, tc.wantNext, data.Memo)
 		})
 	}
+}
+
+// TestPFMForwardRetryWithStringNext checks the retry path of
+// packet-forward-middleware for a string next at the depth limit: the
+// forwarded packet times out, and the retried packet carries the same memo.
+func TestPFMForwardRetryWithStringNext(t *testing.T) {
+	coordinator, celestia, chainA, chainB := SetupTest(t)
+	pathA := ibctesting.NewTransferPath(chainA, celestia)
+	pathB := ibctesting.NewTransferPath(celestia, chainB)
+	coordinator.Setup(pathA)
+	coordinator.Setup(pathB)
+
+	next := strings.Repeat(`{"a":`, 31) + `{}` + strings.Repeat(`}`, 31) // 32 levels, the limit
+	memo := fmt.Sprintf(`{"forward":{"receiver":%q,"port":"transfer","channel":%q,"timeout":"1s","retries":1,"next":%s}}`,
+		chainB.SenderAccount.GetAddress().String(), pathB.EndpointA.ChannelID, strconv.Quote(next))
+	msg := transfertypes.NewMsgTransfer(pathA.EndpointA.ChannelConfig.PortID, pathA.EndpointA.ChannelID,
+		sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000)), chainA.SenderAccount.GetAddress().String(), "unused",
+		clienttypes.NewHeight(1, 100000), 0, memo)
+	res, err := chainA.SendMsgs(msg)
+	require.NoError(t, err)
+	packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
+	require.NoError(t, err)
+	require.NoError(t, pathA.EndpointB.UpdateClient())
+	recvRes, err := pathA.EndpointB.RecvPacketWithResult(packet)
+	require.NoError(t, err)
+	fwd, err := ibctesting.ParsePacketFromEvents(recvRes.GetEvents())
+	require.NoError(t, err)
+
+	// The forwarded packet times out and celestia sends it again.
+	coordinator.IncrementTimeBy(time.Minute)
+	coordinator.CommitBlock(chainB)
+	require.NoError(t, pathB.EndpointA.UpdateClient())
+	proof, proofHeight := pathB.EndpointB.QueryProof(host.PacketReceiptKey(fwd.DestinationPort, fwd.DestinationChannel, fwd.Sequence))
+	nextSeqRecv, found := chainB.App.GetIBCKeeper().ChannelKeeper.GetNextSequenceRecv(chainB.GetContext(), fwd.DestinationPort, fwd.DestinationChannel)
+	require.True(t, found)
+	timeoutMsg := channeltypes.NewMsgTimeout(fwd, nextSeqRecv, proof, proofHeight, celestia.SenderAccount.GetAddress().String())
+	timeoutRes, err := celestia.SendMsgs(timeoutMsg)
+	require.NoError(t, err)
+	retried, err := ibctesting.ParsePacketFromEvents(timeoutRes.GetEvents())
+	require.NoError(t, err, "celestia must retry the forwarded packet")
+	require.Equal(t, fwd.Sequence+1, retried.Sequence)
+	var data transfertypes.FungibleTokenPacketData
+	require.NoError(t, transfertypes.ModuleCdc.UnmarshalJSON(retried.GetData(), &data))
+	require.Equal(t, next, data.Memo)
 }
