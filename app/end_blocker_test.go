@@ -229,10 +229,10 @@ func proposeAndProcess(t *testing.T, testApp *app.App, h int64, hash []byte) *ab
 	return req
 }
 
-// TestNewAppWithPendingV11Upgrade checks that a node restarted at the v11
-// upgrade height loads its existing stores. The v11 upgrade adds no stores, so
+// TestNewAppWithPendingV12Upgrade checks that a node restarted at the v12
+// upgrade height loads its existing stores. The v12 upgrade adds no stores, so
 // it must not install an upgrade store loader.
-func TestNewAppWithPendingV11Upgrade(t *testing.T) {
+func TestNewAppWithPendingV12Upgrade(t *testing.T) {
 	home := setNodeHome(t)
 	db := tmdb.NewMemDB()
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, 0, util.EmptyAppOptions{}, baseapp.SetChainID(util.ChainID))

@@ -1018,7 +1018,7 @@ func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
 	if app.delayedPrecommitTimeout != 0 {
 		t.DelayedPrecommitTimeout = app.delayedPrecommitTimeout
 	}
-	// Only override versions that pace dynamically, so <= v10 keeps the legacy path.
+	// Only override versions that pace dynamically, so <= v11 keeps the legacy path.
 	if app.dynamicTimeoutCommit != 0 && t.DynamicTimeoutCommit != 0 {
 		t.DynamicTimeoutCommit = app.dynamicTimeoutCommit
 	}

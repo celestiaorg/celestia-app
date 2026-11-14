@@ -12,6 +12,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -32,7 +33,7 @@ func TestNewAppServerAppliesTimeoutFlags(t *testing.T) {
 	celestiaApp, ok := NewAppServer(log.NewNopLogger(), dbm.NewMemDB(), nil, opts).(*app.App)
 	require.True(t, ok)
 
-	got := celestiaApp.TimeoutInfo(11)
+	got := celestiaApp.TimeoutInfo(appconsts.Version)
 	require.Equal(t, 5*time.Millisecond, got.TimeoutCommit)
 	require.Equal(t, 7*time.Millisecond, got.DelayedPrecommitTimeout)
 	require.Equal(t, 3*time.Millisecond, got.DynamicTimeoutCommit)
