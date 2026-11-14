@@ -17,8 +17,8 @@ const maxPFMForwardMemoLength = transfertypes.MaximumMemoLength
 
 // maxPFMForwardMemoDepth is the deepest JSON nesting accepted in a forward
 // memo. The work to encode forward.next grows with the depth times the
-// length. 32 levels allow 15 hops.
-const maxPFMForwardMemoDepth = 32
+// length. Each hop adds two levels, so 16 levels allow 8 hops.
+const maxPFMForwardMemoDepth = 16
 
 // pfmForwardMemoWithinLimits reports whether a forward memo is short, not
 // deeply nested, has no repeated key, and has a forward.next of an accepted

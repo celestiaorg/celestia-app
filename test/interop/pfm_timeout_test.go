@@ -154,7 +154,7 @@ func TestPFMForwardMemoWithoutMetadata(t *testing.T) {
 // packet-forward-middleware error acknowledgement and is not forwarded.
 func TestPFMForwardMemoDepth(t *testing.T) {
 	const fixedErrorAck = `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
-	const maxDepth = 32 // app.maxPFMForwardMemoDepth
+	const maxDepth = 16 // app.maxPFMForwardMemoDepth
 
 	coordinator, celestia, chainA, chainB := SetupTest(t)
 	pathA := ibctesting.NewTransferPath(chainA, celestia)
@@ -224,7 +224,7 @@ func TestPFMForwardRetryWithStringNext(t *testing.T) {
 	coordinator.Setup(pathA)
 	coordinator.Setup(pathB)
 
-	next := strings.Repeat(`{"a":`, 31) + `{}` + strings.Repeat(`}`, 31) // 32 levels, the limit
+	next := strings.Repeat(`{"a":`, 15) + `{}` + strings.Repeat(`}`, 15) // 16 levels, the limit
 	memo := fmt.Sprintf(`{"forward":{"receiver":%q,"port":"transfer","channel":%q,"timeout":"1s","retries":1,"next":%s}}`,
 		chainB.SenderAccount.GetAddress().String(), pathB.EndpointA.ChannelID, strconv.Quote(next))
 	msg := transfertypes.NewMsgTransfer(pathA.EndpointA.ChannelConfig.PortID, pathA.EndpointA.ChannelID,
