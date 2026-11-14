@@ -325,6 +325,11 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 	emptyObjects := fwdPrefix + fill(`{"a":[{}`, `,{}`, `]}`, maxMemo-len(fwdPrefix)-2) + `}}`
 	require.LessOrEqual(t, len(emptyObjects), maxMemo)
 	require.NoError(t, validateForwardMemo(emptyObjects))
+	// Each one-key object allocates a key set.
+	oneKeyObjects := fwdPrefix + fill(`{"a":[{"a":0}`, `,{"a":0}`, `]}`, maxMemo-len(fwdPrefix)-2) + `}}`
+	require.LessOrEqual(t, len(oneKeyObjects), maxMemo)
+	require.Greater(t, len(oneKeyObjects), maxMemo-16)
+	require.NoError(t, validateForwardMemo(oneKeyObjects))
 	// recvMax returns a packet with the largest memo from build whose packet
 	// data stays within the size limit.
 	recvMax := func(build func(size int) string) *channeltypes.MsgRecvPacket {
@@ -364,6 +369,7 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 		{"max-size forwards at depth limit with distinct keys", repeated(recv(deepNext)), false},
 		{"max-size forwards with string next at depth limit", repeated(recv(deepStringNext)), false},
 		{"max-size forwards with many empty objects", repeated(recv(emptyObjects)), false},
+		{"max-size forwards with many one-key objects", repeated(recv(oneKeyObjects)), false},
 		{"max-size forwards with repeated next keys", repeated(recv(pfmRepeatedNextMemo())), true},
 		{"max-size forwards with deep string next", repeated(recv(pfmDeepStringNextMemo(3000))), true},
 		{"max-size forwards with long numeric timeout", repeated(recv(forwardMemo(`,"timeout":0.` + strings.Repeat("0", maxMemo-200)))), false},
@@ -622,6 +628,16 @@ func TestPFMMemoWithinLimitsMalformed(t *testing.T) {
 			pfmMemoWithinLimits([]byte(bz), false)
 			pfmStringNextWithinLimits(bz)
 			_ = validateForwardMemo(bz)
+		}, bz)
+	}
+	// The entry points that expect valid JSON return false on malformed
+	// input instead of panicking.
+	for _, bz := range []string{``, ` `, `}`, `]`, `{}}`, `[]]`, `{"a":1}}`} {
+		require.NotPanics(t, func() {
+			require.False(t, pfmForwardMemoWithinLimits(bz), bz)
+			require.False(t, pfmNextMemoWithinLimits(bz), bz)
+			require.False(t, pfmWalkMemo(bz, true), bz)
+			require.False(t, pfmWalkMemo(bz, false), bz)
 		}, bz)
 	}
 }

@@ -15,7 +15,7 @@ const maxPFMForwardMemoLength = transfertypes.MaximumMemoLength
 
 // maxPFMForwardMemoDepth is the deepest JSON nesting accepted in a forward
 // memo. The work to encode forward.next grows with the depth times the
-// length. 16 levels allow 7 hops.
+// length. Each hop adds two levels, so 16 levels allow 8 hops.
 const maxPFMForwardMemoDepth = 16
 
 // pfmForwardMemoWithinLimits reports whether a forward memo is short, not
@@ -31,8 +31,11 @@ func pfmForwardMemoWithinLimits(memo string) bool {
 // pfmMemoFrame is an object or array that pfmMemoWithinLimits is inside.
 type pfmMemoFrame struct {
 	object bool
-	// keys holds the keys seen so far in an object.
+	// keys holds the keys seen so far in an object, from its second key on.
+	// Until then, key alone holds the only key, if any.
 	keys map[string]struct{}
+	// hasKey is true once the object has a key.
+	hasKey bool
 	// fold is true for an object that encoding/json decodes into a struct,
 	// whose keys match without case.
 	fold bool
@@ -64,7 +67,9 @@ func pfmWalkMemo(s string, forwardMemo bool) bool {
 	for i := 0; ; {
 		tok, end, ok := pfmNextToken(s, i)
 		if !ok {
-			return true
+			// Input that is not valid JSON may be empty or leave an object
+			// or array open; it is not within limits.
+			return i > 0 && len(w.stack) == 0
 		}
 		if !w.next(tok) {
 			return false
@@ -160,6 +165,10 @@ func (w *pfmMemoWalker) next(tok pfmToken) bool {
 		return top.addKey(tok.text)
 	}
 	if tok.kind == '}' || tok.kind == ']' {
+		if top == nil {
+			// A closing delimiter with nothing open: not valid JSON.
+			return false
+		}
 		w.stack = w.stack[:len(w.stack)-1]
 		return true
 	}
@@ -210,14 +219,21 @@ func (f *pfmMemoFrame) addKey(key string) bool {
 	if f.fold {
 		key = foldJSONKey(key)
 	}
-	if _, repeated := f.keys[key]; repeated {
-		return false
+	switch {
+	case !f.hasKey:
+		// The first key needs no map, so an object with one key costs none.
+		f.hasKey = true
+	case f.keys == nil:
+		if key == f.key {
+			return false
+		}
+		f.keys = map[string]struct{}{f.key: {}, key: {}}
+	default:
+		if _, repeated := f.keys[key]; repeated {
+			return false
+		}
+		f.keys[key] = struct{}{}
 	}
-	if f.keys == nil {
-		// Allocate on the first key, so an empty object costs no map.
-		f.keys = make(map[string]struct{})
-	}
-	f.keys[key] = struct{}{}
 	f.key = key
 	f.expectKey = false
 	return true
@@ -238,7 +254,8 @@ func pfmStringNextWithinLimits(s string) bool {
 // pfmNextMemoWithinLimits reports whether memo, valid JSON, is an object
 // within the depth and repeated-key limits.
 func pfmNextMemoWithinLimits(memo string) bool {
-	return strings.TrimLeft(memo, " \t\r\n")[0] == '{' && pfmWalkMemo(memo, false)
+	trimmed := strings.TrimLeft(memo, " \t\r\n")
+	return trimmed != "" && trimmed[0] == '{' && pfmWalkMemo(memo, false)
 }
 
 // foldJSONKey folds key the way encoding/json does to match an object key
