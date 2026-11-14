@@ -1,6 +1,9 @@
 package app
 
 import (
+	"fmt"
+
+	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -12,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -86,7 +90,27 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
+<<<<<<< HEAD
 	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
+=======
+	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
+	dec := recoverTxDecoder(logger.Error, fsb.txConfig.TxDecoder())
+
+	// Warm the signature cache across every CPU before filling. Failures are
+	// not recorded, so the fill still performs and decides each check itself.
+	if fsb.preverifyPFF != nil {
+		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
+		for i := range payForFibreTxs {
+			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
+				break
+			}
+			if fsb.decodeFibreTx(logger, dec, &payForFibreTxs[i]) {
+				decoded = append(decoded, payForFibreTxs[i].decoded)
+			}
+		}
+		fsb.preverifyPFF(ctx, decoded)
+	}
+>>>>>>> 4858864 (fix(app): [high] drop a tx that panics in PrepareProposal instead of aborting (#8604))
 
 	var (
 		sdkMessageCount = 0
@@ -128,10 +152,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Branch the state per tx so a rejected tx leaves no partial writes
 		// behind for the txs that follow it.
 		txCtx, commit := ctx.CacheContext()
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		txCtx, err = fsb.runAnteHandler(txCtx, sdkTx)
 		// either the transaction is invalid (ie incorrect nonce) and we
-		// simply want to remove this tx, or we're catching a panic from one
-		// of the anteHandlers which is logged.
+		// simply want to remove this tx, or runAnteHandler recovered a panic
+		// from one of the anteHandlers, which is logged.
 		if err != nil {
 			logger.Error(
 				"filtering already checked transaction",
@@ -196,10 +220,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		txCtx, commit := ctx.CacheContext()
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		txCtx, err = fsb.runAnteHandler(txCtx, sdkTx)
 		// either the transaction is invalid (ie incorrect nonce) and we
-		// simply want to remove this tx, or we're catching a panic from one
-		// of the anteHandlers which is logged.
+		// simply want to remove this tx, or runAnteHandler recovered a panic
+		// from one of the anteHandlers, which is logged.
 		if err != nil {
 			logger.Error(
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
@@ -230,6 +254,40 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	return kept
 }
 
+// runAnteHandler runs the ante handler on one tx and returns a panic as an
+// error. HandlePanicDecorator re-panics, and an unrecovered panic would abort
+// the whole PrepareProposal, so the tx is dropped instead. ProcessProposal
+// rejects a block that holds such a tx, so dropping it changes no block
+// validity rule. Callers run it on a per-tx CacheContext and commit only on
+// success, so a panicking tx leaves no writes behind. Out-of-gas panics are
+// already returned as errors by the SetUpContextDecorator.
+func (fsb *FilteredSquareBuilder) runAnteHandler(ctx sdk.Context, sdkTx sdk.Tx) (newCtx sdk.Context, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errorsmod.Wrap(sdkerrors.ErrPanic, fmt.Sprintf("ante handler: %v", r))
+		}
+	}()
+	return fsb.handler(ctx, sdkTx, false)
+}
+
+// recoverTxDecoder wraps dec so a decoder panic (e.g. UnpackInterfaces on a
+// malformed message) is returned as an error, and the caller drops the tx
+// like any other tx that fails to decode. The panic is counted and passed to
+// logPanic (e.g. logger.Error) so a decoder regression stays visible.
+func recoverTxDecoder(logPanic func(msg string, keyVals ...any), dec sdk.TxDecoder) sdk.TxDecoder {
+	return func(txBytes []byte) (sdkTx sdk.Tx, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logPanic("recovered a panic in the tx decoder", "tx", lazyTxHash(txBytes), "panic", fmt.Sprint(r))
+				telemetry.IncrCounter(1, "tx_decoder", "recovered_panics")
+				sdkTx = nil
+				err = errorsmod.Wrap(sdkerrors.ErrPanic, fmt.Sprintf("tx decoder: %v", r))
+			}
+		}()
+		return dec(txBytes)
+	}
+}
+
 func msgTypes(sdkTx sdk.Tx) []string {
 	msgs := sdkTx.GetMsgs()
 	msgNames := make([]string, len(msgs))
@@ -251,8 +309,13 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
+<<<<<<< HEAD
 	payForFibreTxs = make([][]byte, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
+=======
+	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
+	dec := recoverTxDecoder(logger.Error, txConfig.TxDecoder())
+>>>>>>> 4858864 (fix(app): [high] drop a tx that panics in PrepareProposal instead of aborting (#8604))
 
 	for _, rawTx := range rawTxs {
 		// this check in theory shouldn't get hit, as txs should be filtered
@@ -364,7 +427,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		txCtx, err = fsb.runAnteHandler(txCtx, sdkTx)
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
