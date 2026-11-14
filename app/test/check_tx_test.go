@@ -43,6 +43,7 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1194,4 +1195,44 @@ func appendUnknownProtoField(raw []byte, padLen int) []byte {
 	out = append(out, varint(uint64(padLen))...)
 	out = append(out, make([]byte, padLen)...)
 	return out
+}
+
+// TestCheckTxDecoderPanic checks that CheckTx rejects a tx whose decoding
+// panics, with and without a blob wrapper, instead of panicking.
+func TestCheckTxDecoderPanic(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+
+	// The solo machine client state has no consensus state, and
+	// UnpackInterfaces dereferences it.
+	signer := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+	msg, err := clienttypes.NewMsgCreateClient(
+		&solomachine.ClientState{Sequence: 1},
+		&solomachine.ConsensusState{Diversifier: "d", Timestamp: 1},
+		signer,
+	)
+	require.NoError(t, err)
+	builder := encodingConfig.TxConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	rawTx, err := encodingConfig.TxConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	require.Panics(t, func() { _, _ = encodingConfig.TxConfig.TxDecoder()(rawTx) })
+
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("data"))
+	require.NoError(t, err)
+	blobTx, err := tx.MarshalBlobTx(rawTx, blob)
+	require.NoError(t, err)
+
+	for name, txBytes := range map[string][]byte{"normal": rawTx, "blob": blobTx} {
+		for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+			t.Run(fmt.Sprintf("%s/%s", name, checkType), func(t *testing.T) {
+				var resp *abci.ResponseCheckTx
+				require.NotPanics(t, func() {
+					resp, _ = testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: txBytes})
+				})
+				require.NotNil(t, resp)
+				require.Equal(t, sdkerrors.ErrPanic.ABCICode(), resp.Code, resp.Log)
+			})
+		}
+	}
 }

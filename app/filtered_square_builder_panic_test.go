@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"math"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
 	"github.com/stretchr/testify/require"
@@ -143,4 +145,26 @@ func TestFillDropsTxWhoseDecodingPanics(t *testing.T) {
 	var kept [][]byte
 	require.NotPanics(t, func() { kept = fsb.Fill(ctx, [][]byte{panicTx, normalTx}, math.MaxInt64) })
 	require.Equal(t, [][]byte{normalTx}, kept)
+}
+
+// TestRecoverTxDecoderLogsPanic checks that a recovered decoder panic is
+// logged as an error, so a decoder regression that drops txs stays visible.
+func TestRecoverTxDecoderLogsPanic(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	panicTx := newSoloMachineCreateClientTx(t, txConfig)
+
+	var buf bytes.Buffer
+	logger := log.NewLogger(&buf, log.ColorOption(false))
+	sdkTx, err := recoverTxDecoder(logger.Error, txConfig.TxDecoder())(panicTx)
+	require.ErrorIs(t, err, sdkerrors.ErrPanic)
+	require.Nil(t, sdkTx)
+	require.Contains(t, buf.String(), "ERR")
+	require.Contains(t, buf.String(), "recovered a panic in the tx decoder")
+	require.Contains(t, buf.String(), lazyTxHash(panicTx).String())
+
+	// A tx that decodes logs nothing.
+	buf.Reset()
+	_, err = recoverTxDecoder(logger.Error, txConfig.TxDecoder())(newNormalTx(t, txConfig))
+	require.NoError(t, err)
+	require.Empty(t, buf.String())
 }

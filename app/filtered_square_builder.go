@@ -105,7 +105,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
-	dec := recoverTxDecoder(fsb.txConfig.TxDecoder())
+	dec := recoverTxDecoder(logger.Error, fsb.txConfig.TxDecoder())
 
 	// Warm the signature cache across every CPU before filling. Failures are
 	// not recorded, so the fill still performs and decides each check itself.
@@ -335,12 +335,15 @@ func (fsb *FilteredSquareBuilder) runAnteHandler(ctx sdk.Context, sdkTx sdk.Tx) 
 }
 
 // recoverTxDecoder wraps dec so a decoder panic (e.g. UnpackInterfaces on a
-// malformed message) is returned as an error, and PrepareProposal drops the
-// tx like any other tx that fails to decode.
-func recoverTxDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
+// malformed message) is returned as an error, and the caller drops the tx
+// like any other tx that fails to decode. The panic is counted and passed to
+// logPanic (e.g. logger.Error) so a decoder regression stays visible.
+func recoverTxDecoder(logPanic func(msg string, keyVals ...any), dec sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdkTx sdk.Tx, err error) {
 		defer func() {
 			if r := recover(); r != nil {
+				logPanic("recovered a panic in the tx decoder", "tx", lazyTxHash(txBytes), "panic", fmt.Sprint(r))
+				telemetry.IncrCounter(1, "tx_decoder", "recovered_panics")
 				sdkTx = nil
 				err = errorsmod.Wrap(sdkerrors.ErrPanic, fmt.Sprintf("tx decoder: %v", r))
 			}
@@ -412,7 +415,7 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
 	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
-	dec := recoverTxDecoder(txConfig.TxDecoder())
+	dec := recoverTxDecoder(logger.Error, txConfig.TxDecoder())
 
 	for _, rawTx := range rawTxs {
 		// this check in theory shouldn't get hit, as txs should be filtered
