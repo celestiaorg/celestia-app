@@ -16,6 +16,7 @@ import (
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 )
 
 // Client combines [FibreClient] with [io.Closer] to manage the lifecycle
@@ -152,10 +153,14 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 			observe:  dialCfg.observe,
 		}
 		transportOpts := transport.dialOptions(batchingCreds{credentials.NewTLS(tlsCfg)})
-		opts := make([]grpclib.DialOption, 0, 5+len(transportOpts))
+		opts := make([]grpclib.DialOption, 0, 6+len(transportOpts))
 		opts = append(opts,
 			grpclib.WithLocalDNSResolution(),
 			grpclib.WithIdleTimeout(20*time.Second),
+			// Close a connection whose peer goes silent mid-RPC; otherwise a
+			// blocked write pins the queued upload rows forever. Time must
+			// stay above the server's keepAliveMinTime.
+			grpclib.WithKeepaliveParams(keepalive.ClientParameters{Time: 15 * time.Second, Timeout: 5 * time.Second}),
 			grpclib.WithWriteBufferSize(writeBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
