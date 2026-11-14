@@ -112,6 +112,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			logger.Debug("skipping tx with too many MsgModuleQuerySafe requests", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
+		if err := validateDeterministicMsgs(sdkTx); err != nil {
+			logger.Debug("skipping tx with a message that may execute differently across builds", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
 
 		msgTypes := msgTypes(sdkTx)
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
