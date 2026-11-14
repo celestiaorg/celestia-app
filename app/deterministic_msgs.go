@@ -123,10 +123,6 @@ func truncate(s string) string {
 	return s
 }
 
-// maxForwardMemoDepth is the deepest JSON nesting accepted in a forward memo.
-// Each hop adds two levels (forward and next), so this allows about 30 hops.
-const maxForwardMemoDepth = 64
-
 var forwardFields = []string{"receiver", "port", "channel", "timeout", "retries", "next"}
 
 // forwardMetadata mirrors pfmtypes.ForwardMetadata but keeps next raw, so that
@@ -165,8 +161,8 @@ func validateForwardMemo(memo string) error {
 		return nil
 	}
 	// JSON decoders differ in how deep a valid document may nest.
-	if depth > maxForwardMemoDepth {
-		return fmt.Errorf("memo nests deeper than %d levels", maxForwardMemoDepth)
+	if depth > maxPFMForwardMemoDepth {
+		return fmt.Errorf("memo nests deeper than %d levels", maxPFMForwardMemoDepth)
 	}
 	if !json.Valid(bz) {
 		// The middleware passes memos that are not JSON on unchanged.
@@ -183,6 +179,10 @@ func validateForwardMemo(memo string) error {
 	}
 	if !utf8.Valid(bz) || hasLoneSurrogate(bz) {
 		return fmt.Errorf("memo must be valid UTF-8 without lone surrogate escapes")
+	}
+	// The same limits as the packet-forward memo check on main.
+	if !pfmForwardMemoWithinLimits(memo) {
+		return fmt.Errorf("memo repeats a key, nests deeper than %d levels, or has a forward.next that is not null, an object, or a string holding a JSON object", maxPFMForwardMemoDepth)
 	}
 
 	fields := make(map[string][]byte, len(forwardFields))
@@ -241,10 +241,6 @@ func validateForwardMemo(memo string) error {
 			return fmt.Errorf("invalid forward.next")
 		}
 		nextBz := []byte(next)
-		start := skipSpace(nextBz, 0)
-		if _, depth := skipValue(nextBz, start); depth > maxForwardMemoDepth {
-			return fmt.Errorf("forward.next nests deeper than %d levels", maxForwardMemoDepth)
-		}
 		if !json.Valid(nextBz) || hasLoneSurrogate(nextBz) {
 			return fmt.Errorf("forward.next must be JSON")
 		}

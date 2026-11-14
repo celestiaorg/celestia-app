@@ -2,6 +2,7 @@ package interop
 
 import (
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,8 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","retries":null,"next":null}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"memo":"😀"}}}`,
 		`{"Forward":{"receiver":"x","port":"a/b","channel":"{CH}"}}`,
+		// Nesting depth at the limit of 16.
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":` + nestedObject(14) + `}}`,
 	}
 	badMemos := []string{
 		`{"forward":{"receiver":"x","port":"a/b","channel":"{CH}"}}`,
@@ -63,6 +66,13 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 		`{"forward":{"receiver":"x","port":"transfer","channel":"{CH}","retries":300}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":1e19}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":-1e19}}`,
+		// The packet-forward memo limits of main.
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":` + nestedObject(15) + `}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"a":1},"next":{}}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"a":1,"a":2}}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":"null"}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":[{"a":1}]}}`,
+		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":"1ns","retries":255,"next":` + strconv.Quote(nestedObject(3000)) + `}}`,
 	}
 	execMemo := `{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":9.3e18}}`
 
@@ -202,4 +212,9 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
 		}
 	})
+}
+
+// nestedObject returns a JSON object that nests depth levels.
+func nestedObject(depth int) string {
+	return strings.Repeat(`{"a":`, depth-1) + `{}` + strings.Repeat(`}`, depth-1)
 }
