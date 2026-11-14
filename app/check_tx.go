@@ -38,6 +38,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	if isBlob {
+		// No SDK message gas floor: ValidateBlobTx allows exactly one message.
 		return app.handleBlobCheckTx(req, btx)
 	}
 
@@ -57,8 +58,13 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		err := fmt.Errorf("checkState not set")
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
-	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs())
+	if msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+	// Mempool admission policy only, like the check below.
+	if err := validateSDKMessageGas(sdkTx, msgCount); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 

@@ -54,3 +54,10 @@ func TestConsts(t *testing.T) {
 		require.Equal(t, int64(232_616), MainnetUpgradeHeightDelay)
 	})
 }
+
+// TestGasPerAdditionalSDKMessage pins the SDK message gas floor, so filling
+// MaxSDKMessages needs a declared gas limit of 2,995,000.
+func TestGasPerAdditionalSDKMessage(t *testing.T) {
+	require.Equal(t, uint64(5_000), GasPerAdditionalSDKMessage)
+	require.Equal(t, uint64(2_995_000), uint64(MaxSDKMessages-1)*GasPerAdditionalSDKMessage)
+}
