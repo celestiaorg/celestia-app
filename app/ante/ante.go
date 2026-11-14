@@ -31,6 +31,7 @@ func NewAnteHandler(
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
 	sdkMessageCounter SDKMessageCounter,
+	pendingNextSequence PendingNextSequenceFn,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -70,6 +71,9 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		// When simulating, raise each signer's sequence to its next one if recheck
+		// has not rebuilt checkState up to it yet.
+		NewSimulateSequenceDecorator(accountKeeper, pendingNextSequence),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
