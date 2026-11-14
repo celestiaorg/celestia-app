@@ -423,7 +423,7 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 			// shared runner, which slows down single runs, cancels out. The
 			// loop stops as soon as the best times meet both bounds.
 			baseline, elapsed := time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)
-			for run := 0; run < costRuns; run++ {
+			for run := range costRuns {
 				start := time.Now()
 				for _, p := range packets {
 					var data transfertypes.FungibleTokenPacketData
