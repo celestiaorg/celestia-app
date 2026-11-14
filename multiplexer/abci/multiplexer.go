@@ -38,6 +38,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/netutil"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -450,14 +451,56 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 		return blockAPI.StartNewBlockEventListener(m.ctx)
 	})
 
+	lis, err := listenGRPC(m.svrCfg.GRPC.Address, maxGRPCConnections)
+	if err != nil {
+		return nil, m.clientContext, err
+	}
+
 	// Start the gRPC server in a goroutine. Note, the provided ctx will ensure
 	// that the server is gracefully shut down.
 	m.g.Go(func() error {
-		return servergrpc.StartGRPCServer(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), m.svrCfg.GRPC, grpcSrv)
+		return serveGRPC(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), lis, grpcSrv)
 	})
 
 	m.conn = grpcClient
 	return grpcSrv, m.clientContext, nil
+}
+
+// maxGRPCConnections caps the number of connections the app gRPC server
+// serves at once. It matches the SDK default for the API server
+// (api.max-open-connections). Extra connections wait in the kernel accept
+// queue and do not use a file descriptor of this process.
+const maxGRPCConnections = 1000
+
+// listenGRPC opens the app gRPC listener on address and caps it at maxConns
+// concurrent connections.
+func listenGRPC(address string, maxConns int) (net.Listener, error) {
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on address %s: %w", address, err)
+	}
+	return netutil.LimitListener(lis, maxConns), nil
+}
+
+// serveGRPC serves grpcSrv on lis until ctx is done, then stops it
+// gracefully. It replaces servergrpc.StartGRPCServer, which opens its own
+// listener and so cannot apply a connection cap.
+func serveGRPC(ctx context.Context, logger log.Logger, lis net.Listener, grpcSrv *grpc.Server) error {
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("starting gRPC server...", "address", lis.Addr().String())
+		errCh <- grpcSrv.Serve(lis)
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("stopping gRPC server...", "address", lis.Addr().String())
+		grpcSrv.GracefulStop()
+		return nil
+	case err := <-errCh:
+		logger.Error("failed to start gRPC server", "err", err)
+		return err
+	}
 }
 
 // startAPIServer initializes and starts the API server, setting up routes, telemetry, and running it within an error group.
