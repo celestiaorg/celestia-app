@@ -160,7 +160,9 @@ type Blob struct {
 
 	refCount     atomic.Int32
 	userReleased atomic.Bool
-	releaseFn    func()
+	// releaseFn fires once when the refcount hits zero. It may run on a
+	// transport or GC-cleanup goroutine, so it must be quick and non-blocking.
+	releaseFn func()
 }
 
 // NewBlob creates a new [Blob] instance by encoding the data.
@@ -289,8 +291,10 @@ func (d *Blob) retain() bool {
 }
 
 // release decrements the refcount; when it hits zero the releaseFn fires.
-// Called by internal owners (e.g., Upload's terminal goroutine) after they
-// finish using the blob.
+// Called by internal owners after they finish using the blob. The last call
+// may come from a transport goroutine (e.g. gRPC's loopy writer freeing the
+// last row view) or the runtime cleanup goroutine, not only from Upload, so
+// releaseFn must be quick and non-blocking.
 func (d *Blob) release() {
 	if d.refCount.Add(-1) == 0 {
 		d.data, d.extendedData = nil, nil
