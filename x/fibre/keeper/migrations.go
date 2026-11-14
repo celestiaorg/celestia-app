@@ -19,7 +19,7 @@ func NewMigrator(keeper Keeper) Migrator {
 	return Migrator{keeper: keeper}
 }
 
-// Migrate1to2 makes v10 escrows accessible under v11's canonical signer keys
+// Migrate1to2 makes v10 and v11 escrows accessible under v12's canonical signer keys
 // and utia-only messages. Unsupported denominations are refunded in full;
 // pending withdrawals are part of Balance, so they must not be paid separately.
 func (m Migrator) Migrate1to2(ctx sdk.Context) error {

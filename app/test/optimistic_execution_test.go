@@ -231,7 +231,7 @@ func TestOptimisticExecutionMatchesReplay(t *testing.T) {
 		})
 	}
 
-	t.Run("v10 to v11 upgrade", func(t *testing.T) {
+	t.Run(fmt.Sprintf("v10 to v%d upgrade", appconsts.Version), func(t *testing.T) {
 		original := app.NodeHome
 		app.NodeHome = t.TempDir() // the upgrade writes upgrade-info.json here
 		t.Cleanup(func() { app.NodeHome = original })
@@ -242,7 +242,8 @@ func TestOptimisticExecutionMatchesReplay(t *testing.T) {
 			ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight()})
 			ctx.KVStore(testApp.GetKey(signaltypes.StoreKey)).Set(signaltypes.UpgradeKey, upgrade)
 		}
-		// Heights 2 and 3 are v10 blocks; 3's EndBlocker upgrades, so 4 is v11.
+		// Heights 2 and 3 are v10 blocks; 3's EndBlocker upgrades, so 4 runs at
+		// appconsts.Version.
 		for _, want := range []uint64{10, 10, appconsts.Version, appconsts.Version} {
 			require.Equal(t, want, p.appVersion)
 			p.differentialHeight()

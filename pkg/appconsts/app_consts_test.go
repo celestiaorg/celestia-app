@@ -8,6 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestVersion checks that main is app version 12. v11 is released from the
+// v11.x branch, so main's consensus-breaking changes ship in v12.
+func TestVersion(t *testing.T) {
+	require.Equal(t, uint64(12), Version)
+}
+
 // TestMaxExpectedTimePerBlock fails if MaxExpectedTimePerBlock is not 5x the
 // block interval of the current app version.
 func TestMaxExpectedTimePerBlock(t *testing.T) {
