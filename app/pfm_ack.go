@@ -31,7 +31,9 @@ func (m pfmIBCMiddleware) OnRecvPacket(ctx sdk.Context, packet channeltypes.Pack
 	// Reject, before packet-forward-middleware runs, a forward memo with a
 	// numeric timeout outside the int64 range (its conversion to
 	// time.Duration depends on the CPU architecture) or with no forward
-	// metadata after decoding (packet-forward-middleware does not handle it).
+	// metadata after decoding (packet-forward-middleware does not handle it),
+	// or a forward memo that is too long or nests too deep (the work to
+	// encode forward.next again grows with the depth times the length).
 	if rejectPFMForwardMemo(packet.GetData()) {
 		ctx.Logger().Info("rejected packet-forward-middleware forward memo")
 		return channeltypes.NewErrorAcknowledgement(apperrors.ErrPacketForward)

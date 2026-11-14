@@ -2,6 +2,7 @@ package interop
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -140,6 +141,66 @@ func TestPFMForwardMemoWithoutMetadata(t *testing.T) {
 			ack, err := ibctesting.ParseAckFromEvents(recvRes.GetEvents())
 			require.NoError(t, err)
 			require.Equal(t, tc.wantAck, string(ack))
+		})
+	}
+}
+
+// TestPFMForwardMemoDepth checks the committed result of forward memos at
+// and past the nesting depth limit, and of an honest 2-hop memo whose next
+// value is an object. A memo that nests too deep gets the fixed
+// packet-forward-middleware error acknowledgement and is not forwarded.
+func TestPFMForwardMemoDepth(t *testing.T) {
+	const fixedErrorAck = `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
+	const maxDepth = 32 // app.maxPFMForwardMemoDepth
+
+	coordinator, celestia, chainA, chainB := SetupTest(t)
+	pathA := ibctesting.NewTransferPath(chainA, celestia)
+	pathB := ibctesting.NewTransferPath(celestia, chainB)
+	coordinator.Setup(pathA)
+	coordinator.Setup(pathB)
+	receiver := chainB.SenderAccount.GetAddress().String()
+
+	// nested returns a next value that adds depth levels to the memo.
+	nested := func(depth int) string {
+		return strings.Repeat(`{"a":`, depth) + `1` + strings.Repeat(`}`, depth)
+	}
+	secondHop := `{"forward":{"receiver":"r2","port":"transfer","channel":"channel-9"}}`
+	testCases := []struct {
+		name     string
+		next     string
+		wantNext string // memo of the forwarded packet; empty when rejected
+	}{
+		{"2-hop", secondHop, secondHop},
+		{"depth at limit", nested(maxDepth - 2), nested(maxDepth - 2)},
+		{"depth over limit", nested(maxDepth - 1), ""},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			memo := fmt.Sprintf(`{"forward":{"receiver":%q,"port":"transfer","channel":%q,"next":%s}}`,
+				receiver, pathB.EndpointA.ChannelID, tc.next)
+			msg := transfertypes.NewMsgTransfer(pathA.EndpointA.ChannelConfig.PortID, pathA.EndpointA.ChannelID,
+				sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000)), chainA.SenderAccount.GetAddress().String(), "unused",
+				clienttypes.NewHeight(1, 100000), 0, memo)
+			res, err := chainA.SendMsgs(msg)
+			require.NoError(t, err)
+			packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
+			require.NoError(t, err)
+			require.NoError(t, pathA.EndpointB.UpdateClient())
+			recvRes, err := pathA.EndpointB.RecvPacketWithResult(packet)
+			require.NoError(t, err)
+
+			ack, ackErr := ibctesting.ParseAckFromEvents(recvRes.GetEvents())
+			if tc.wantNext == "" {
+				require.NoError(t, ackErr, "packet must not be forwarded")
+				require.Equal(t, fixedErrorAck, string(ack))
+				return
+			}
+			require.Error(t, ackErr, "packet must be forwarded: ack %s", ack)
+			fwd, err := ibctesting.ParsePacketFromEvents(recvRes.GetEvents())
+			require.NoError(t, err)
+			var data transfertypes.FungibleTokenPacketData
+			require.NoError(t, transfertypes.ModuleCdc.UnmarshalJSON(fwd.GetData(), &data))
+			require.Equal(t, tc.wantNext, data.Memo)
 		})
 	}
 }

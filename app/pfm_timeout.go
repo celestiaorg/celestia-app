@@ -12,6 +12,22 @@ import (
 // depends on the CPU architecture.
 const pfmTimeoutLimit = float64(1 << 63)
 
+// maxPFMForwardMemoDepth is the deepest JSON nesting of objects and arrays
+// accepted in a forward memo. Before packet-forward-middleware forwards a
+// packet, it encodes forward.next again, and that work grows with the depth
+// times the length of the memo. A memo nests two levels per hop
+// ({"forward":{"next":...}}), so 32 levels allow 15 hops, or a few hops
+// followed by a deeply nested memo for the last chain. Real routes use far
+// fewer.
+const maxPFMForwardMemoDepth = 32
+
+// maxPFMForwardMemoLength is the longest forward memo accepted, in bytes. It
+// is the limit that ibc-go applies to the memo of a MsgTransfer, so a packet
+// sent by an ibc-go chain is never longer. With maxPFMForwardMemoDepth, it
+// bounds the work packet-forward-middleware does for one packet by a
+// constant.
+const maxPFMForwardMemoLength = transfertypes.MaximumMemoLength
+
 // rejectPFMForwardMemo reports whether the wrapper must reject this packet
 // before packet-forward-middleware runs. It decodes the packet the way
 // packet-forward-middleware does: ICS-20 packet data, a memo with a
@@ -32,6 +48,11 @@ func rejectPFMForwardMemo(packetData []byte) bool {
 	d := make(map[string]any)
 	if err := json.Unmarshal([]byte(data.Memo), &d); err != nil || d["forward"] == nil {
 		return false
+	}
+	// Check the bounds before any other decoding: packet-forward-middleware
+	// decodes forward.next even when a later field is invalid.
+	if len(data.Memo) > maxPFMForwardMemoLength || jsonDepth([]byte(data.Memo)) > maxPFMForwardMemoDepth {
+		return true
 	}
 	var memo struct {
 		Forward *struct {
@@ -70,4 +91,30 @@ func (t *pfmTimeout) UnmarshalJSON(b []byte) error {
 	f, ok := v.(float64)
 	t.outOfRange = ok && (f < -pfmTimeoutLimit || f >= pfmTimeoutLimit)
 	return nil
+}
+
+// jsonDepth returns the deepest nesting of objects and arrays in bz, which
+// must be valid JSON. It reads each byte once.
+func jsonDepth(bz []byte) int {
+	depth, level := 0, 0
+	inString := false
+	for i := 0; i < len(bz); i++ {
+		switch c := bz[i]; {
+		case inString:
+			switch c {
+			case '\\':
+				i++ // skip the escaped byte
+			case '"':
+				inString = false
+			}
+		case c == '"':
+			inString = true
+		case c == '{' || c == '[':
+			level++
+			depth = max(depth, level)
+		case c == '}' || c == ']':
+			level--
+		}
+	}
+	return depth
 }
