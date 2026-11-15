@@ -15,8 +15,8 @@ import (
 	"syscall"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/app/observability"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
+	"github.com/celestiaorg/celestia-app/v11/app/observability"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"

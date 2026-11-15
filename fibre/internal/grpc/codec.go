@@ -3,7 +3,7 @@ package grpc
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/encoding"
 	_ "google.golang.org/grpc/encoding/proto" // standard codec, used for non-gogoproto messages
 	"google.golang.org/grpc/mem"

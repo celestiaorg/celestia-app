@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

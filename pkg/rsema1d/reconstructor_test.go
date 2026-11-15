@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 )
 
 func TestReconstructorReconstructRequiresEnoughRows(t *testing.T) {

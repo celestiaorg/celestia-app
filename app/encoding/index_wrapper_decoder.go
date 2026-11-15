@@ -1,8 +1,8 @@
 package encoding
 
 import (
-	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
-	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

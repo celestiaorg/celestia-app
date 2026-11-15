@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
 	cmtmerkle "github.com/cometbft/cometbft/crypto/merkle"
 )
 

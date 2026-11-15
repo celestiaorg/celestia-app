@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

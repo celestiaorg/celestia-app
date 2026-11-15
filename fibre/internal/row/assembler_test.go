@@ -3,7 +3,7 @@ package row
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 )
 
 func TestAssembler_Assemble(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"

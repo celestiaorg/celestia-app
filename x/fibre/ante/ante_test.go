@@ -9,7 +9,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"

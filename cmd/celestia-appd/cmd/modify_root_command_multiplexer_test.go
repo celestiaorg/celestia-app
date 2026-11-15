@@ -8,15 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUnsupportedFlags(t *testing.T) {
+	// v10 supports every current start flag.
+	require.Empty(t, unsupportedFlags(10))
+
 	// v6-v9 lack only the flags added in v10.
 	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
 	require.Equal(t, unsupportedFlags(9), unsupportedFlags(6))
@@ -53,6 +56,7 @@ func TestUnsupportedFlagsMatchEmbeddedBinaries(t *testing.T) {
 	for i, embedded := range []func() (string, []byte, error){
 		embedding.CelestiaAppV3, embedding.CelestiaAppV4, embedding.CelestiaAppV5,
 		embedding.CelestiaAppV6, embedding.CelestiaAppV7, embedding.CelestiaAppV8, embedding.CelestiaAppV9,
+		embedding.CelestiaAppV10,
 	} {
 		version, data, err := embedded()
 		require.NoError(t, err)

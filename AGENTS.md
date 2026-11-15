@@ -9,8 +9,8 @@ This file provides guidance to AI agents when working with code in this reposito
 When editing Go code, always run `make build` after changes to catch compilation errors immediately.
 
 ```bash
-make build              # Build multiplexer version (embeds v3-v9 binaries) into ./build/
-make build-standalone   # Build v10-only version (no embedded binaries)
+make build              # Build multiplexer version (embeds v3-v10 binaries) into ./build/
+make build-standalone   # Build v11-only version (no embedded binaries)
 make mod                # Update all go.mod files
 ```
 
@@ -50,14 +50,14 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 - **`/app`** - Application core: state machine, ABCI handlers (`prepare_proposal.go`, `process_proposal.go`), ante decorators (`ante/`)
 - **`/x`** - Custom modules: `blob` (MsgPayForBlobs), `signal` (upgrades), `minfee` (gas price governance), `mint` (inflation)
 - **`/pkg`** - Reusable packages: `appconsts`, `da`, `wrapper` (NMT), `user` (tx APIs), `inclusion`, `proof`
-- **`/multiplexer`** - Multi-version upgrade system embedding v3-v9 binaries
+- **`/multiplexer`** - Multi-version upgrade system embedding v3-v10 binaries
 - **`/cmd/celestia-appd`** - Binary entry point
 - **`/test/util`** - Test utilities: `testnode`, `blobfactory`, `testfactory`
 
 ### Multiplexer vs Standalone
 
-- **`make build`** (default): Multiplexer build embeds v3-v9 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
-- **`make build-standalone`**: v10-only, lighter. Build tag: `ledger`
+- **`make build`** (default): Multiplexer build embeds v3-v10 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
+- **`make build-standalone`**: v11-only, lighter. Build tag: `ledger`
 
 The fibre and valaddr modules are compiled into every build by default. The module code lives under `x/fibre/` and `x/valaddr/`, wired into the app via `app/fibre.go`.
 

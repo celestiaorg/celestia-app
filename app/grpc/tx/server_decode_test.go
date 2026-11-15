@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
