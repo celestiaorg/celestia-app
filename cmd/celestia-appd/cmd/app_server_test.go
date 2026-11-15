@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	storecache "cosmossdk.io/store/cache"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -36,6 +37,28 @@ func TestNewAppServerAppliesTimeoutFlags(t *testing.T) {
 	require.Equal(t, 5*time.Millisecond, got.TimeoutCommit)
 	require.Equal(t, 7*time.Millisecond, got.DelayedPrecommitTimeout)
 	require.Equal(t, 3*time.Millisecond, got.DynamicTimeoutCommit)
+}
+
+// TestInterBlockCacheSize checks the app gets the 20k inter-block cache only when inter-block-cache is on.
+func TestInterBlockCacheSize(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		opts := simtestutil.AppOptionsMap{
+			flags.FlagHome:             t.TempDir(),
+			flags.FlagChainID:          "test",
+			server.FlagPruning:         "nothing",
+			server.FlagInterBlockCache: enabled,
+		}
+		celestiaApp, ok := NewAppServer(log.NewNopLogger(), dbm.NewMemDB(), nil, opts).(*app.App)
+		require.True(t, ok)
+		// BaseApp and the cache manager expose no accessor; read the unexported fields.
+		cache := reflect.ValueOf(celestiaApp.BaseApp).Elem().FieldByName("interBlockCache")
+		if !enabled {
+			require.True(t, cache.IsNil())
+			continue
+		}
+		require.Equal(t, reflect.TypeFor[*storecache.CommitKVStoreCacheManager](), cache.Elem().Type())
+		require.EqualValues(t, interBlockCacheSize, cache.Elem().Elem().FieldByName("cacheSize").Uint())
+	}
 }
 
 // TestDisableOptimisticExecution loads the config the way the start command
