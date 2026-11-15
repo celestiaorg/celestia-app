@@ -30,6 +30,8 @@ type Keeper struct {
 	// double-spend window. It is nil in consensus-only setups and unit tests and
 	// is never consulted from the ABCI path. See local_promise_cache.go.
 	promiseCache *LocalPromiseCache
+	// checkSigner rejects promises whose signer may not pay, on the query path only.
+	checkSigner func(ctx sdk.Context, signer sdk.AccAddress) error
 	// sigCache memoizes promise signature verification. A nil cache disables
 	// memoization; the verification itself is unchanged either way.
 	sigCache SigCache
@@ -41,6 +43,12 @@ type Keeper struct {
 type SigCache interface {
 	Has(key sigcache.Key) bool
 	Add(key sigcache.Key)
+}
+
+// SetPromiseSignerCheck makes ValidatePaymentPromise reject promises whose
+// signer fails check. Call it before registering the keeper with the module.
+func (k *Keeper) SetPromiseSignerCheck(check func(ctx sdk.Context, signer sdk.AccAddress) error) {
+	k.checkSigner = check
 }
 
 // NewKeeper creates a new fibre Keeper instance. When enableCache is true the
