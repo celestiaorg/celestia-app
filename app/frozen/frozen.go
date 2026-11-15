@@ -37,7 +37,7 @@ const ActivationVersion uint64 = 11
 
 // The whitehat is the only address listed accounts may send funds to.
 const (
-	// TODO: confirm the recovery address before release.
+	// Web3Auth's recovery address, confirmed with Web3Auth.
 	MainnetWhitehat = "celestia1atuap9kfnt6y8ykvn3437e7j3z8qffh33pzt53"
 	MochaWhitehat   = "celestia1xk4tasrhcr3w6jyq4xzd8x6aapv9hmfuh8mcxn" // test key
 	CortoWhitehat   = "celestia1yny4dz396zd2vp85fnqynnnq6pnj00lz95xv09" // test key
