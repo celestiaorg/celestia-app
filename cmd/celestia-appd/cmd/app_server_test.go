@@ -39,25 +39,35 @@ func TestNewAppServerAppliesTimeoutFlags(t *testing.T) {
 	require.Equal(t, 3*time.Millisecond, got.DynamicTimeoutCommit)
 }
 
-// TestInterBlockCacheSize checks the app gets the 20k inter-block cache only when inter-block-cache is on.
+// TestInterBlockCacheSize loads the config the way the start command does and
+// checks the app gets the 20k inter-block cache unless inter-block-cache is off.
 func TestInterBlockCacheSize(t *testing.T) {
-	for _, enabled := range []bool{true, false} {
-		opts := simtestutil.AppOptionsMap{
-			flags.FlagHome:             t.TempDir(),
-			flags.FlagChainID:          "test",
-			server.FlagPruning:         "nothing",
-			server.FlagInterBlockCache: enabled,
-		}
-		celestiaApp, ok := NewAppServer(log.NewNopLogger(), dbm.NewMemDB(), nil, opts).(*app.App)
-		require.True(t, ok)
-		// BaseApp and the cache manager expose no accessor; read the unexported fields.
-		cache := reflect.ValueOf(celestiaApp.BaseApp).Elem().FieldByName("interBlockCache")
-		if !enabled {
-			require.True(t, cache.IsNil())
-			continue
-		}
-		require.Equal(t, reflect.TypeFor[*storecache.CommitKVStoreCacheManager](), cache.Elem().Type())
-		require.EqualValues(t, interBlockCacheSize, cache.Elem().Elem().FieldByName("cacheSize").Uint())
+	for _, tc := range []struct {
+		name, appToml string
+		enabled       bool
+	}{
+		{name: "default", enabled: true},
+		{name: "off", appToml: "inter-block-cache = false\n", enabled: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			if tc.appToml != "" {
+				require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(home, "config", "app.toml"), []byte(tc.appToml), 0o600))
+			}
+			opts := startContext(t, home).Viper
+			opts.Set(flags.FlagChainID, "test")
+			celestiaApp, ok := NewAppServer(log.NewNopLogger(), dbm.NewMemDB(), nil, opts).(*app.App)
+			require.True(t, ok)
+			// BaseApp and the cache manager expose no accessor; read the unexported fields.
+			cache := reflect.ValueOf(celestiaApp.BaseApp).Elem().FieldByName("interBlockCache")
+			if !tc.enabled {
+				require.True(t, cache.IsNil())
+				return
+			}
+			require.Equal(t, reflect.TypeFor[*storecache.CommitKVStoreCacheManager](), cache.Elem().Type())
+			require.EqualValues(t, interBlockCacheSize, cache.Elem().Elem().FieldByName("cacheSize").Uint())
+		})
 	}
 }
 
