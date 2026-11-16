@@ -199,6 +199,44 @@ func TestCheckState(t *testing.T) {
 		{name: "not bonded pool missing an unbonding entry", edit: addUBD(acc), want: cons("staking", "not_bonded_tokens_pool[utia]", notBonded.AddRaw(5).String())},
 		{name: "unbonding entry counted", edit: chain(addUBD(acc), credit(stakingtypes.NotBondedPoolName, utia(5)))},
 		{name: "upper-case alias of an unbonding delegation", edit: addUBD(acc, strings.ToUpper(acc)), want: rec("staking", fmt.Sprintf("unbonding_delegations[%d]", nUBDs+1), "a distinct key")},
+		// delegations
+		{name: "upper-case alias of a delegation", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			d := gs.Delegations[0]
+			d.DelegatorAddress = strings.ToUpper(d.DelegatorAddress)
+			gs.Delegations = append(gs.Delegations, d)
+		}), want: rec("staking", fmt.Sprintf("delegations[%d]", len(staking.Delegations)), "a distinct key")},
+		{name: "zero delegation shares", edit: stakingEdit(func(gs *stakingtypes.GenesisState) { gs.Delegations[0].Shares = math.LegacyZeroDec() }), want: rec("staking", "delegations[0].shares", "> 0")},
+		{name: "nil delegation shares", edit: rawEdit(stakingtypes.ModuleName, `,"shares":"`+staking.Delegations[0].Shares.String()+`"`), want: rec("staking", "delegations[0].shares", "> 0")},
+		{name: "negative delegation shares", edit: stakingEdit(func(gs *stakingtypes.GenesisState) { gs.Delegations[0].Shares = math.LegacyNewDec(-1) }), want: rec("staking", "delegations[0].shares", "> 0")},
+		{name: "invalid delegator address", edit: stakingEdit(func(gs *stakingtypes.GenesisState) { gs.Delegations[0].DelegatorAddress = "celestia1invalid" }), want: rec("staking", "delegations[0].delegator_address", "a valid address")},
+		{name: "invalid delegation validator address", edit: stakingEdit(func(gs *stakingtypes.GenesisState) { gs.Delegations[0].ValidatorAddress = "celestiavaloper1invalid" }), want: rec("staking", "delegations[0].validator_address", "a valid address")},
+		{name: "nil delegator shares", edit: rawEdit(stakingtypes.ModuleName, `,"delegator_shares":"`+staking.Validators[0].DelegatorShares.String()+`"`), want: cons("staking", "validators[0].delegator_shares", staking.Delegations[0].Shares.String())},
+		{name: "delegation shares sum beyond the dec range", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			d := &gs.Delegations[0]
+			d.Shares = math.LegacyNewDecFromInt(maxInt)
+			gs.Delegations = append(gs.Delegations, stakingtypes.NewDelegation(sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String(), d.ValidatorAddress, d.Shares))
+		}), want: cons("staking", "validators[0].delegator_shares", math.LegacyNewDecFromBigInt(new(big.Int).Lsh(maxInt.BigInt(), 1)).String())},
+		{name: "delegation to an unknown validator", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			gs.Delegations = append(gs.Delegations, stakingtypes.NewDelegation(acc, val1, math.LegacyOneDec()))
+		}), want: rec("staking", fmt.Sprintf("delegations[%d].validator_address", len(staking.Delegations)), "a validator in validators")},
+		{name: "delegator shares off by 1e-18", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			gs.Validators[0].DelegatorShares = gs.Validators[0].DelegatorShares.Add(math.LegacySmallestDec())
+		}), want: cons("staking", "validators[0].delegator_shares", staking.Validators[0].DelegatorShares.String())},
+		{name: "delegations of a validator summed exactly", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			d := &gs.Delegations[0]
+			d.Shares = d.Shares.Sub(math.LegacySmallestDec())
+			gs.Delegations = append(gs.Delegations, stakingtypes.NewDelegation(sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String(), d.ValidatorAddress, math.LegacySmallestDec()))
+		})},
+		{name: "validator without delegations and zero shares", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			v := gs.Validators[0]
+			v.OperatorAddress, v.Status, v.Tokens, v.DelegatorShares = val1, stakingtypes.Unbonding, math.ZeroInt(), math.LegacyZeroDec()
+			gs.Validators = append(gs.Validators, v)
+		})},
+		{name: "validator without delegations and non-zero shares", edit: stakingEdit(func(gs *stakingtypes.GenesisState) {
+			v := gs.Validators[0]
+			v.OperatorAddress, v.Status, v.Tokens, v.DelegatorShares = val1, stakingtypes.Unbonding, math.ZeroInt(), math.LegacySmallestDec()
+			gs.Validators = append(gs.Validators, v)
+		}), want: cons("staking", fmt.Sprintf("validators[%d].delegator_shares", nVals), "0.000000000000000000")},
 		// distribution
 		{name: "distribution off by one after truncation", edit: chain(distrEdit(func(gs *distrtypes.GenesisState) {
 			gs.FeePool.CommunityPool = gs.FeePool.CommunityPool.Add(foo("1.5")...)
