@@ -36,6 +36,8 @@ type exportRestart struct {
 	archive *cosmos.ChainNode
 	// exportAt, if not zero, is the height every validator exports.
 	exportAt int64
+	// exportFlags are extra flags of every validator's export.
+	exportFlags []string
 	// initialHeight is the first height of the new chain. If zero, it is set
 	// to max(S, E) + 1 + restartHeightGap.
 	initialHeight int64
@@ -80,6 +82,7 @@ func (s *CelestiaTestSuite) exportAndRestart(ctx context.Context, chain *cosmos.
 	if r.exportAt > 0 {
 		exportArgs = []string{"--height", strconv.FormatInt(r.exportAt, 10)}
 	}
+	exportArgs = append(exportArgs, r.exportFlags...)
 	var source *cosmos.ChainNode
 	for _, v := range chain.Validators {
 		exported := s.export(ctx, v, exportArgs...)
