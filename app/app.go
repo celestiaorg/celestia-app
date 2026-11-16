@@ -242,6 +242,8 @@ type App struct {
 	// upgradeInfo is the plan scheduled by the last EndBlocker run. Commit writes it,
 	// so EndBlocker never publishes it from a discarded optimistic run.
 	upgradeInfo *upgradetypes.Plan
+	// allowUpgradeWindowExport lets an export run at the last height before a scheduled upgrade.
+	allowUpgradeWindowExport bool
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently

@@ -63,6 +63,12 @@ func (app *App) ExportAppStateAndValidators(
 	}, err
 }
 
+// SetAllowUpgradeWindowExport lets an export run at the last height before a
+// scheduled upgrade.
+func (app *App) SetAllowUpgradeWindowExport(allow bool) {
+	app.allowUpgradeWindowExport = allow
+}
+
 // checkExportable refuses state that this binary cannot export into a usable
 // genesis.
 func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error {
@@ -71,7 +77,12 @@ func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error
 	case errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
 	case err != nil:
 		return err
-	case plan.Height <= app.LastBlockHeight()+1:
+	case plan.Height == app.LastBlockHeight()+1 && app.allowUpgradeWindowExport:
+	case plan.Height == app.LastBlockHeight()+1:
+		return fmt.Errorf("upgrade %q is scheduled for height %d: export with --height %d instead, "+
+			"or, if block %d changed no validators (validators_hash == next_validators_hash in the header of block %d), pass --allow-upgrade-window",
+			plan.Name, plan.Height, app.LastBlockHeight()-1, plan.Height-1, plan.Height)
+	case plan.Height <= app.LastBlockHeight():
 		return fmt.Errorf("upgrade %q is scheduled for height %d: export with --height %d instead",
 			plan.Name, plan.Height, app.LastBlockHeight()-1)
 	}

@@ -68,10 +68,11 @@ func TestCortoGenesisImportExportPreservesParameters(t *testing.T) {
 
 func TestExportRefusals(t *testing.T) {
 	testCases := []struct {
-		name            string
-		setup           func(*testing.T, *app.App, sdk.Context)
-		modulesToExport []string
-		wantErr         string
+		name               string
+		setup              func(*testing.T, *app.App, sdk.Context)
+		modulesToExport    []string
+		allowUpgradeWindow bool
+		wantErr            string
 	}{
 		{
 			name: "upgrade plan for the next height",
@@ -79,7 +80,25 @@ func TestExportRefusals(t *testing.T) {
 				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
 				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
 			},
-			wantErr: "export with --height 1 instead",
+			wantErr: "upgrade \"v100\" is scheduled for height 3: export with --height 1 instead, or, if block 2 changed no validators " +
+				"(validators_hash == next_validators_hash in the header of block 3), pass --allow-upgrade-window",
+		},
+		{
+			name: "upgrade plan for the next height with --allow-upgrade-window",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+			},
+			allowUpgradeWindow: true,
+		},
+		{
+			name: "past upgrade plan with --allow-upgrade-window",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight()}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+			},
+			allowUpgradeWindow: true,
+			wantErr:            "upgrade \"v100\" is scheduled for height 2: export with --height 1 instead",
 		},
 		{
 			name: "upgrade plan for the next height and another app version",
@@ -114,7 +133,12 @@ func TestExportRefusals(t *testing.T) {
 			})
 			require.Equal(t, int64(2), testApp.LastBlockHeight())
 
+			testApp.SetAllowUpgradeWindowExport(tc.allowUpgradeWindow)
 			_, err := testApp.ExportAppStateAndValidators(false, nil, tc.modulesToExport)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
 			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
