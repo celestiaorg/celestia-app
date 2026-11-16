@@ -146,7 +146,6 @@ func TestCheckState(t *testing.T) {
 		})
 	}
 	collateral, synthetic := warptypes.HYP_TOKEN_TYPE_COLLATERAL, warptypes.HYP_TOKEN_TYPE_SYNTHETIC
-	yearLater := blockTime.Add(time.Duration(minttypes.NanosecondsPerYear))
 
 	testCases := []struct {
 		name      string
@@ -223,7 +222,7 @@ func TestCheckState(t *testing.T) {
 		{name: "mint excess acknowledged exactly", edit: setProvisions(excess), ack: "0.000000000000000001", excess: "0.000000000000000001"},
 		{name: "mint excess acknowledged off by 1e-18", edit: setProvisions(excess), ack: "0.000000000000000002", want: cons("mint", "accept-mint-excess", "0.000000000000000001")},
 		{name: "mint acknowledgment with a negative excess", edit: setProvisions(math.LegacyZeroDec()), ack: "0", want: cons("mint", "accept-mint-excess", product.Neg().String())},
-		{name: "mint rate of a year before T", blockTime: yearLater, want: cons("mint", "minter.inflation_rate", mint.Minter.CalculateInflationRate(sdk.Context{}.WithBlockTime(yearLater), *mint.GenesisTime).String()+" at export-block-time")},
+		{name: "mint rate of a year before T", blockTime: blockTime.Add(time.Duration(minttypes.NanosecondsPerYear)), want: cons("mint", "minter.inflation_rate", mint.Minter.CalculateInflationRate(sdk.Context{}.WithBlockTime(blockTime.Add(time.Duration(minttypes.NanosecondsPerYear))), *mint.GenesisTime).String()+" at export-block-time")},
 		{name: "mint genesis time after T", blockTime: blockTime.Add(-time.Nanosecond), want: cons("mint", "genesis_time", "<= export-block-time "+formatTime(blockTime.Add(-time.Nanosecond)))},
 		// gov
 		{name: "gov records accepted with a surplus", edit: chain(proposal(&afterT), vote("1", acc), deposit(acc), credit(govtypes.ModuleName, utia(7))), check: func(t *testing.T, res *genesis.CheckResult) {
@@ -256,6 +255,7 @@ func TestCheckState(t *testing.T) {
 		{name: "fibre zero escrow listed", edit: escrow(acc, 0, 0, 0), check: func(t *testing.T, res *genesis.CheckResult) {
 			require.Equal(t, "[{"+acc+" utia 0 0 0}]", fmt.Sprint(res.FibreEscrows))
 		}},
+		{name: "fibre escrow not in utia", edit: chain(escrow(acc, 1, 1, 0), replaceEdit(fibretypes.ModuleName, `"utia"`, `"foo"`), replaceEdit(fibretypes.ModuleName, `"utia"`, `"foo"`)), want: rec("fibre", "escrow_accounts[0].balance", "utia")},
 		{name: "fibre withdrawal without an escrow", edit: fibreEdit(func(gs *fibretypes.GenesisState) {
 			gs.Withdrawals = append(gs.Withdrawals, fibretypes.Withdrawal{Signer: acc, Amount: utia(1), RequestedTimestamp: blockTime, AvailableTimestamp: blockTime})
 		}), want: rec("fibre", "", "valid records")},

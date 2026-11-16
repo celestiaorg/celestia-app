@@ -11,6 +11,7 @@ import (
 
 	"cosmossdk.io/math"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -139,9 +140,7 @@ func blockedAddrs(addrs map[string]bool) (map[string]bool, error) {
 		if err != nil {
 			return nil, &CheckError{Step: stepInput, Field: "blocked-addresses", Want: "valid addresses", Got: err.Error()}
 		}
-		if addrs[addr] {
-			blocked[string(bz)] = true
-		}
+		blocked[string(bz)] = blocked[string(bz)] || addrs[addr]
 	}
 	return blocked, nil
 }
@@ -232,9 +231,7 @@ func checkFibre(cdc codec.JSONCodec, g *Genesis, bal sdk.Coins, blockTime time.T
 	if err != nil {
 		return nil, nil, err
 	}
-	slices.SortFunc(escrows, func(a, b FibreEscrow) int {
-		return cmp.Or(strings.Compare(a.Owner, b.Owner), strings.Compare(a.Denom, b.Denom))
-	})
+	slices.SortFunc(escrows, func(a, b FibreEscrow) int { return strings.Compare(a.Owner, b.Owner) }) // one denom per owner
 	for _, e := range escrows {
 		// Withdrawal requests move funds from available to pending; payments and processing lower both sides together.
 		reserved, err := e.Available.SafeAdd(e.Pending)
@@ -258,6 +255,10 @@ func sumFibre(gs *fibretypes.GenesisState, blockTime time.Time) ([]FibreEscrow, 
 		owner, err := decodeAddr(accCodec, nil, module, "escrow_accounts", i, "signer", a.Signer)
 		if err != nil {
 			return nil, nil, err
+		}
+		// Migrate1to2 refunds other denoms at import and fails on a blocked owner; ValidateRecords ties available and withdrawals to this denom.
+		if a.Balance.Denom != appconsts.BondDenom {
+			return nil, nil, &CheckError{Step: stepRecords, Module: module, Field: fmt.Sprintf("escrow_accounts[%d].balance", i), Want: appconsts.BondDenom, Got: a.Balance.Denom}
 		}
 		k := [2]string{owner, a.Balance.Denom}
 		e, ok := byKey[k]
