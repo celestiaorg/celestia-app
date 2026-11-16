@@ -69,6 +69,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/baseapp/oe"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -227,21 +228,26 @@ type App struct {
 	// rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
-	treePool                *wrapper.TreePool
+	treePool *wrapper.TreePool
+	// Test-only overrides of the app version's timeouts; 0 means unset.
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
+	dynamicTimeoutCommit    time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
 	checkStateMu *sync.RWMutex
 	// stateFixes repair committed state at set heights. See state_fixes.go.
 	stateFixes []StateFix
+	// upgradeInfo is the plan scheduled by the last EndBlocker run. Commit writes it,
+	// so EndBlocker never publishes it from a discarded optimistic run.
+	upgradeInfo *upgradetypes.Plan
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
 // delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
-// default value from appconsts.
+// app version's value from appconsts.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -281,6 +287,8 @@ func newApp(
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 	handoff := &txHandoff{}
 
+	// Prepended so a caller's DisableOptimisticExecution wins.
+	baseAppOptions = append([]func(*baseapp.BaseApp){baseapp.SetOptimisticExecution(oe.WithTxsTransform(stripBlobTxs))}, baseAppOptions...)
 	baseApp := baseapp.NewBaseApp(Name, logger, db, handoff.decoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
@@ -291,14 +299,6 @@ func newApp(
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
-
-	if delayedPrecommitTimeout == 0 {
-		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
-	}
-
-	if timeoutCommit == 0 {
-		timeoutCommit = appconsts.TimeoutCommit
-	}
 
 	maxTxs := mempoolMaxTxs(appOpts)
 
@@ -385,6 +385,7 @@ func newApp(
 		encodingConfig.Codec,
 		keys[signaltypes.StoreKey],
 		app.StakingKeeper,
+		app.BaseApp,
 	)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
@@ -413,7 +414,7 @@ func newApp(
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		encodingConfig.Codec, runtime.NewKVStoreService(keys[govtypes.StoreKey]), app.AccountKeeper, app.BankKeeper,
-		app.StakingKeeper, app.DistrKeeper, app.MsgServiceRouter(), govtypes.DefaultConfig(), govModuleAddr,
+		app.StakingKeeper, app.DistrKeeper, govMsgRouter{app.MsgServiceRouter()}, govtypes.DefaultConfig(), govModuleAddr,
 	)
 	// Set legacy router for backwards compatibility with gov v1beta1
 	app.GovKeeper.SetLegacyRouter(govv1beta1.NewRouter())
@@ -425,7 +426,7 @@ func newApp(
 		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
 		app.IBCKeeper.ChannelKeeper,
 		app.BankKeeper,
-		app.IBCKeeper.ChannelKeeper,
+		pfmICS4Wrapper{app.IBCKeeper.ChannelKeeper}, // replaces error text in acks of forwarded packets
 		govModuleAddr,
 	)
 
@@ -435,14 +436,14 @@ func newApp(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Packet Forwarding Middleware
+	// - Packet Forwarding Middleware (its error acks carry no error text)
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
+	transferStack = pfmIBCMiddleware{packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-	)
+	)}
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -644,7 +645,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(res.AppVersion)
 
 	return res, nil
 }
@@ -672,6 +673,7 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
 
 // EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
+	app.upgradeInfo = nil
 	res, err := app.ModuleManager.EndBlock(ctx)
 	if err != nil {
 		return sdk.EndBlock{}, err
@@ -698,18 +700,20 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgradeHeight, plan); err != nil {
-				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
-			}
-
 			if err := app.SetAppVersion(ctx, signalUpgrade.AppVersion); err != nil {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)
+			app.upgradeInfo = &plan
+			currentVersion = signalUpgrade.AppVersion
+		} else {
+			// Clear an upgrade that does not raise the app version. Older
+			// versions could store one, and it would block signalling forever.
+			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(currentVersion)
 
 	return res, nil
 }
@@ -731,7 +735,11 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res.TimeoutInfo = app.TimeoutInfo(appVersion)
 	return res, nil
 }
 
@@ -809,7 +817,16 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.sigCache,
+		app.CountSDKMessages,
 	)
+}
+
+// CountSDKMessages returns how many messages msgs execute, counting the
+// messages that MsgExec and ICA packets dispatch. Unlike the per-block budget
+// count, it reads no state, so the ante handler charges the same gas for it in
+// every phase.
+func (app *App) CountSDKMessages(msgs []sdk.Msg) int {
+	return countSDKMessageGasWeight(msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.
@@ -991,23 +1008,49 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-func (app *App) TimeoutInfo() abci.TimeoutInfo {
-	return abci.TimeoutInfo{
-		TimeoutPropose:          appconsts.TimeoutPropose,
-		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           app.timeoutCommit,
-		TimeoutPrevote:          appconsts.TimeoutPrevote,
-		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
-		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
-		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
-		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
+// TimeoutInfo returns the consensus timeouts of appVersion, the version in
+// state, with the test-only overrides applied.
+func (app *App) TimeoutInfo(appVersion uint64) abci.TimeoutInfo {
+	t := appconsts.GetConsensusTimeouts(appVersion)
+	if app.timeoutCommit != 0 {
+		t.TimeoutCommit = app.timeoutCommit
 	}
+	if app.delayedPrecommitTimeout != 0 {
+		t.DelayedPrecommitTimeout = app.delayedPrecommitTimeout
+	}
+	// Only override versions that pace dynamically, so <= v10 keeps the legacy path.
+	if app.dynamicTimeoutCommit != 0 && t.DynamicTimeoutCommit != 0 {
+		t.DynamicTimeoutCommit = app.dynamicTimeoutCommit
+	}
+	return abci.TimeoutInfo{
+		TimeoutPropose:          t.TimeoutPropose,
+		TimeoutProposeDelta:     t.TimeoutProposeDelta,
+		TimeoutCommit:           t.TimeoutCommit,
+		TimeoutPrevote:          t.TimeoutPrevote,
+		TimeoutPrevoteDelta:     t.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        t.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   t.TimeoutPrecommitDelta,
+		DelayedPrecommitTimeout: t.DelayedPrecommitTimeout,
+		DynamicTimeoutCommit:    t.DynamicTimeoutCommit,
+	}
+}
+
+// SetDynamicTimeoutCommit overrides a non-zero DynamicTimeoutCommit of the app
+// version when d is non-zero. Only for tests; call it before the app serves ABCI.
+func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
+	app.dynamicTimeoutCommit = d
 }
 
 // Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
 // This prevents data races between commit updating checkState (mempool state) and
 // QuerySequence reading it via CheckState().
 func (app *App) Commit() (*abci.ResponseCommit, error) {
+	// Written before committing, so a crash replays the block and rewrites it.
+	if plan := app.upgradeInfo; plan != nil {
+		if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, *plan); err != nil {
+			return nil, fmt.Errorf("failed to dump upgrade info to disk: %w", err)
+		}
+	}
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 	app.recheckTxs.sweep()

@@ -32,7 +32,6 @@ import (
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -236,9 +235,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 
 				return []sdk.Msg{msgSubmitProposal}, account
 			},
-			// plain text proposals have been removed, so we expect an error. "No
-			// handler exists for proposal type"
-			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
+			// The legacy proposal router has no routes, so the ante handler
+			// rejects MsgExecLegacyContent.
+			expectedCode: sdkerrors.ErrNotSupported.ABCICode(),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",

@@ -3,6 +3,7 @@ package cmd
 import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -66,7 +67,7 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 // overrideMempoolConfig overrides mempool configuration values to ensure they
 // meet the minimum required values or are set to specific values as needed.
 func overrideMempoolConfig(cfg, defaultCfg *tmcfg.Config, logger log.Logger) {
-	const minTTLNumBlocks = int64(36)
+	minTTLNumBlocks := appconsts.MempoolTTLNumBlocks
 	const minMaxTxsBytes = int64(400 * mebibyte) // 400 MiB
 
 	// Override TTLNumBlocks if it's less than the minimum and not 0

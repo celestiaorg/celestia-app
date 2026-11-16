@@ -41,6 +41,11 @@ type Keeper struct {
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
 	stakingKeeper StakingKeeper
+
+	// versionGetter returns the current app version from the consensus
+	// params. The block header can not be used because it carries no app
+	// version during FinalizeBlock.
+	versionGetter VersionGetter
 }
 
 // NewKeeper returns a signal keeper.
@@ -48,11 +53,13 @@ func NewKeeper(
 	binaryCodec codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
+	versionGetter VersionGetter,
 ) Keeper {
 	return Keeper{
 		binaryCodec:   binaryCodec,
 		storeKey:      storeKey,
 		stakingKeeper: stakingKeeper,
+		versionGetter: versionGetter,
 	}
 }
 
@@ -69,7 +76,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	currentVersion := sdkCtx.BlockHeader().Version.App
+	currentVersion, err := k.versionGetter.AppVersion(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
 	if req.Version < currentVersion {
 		return nil, types.ErrInvalidSignalVersion.Wrapf("signalled version %d, current version %d", req.Version, currentVersion)
 	}
@@ -114,7 +124,10 @@ func (k *Keeper) TryUpgrade(ctx context.Context, req *types.MsgTryUpgrade) (*typ
 	}
 
 	if hasQuorum {
-		appVersion := sdkCtx.BlockHeader().Version.App
+		appVersion, err := k.versionGetter.AppVersion(sdkCtx)
+		if err != nil {
+			return nil, err
+		}
 		if version <= appVersion {
 			return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, appVersion)
 		}

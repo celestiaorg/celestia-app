@@ -590,3 +590,54 @@ func TestTxGasLimit(t *testing.T) {
 
 	require.Zero(t, txGasLimit(nonProtoTx{}))
 }
+
+// TestCountSDKMessageGasWeight checks that the gas weight of an ICA packet does
+// not depend on the channel's encoding. A channel upgrade earlier in a block can
+// change that encoding between ProcessProposal and FinalizeBlock, and the ante
+// handler must charge the same gas in both.
+func TestCountSDKMessageGasWeight(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+	sends := []proto.Message{&banktypes.MsgSend{}, &banktypes.MsgSend{}}
+
+	for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+		packet := icaPacket(t, cdc, sends, enc)
+		want := countExecutableMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{packet})
+		require.Equal(t, 3, want)
+		require.Equal(t, want, countSDKMessageGasWeight([]sdk.Msg{packet}), enc)
+	}
+
+	t.Run("undecodable payload weighs only the packet", func(t *testing.T) {
+		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: []byte{0xff}}
+		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
+		msg := channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
+		require.Equal(t, 1, countSDKMessageGasWeight([]sdk.Msg{msg}))
+	})
+
+	t.Run("payload that parses under both encodings counts the larger", func(t *testing.T) {
+		// Valid proto3json whose bytes also walk as a proto3 stream with a
+		// single entry: "\n " is JSON whitespace and a field 1 tag of length 32,
+		// and each "*t" is a field 5 tag of length 116, which skips to the next
+		// "*t" because each element is 117 bytes long.
+		element := `{"fromAddress":"AAA*t` + strings.Repeat("A", 55) + `","@type":"/cosmos.bank.v1beta1.MsgSend"}`
+		require.Len(t, element, 117)
+		payload := []byte("\n {\"messages\":[")
+		for i := range 700 {
+			if i > 0 {
+				payload = append(payload, ',')
+			}
+			payload = append(payload, element...)
+		}
+		payload = append(payload, []byte("]}                  ")...)
+		require.Equal(t, 1, countProtoMsgs(payload))
+		require.Equal(t, 700, countJSONMsgs(payload))
+
+		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
+		require.Equal(t, 700, countICAPacketMsgsAnyEncoding(packet))
+	})
+
+	t.Run("MsgExec counts its inner messages", func(t *testing.T) {
+		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}, &banktypes.MsgSend{}})
+		require.Equal(t, 3, countSDKMessageGasWeight([]sdk.Msg{&exec}))
+	})
+}

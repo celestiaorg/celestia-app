@@ -711,13 +711,13 @@ func processProposalRequestAt(t testing.TB, testApp *app.App, txs [][]byte, bloc
 	require.NoError(t, err)
 	squareSize, err := dataSquare.Size()
 	require.NoError(t, err)
-	return &abci.RequestProcessProposal{
+	return testutil.WithProposalBlockHash(&abci.RequestProcessProposal{
 		Height:       testApp.LastBlockHeight() + 1,
 		Time:         blockTime,
 		Txs:          txs,
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
-	}
+	})
 }
 
 // TestProcessProposalPayForFibreTxSignature checks that PFF tx-signature
@@ -790,6 +790,7 @@ func TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned(t *testing.T
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, testApp, pffTx))
 
+	// An empty block is decided instead, so the optimistic run of this one aborts.
 	for testApp.LastBlockHeight() < 5 {
 		execBlock(t, testApp, func(sdk.Context) {})
 	}
@@ -831,9 +832,8 @@ func TestProcessProposalPayForFibreWarmValidatorSetVotesTheSameAfterPruning(t *t
 // processProposalStatus proposes txs at the chain's clock and returns the vote.
 func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
 	t.Helper()
-	req := processProposalRequest(t, testApp, txs)
-	req.Time = testutil.GenesisTime.Add(time.Duration(req.Height) * time.Second)
-	resp, err := testApp.ProcessProposal(req)
+	blockTime := testutil.GenesisTime.Add(time.Duration(testApp.LastBlockHeight()+1) * time.Second)
+	resp, err := testApp.ProcessProposal(processProposalRequestAt(t, testApp, txs, blockTime))
 	require.NoError(t, err)
 	return resp.Status
 }

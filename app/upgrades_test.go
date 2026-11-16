@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -34,16 +35,23 @@ func TestUpgrades(t *testing.T) {
 	})
 }
 
-// TestV11UpgradePreservesState checks that the v11 upgrade only runs module
-// migrations and doesn't repeat the v10 upgrade's state changes.
+// TestV11UpgradePreservesState checks that the v11 upgrade rescales the
+// block-count parameters for 0.8s blocks, runs module migrations and doesn't
+// repeat the v10 upgrade's state changes.
 func TestV11UpgradePreservesState(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	seedV10BlockCountParams(t, testApp, ctx)
 
 	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 	fibreAccount := testApp.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
 	consensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
 	require.NoError(t, err)
+	slashingParams, err := testApp.SlashingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	stakingParams, err := testApp.StakingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	fibreParams := testApp.FibreKeeper.GetParams(ctx)
 	moduleVersions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
 	require.NoError(t, err)
 
@@ -53,12 +61,92 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	}))
 
 	require.Equal(t, fibreAccount.GetAccountNumber(), testApp.AccountKeeper.GetAccount(ctx, fibreAddress).GetAccountNumber())
-	gotConsensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
-	require.NoError(t, err)
-	require.Equal(t, consensusParams, gotConsensusParams)
 	gotModuleVersions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
 	require.NoError(t, err)
 	require.Equal(t, moduleVersions, gotModuleVersions)
+
+	// Each rescaled parameter is v10 x3.25 (MaxAgeNumBlocks: 337h / 1.2s);
+	// nothing else in its params changes.
+	consensusParams.Evidence.MaxAgeNumBlocks = 1_011_000
+	gotConsensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, consensusParams, gotConsensusParams)
+	slashingParams.SignedBlocksWindow = 32_500
+	gotSlashingParams, err := testApp.SlashingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, slashingParams, gotSlashingParams)
+	stakingParams.HistoricalEntries = 32_500
+	gotStakingParams, err := testApp.StakingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, stakingParams, gotStakingParams)
+	fibreParams.PaymentPromiseHeightWindow = 3_250
+	require.Equal(t, fibreParams, testApp.FibreKeeper.GetParams(ctx))
+	require.Equal(t, uint64((4 * time.Second).Nanoseconds()), testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx).MaxExpectedTimePerBlock)
+}
+
+// TestV11UpgradeSetsBlobParams checks that the v11 upgrade copies the blob
+// params from the legacy subspace when the blob store has none, so
+// BlobKeeper.GetParams needs no legacy fallback.
+func TestV11UpgradeSetsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	legacyParams := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, legacyParams)
+	blobStore := ctx.KVStore(testApp.GetKey(blobtypes.StoreKey))
+	blobStore.Delete([]byte(blobtypes.ParamsKey))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v11",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.True(t, blobStore.Has([]byte(blobtypes.ParamsKey)))
+	require.Equal(t, legacyParams, testApp.BlobKeeper.GetParams(ctx))
+}
+
+// TestV11UpgradeKeepsBlobParams checks that the v11 upgrade does not replace
+// blob params that are already in the blob store.
+func TestV11UpgradeKeepsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64))
+	params := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 32)
+	testApp.BlobKeeper.SetParams(ctx, params)
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v11",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.Equal(t, params, testApp.BlobKeeper.GetParams(ctx))
+}
+
+// seedV10BlockCountParams sets the mainnet v10 values of the parameters the
+// v11 upgrade rescales.
+func seedV10BlockCountParams(t *testing.T, testApp *app.App, ctx sdk.Context) {
+	t.Helper()
+	consensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	consensusParams.Evidence.MaxAgeNumBlocks = 404_400
+	require.NoError(t, testApp.ConsensusKeeper.ParamsStore.Set(ctx, consensusParams))
+
+	slashingParams, err := testApp.SlashingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	slashingParams.SignedBlocksWindow = 10_000
+	require.NoError(t, testApp.SlashingKeeper.SetParams(ctx, slashingParams))
+
+	stakingParams, err := testApp.StakingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	stakingParams.HistoricalEntries = 10_000
+	require.NoError(t, testApp.StakingKeeper.SetParams(ctx, stakingParams))
+
+	fibreParams := testApp.FibreKeeper.GetParams(ctx)
+	fibreParams.PaymentPromiseHeightWindow = 1_000
+	testApp.FibreKeeper.SetParams(ctx, fibreParams)
+
+	connectionParams := testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx)
+	connectionParams.MaxExpectedTimePerBlock = uint64((13 * time.Second).Nanoseconds())
+	testApp.IBCKeeper.ConnectionKeeper.SetParams(ctx, connectionParams)
 }
 
 // createValidatorWithCommission creates a validator with specific commission

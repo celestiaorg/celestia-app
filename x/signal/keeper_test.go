@@ -104,7 +104,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
-			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
+			k := signal.NewKeeper(config.Codec, nil, stakingKeeper, headerVersionGetter{})
 			got, err := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.NoError(t, err)
 			assert.True(t, tc.want.Equal(got), fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
@@ -603,8 +603,17 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 		},
 	)
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
+	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper, headerVersionGetter{})
 	return upgradeKeeper, mockCtx, mockStakingKeeper
+}
+
+// headerVersionGetter reads the app version from the block header that these
+// unit tests build by hand. The app reads it from the consensus params instead,
+// because the FinalizeBlock header carries no app version.
+type headerVersionGetter struct{}
+
+func (headerVersionGetter) AppVersion(ctx context.Context) (uint64, error) {
+	return sdk.UnwrapSDKContext(ctx).BlockHeader().Version.App, nil
 }
 
 var _ signal.StakingKeeper = (*mockStakingKeeper)(nil)
