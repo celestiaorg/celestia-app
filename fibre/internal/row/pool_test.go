@@ -2,9 +2,11 @@ package row
 
 import (
 	"bytes"
+	"errors"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 // Test shape — small values so tests stay fast.
@@ -248,4 +250,33 @@ func TestAllocator_PutForeignPanics(t *testing.T) {
 	buf := a.get(128)
 	defer a.put(buf)
 	expectPanic(t, "put of a buffer inside a slab should panic", func() { a.put(buf[64:]) })
+}
+
+// A failed mmap falls back to the Go heap instead of panicking, and the
+// fallback slab is never munmap'd: release must skip it.
+func TestAllocator_MmapFailureFallsBackToHeap(t *testing.T) {
+	if disableMmap {
+		t.Skip("mmap disabled")
+	}
+	orig := mapSlab
+	t.Cleanup(func() { mapSlab = orig })
+	mapSlab = func(int) ([]byte, error) { return nil, errors.New("simulated mmap failure") }
+
+	a := newTestAllocator(t)
+	a.maxFree = 0 // release every slab on put
+	buf := a.get(MmapThreshold)
+	if len(buf) != MmapThreshold {
+		t.Fatalf("len = %d, want %d", len(buf), MmapThreshold)
+	}
+	a.mu.Lock()
+	s := a.inUse[unsafe.SliceData(buf)]
+	a.mu.Unlock()
+	if s.buf == nil || s.mmapped {
+		t.Fatalf("mmapped = %v (found = %v), want an in-use Go-heap slab", s.mmapped, s.buf != nil)
+	}
+	buf[0], buf[len(buf)-1] = 1, 1 // usable memory
+	a.put(buf)                     // releasing it must not munmap Go-heap memory
+	if n := a.slabCount(); n != 0 {
+		t.Fatalf("slabCount = %d, want 0", n)
+	}
 }

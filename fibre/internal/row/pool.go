@@ -243,7 +243,7 @@ func (a *allocator) trimLocked(now time.Time) []slab {
 // at or above MmapThreshold, from the Go heap below it or when mmap fails.
 func alloc(size int) slab {
 	if !disableMmap && size >= MmapThreshold {
-		buf, err := mmapAlloc(size)
+		buf, err := mapSlab(size)
 		if err == nil {
 			return slab{buf: buf, mmapped: true}
 		}
@@ -251,6 +251,9 @@ func alloc(size int) slab {
 	}
 	return slab{buf: reedsolomon.AllocAligned(1, size)[0]}
 }
+
+// mapSlab is mmapAlloc, replaced in tests to simulate a failed mapping.
+var mapSlab = mmapAlloc
 
 // release returns mmap'd slabs to the OS; Go-heap slabs are left to the GC.
 func release(expired []slab) {

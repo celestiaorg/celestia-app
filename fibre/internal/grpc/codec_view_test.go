@@ -202,7 +202,7 @@ func TestCodecDownloadDecodeAliases(t *testing.T) {
 	require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &got))
 
 	// Every slice must point into one span no larger than the wire message.
-	lo, hi := uintptr(1<<63), uintptr(0)
+	lo, hi := ^uintptr(0), uintptr(0) // ^uintptr(0): 1<<63 overflows on 32-bit
 	span := func(b []byte) {
 		p := uintptr(unsafe.Pointer(unsafe.SliceData(b)))
 		lo, hi = min(lo, p), max(hi, p+uintptr(len(b)))
