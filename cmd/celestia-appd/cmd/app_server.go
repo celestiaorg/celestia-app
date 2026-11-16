@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	storecache "cosmossdk.io/store/cache"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -15,6 +16,10 @@ import (
 
 // disableOptimisticExecutionKey turns optimistic execution off on this node (top-level app.toml key or env var).
 const disableOptimisticExecutionKey = "disable-optimistic-execution"
+
+// interBlockCacheSize is entries per store, up from the SDK's 1,000: 4x the default 5,000-tx
+// mempool, so the recheck working set and each block's fibre key writes stay cached.
+const interBlockCacheSize = 20_000
 
 func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions servertypes.AppOptions) servertypes.Application {
 	var delayedPrecommitTimeout time.Duration
@@ -28,6 +33,9 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 	}
 
 	baseAppOptions := server.DefaultBaseappOptions(appOptions)
+	if cast.ToBool(appOptions.Get(server.FlagInterBlockCache)) {
+		baseAppOptions = append(baseAppOptions, baseapp.SetInterBlockCache(storecache.NewCommitKVStoreCacheManager(interBlockCacheSize)))
+	}
 	disableOE := cast.ToBool(appOptions.Get(disableOptimisticExecutionKey))
 	if disableOE {
 		baseAppOptions = append(baseAppOptions, baseapp.DisableOptimisticExecution())
