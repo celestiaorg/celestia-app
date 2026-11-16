@@ -4,7 +4,6 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
@@ -32,7 +31,6 @@ func NewAnteHandler(
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
 	sdkMessageCounter SDKMessageCounter,
-	frozenRules *frozen.Rules,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -81,9 +79,6 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
-		// From app version 11, accounts with exposed keys may only move funds
-		// to the whitehat address (see app/frozen).
-		frozenRules,
 		// Charge gas for every message counted against MaxSDKMessages beyond
 		// the first, including those MsgExec and ICA packets dispatch.
 		// Side effect: consumes gas from the gas meter.
