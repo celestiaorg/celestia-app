@@ -363,15 +363,26 @@ func TestRejections(t *testing.T) {
 	seqBeforeSubmission := sender.Sequence()
 	blobs := blobfactory.ManyRandBlobs(random.New(), 2, 2)
 	resp, err := txClient.BroadcastPayForBlob(ctx.GoContext(), blobs, fee, gas, user.SetTimeoutHeight(timeoutHeight))
-	require.NoError(t, err)
-
-	require.NoError(t, ctx.WaitForBlocks(1)) // Skip one block to allow the tx to be rejected
-
-	_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "was rejected by the node with execution code: 30 and log:")
+	var rejectedHash string
+	if err != nil {
+		// A block can commit between LatestHeight and CheckTx, in which case
+		// the node correctly rejects the expired tx during broadcast.
+		var broadcastErr *user.BroadcastTxError
+		require.ErrorAs(t, err, &broadcastErr)
+		require.Equal(t, sdkerrors.ErrTxTimeoutHeight.ABCICode(), broadcastErr.Code)
+		rejectedHash = broadcastErr.TxHash
+	} else {
+		rejectedHash = resp.TxHash
+		require.NoError(t, ctx.WaitForBlocks(1))
+		_, err = txClient.ConfirmTx(ctx.GoContext(), rejectedHash)
+		require.ErrorContains(t, err, "was rejected by the node with execution code: 30 and log:")
+	}
+	// TestConfirmationRejection also exercises deferred rejection deterministically.
+	require.NotEmpty(t, rejectedHash)
 	seqAfterRejection := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission, seqAfterRejection)
+	_, _, _, exists := txClient.GetTxFromTxTracker(rejectedHash)
+	require.False(t, exists)
 
 	// Now submit the same blob transaction again
 	submitBlobResp, err := txClient.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
@@ -380,9 +391,6 @@ func TestRejections(t *testing.T) {
 	// Sequence should have increased
 	seqAfterConfirmation := sender.Sequence()
 	require.Equal(t, seqBeforeSubmission+1, seqAfterConfirmation)
-	// Was removed from the tx tracker
-	_, _, _, exists := txClient.GetTxFromTxTracker(resp.TxHash)
-	require.False(t, exists)
 }
 
 func TestEvictions(t *testing.T) {
