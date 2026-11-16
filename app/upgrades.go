@@ -85,9 +85,6 @@ func (app App) RegisterUpgradeHandlers() {
 			if err != nil {
 				return nil, err
 			}
-			if err := app.v11Migrations(sdkCtx); err != nil {
-				return nil, fmt.Errorf("failed to run v11 migrations: %w", err)
-			}
 			// After migrations, so no migration can overwrite the rescaled params.
 			if err := app.rescaleForBlockInterval(sdkCtx); err != nil {
 				return nil, fmt.Errorf("failed to rescale block-count parameters: %w", err)
@@ -142,25 +139,4 @@ func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 		"payment_promise_height_window", fibretypes.DefaultPaymentPromiseHeightWindow,
 		"max_expected_time_per_block", appconsts.MaxExpectedTimePerBlock)
 	return nil
-}
-
-// v11Migrations holds the state changes of the v10 to v11 upgrade. It runs
-// after module migrations so that none of them can overwrite its writes.
-func (app App) v11Migrations(ctx sdk.Context) error {
-	if ctx.ChainID() != appconsts.CortoChainID {
-		return nil
-	}
-	// Later native upgrades must preserve the value left by v11 and any
-	// subsequent governance changes.
-	doneHeight, err := app.UpgradeKeeper.GetDoneHeight(ctx, "v11")
-	if err != nil || doneHeight > 0 {
-		return err
-	}
-	// Set directly: the staking param filter only accepts appconsts.UnbondingTime.
-	params, err := app.StakingKeeper.GetParams(ctx)
-	if err != nil {
-		return err
-	}
-	params.UnbondingTime = appconsts.CortoUnbondingTime
-	return app.StakingKeeper.SetParams(ctx, params)
 }
