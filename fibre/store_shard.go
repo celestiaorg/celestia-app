@@ -102,9 +102,9 @@ func (s *routedStorage) Get(ctx context.Context, marker []byte, commitment Commi
 
 func (s *routedStorage) Has(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte) (bool, error) {
 	if s.isPacked(marker) {
-		// A packed marker is committed only after its object's PUT succeeds,
-		// so the object exists whenever the marker does. No HEAD is needed.
-		return true, nil
+		// Check the object, not just the marker, so a packed object deleted
+		// out of band reads as missing and the shard is uploaded again.
+		return s.packed.has(ctx, marker)
 	}
 	backend, err := s.backendForMarker(marker)
 	if err != nil {

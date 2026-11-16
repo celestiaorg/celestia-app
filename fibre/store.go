@@ -126,11 +126,17 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if size > maxPlausibleShardSize {
 		return fmt.Errorf("shard size %d exceeds maximum %d", size, maxPlausibleShardSize)
 	}
-	// With packing enabled, batch this shard into a shared object instead of
+	// With packing enabled, batch a small shard into a shared object instead of
 	// writing one object per shard. enqueue blocks until the shard is durably
-	// stored, so the caller's occupancy reservation matches what is stored.
-	if packed := s.shards.packed; packed != nil && packed.shardsPerObject > 1 {
-		return packed.enqueue(ctx, promise, promiseHash, shard, pruneAt)
+	// stored, so the caller's occupancy reservation matches what is stored. If
+	// the packed PUT fails, store the shard on its own so a batch that failed
+	// (say, because one upload in it was slow) fails no other upload.
+	if packed := s.shards.packed; packed != nil && packed.shardsPerObject > 1 && size <= maxPackedShardBytes {
+		err := packed.enqueue(ctx, promise, promiseHash, shard, pruneAt)
+		if !errors.Is(err, errPackedPut) {
+			return err
+		}
+		s.log.Warn("packed upload failed, storing shard on its own", "commitment", promise.Commitment.String(), "error", err)
 	}
 	marker := s.shards.marker(size)
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)

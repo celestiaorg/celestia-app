@@ -162,8 +162,12 @@ more requests than the default path: packed objects are deleted one request
 per object, while plain shard objects are deleted 1,000 keys per request.
 Raise the setting only when the object store rate-limits uploads.
 
-- **Latency.** A batch uploads when it fills or after ~250 ms, so an upload can
-  wait that long for neighbours.
+- **Latency.** A batch uploads when it fills, reaches 256 MiB, or after
+  ~250 ms, so an upload can wait that long for neighbours. Shards above 4 MiB
+  are not packed.
+- **Failures.** A packed PUT gets the request timeout plus time to send the
+  object at 8 MiB/s. If it fails, each shard in it is stored in its own object,
+  so one slow upload never fails the others in its batch.
 - **Deletion.** A shard's accounted occupancy is released when it is pruned,
   but the object's bytes stay until its last member is pruned.
 - **Compatibility.** Packed shards use an on-disk marker (`0x06`) that older
@@ -172,7 +176,10 @@ Raise the setting only when the object store rate-limits uploads.
   Shards packed earlier stay readable and prunable; keep object storage
   configured until they are all pruned.
 - **Crashes.** A crash between a batch's PUT and its metadata commit can leave
-  an unreferenced object. It is never read; a bucket lifecycle rule reaps it.
+  an unreferenced object. It is never read; it leaks until removed by hand.
+- **Lost objects.** If a packed object disappears (e.g. a lifecycle rule
+  deleted it), its shards report as missing, so a client retry stores them
+  again in a new object.
 
 The mean of `fibre.server.storage.packed.shards` is the realised PUT reduction
 factor.

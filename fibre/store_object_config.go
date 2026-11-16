@@ -142,7 +142,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (_
 			return nil, false, false, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
 		}
 	}
-	client, err := newObjectClient(ctx, cfg.ObjectStorage)
+	client, err := dialObjectClient(ctx, cfg.ObjectStorage)
 	if err != nil {
 		return nil, false, false, err
 	}
@@ -154,6 +154,16 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (_
 	backend := newObjectBackend(client, namespace)
 	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
 	return backend, hasObjects, hasPacked, nil
+}
+
+// dialObjectClient opens the object storage client. Tests replace it with an
+// in-memory store.
+var dialObjectClient = func(ctx context.Context, cfg ObjectStorageConfig) (s3ObjectClient, error) {
+	client, err := newObjectClient(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {

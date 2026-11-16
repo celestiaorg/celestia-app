@@ -150,11 +150,9 @@ func putConcurrently(t *testing.T, store *Store, promises []*PaymentPromise, sha
 	var wg sync.WaitGroup
 	errs := make([]error, len(promises))
 	for i, promise := range promises {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs[i] = store.Put(t.Context(), promise, shard, promise.CreationTimestamp)
-		}()
+		})
 	}
 	wg.Wait()
 	for _, err := range errs {
@@ -252,11 +250,9 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 	pruneAts := []time.Time{time.Unix(60, 0), time.Unix(120, 0), time.Unix(180, 0)}
 	var wg sync.WaitGroup
 	for i, promise := range promises {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			require.NoError(t, store.Put(t.Context(), promise, shard, pruneAts[i]))
-		}()
+		})
 	}
 	wg.Wait()
 	_, _, objects := fake.count()
@@ -323,34 +319,53 @@ func TestPackedFlushOnClose(t *testing.T) {
 	require.Equal(t, 1, objects)
 }
 
-// TestPackedSurvivesRestart simulates a restart: a fresh packed backend over
-// the same durable Pebble state serves reads and pruning with no recovery step,
-// because every acknowledged shard was committed durably after its PUT. That
-// holds too when the operator set shards_per_object back to 1 in between; new
-// writes then return to one object per shard.
+// TestPackedSurvivesRestart closes the store and reopens it through NewStore,
+// so Pebble is reopened and the packed backend must be re-attached from the
+// packed markers it finds. Every acknowledged shard was committed durably after
+// its PUT, so no recovery step runs. Shards packed earlier stay readable and
+// prunable after the operator sets shards_per_object back to 1 or switches to
+// local mode; new writes then use that mode's plain path.
 func TestPackedSurvivesRestart(t *testing.T) {
 	const n = 3
 	tests := []struct {
 		name            string
+		backend         string
 		shardsPerObject int
 		wantTag         shardBackendTag
 	}{
-		{"same setting", n, packedObjectBackendTag},
-		{"packing turned off", 1, objectBackendTag},
+		{"same setting", storageBackendObject, n, packedObjectBackendTag},
+		{"packing turned off", storageBackendObject, 1, objectBackendTag},
+		{"local mode", storageBackendLocal, 1, localBackendTag},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store, fake := newPackedStore(t, n)
+			fake := newFakeS3()
+			dial := dialObjectClient
+			dialObjectClient = func(context.Context, ObjectStorageConfig) (s3ObjectClient, error) { return fake, nil }
+			t.Cleanup(func() { dialObjectClient = dial })
+
+			cfg := DefaultStoreConfig()
+			cfg.Path = t.TempDir()
+			cfg.StorageBackend = storageBackendObject
+			cfg.ObjectStorage = testObjectStorageConfig()
+			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
+			cfg.ObjectStorage.ShardsPerObject = n
+			store, err := NewStore(t.Context(), cfg)
+			require.NoError(t, err)
 			shard := packedTestShard(2)
 			promises := make([]*PaymentPromise, n)
 			for i := range promises {
 				promises[i], _ = packedTestPromise(t)
 			}
 			putConcurrently(t, store, promises, shard)
+			require.NoError(t, store.Close())
 
-			// "Restart": drop the in-memory packer and attach a new one over the same db.
-			store.shards.packed.Close()
-			store.shards.packed = newTestPackedBackend(store.shards.packed.object, store.db, tt.shardsPerObject)
+			cfg.StorageBackend = tt.backend
+			cfg.ObjectStorage.ShardsPerObject = tt.shardsPerObject
+			store, err = NewStore(t.Context(), cfg)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, store.Close()) }()
+			require.NotNil(t, store.shards.packed, "packed markers re-attach the packed backend")
 
 			for _, promise := range promises {
 				got, err := store.Get(t.Context(), promise.Commitment)
@@ -372,6 +387,113 @@ func TestPackedSurvivesRestart(t *testing.T) {
 			require.Zero(t, objects)
 		})
 	}
+}
+
+// TestPackedMissingObjectIsRepaired deletes a packed object out of band, as a
+// bucket lifecycle rule might. Has must report the shard missing so the upload
+// is retried, and the retry must store it again in a new object and release
+// its membership of the old one.
+func TestPackedMissingObjectIsRepaired(t *testing.T) {
+	store, fake := newPackedStore(t, 2)
+	shard := packedTestShard(2)
+	promise, hash := packedTestPromise(t)
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	oldID := packedMarkerID(t, store, promise.Commitment, hash)
+
+	fake.mu.Lock()
+	clear(fake.objects)
+	fake.mu.Unlock()
+	has, err := store.Has(t.Context(), promise.Commitment, hash)
+	require.NoError(t, err)
+	require.False(t, has)
+
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	has, err = store.Has(t.Context(), promise.Commitment, hash)
+	require.NoError(t, err)
+	require.True(t, has)
+	got, err := store.Get(t.Context(), promise.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
+	require.NotEqual(t, oldID, packedMarkerID(t, store, promise.Commitment, hash))
+	_, closer, err := store.db.Get(packMetaKey(oldID))
+	require.ErrorIs(t, err, pebbledb.ErrNotFound, "the old object no longer lists the shard")
+	if err == nil {
+		_ = closer.Close()
+	}
+
+	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(100, 0))
+	require.NoError(t, err)
+	require.Equal(t, 1, pruned)
+	_, _, objects := fake.count()
+	require.Zero(t, objects)
+}
+
+func packedMarkerID(t *testing.T, store *Store, commitment Commitment, hash []byte) [packIDSize]byte {
+	t.Helper()
+	marker, closer, err := store.db.Get(shardKey(commitment, hash))
+	require.NoError(t, err)
+	defer closer.Close()
+	packID, _, _, err := decodePackedShardMarker(marker)
+	require.NoError(t, err)
+	return packID
+}
+
+// TestPackedLargeShardBypassesPacking verifies a shard above
+// maxPackedShardBytes is stored in its own object right away.
+func TestPackedLargeShardBypassesPacking(t *testing.T) {
+	store, fake := newPackedStore(t, 8)
+	store.shards.packed.flushDelay = time.Hour // a packed write would block
+	shard := &types.BlobShard{Rlcs: []byte("rlc"), Rows: []*types.BlobRow{{Data: make([]byte, maxPackedShardBytes)}}}
+	promise, hash := packedTestPromise(t)
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+
+	markerData, closer, err := store.db.Get(shardKey(promise.Commitment, hash))
+	require.NoError(t, err)
+	require.Equal(t, byte(objectBackendTag), markerData[1])
+	require.NoError(t, closer.Close())
+	puts, _, _ := fake.count()
+	require.Equal(t, 1, puts)
+}
+
+// TestPackedFailedPutFallsBackPerShard verifies a failed packed PUT fails no
+// upload in the batch: each member is then stored in its own object.
+func TestPackedFailedPutFallsBackPerShard(t *testing.T) {
+	const n = 3
+	store, fake := newPackedStore(t, n)
+	store.shards.packed.object.client = &failPackedPuts{fakeS3: fake}
+	shard := packedTestShard(2)
+	promises := make([]*PaymentPromise, n)
+	for i := range promises {
+		promises[i], _ = packedTestPromise(t)
+	}
+	putConcurrently(t, store, promises, shard)
+
+	for _, promise := range promises {
+		hash, err := promise.Hash()
+		require.NoError(t, err)
+		markerData, closer, err := store.db.Get(shardKey(promise.Commitment, hash))
+		require.NoError(t, err)
+		require.Equal(t, byte(objectBackendTag), markerData[1])
+		require.NoError(t, closer.Close())
+		got, err := store.Get(t.Context(), promise.Commitment)
+		require.NoError(t, err)
+		require.Equal(t, shard, got)
+	}
+}
+
+// failPackedPuts fails every PUT of a packed object and passes others through.
+type failPackedPuts struct{ *fakeS3 }
+
+func (f *failPackedPuts) PutObject(ctx context.Context, in *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	if strings.Contains(aws.ToString(in.Key), "/"+packsSubdir+"/") {
+		return nil, fmt.Errorf("slow down")
+	}
+	return f.fakeS3.PutObject(ctx, in, opts...)
+}
+
+func TestPackedUploadTimeoutScalesWithSize(t *testing.T) {
+	require.Equal(t, 30*time.Second, packedUploadTimeout(30*time.Second, 0))
+	require.Equal(t, 62*time.Second, packedUploadTimeout(30*time.Second, maxPackedObjectBytes))
 }
 
 // TestPackedFailedPutStoresNothing verifies a failed object PUT surfaces the
@@ -426,8 +548,7 @@ func TestPackedConcurrentClose(t *testing.T) {
 	var wg sync.WaitGroup
 	returned := make(chan struct{}, 2)
 	for range 2 {
-		wg.Add(1)
-		go func() { defer wg.Done(); store.shards.packed.Close(); returned <- struct{}{} }()
+		wg.Go(func() { store.shards.packed.Close(); returned <- struct{}{} })
 	}
 	select {
 	case <-returned:
