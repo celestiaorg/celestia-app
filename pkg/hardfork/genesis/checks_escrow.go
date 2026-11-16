@@ -145,8 +145,8 @@ func blockedAddrs(addrs map[string]bool) (map[string]bool, error) {
 	return blocked, nil
 }
 
-// checkProposals requires the times InitGenesis dereferences by status, applies the T sanity bound to submit times
-// and requires starting_proposal_id above every proposal id.
+// checkProposals requires the times InitGenesis and EndBlock dereference by status and a valid total deposit, applies
+// the T sanity bound to submit times and requires starting_proposal_id above every proposal id.
 func checkProposals(gs *govv1.GenesisState, blockTime time.Time) error {
 	const module = govtypes.ModuleName
 	var maxID uint64
@@ -159,9 +159,15 @@ func checkProposals(gs *govv1.GenesisState, blockTime time.Time) error {
 			missing = "deposit_end_time"
 		case p.Status == govv1.StatusVotingPeriod && p.VotingEndTime == nil:
 			missing = "voting_end_time"
+		case p.Status == govv1.StatusVotingPeriod && p.Expedited && p.VotingStartTime == nil:
+			missing = "voting_start_time" // a failed expedited tally extends the period from it
 		}
 		if missing != "" {
 			return &CheckError{Step: stepRecords, Module: module, Field: field + "." + missing, Want: "set", Got: "missing"}
+		}
+		// EndBlock passes it to sdk.NewCoins, which panics on invalid coins.
+		if err := validCoins(p.TotalDeposit); err != nil {
+			return &CheckError{Step: stepRecords, Module: module, Field: field + ".total_deposit", Want: "valid positive coins", Got: err.Error()}
 		}
 		if err := notAfter(module, field+".submit_time", *p.SubmitTime, blockTime); err != nil {
 			return err
@@ -299,7 +305,7 @@ func sumFibre(gs *fibretypes.GenesisState, blockTime time.Time) ([]FibreEscrow, 
 	return escrows, sum, nil
 }
 
-// transferEscrows returns total_escrowed and the escrow account of each transfer channel, as address -> port/channel.
+// transferEscrows checks the channel params and returns total_escrowed and the escrow account of each transfer channel, as address -> port/channel.
 func transferEscrows(cdc codec.JSONCodec, g *Genesis) (sdk.Coins, map[string]string, error) {
 	const module = ibctransfertypes.ModuleName
 	var transfer ibctransfertypes.GenesisState
@@ -315,6 +321,10 @@ func transferEscrows(cdc codec.JSONCodec, g *Genesis) (sdk.Coins, map[string]str
 	var ibc ibccoretypes.GenesisState
 	if err := decodeModule(cdc, g, ibcexported.ModuleName, &ibc); err != nil {
 		return nil, nil, err
+	}
+	// Channel InitGenesis panics on invalid params; ValidateGenesis does not check them.
+	if err := ibc.ChannelGenesis.Params.Validate(); err != nil {
+		return nil, nil, &CheckError{Step: stepRecords, Module: ibcexported.ModuleName, Field: "channel_genesis.params", Want: "valid params", Got: err.Error()}
 	}
 	// Closed channels keep their escrow.
 	escrows := make(map[string]string)

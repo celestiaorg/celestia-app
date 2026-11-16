@@ -161,6 +161,7 @@ func TestCheckState(t *testing.T) {
 			require.Equal(t, bonded.String()+"utia", res.Balances[stakingtypes.BondedPoolName].String())
 			require.Equal(t, "map[fibre: gov: transfer:]", fmt.Sprint(res.Surplus))
 		}},
+		{name: "non-empty gen_txs", edit: replaceEdit(genutiltypes.ModuleName, `"gen_txs":[]`, `"gen_txs":[{}]`), want: rec("genutil", "gen_txs", "empty")},
 		// bank
 		{name: "upper-case alias of an account", edit: bankEdit(func(gs *banktypes.GenesisState) { addCoin(gs, strings.ToUpper(acc), utia(1)) }), want: rec("bank", fmt.Sprintf("balances[%d]", len(bank.Balances)), "a distinct key")},
 		{name: "invalid address", edit: bankEdit(func(gs *banktypes.GenesisState) { gs.Balances[0].Address = "celestia1invalid" }), want: rec("bank", "balances[0].address", "a valid address")},
@@ -239,6 +240,14 @@ func TestCheckState(t *testing.T) {
 		{name: "gov min deposit without an amount", edit: replaceEdit(govtypes.ModuleName, `"min_deposit":[`, `"min_deposit":[{"denom":"a"},`), want: rec("gov", "params.min_deposit[0].amount", "set")},
 		{name: "null vote option", edit: chain(vote("1", acc), replaceEdit(govtypes.ModuleName, `"options":[`, `"options":[null,`)), want: rec("gov", "votes[0].options[0]", "set")},
 		{name: "voting proposal without an end time", edit: proposal(nil), want: rec("gov", "proposals[0].voting_end_time", "set")},
+		{name: "expedited voting proposal without a start time", edit: chain(proposal(&afterT), govEdit(func(gs *govv1.GenesisState) { gs.Proposals[0].Expedited = true })), want: rec("gov", "proposals[0].voting_start_time", "set")},
+		{name: "expedited voting proposal with a start time and a deposit accepted", edit: chain(proposal(&afterT), govEdit(func(gs *govv1.GenesisState) {
+			gs.Proposals[0].Expedited, gs.Proposals[0].VotingStartTime, gs.Proposals[0].TotalDeposit = true, &blockTime, sdk.NewCoins(utia(5))
+		}))},
+		{name: "negative total deposit", edit: govEdit(func(gs *govv1.GenesisState) {
+			gs.Proposals = append(gs.Proposals, &govv1.Proposal{Id: 1, Status: govv1.StatusDepositPeriod, SubmitTime: &blockTime, DepositEndTime: &afterT, TotalDeposit: sdk.Coins{{Denom: "utia", Amount: math.NewInt(-1)}}})
+			gs.StartingProposalId = 2
+		}), want: rec("gov", "proposals[0].total_deposit", "valid positive coins")},
 		{name: "gov submit time after T", edit: govEdit(func(gs *govv1.GenesisState) {
 			gs.Proposals = append(gs.Proposals, &govv1.Proposal{Id: 1, SubmitTime: &afterT})
 		}), want: cons("gov", "proposals[0].submit_time", notAfterT)},
@@ -273,6 +282,7 @@ func TestCheckState(t *testing.T) {
 			require.Equal(t, "1utia", res.Surplus[ibctransfertypes.ModuleName].String())
 			require.Equal(t, "10utia", res.TotalEscrowed.String())
 		}},
+		{name: "IBC channel params with a zero upgrade timeout", edit: editModule(f, ibcexported.ModuleName, func(gs *ibccoretypes.GenesisState) { gs.ChannelGenesis.Params.UpgradeTimeout.Timestamp = 0 }), want: rec("ibc", "channel_genesis.params", "valid params")},
 		{name: "IBC transfer port not the default", edit: editModule(f, ibctransfertypes.ModuleName, func(gs *ibctransfertypes.GenesisState) { gs.PortId = "other" }), want: rec("transfer", "port_id", "transfer")},
 		// warp
 		{name: "warp tokens listed and collateral aggregated", edit: chain(tokens(token(3, synthetic, "hyperlane/x", 5), token(1, collateral, "utia", 3), token(2, collateral, "utia", 4)), routers(1), credit(warptypes.ModuleName, utia(7))), check: func(t *testing.T, res *genesis.CheckResult) {

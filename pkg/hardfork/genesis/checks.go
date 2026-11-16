@@ -18,6 +18,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -55,6 +56,9 @@ type CheckResult struct {
 // CheckState runs the record-level rules and then the conservation equations on g.
 func CheckState(cdc codec.JSONCodec, g *Genesis, opts Options) (*CheckResult, error) {
 	if err := CheckGovNulls(g); err != nil {
+		return nil, err
+	}
+	if err := checkGenutil(cdc, g); err != nil {
 		return nil, err
 	}
 	escrowed, escrows, err := transferEscrows(cdc, g)
@@ -132,6 +136,18 @@ func decodeAddr(ac address.Codec, seen map[string]int, module, records string, i
 
 func duplicateError(module, records string, i, j int, shown string) error {
 	return &CheckError{Step: stepRecords, Module: module, Field: fmt.Sprintf("%s[%d]", records, i), Want: "a distinct key", Got: fmt.Sprintf("%s, the key of %s[%d]", shown, records, j)}
+}
+
+// checkGenutil requires no gen_txs: InitGenesis would execute them, and an export has none.
+func checkGenutil(cdc codec.JSONCodec, g *Genesis) error {
+	var gs genutiltypes.GenesisState
+	if err := decodeModule(cdc, g, genutiltypes.ModuleName, &gs); err != nil {
+		return err
+	}
+	if len(gs.GenTxs) != 0 {
+		return &CheckError{Step: stepRecords, Module: genutiltypes.ModuleName, Field: "gen_txs", Want: "empty", Got: fmt.Sprintf("%d entries", len(gs.GenTxs))}
+	}
+	return nil
 }
 
 // checkBank applies the balance identity rules, checks supply == sum(balances) and returns the supply and the balances of accounts, keyed by their name.
