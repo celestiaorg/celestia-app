@@ -221,7 +221,7 @@ If you import celestia-app as a Go module, you may need to add some Go module `r
 
 ### Usage in tests
 
-If you are running celestia-app in tests, you may want to override the block time. Up to app version 11, blocks are paced by the `delayed_precommit_timeout` (~2.6 seconds per block); override it with the `--delayed-precommit-timeout` flag. From app version 12, blocks are paced by the `dynamic_timeout_commit` (800 ms floor on the block interval); override it with the `--dynamic-timeout-commit` flag. Until the version renumbering lands, binaries built from `main` still run it as app version 11.
+If you are running celestia-app in tests, you may want to override the block time. Up to app version 11, blocks are paced by the `delayed_precommit_timeout` (~2.6 seconds per block); override it with the `--delayed-precommit-timeout` flag. From app version 12, blocks are paced by the `dynamic_timeout_commit` (800 ms floor on the block interval); override it with the `--dynamic-timeout-commit` flag.
 
 ```shell
 # Start celestia-appd with a one-second block time (app version <= 11).

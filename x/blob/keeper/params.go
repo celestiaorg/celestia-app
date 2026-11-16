@@ -6,7 +6,7 @@ import (
 )
 
 // GetParams gets all parameters as types.Params. InitGenesis, the blob 2 -> 3
-// migration and the v11 upgrade (Migrator.EnsureParams) guarantee that the
+// migration and the v12 upgrade (Migrator.EnsureParams) guarantee that the
 // store has them.
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	store := ctx.KVStore(k.storeKey)
