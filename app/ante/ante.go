@@ -4,6 +4,7 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v11/app/frozen"
 	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
@@ -29,6 +30,7 @@ func NewAnteHandler(
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
 	pffSigCache fibreante.PffSigCache,
+	frozenRules *frozen.Rules,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -69,6 +71,9 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// From app version 11, accounts with exposed keys may only move funds
+		// to the whitehat address (see app/frozen).
+		frozenRules,
 		// Reject fibre escrow deposits that would create legacy escrows in
 		// CheckTx, recheck, simulation and PrepareProposal only.
 		fibreante.NewFibreLegacyEscrowDecorator(),
