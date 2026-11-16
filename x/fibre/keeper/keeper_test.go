@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -723,6 +724,29 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryReturnsShardRetenti
 		suite.True(resp.IsValid)
 		suite.Equal(suite.keeper.GetParams(suite.ctx).ShardRetention, resp.ShardRetention)
 	})
+}
+
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseSignerCheck() {
+	paymentPromise := suite.createPaymentPromise()
+	suite.createEscrowAccount(paymentPromise)
+	signer := sdk.AccAddress(paymentPromise.SignerPublicKey.Address())
+	errRejected := errors.New("rejected signer")
+	k := *suite.keeper
+	k.SetPromiseSignerCheck(func(_ sdk.Context, addr sdk.AccAddress) error {
+		if addr.Equals(signer) {
+			return errRejected
+		}
+		return nil
+	})
+	req := &types.QueryValidatePaymentPromiseRequest{Promise: paymentPromise}
+
+	_, err := k.ValidatePaymentPromise(suite.ctx, req)
+	suite.Equal(codes.FailedPrecondition, status.Code(err))
+	suite.Contains(err.Error(), errRejected.Error())
+
+	resp, err := suite.keeper.ValidatePaymentPromise(suite.ctx, req)
+	suite.NoError(err)
+	suite.True(resp.IsValid)
 }
 
 // twoPromisesFundedForOne returns two distinct promises from the same signer

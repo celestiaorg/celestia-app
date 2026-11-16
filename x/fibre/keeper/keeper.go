@@ -28,6 +28,15 @@ type Keeper struct {
 	// double-spend window. It is nil in consensus-only setups and unit tests and
 	// is never consulted from the ABCI path. See local_promise_cache.go.
 	promiseCache *LocalPromiseCache
+	// checkSigner, when set, rejects promises whose signer may not pay (see
+	// SetPromiseSignerCheck). It is consulted only on the query path.
+	checkSigner func(ctx sdk.Context, signer sdk.AccAddress) error
+}
+
+// SetPromiseSignerCheck makes ValidatePaymentPromise reject promises whose
+// signer fails check. Call it before the keeper is copied into the module.
+func (k *Keeper) SetPromiseSignerCheck(check func(ctx sdk.Context, signer sdk.AccAddress) error) {
+	k.checkSigner = check
 }
 
 // NewKeeper creates a new fibre Keeper instance. When enableCache is true the

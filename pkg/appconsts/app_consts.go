@@ -74,6 +74,9 @@ const (
 	//
 	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
+	// CortoUnbondingTime is Corto's unbonding time from v11, short so testnet
+	// runs can exercise completed unbondings.
+	CortoUnbondingTime = 10 * time.Minute
 
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v9 upgrade handler.

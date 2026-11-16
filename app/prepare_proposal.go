@@ -33,6 +33,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.pffSigCache,
+		app.FrozenRules,
 	)
 
 	fsb, err := NewFilteredSquareBuilder(
