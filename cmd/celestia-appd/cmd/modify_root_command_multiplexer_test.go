@@ -17,7 +17,7 @@ import (
 )
 
 func TestUnsupportedFlags(t *testing.T) {
-	// v10 lacks only the flag added in v11.
+	// v10 lacks only the flag added in v12.
 	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}}, unsupportedFlags(10))
 
 	// v6-v9 also lack the flags added in v10.

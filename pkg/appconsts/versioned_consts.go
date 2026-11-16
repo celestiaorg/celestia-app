@@ -37,6 +37,7 @@ func (t ConsensusTimeouts) BlockInterval() time.Duration {
 }
 
 // v10ConsensusTimeouts give a ~2.6s block: DelayedPrecommitTimeout + TimeoutCommit.
+// App version 11, released from the v11.x branch, keeps them.
 var v10ConsensusTimeouts = ConsensusTimeouts{
 	TimeoutPropose:          3000 * time.Millisecond,
 	TimeoutProposeDelta:     500 * time.Millisecond,
@@ -48,10 +49,10 @@ var v10ConsensusTimeouts = ConsensusTimeouts{
 	DelayedPrecommitTimeout: 2100 * time.Millisecond,
 }
 
-// v11ConsensusTimeouts pace blocks with the 800ms dynamic timeout commit floor;
+// v12ConsensusTimeouts pace blocks with the 800ms dynamic timeout commit floor;
 // TimeoutCommit keeps 100ms after commit to collect late precommits.
 // DelayedPrecommitTimeout 0 disables the precommit wait in celestia-core.
-var v11ConsensusTimeouts = ConsensusTimeouts{
+var v12ConsensusTimeouts = ConsensusTimeouts{
 	TimeoutPropose:          3000 * time.Millisecond,
 	TimeoutProposeDelta:     500 * time.Millisecond,
 	TimeoutPrevote:          2000 * time.Millisecond,
@@ -65,8 +66,8 @@ var v11ConsensusTimeouts = ConsensusTimeouts{
 
 // GetConsensusTimeouts returns the consensus timeouts for appVersion.
 func GetConsensusTimeouts(appVersion uint64) ConsensusTimeouts {
-	if appVersion <= 10 {
+	if appVersion <= 11 {
 		return v10ConsensusTimeouts
 	}
-	return v11ConsensusTimeouts
+	return v12ConsensusTimeouts
 }

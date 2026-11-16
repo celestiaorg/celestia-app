@@ -171,7 +171,7 @@ func fuzzSignalTryUpgrade(t *testing.T, script []byte) {
 	cms.MountStoreWithDB(key, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, cms.LoadLatestVersion())
 	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-	k := signal.NewKeeper(cdc, key, staking)
+	k := signal.NewKeeper(cdc, key, staking, headerVersionGetter{})
 	height := int64(10)
 	mkCtx := func() sdk.Context {
 		return sdk.NewContext(cms, tmproto.Header{Version: cmtversion.Consensus{Block: 1, App: appVersion}, Height: height}, false, log.NewNopLogger()).

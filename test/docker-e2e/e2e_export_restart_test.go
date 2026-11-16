@@ -324,38 +324,9 @@ func (s *HyperlaneTestSuite) TestHyperlaneExportRestart() {
 	}
 	ctx := context.Background()
 
-	chain, err := dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(ctx)
-	s.Require().NoError(err)
-	t.Cleanup(func() {
-		if err := chain.Remove(ctx); err != nil {
-			t.Logf("Error removing chain: %v", err)
-		}
-	})
-	s.Require().NoError(chain.Start(ctx))
-	archive := s.addArchiveNode(ctx, chain)
-
-	da := s.WithBridgeNodeNetwork(ctx, chain)
-	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
-
-	hyp, err := hyperlane.NewDeployer(ctx, hyperlane.Config{
-		Logger:          s.logger,
-		DockerClient:    s.client,
-		DockerNetworkID: s.network,
-		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
-	}, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
-	s.Require().NoError(err)
-	s.Require().NoError(hyp.Deploy(ctx))
-
-	cfg, err := hyp.DeployCosmosNoopISM(ctx, cosmos.NewBroadcaster(chain), chain.GetFaucetWallet())
-	s.Require().NoError(err)
-	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
-	s.Require().NoError(err)
-	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, cfg.TokenID)
-
-	agent := s.StartRelayerAgent(ctx, hyp)
-
-	rethDomain := s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp)
-	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
+	h := s.setupHyperlaneExport(ctx)
+	chain, archive, reth, hyp, cfg, tokenRouter, agent := h.chain, h.archive, h.reth, h.deployer, h.cfg, h.tokenRouter, h.agent
+	rethDomain, celestiaDomain := h.rethDomain, h.celestiaDomain
 	rethRecipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
 	celestiaRecipient := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
 	celestiaRecipientBz, err := bech32ToBytes(celestiaRecipient)
@@ -385,14 +356,15 @@ func (s *HyperlaneTestSuite) TestHyperlaneExportRestart() {
 	s.Require().Equal(erc20.BigInt(), s.QueryERC20Balance(ctx, reth, tokenRouter, rethRecipient), "pending message delivered before the relayer restart")
 
 	// The message sent before the halt is only in the old blocks, so the
-	// relayer first reads Celestia from the archive.
+	// relayer first reads Celestia from the archive. It delivers messages in
+	// nonce order, so it keeps one database across both phases.
 	validator := chain.Validators[0]
-	s.restartRelayerOn(ctx, agent, hyp, validator, archive, 0)
+	s.restartRelayerOn(ctx, agent, hyp, validator, archive, 0, relayerExportDB)
 	s.Run("pending message delivered", func() {
 		s.AssertERC20Balance(ctx, reth, tokenRouter, rethRecipient, erc20.Add(pending).BigInt())
 	})
 	// Then it follows the new chain from its first height.
-	s.restartRelayerOn(ctx, agent, hyp, archive, validator, r.initialHeight)
+	s.restartRelayerOn(ctx, agent, hyp, archive, validator, r.initialHeight, relayerExportDB)
 	s.Run("replay rejected", func() {
 		replay := &hypcoretypes.MsgProcessMessage{
 			MailboxId: cfg.MailboxID,
@@ -466,9 +438,9 @@ func (s *HyperlaneTestSuite) hyperlaneState(ctx context.Context, chain *cosmos.C
 }
 
 // restartRelayerOn restarts the relayer with its Celestia endpoints moved from
-// one node to another. indexFrom, if not zero, is the first Celestia height it
-// indexes.
-func (s *HyperlaneTestSuite) restartRelayerOn(ctx context.Context, agent *hyperlane.Agent, deployer *hyperlane.Deployer, from, to *cosmos.ChainNode, indexFrom int64) {
+// one node to another and its database in the deployer directory db. indexFrom,
+// if not zero, is the first Celestia height it indexes.
+func (s *HyperlaneTestSuite) restartRelayerOn(ctx context.Context, agent *hyperlane.Agent, deployer *hyperlane.Deployer, from, to *cosmos.ChainNode, indexFrom int64, db string) {
 	// The relayer container shares its volume with the deployer config.
 	s.Require().NoError(agent.RemoveContainer(ctx, tastoratypes.WithPreserveVolumes()), "failed to remove the relayer")
 
@@ -504,14 +476,88 @@ func (s *HyperlaneTestSuite) restartRelayerOn(ctx context.Context, agent *hyperl
 		index["from"] = indexFrom
 		celestiaCfg["index"] = index
 	}
-	// The relayer delivers messages in nonce order, so it keeps one database
-	// across both phases: the archive phase indexes every old message, and the
-	// new chain phase continues from indexFrom. The database is on the volume,
-	// which outlives the container.
-	relayerCfg["db"] = deployer.HomeDir() + "/relayer-db-export-restart"
+	relayerCfg["db"] = deployer.HomeDir() + "/" + db
 	bz, err = json.Marshal(relayerCfg)
 	s.Require().NoError(err)
 	s.Require().NoError(deployer.WriteFile(ctx, "relayer-config.json", bz), "failed to write the relayer config")
 
 	s.Require().NoError(agent.Start(ctx), "failed to start the relayer on %s", to.Name())
+}
+
+// relayerExportDB is the relayer database directory of the export tests. It is
+// on the deployer volume, which outlives the relayer container.
+const relayerExportDB = "relayer-db-export"
+
+// hyperlaneExportSetup is a Celestia chain with an archive node, an EVM chain
+// and a relayer between them.
+type hyperlaneExportSetup struct {
+	chain          *cosmos.Chain
+	archive        *cosmos.ChainNode
+	reth           *EvolveEVMChain
+	deployer       *hyperlane.Deployer
+	cfg            *hyperlane.CosmosConfig
+	tokenRouter    ethcommon.Address
+	agent          *hyperlane.Agent
+	rethDomain     uint32
+	celestiaDomain uint32
+}
+
+// setupHyperlaneExport starts the chains and the relayer for an export test.
+// The relayer database is relayerExportDB from the first start, so a restart
+// can keep it.
+func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlaneExportSetup {
+	t := s.T()
+	chain, err := dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+	t.Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			t.Logf("Error removing chain: %v", err)
+		}
+	})
+	s.Require().NoError(chain.Start(ctx))
+	archive := s.addArchiveNode(ctx, chain)
+
+	da := s.WithBridgeNodeNetwork(ctx, chain)
+	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+
+	hyp, err := hyperlane.NewDeployer(ctx, hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
+	s.Require().NoError(err)
+	s.Require().NoError(hyp.Deploy(ctx))
+
+	cfg, err := hyp.DeployCosmosNoopISM(ctx, cosmos.NewBroadcaster(chain), chain.GetFaucetWallet())
+	s.Require().NoError(err)
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	s.Require().NoError(err)
+	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, cfg.TokenID)
+
+	s.setRelayerDB(ctx, hyp, relayerExportDB)
+	agent := s.StartRelayerAgent(ctx, hyp)
+	return &hyperlaneExportSetup{
+		chain:          chain,
+		archive:        archive,
+		reth:           reth,
+		deployer:       hyp,
+		cfg:            cfg,
+		tokenRouter:    tokenRouter,
+		agent:          agent,
+		rethDomain:     s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp),
+		celestiaDomain: s.GetDomainForChain(ctx, HypCelestiaChainName, hyp),
+	}
+}
+
+// setRelayerDB sets the relayer database to the deployer directory db.
+func (s *HyperlaneTestSuite) setRelayerDB(ctx context.Context, deployer *hyperlane.Deployer, db string) {
+	bz, err := deployer.ReadFile(ctx, "relayer-config.json")
+	s.Require().NoError(err, "failed to read the relayer config")
+	var relayerCfg map[string]any
+	s.Require().NoError(json.Unmarshal(bz, &relayerCfg))
+	relayerCfg["db"] = deployer.HomeDir() + "/" + db
+	bz, err = json.Marshal(relayerCfg)
+	s.Require().NoError(err)
+	s.Require().NoError(deployer.WriteFile(ctx, "relayer-config.json", bz), "failed to write the relayer config")
 }

@@ -330,7 +330,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 // of valid PFB transactions.
 func generatePayForBlobTransactions(b *testing.B, count, size int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithoutOptimisticExecution(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

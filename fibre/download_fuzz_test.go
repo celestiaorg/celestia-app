@@ -7,7 +7,6 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
@@ -115,7 +114,6 @@ func FuzzDownload(f *testing.F) {
 			MaxDataSize:  testK*testRowSize - blobHeaderLen,
 			MaxRowSize:   testRowSize,
 			Coder:        coder,
-			DataPool:     row.NewPool(testRowSize, testK),
 		}
 		d, err := newDownload(blobCfg, id, selected)
 		require.NoError(t, err)

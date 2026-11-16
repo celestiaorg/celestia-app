@@ -6,6 +6,7 @@ import (
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	blobkeeper "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
@@ -74,6 +75,12 @@ func (app App) RegisterUpgradeHandlers() {
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
+			// Guarantee the blob params store key so that
+			// BlobKeeper.GetParams needs no legacy subspace fallback.
+			blobMigrator := blobkeeper.NewMigrator(app.BlobKeeper)
+			if err := blobMigrator.EnsureParams(sdkCtx); err != nil {
+				return nil, fmt.Errorf("failed to ensure blob params: %w", err)
+			}
 			versionMap, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 			if err != nil {
 				return nil, err
@@ -88,7 +95,7 @@ func (app App) RegisterUpgradeHandlers() {
 }
 
 // rescaleForBlockInterval sets the parameters whose meaning depends on the
-// block time to their values for v11's 0.8s blocks.
+// block time to their values for v12's 0.8s blocks.
 func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 	consensusParams, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
 	if err != nil {

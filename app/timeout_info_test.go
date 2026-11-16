@@ -28,7 +28,7 @@ var (
 		TimeoutCommit:           500 * time.Millisecond,
 		DelayedPrecommitTimeout: 2100 * time.Millisecond,
 	}
-	v11TimeoutInfo = abci.TimeoutInfo{
+	v12TimeoutInfo = abci.TimeoutInfo{
 		TimeoutPropose:        3000 * time.Millisecond,
 		TimeoutProposeDelta:   500 * time.Millisecond,
 		TimeoutPrevote:        2000 * time.Millisecond,
@@ -48,7 +48,8 @@ func TestTimeoutInfo(t *testing.T) {
 		want       abci.TimeoutInfo
 	}{
 		{appVersion: 10, want: v10TimeoutInfo},
-		{appVersion: 11, want: v11TimeoutInfo},
+		{appVersion: 11, want: v10TimeoutInfo},
+		{appVersion: 12, want: v12TimeoutInfo},
 	} {
 		t.Run(fmt.Sprintf("v%d", tc.appVersion), func(t *testing.T) {
 			testApp := app.New(log.NewNopLogger(), tmdb.NewMemDB(), nil, 0, 0, util.EmptyAppOptions{}, baseapp.SetChainID(util.ChainID))
@@ -63,31 +64,32 @@ func TestTimeoutInfo(t *testing.T) {
 	t.Run("overrides apply to every version that has the timeout", func(t *testing.T) {
 		testApp := app.New(log.NewNopLogger(), tmdb.NewMemDB(), nil, 7*time.Millisecond, 5*time.Millisecond, util.EmptyAppOptions{})
 		testApp.SetDynamicTimeoutCommit(3 * time.Millisecond)
-		for _, appVersion := range []uint64{10, 11} {
+		for _, appVersion := range []uint64{10, 11, 12} {
 			want := appconsts.GetConsensusTimeouts(appVersion)
 			got := testApp.TimeoutInfo(appVersion)
 			require.Equal(t, 5*time.Millisecond, got.TimeoutCommit)
 			require.Equal(t, 7*time.Millisecond, got.DelayedPrecommitTimeout)
 			require.Equal(t, want.TimeoutPropose, got.TimeoutPropose)
 		}
-		require.Equal(t, 3*time.Millisecond, testApp.TimeoutInfo(11).DynamicTimeoutCommit)
+		require.Equal(t, 3*time.Millisecond, testApp.TimeoutInfo(12).DynamicTimeoutCommit)
+		require.Zero(t, testApp.TimeoutInfo(11).DynamicTimeoutCommit, "v11 keeps the legacy pacing")
 		require.Zero(t, testApp.TimeoutInfo(10).DynamicTimeoutCommit, "v10 keeps the legacy pacing")
 	})
 
-	// Production runs the v10 -> v11 upgrade block in the embedded v10 app, so
+	// Production runs the v11 -> v12 upgrade block in the embedded v11 app, so
 	// this guards later upgrades that the native app executes.
 	t.Run("upgrade block returns the new version's timeouts", func(t *testing.T) {
 		testApp, _ := newEndBlockerTestApp(t)
 		ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
-		require.NoError(t, testApp.SetAppVersion(ctx, 10))
-		signalAndTryUpgrade(t, testApp, ctx, 11)
+		require.NoError(t, testApp.SetAppVersion(ctx, 11))
+		signalAndTryUpgrade(t, testApp, ctx, 12)
 		upgrade, err := testApp.SignalKeeper.GetUpgrade(ctx, nil)
 		require.NoError(t, err)
 		ctx = ctx.WithBlockHeight(upgrade.Upgrade.UpgradeHeight)
 
 		res, err := testApp.EndBlocker(ctx)
 		require.NoError(t, err)
-		require.Equal(t, v11TimeoutInfo, res.TimeoutInfo)
+		require.Equal(t, v12TimeoutInfo, res.TimeoutInfo)
 	})
 }
 

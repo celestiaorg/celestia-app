@@ -250,10 +250,11 @@ func (t *autoTransport) observeDial(mode string, fallback bool) {
 
 func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error) {
 	var d net.Dialer
-	tcp, err := d.DialContext(ctx, "tcp", addr)
+	raw, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
+	tcp := &stallConn{Conn: raw}
 	if t.forceTLS || t.modes.useTLS(t.host) {
 		t.observeDial(transportModeTLS, false)
 		return tcp, nil
@@ -285,7 +286,33 @@ func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error)
 		return nil, fmt.Errorf("redialing for TLS after plaintext probe failed: %w", err)
 	}
 	t.observeDial(transportModeTLS, true)
-	return tcp2, nil
+	return &stallConn{Conn: tcp2}, nil
+}
+
+// writeStallTimeout bounds one socket write on client and server connections.
+// A var so tests can shorten it.
+var writeStallTimeout = 10 * time.Second
+
+// stallConn closes the connection when a write does not complete within
+// [writeStallTimeout]. A peer that stops reading otherwise blocks gRPC's writer
+// forever, pinning everything queued behind it (upload rows on a client,
+// download responses on a server). Keepalive and max connection age do not
+// help: any inbound frame resets keepalive, and the age close goes through the
+// blocked writer. Closing, not just failing the write, is what makes gRPC tear
+// the transport down.
+type stallConn struct {
+	net.Conn
+}
+
+func (c *stallConn) Write(p []byte) (int, error) {
+	if err := c.SetWriteDeadline(time.Now().Add(writeStallTimeout)); err != nil {
+		return 0, err
+	}
+	n, err := c.Conn.Write(p)
+	if err != nil {
+		_ = c.Close()
+	}
+	return n, err
 }
 
 // autoCreds runs the TLS handshake over a TLS connection and treats a
