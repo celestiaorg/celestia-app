@@ -8,7 +8,9 @@ import (
 
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/math"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v11/app/params"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
@@ -16,8 +18,10 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/proto"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 )
 
 const (
@@ -36,12 +40,32 @@ type CheckResult struct {
 	AnnualProvisions math.LegacyDec
 	InflationRate    math.LegacyDec
 	MintGenesisTime  time.Time
+	// Totals and records to compare with the old chain. Balances are keyed by module name; Surplus is, for gov, fibre
+	// and transfer, the balance above what the records need. Lists are sorted by their keys; closed channels are included.
+	Supply          sdk.Coins
+	Balances        map[string]sdk.Coins
+	Surplus         map[string]sdk.Coins
+	FibreEscrows    []FibreEscrow
+	TotalEscrowed   sdk.Coins
+	TransferEscrows []TransferEscrow
+	WarpTokens      []warptypes.HypToken
+	WarpRouters     []warptypes.GenesisRemoteRouterWrapper
 }
 
 // CheckState runs the record-level rules and then the conservation equations on g.
 func CheckState(cdc codec.JSONCodec, g *Genesis, opts Options) (*CheckResult, error) {
-	pools := []string{stakingtypes.BondedPoolName, stakingtypes.NotBondedPoolName, distrtypes.ModuleName}
-	supply, bals, err := checkBank(cdc, g, pools)
+	if err := CheckGovNulls(g); err != nil {
+		return nil, err
+	}
+	escrowed, escrows, err := transferEscrows(cdc, g)
+	if err != nil {
+		return nil, err
+	}
+	accounts := maps.Clone(escrows)
+	for _, name := range []string{stakingtypes.BondedPoolName, stakingtypes.NotBondedPoolName, distrtypes.ModuleName, govtypes.ModuleName, fibretypes.ModuleName, warptypes.ModuleName} {
+		accounts[string(authtypes.NewModuleAddress(name))] = name
+	}
+	supply, bals, err := checkBank(cdc, g, accounts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,10 +76,34 @@ func CheckState(cdc codec.JSONCodec, g *Genesis, opts Options) (*CheckResult, er
 	if err := checkDistribution(cdc, g, bals[distrtypes.ModuleName]); err != nil {
 		return nil, err
 	}
-	return checkMint(cdc, g, bondDenom, supply, opts.AcceptMintExcess)
+	res, err := checkMint(cdc, g, bondDenom, supply, opts)
+	if err != nil {
+		return nil, err
+	}
+	res.Surplus = make(map[string]sdk.Coins, 3)
+	if res.Surplus[govtypes.ModuleName], err = checkGov(cdc, g, bals[govtypes.ModuleName], opts); err != nil {
+		return nil, err
+	}
+	if res.FibreEscrows, res.Surplus[fibretypes.ModuleName], err = checkFibre(cdc, g, bals[fibretypes.ModuleName], opts.ExportBlockTime); err != nil {
+		return nil, err
+	}
+	if res.TransferEscrows, res.Surplus[ibctransfertypes.ModuleName], err = checkTransfer(escrowed, escrows, bals); err != nil {
+		return nil, err
+	}
+	if res.WarpTokens, res.WarpRouters, err = checkWarp(cdc, g, bals[warptypes.ModuleName]); err != nil {
+		return nil, err
+	}
+	res.Supply, res.Balances, res.TotalEscrowed = supply, bals, escrowed
+	return res, nil
 }
 
-func decodeModule(cdc codec.JSONCodec, g *Genesis, name string, gs proto.Message) error {
+// decodeModule decodes the named module; recover is acceptable in this offline tool, as third-party Any unpacking panics on malformed input.
+func decodeModule(cdc codec.JSONCodec, g *Genesis, name string, gs proto.Message) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = &CheckError{Step: stepRecords, Module: name, Want: "decodable records", Got: "panic while decoding"}
+		}
+	}()
 	raw, ok := g.Module(name)
 	if !ok {
 		return &CheckError{Step: stepRecords, Module: name, Want: "present", Got: "missing"}
@@ -86,17 +134,13 @@ func duplicateError(module, records string, i, j int, shown string) error {
 	return &CheckError{Step: stepRecords, Module: module, Field: fmt.Sprintf("%s[%d]", records, i), Want: "a distinct key", Got: fmt.Sprintf("%s, the key of %s[%d]", shown, records, j)}
 }
 
-// checkBank applies the balance identity rules, checks supply == sum(balances) and returns the supply and the balances of modules.
-func checkBank(cdc codec.JSONCodec, g *Genesis, modules []string) (sdk.Coins, map[string]sdk.Coins, error) {
+// checkBank applies the balance identity rules, checks supply == sum(balances) and returns the supply and the balances of accounts, keyed by their name.
+func checkBank(cdc codec.JSONCodec, g *Genesis, accounts map[string]string) (sdk.Coins, map[string]sdk.Coins, error) {
 	var gs banktypes.GenesisState
 	if err := decodeModule(cdc, g, banktypes.ModuleName, &gs); err != nil {
 		return nil, nil, err
 	}
-	byAddr := make(map[string]string, len(modules))
-	for _, name := range modules {
-		byAddr[string(authtypes.NewModuleAddress(name))] = name
-	}
-	bals := make(map[string]sdk.Coins, len(modules))
+	bals := make(map[string]sdk.Coins, len(accounts))
 	seen := make(map[string]int, len(gs.Balances))
 	for i, b := range gs.Balances {
 		field := fmt.Sprintf("balances[%d]", i)
@@ -107,7 +151,7 @@ func checkBank(cdc codec.JSONCodec, g *Genesis, modules []string) (sdk.Coins, ma
 		if err := validCoins(b.Coins); err != nil {
 			return nil, nil, &CheckError{Step: stepRecords, Module: banktypes.ModuleName, Field: field + ".coins", Want: "valid positive coins", Got: err.Error()}
 		}
-		if name, ok := byAddr[addr]; ok {
+		if name, ok := accounts[addr]; ok {
 			bals[name] = b.Coins
 		}
 	}
@@ -307,7 +351,7 @@ func checkDistribution(cdc codec.JSONCodec, g *Genesis, bal sdk.Coins) error {
 }
 
 // checkMint checks the minter against staking and supply and returns its values with the signed excess.
-func checkMint(cdc codec.JSONCodec, g *Genesis, bondDenom string, supply sdk.Coins, ack math.LegacyDec) (*CheckResult, error) {
+func checkMint(cdc codec.JSONCodec, g *Genesis, bondDenom string, supply sdk.Coins, opts Options) (*CheckResult, error) {
 	var gs minttypes.GenesisState
 	if err := decodeModule(cdc, g, minttypes.ModuleName, &gs); err != nil {
 		return nil, err
@@ -332,6 +376,14 @@ func checkMint(cdc codec.JSONCodec, g *Genesis, bondDenom string, supply sdk.Coi
 	if m.AnnualProvisions.IsNegative() {
 		return fail("minter.annual_provisions", ">= 0", m.AnnualProvisions.String())
 	}
+	if err := notAfter(minttypes.ModuleName, "genesis_time", *gs.GenesisTime, opts.ExportBlockTime); err != nil {
+		return nil, err
+	}
+	// BeginBlock of block E set the rate for its header time T.
+	if rate := m.CalculateInflationRate(sdk.Context{}.WithBlockTime(opts.ExportBlockTime), *gs.GenesisTime); !m.InflationRate.Equal(rate) {
+		return fail("minter.inflation_rate", rate.String()+" at export-block-time", m.InflationRate.String())
+	}
+	ack := opts.AcceptMintExcess
 	excess := m.AnnualProvisions.Sub(m.InflationRate.MulInt(supply.AmountOfNoDenomValidation(bondDenom)))
 	if !ack.IsNil() && !ack.Equal(excess) {
 		return fail("accept-mint-excess", excess.String(), ack.String())
