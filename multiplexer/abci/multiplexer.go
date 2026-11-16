@@ -9,12 +9,12 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v11/app/appdb"
 	"github.com/celestiaorg/celestia-app/v11/app/observability"
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -25,7 +25,6 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
-	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -534,7 +533,7 @@ func (m *Multiplexer) startNativeApp() (servertypes.Application, error) {
 	m.traceWriter = traceWriter
 
 	home := m.svrCtx.Config.RootDir
-	db, err := openDB(home, server.GetAppDBBackend(m.svrCtx.Viper))
+	db, err := appdb.Open(home, server.GetAppDBBackend(m.svrCtx.Viper))
 	if err != nil {
 		return nil, err
 	}
@@ -552,11 +551,6 @@ func getTraceWriter(svrCtx *server.Context) (traceWriter io.WriteCloser, err err
 		return nil, err
 	}
 	return traceWriter, nil
-}
-
-func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
-	dataDir := filepath.Join(rootDir, "data")
-	return db.NewDB("application", backendType, dataDir)
 }
 
 // openTraceWriter opens a trace writer for the given file.
