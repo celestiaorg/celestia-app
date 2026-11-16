@@ -37,7 +37,7 @@ const (
 	// plannedUpgradeName is the name of the upgrade plan of the planned restart.
 	plannedUpgradeName = "planned-restart"
 	// plannedUpgradeDelay is how many blocks after the proposal the chain
-	// halts. At about two blocks a second it covers the voting period, the
+	// halts. At one to two blocks a second it covers the voting period, the
 	// 30 s Hermes stop and the pending transfer.
 	plannedUpgradeDelay = 200
 	// plannedUpgradeTimeout bounds the waits for the halt and the archives.
@@ -107,7 +107,8 @@ func (s *IBCTestSuite) TestIBCPlannedUpgradeRestart() {
 	v := s.chainA.Validators[0]
 	stdout, stderr, err := v.Exec(ctx, []string{"celestia-appd", "export", "--home", v.HomeDir()}, nil)
 	s.Require().Error(err, "export below a scheduled upgrade succeeded")
-	refused := string(stdout) + string(stderr)
+	// Tastora returns the command output in err when the command fails.
+	refused := string(stdout) + string(stderr) + err.Error()
 	s.Require().Contains(refused, fmt.Sprintf("upgrade %q is scheduled for height %d: export with --height %d instead",
 		plannedUpgradeName, upgradeHeight, upgradeHeight-2))
 	s.Require().Contains(refused, "pass --allow-upgrade-window")
@@ -257,25 +258,33 @@ func (s *IBCTestSuite) celestiaClientState(ctx context.Context, clientID string)
 // reaches the others, which then wait one height below, so once one exits the
 // rest get haltStallTimeout to follow.
 func (s *IBCTestSuite) waitForUpgradeHalt(ctx context.Context) *cosmos.ChainNode {
-	exited := func(ctx context.Context) []*cosmos.ChainNode {
+	exited := func(ctx context.Context) ([]*cosmos.ChainNode, error) {
 		var nodes []*cosmos.ChainNode
 		for _, v := range s.chainA.Validators {
 			inspect, err := s.client.ContainerInspect(ctx, v.ContainerLifecycle.ContainerName(), mobyclient.ContainerInspectOptions{})
-			s.Require().NoError(err, "failed to inspect %s", v.Name())
+			if err != nil {
+				return nil, fmt.Errorf("failed to inspect %s: %w", v.Name(), err)
+			}
 			if !inspect.Container.State.Running {
 				nodes = append(nodes, v)
 			}
 		}
-		return nodes
+		return nodes, nil
 	}
+	// An inspect cut off by a wait's deadline only ends that wait.
 	s.waitUntil(ctx, plannedUpgradeTimeout, "no validator halted at the upgrade height", func(ctx context.Context) bool {
-		return len(exited(ctx)) > 0
+		nodes, err := exited(ctx)
+		return err == nil && len(nodes) > 0
 	})
-	err := internal.WaitFor(ctx, haltStallTimeout, time.Second, func(ctx context.Context) (bool, error) {
-		return len(exited(ctx)) == len(s.chainA.Validators), nil
+	// Stalled validators keep running, so this wait may time out.
+	_ = internal.WaitFor(ctx, haltStallTimeout, time.Second, func(ctx context.Context) (bool, error) {
+		nodes, err := exited(ctx)
+		return err == nil && len(nodes) == len(s.chainA.Validators), nil
 	})
-	halted := exited(ctx)
-	if err != nil {
+	halted, err := exited(ctx)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(halted, "no validator halted at the upgrade height")
+	if len(halted) < len(s.chainA.Validators) {
 		s.T().Logf("%d of %d validators exited at the upgrade height; the rest wait one height below", len(halted), len(s.chainA.Validators))
 	}
 	return halted[0]
