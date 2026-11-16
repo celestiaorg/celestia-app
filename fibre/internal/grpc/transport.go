@@ -289,14 +289,17 @@ func (t *autoTransport) dial(ctx context.Context, addr string) (net.Conn, error)
 	return &stallConn{Conn: tcp2}, nil
 }
 
-// writeStallTimeout bounds one socket write on a client connection. A var so
-// tests can shorten it.
+// writeStallTimeout bounds one socket write on client and server connections.
+// A var so tests can shorten it.
 var writeStallTimeout = 10 * time.Second
 
 // stallConn closes the connection when a write does not complete within
 // [writeStallTimeout]. A peer that stops reading otherwise blocks gRPC's writer
-// forever, pinning every queued upload row. Closing, not just failing the
-// write, is what makes gRPC tear the transport down.
+// forever, pinning everything queued behind it (upload rows on a client,
+// download responses on a server). Keepalive and max connection age do not
+// help: any inbound frame resets keepalive, and the age close goes through the
+// blocked writer. Closing, not just failing the write, is what makes gRPC tear
+// the transport down.
 type stallConn struct {
 	net.Conn
 }
