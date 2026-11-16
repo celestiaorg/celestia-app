@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"bytes"
+
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -81,130 +83,167 @@ func shardFramingSize(num protowire.Number, shard *types.BlobShard) int {
 	return size
 }
 
-// scatterBuffer collects framing bytes and the zero-copy views spliced between
-// them. Segments index byte ranges within framing (not slices) so framing can
-// grow freely; it is sliced into views only after all writes.
-type scatterBuffer struct {
-	framing   []byte
-	segs      []scatterSegment
-	flushFrom int
-}
-
-// scatterSegment indexes a byte range within framing, followed by an optional
-// zero-copy view appended after it.
-type scatterSegment struct {
-	start, end int
-	data       []byte // zero-copy slice to append after framing[start:end]; nil = none
-}
-
-func (b *scatterBuffer) view(data []byte) {
-	b.segs = append(b.segs, scatterSegment{start: b.flushFrom, end: len(b.framing), data: data})
-	b.flushFrom = len(b.framing)
-}
-
-// appendShard writes shard as length-delimited field num. Match gogoproto:
-// callers omit a nil shard entirely.
-func (b *scatterBuffer) appendShard(num protowire.Number, shard *types.BlobShard) {
-	b.framing = protowire.AppendTag(b.framing, num, protowire.BytesType)
-	b.framing = protowire.AppendVarint(b.framing, uint64(blobShardSize(shard)))
-
-	for _, row := range shard.Rows {
-		rowLen := blobRowSize(row)
-		b.framing = protowire.AppendTag(b.framing, blobShardFieldRows, protowire.BytesType)
-		b.framing = protowire.AppendVarint(b.framing, uint64(rowLen))
-
-		if row == nil {
-			continue
-		}
-		if row.Index != 0 {
-			b.framing = protowire.AppendTag(b.framing, blobRowFieldIndex, protowire.VarintType)
-			b.framing = protowire.AppendVarint(b.framing, uint64(row.Index))
-		}
-		if len(row.Data) > 0 {
-			b.framing = protowire.AppendTag(b.framing, blobRowFieldData, protowire.BytesType)
-			b.framing = protowire.AppendVarint(b.framing, uint64(len(row.Data)))
-			b.view(row.Data)
-		}
-		for _, seg := range row.Proof {
-			b.framing = protowire.AppendTag(b.framing, blobRowFieldProof, protowire.BytesType)
-			b.framing = protowire.AppendBytes(b.framing, seg)
-		}
-	}
-
-	if len(shard.Rlcs) > 0 {
-		b.framing = protowire.AppendTag(b.framing, blobShardFieldRlcs, protowire.BytesType)
-		b.framing = protowire.AppendVarint(b.framing, uint64(len(shard.Rlcs)))
-		b.view(shard.Rlcs)
-	}
-}
-
-// slice returns the framing and views in wire order. Framing is sliced only
-// now, after all writes.
-func (b *scatterBuffer) slice() mem.BufferSlice {
-	if b.flushFrom != len(b.framing) {
-		b.segs = append(b.segs, scatterSegment{start: b.flushFrom, end: len(b.framing)})
-	}
-	// Converting a mem.SliceBuffer value to mem.Buffer allocates once per
-	// view. Keeping the views in one slice and adding pointers to its
-	// elements avoids that. views must never grow past its capacity, or
-	// earlier pointers would refer to a stale backing array.
-	views := make([]mem.SliceBuffer, 0, 2*len(b.segs))
-	bs := make(mem.BufferSlice, 0, 2*len(b.segs))
-	add := func(data []byte) {
-		views = append(views, data)
-		bs = append(bs, &views[len(views)-1])
-	}
-	for _, seg := range b.segs {
-		if seg.end > seg.start {
-			add(b.framing[seg.start:seg.end])
-		}
-		if seg.data != nil {
-			add(seg.data)
-		}
-	}
-	return bs
-}
-
-func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.BufferSlice, error) {
-	framingSize := shardFramingSize(uploadShardRequestFieldShard, req.Shard)
+// scatterFramingSize returns the bytes of req that are copied into framing:
+// everything but row data and RLCs.
+func scatterFramingSize(req *types.UploadShardRequest) int {
+	size := shardFramingSize(uploadShardRequestFieldShard, req.Shard)
 	if req.Promise != nil {
-		framingSize += protowire.SizeTag(uploadShardRequestFieldPromise) + protowire.SizeBytes(req.Promise.Size())
+		size += protowire.SizeTag(uploadShardRequestFieldPromise) + protowire.SizeBytes(req.Promise.Size())
 	}
-	b := scatterBuffer{framing: make([]byte, 0, framingSize)}
-	if req.Shard != nil {
-		b.segs = make([]scatterSegment, 0, len(req.Shard.Rows)+2)
-	}
-
-	// Field 1: Promise (small; marshal contiguously into framing).
-	// Match gogoproto: omit entirely when nil.
-	if req.Promise != nil {
-		promiseSize := req.Promise.Size()
-		b.framing = protowire.AppendTag(b.framing, uploadShardRequestFieldPromise, protowire.BytesType)
-		b.framing = protowire.AppendVarint(b.framing, uint64(promiseSize))
-		if promiseSize > 0 {
-			base := len(b.framing)
-			b.framing = append(b.framing, make([]byte, promiseSize)...)
-			if _, err := req.Promise.MarshalToSizedBuffer(b.framing[base : base+promiseSize]); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Field 2: Shard envelope. Match gogoproto: omit entirely when nil.
-	if req.Shard != nil {
-		b.appendShard(uploadShardRequestFieldShard, req.Shard)
-	}
-	return b.slice(), nil
+	return size
 }
 
+// marshalUploadShardRequestScatter marshals req. With a nil owner every view
+// is a plain mem.SliceBuffer. Otherwise each row data view holds a reference
+// on owner until gRPC frees it; rows below the pooling threshold are copied
+// instead, since gRPC would not ref-count them. Framing and RLC views are
+// GC-owned either way.
+func marshalUploadShardRequestScatter(req *types.UploadShardRequest, owner *rowOwner) (mem.BufferSlice, error) {
+	f := scatterFraming{buf: make([]byte, 0, scatterFramingSize(req))}
+	if req.Shard != nil {
+		f.segs = make([]scatterSegment, 0, len(req.Shard.Rows)+2)
+	}
+	if err := f.appendPromise(req.Promise); err != nil {
+		return nil, err
+	}
+	f.appendShard(uploadShardRequestFieldShard, req.Shard)
+	f.finish()
+	return f.views(owner)
+}
+
+// marshalDownloadShardResponseScatter marshals resp with every view a plain
+// mem.SliceBuffer: the server keeps the shard alive itself.
 func marshalDownloadShardResponseScatter(resp *types.DownloadShardResponse) mem.BufferSlice {
 	if resp.Shard == nil {
 		return mem.BufferSlice{}
 	}
-	b := scatterBuffer{
-		framing: make([]byte, 0, shardFramingSize(downloadShardResponseFieldShard, resp.Shard)),
-		segs:    make([]scatterSegment, 0, len(resp.Shard.Rows)+2),
+	f := scatterFraming{
+		buf:  make([]byte, 0, shardFramingSize(downloadShardResponseFieldShard, resp.Shard)),
+		segs: make([]scatterSegment, 0, len(resp.Shard.Rows)+2),
 	}
-	b.appendShard(downloadShardResponseFieldShard, resp.Shard)
-	return b.slice()
+	f.appendShard(downloadShardResponseFieldShard, resp.Shard)
+	f.finish()
+	bs, _ := f.views(nil) // cannot fail without an owner
+	return bs
+}
+
+// scatterFraming accumulates the contiguous wire bytes of a request and
+// records where zero-copy views are spliced between them.
+type scatterFraming struct {
+	buf       []byte
+	segs      []scatterSegment
+	flushFrom int
+}
+
+// scatterSegment indexes a byte range within the framing buffer (not a slice)
+// so the buffer can grow freely; it is sliced into views only after all writes.
+type scatterSegment struct {
+	start, end int
+	data       []byte // zero-copy slice to append after buf[start:end]; nil = none
+	row        bool   // data is row data
+}
+
+// splice ends the current framing segment and queues data after it.
+func (f *scatterFraming) splice(data []byte, row bool) {
+	f.segs = append(f.segs, scatterSegment{start: f.flushFrom, end: len(f.buf), data: data, row: row})
+	f.flushFrom = len(f.buf)
+}
+
+func (f *scatterFraming) finish() {
+	if f.flushFrom != len(f.buf) {
+		f.segs = append(f.segs, scatterSegment{start: f.flushFrom, end: len(f.buf)})
+	}
+}
+
+// appendPromise writes field 1 contiguously; the promise is small. Match
+// gogoproto: omit entirely when nil.
+func (f *scatterFraming) appendPromise(promise *types.PaymentPromise) error {
+	if promise == nil {
+		return nil
+	}
+	size := promise.Size()
+	f.buf = protowire.AppendTag(f.buf, uploadShardRequestFieldPromise, protowire.BytesType)
+	f.buf = protowire.AppendVarint(f.buf, uint64(size))
+	if size > 0 {
+		base := len(f.buf)
+		f.buf = append(f.buf, make([]byte, size)...)
+		if _, err := promise.MarshalToSizedBuffer(f.buf[base : base+size]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// appendShard writes shard as length-delimited field num. Match gogoproto:
+// omit entirely when nil.
+func (f *scatterFraming) appendShard(num protowire.Number, shard *types.BlobShard) {
+	if shard == nil {
+		return
+	}
+	f.buf = protowire.AppendTag(f.buf, num, protowire.BytesType)
+	f.buf = protowire.AppendVarint(f.buf, uint64(blobShardSize(shard)))
+	for _, row := range shard.Rows {
+		f.appendRow(row)
+	}
+	if len(shard.Rlcs) > 0 {
+		f.buf = protowire.AppendTag(f.buf, blobShardFieldRlcs, protowire.BytesType)
+		f.buf = protowire.AppendVarint(f.buf, uint64(len(shard.Rlcs)))
+		f.splice(shard.Rlcs, false)
+	}
+}
+
+func (f *scatterFraming) appendRow(row *types.BlobRow) {
+	f.buf = protowire.AppendTag(f.buf, blobShardFieldRows, protowire.BytesType)
+	f.buf = protowire.AppendVarint(f.buf, uint64(blobRowSize(row)))
+	if row == nil {
+		return
+	}
+	if row.Index != 0 {
+		f.buf = protowire.AppendTag(f.buf, blobRowFieldIndex, protowire.VarintType)
+		f.buf = protowire.AppendVarint(f.buf, uint64(row.Index))
+	}
+	if len(row.Data) > 0 {
+		f.buf = protowire.AppendTag(f.buf, blobRowFieldData, protowire.BytesType)
+		f.buf = protowire.AppendVarint(f.buf, uint64(len(row.Data)))
+		f.splice(row.Data, true)
+	}
+	for _, seg := range row.Proof {
+		f.buf = protowire.AppendTag(f.buf, blobRowFieldProof, protowire.BytesType)
+		f.buf = protowire.AppendBytes(f.buf, seg)
+	}
+}
+
+// views assembles the wire buffers in order: framing bytes interleaved with
+// the spliced row data and RLC views.
+func (f *scatterFraming) views(owner *rowOwner) (mem.BufferSlice, error) {
+	// Converting a mem.SliceBuffer value to mem.Buffer allocates once per
+	// view. Keeping the views in one slice and adding pointers to its
+	// elements avoids that. views must never grow past its capacity, or
+	// earlier pointers would refer to a stale backing array.
+	views := make([]mem.SliceBuffer, 0, 2*len(f.segs))
+	bs := make(mem.BufferSlice, 0, 2*len(f.segs))
+	add := func(b []byte) {
+		views = append(views, b)
+		bs = append(bs, &views[len(views)-1])
+	}
+	for _, seg := range f.segs {
+		if seg.end > seg.start {
+			add(f.buf[seg.start:seg.end])
+		}
+		switch {
+		case seg.data == nil:
+		case owner == nil || !seg.row:
+			add(seg.data)
+		case mem.IsBelowBufferPoolingThreshold(cap(seg.data)):
+			add(bytes.Clone(seg.data))
+		default:
+			view, ok := owner.wrap(seg.data)
+			if !ok {
+				bs.Free()
+				return nil, errUploadReleased
+			}
+			bs = append(bs, view)
+		}
+	}
+	return bs, nil
 }
