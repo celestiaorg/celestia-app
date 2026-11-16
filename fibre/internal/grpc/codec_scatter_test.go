@@ -131,7 +131,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical marshal: %v", err)
 			}
-			bs, err := marshalUploadShardRequestScatter(tc.req)
+			bs, err := marshalUploadShardRequestScatter(tc.req, nil)
 			if err != nil {
 				t.Fatalf("scatter marshal: %v", err)
 			}
@@ -144,6 +144,68 @@ func TestScatterMarshalWireParity(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
+=======
+// requireDownloadScatterParity checks the download scatter marshaler against
+// gogoproto for a response carrying shard.
+func requireDownloadScatterParity(t *testing.T, shard *types.BlobShard) {
+	t.Helper()
+	resp := &types.DownloadShardResponse{Shard: shard}
+	canonical, err := resp.Marshal()
+	if err != nil {
+		t.Fatalf("canonical download marshal: %v", err)
+	}
+	scattered := marshalDownloadShardResponseScatter(resp).Materialize()
+	if !bytes.Equal(canonical, scattered) {
+		t.Fatalf("download wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
+			len(canonical), canonical, len(scattered), scattered)
+	}
+}
+
+func TestScatterMarshalWireParity128MiB(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping 128 MiB scatter codec test in short mode")
+	}
+
+	const rowCount, rowSize = 512, 256 << 10
+	rows := make([]*types.BlobRow, rowCount)
+	for i := range rows {
+		rows[i] = &types.BlobRow{
+			Index: uint32(i),
+			Data:  bytes.Repeat([]byte{byte(i), byte(i >> 8)}, rowSize/2),
+			Proof: [][]byte{bytes.Repeat([]byte{byte(i)}, 32)},
+		}
+	}
+	req := &types.UploadShardRequest{
+		Promise: &types.PaymentPromise{ChainId: "scatter-test", BlobSize: rowCount * rowSize},
+		Shard:   &types.BlobShard{Rows: rows, Rlcs: bytes.Repeat([]byte{0xa5}, rowSize)},
+	}
+
+	canonical, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("canonical marshal: %v", err)
+	}
+	scattered, err := marshalUploadShardRequestScatter(req, nil)
+	if err != nil {
+		t.Fatalf("scatter marshal: %v", err)
+	}
+	defer scattered.Free()
+	if scattered.Len() != len(canonical) {
+		t.Fatalf("wire length mismatch: canonical %d, scattered %d", len(canonical), scattered.Len())
+	}
+	// Compare segments directly to avoid another 128 MiB allocation and a huge
+	// hex dump on failure.
+	offset := 0
+	for i, segment := range scattered {
+		data := segment.ReadOnlyData()
+		if !bytes.Equal(data, canonical[offset:offset+len(data)]) {
+			t.Fatalf("wire mismatch at segment %d (offset %d)", i, offset)
+		}
+		offset += len(data)
+	}
+}
+
+>>>>>>> 238ab93 (fix(fibre): [high] keep upload rows alive until gRPC frees them (#8560))
 // FuzzScatterMarshalParity drives the scatter marshaler with random message
 // shapes and asserts byte equality against gogoproto's canonical marshal.
 // Catches drift if new fields are added to UploadShardRequest / BlobShard /
@@ -206,7 +268,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if err != nil {
 			t.Fatalf("canonical marshal: %v", err)
 		}
-		bs, err := marshalUploadShardRequestScatter(req)
+		bs, err := marshalUploadShardRequestScatter(req, nil)
 		if err != nil {
 			t.Fatalf("scatter marshal: %v", err)
 		}
@@ -218,3 +280,98 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		}
 	})
 }
+<<<<<<< HEAD
+=======
+
+// TestScatterMarshalBufferCount checks that only row data and RLCs are views,
+// so the buffer count stays linear in rows rather than in proof segments.
+func TestScatterMarshalBufferCount(t *testing.T) {
+	const rows, depth = 16, 14
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+
+	upload, err := marshalUploadShardRequestScatter(req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	download := marshalDownloadShardResponseScatter(&types.DownloadShardResponse{Shard: shard})
+	for name, bs := range map[string]mem.BufferSlice{"upload": upload, "download": download} {
+		if got, limit := len(bs), 2*rows+3; got > limit {
+			t.Fatalf("%s: got %d buffers, want at most %d", name, got, limit)
+		}
+		var aliased int
+		for _, b := range bs {
+			d := b.ReadOnlyData()
+			for _, row := range shard.Rows {
+				if len(d) > 0 && &d[0] == &row.Data[0] {
+					aliased++
+				}
+			}
+		}
+		if aliased != rows {
+			t.Fatalf("%s: %d row data buffers are views, want %d", name, aliased, rows)
+		}
+	}
+}
+
+// TestScatterCodecCoversAllFields fails when a field is added to a message the
+// scatter codec hand-encodes. Update marshalUploadShardRequestScatter and
+// blobRowSize/blobShardSize, then this count.
+func TestScatterCodecCoversAllFields(t *testing.T) {
+	for typ, want := range map[reflect.Type]int{
+		reflect.TypeFor[types.UploadShardRequest]():    2,
+		reflect.TypeFor[types.DownloadShardResponse](): 1,
+		reflect.TypeFor[types.BlobShard]():             2,
+		reflect.TypeFor[types.BlobRow]():               3,
+	} {
+		if got := typ.NumField(); got != want {
+			t.Errorf("%s has %d fields, scatter codec handles %d", typ.Name(), got, want)
+		}
+	}
+}
+
+func scatterTestRequest(rows, depth int) *types.UploadShardRequest {
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	return &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+}
+
+// TestScatterMarshalAllocsConstant checks that allocations do not grow with
+// the number of buffer views: views are not boxed one by one.
+func TestScatterMarshalAllocsConstant(t *testing.T) {
+	allocs := func(rows int) float64 {
+		req := scatterTestRequest(rows, 14)
+		return testing.AllocsPerRun(20, func() {
+			if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if small, large := allocs(16), allocs(256); large != small {
+		t.Fatalf("allocs grew with rows: %v at 16 rows, %v at 256 rows", small, large)
+	}
+}
+
+func BenchmarkScatterMarshal(b *testing.B) {
+	req := scatterTestRequest(168, 14)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := marshalUploadShardRequestScatter(req, nil); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+>>>>>>> 238ab93 (fix(fibre): [high] keep upload rows alive until gRPC frees them (#8560))
