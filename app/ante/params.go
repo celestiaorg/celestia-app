@@ -8,8 +8,8 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 )
 
-// ParamFilter is a type alias for a filtering function which accepts an sdk.Msg and returns an error.
-type ParamFilter func(sdk.Msg) error
+// ParamFilter is a type alias for a filtering function which accepts an sdk.Context and sdk.Msg and returns an error.
+type ParamFilter func(sdk.Context, sdk.Msg) error
 
 // ParamFilterDecorator checks tx msgs for gov.MsgSubmitProposal and authz.MsgExec and ensures that param updates
 // within these conform to the rules defined in paramFilters. ParamFilters are keyed by MsgTypeURL.
@@ -36,7 +36,7 @@ func (d ParamFilterDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 				return ctx, err
 			}
 
-			if err := d.validateMsgs(msgs); err != nil {
+			if err := d.ValidateMsgs(ctx, msgs); err != nil {
 				return ctx, err
 			}
 		}
@@ -48,7 +48,7 @@ func (d ParamFilterDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 				return ctx, err
 			}
 
-			if err := d.validateMsgs(msgs); err != nil {
+			if err := d.ValidateMsgs(ctx, msgs); err != nil {
 				return ctx, err
 			}
 		}
@@ -57,12 +57,12 @@ func (d ParamFilterDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	return next(ctx, tx, simulate)
 }
 
-// validateMsgs checks the nested messages within a `MsgSubmitProposal` or `MsgExec`.
+// ValidateMsgs checks the nested messages within a `MsgSubmitProposal` or `MsgExec`.
 // It ensures that:
 // 1. At least one message is included in the proposal.
 // 2. Recursively processes nested messages in case of `MsgExec` or `MsgSubmitProposal` types.
 // 3. Applies the provided parameter filters to relevant messages, checking if parameter changes are allowed.
-func (d ParamFilterDecorator) validateMsgs(msgs []sdk.Msg) error {
+func (d ParamFilterDecorator) ValidateMsgs(ctx sdk.Context, msgs []sdk.Msg) error {
 	if len(msgs) == 0 {
 		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "must include at least one message")
 	}
@@ -75,7 +75,7 @@ func (d ParamFilterDecorator) validateMsgs(msgs []sdk.Msg) error {
 				return err
 			}
 
-			if err := d.validateMsgs(nested); err != nil {
+			if err := d.ValidateMsgs(ctx, nested); err != nil {
 				return err
 			}
 		case *govv1.MsgSubmitProposal:
@@ -84,12 +84,12 @@ func (d ParamFilterDecorator) validateMsgs(msgs []sdk.Msg) error {
 				return err
 			}
 
-			if err := d.validateMsgs(nested); err != nil {
+			if err := d.ValidateMsgs(ctx, nested); err != nil {
 				return err
 			}
 		default:
 			if paramFilter, found := d.paramFilters[sdk.MsgTypeURL(m)]; found {
-				if err := paramFilter(m); err != nil {
+				if err := paramFilter(ctx, m); err != nil {
 					return err
 				}
 			}
