@@ -41,7 +41,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return app.handleBlobCheckTx(req, btx)
 	}
 
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
+	sdkTx, err := app.checkTxDecoder()(tx)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
@@ -79,6 +79,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {
 	baseReq := &abci.RequestCheckTx{Tx: btx.Tx, Type: req.GetType()}
 
+	// Decode before ValidateBlobTx, which decodes without a recover.
+	sdkTx, err := app.checkTxDecoder()(baseReq.Tx)
+	if err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
+
 	switch req.Type {
 	case abci.CheckTxType_New:
 		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
@@ -88,11 +94,6 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		// no need to re-validate a blob
 	default:
 		err := fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(baseReq.Tx)
-	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
@@ -222,4 +223,11 @@ func containsFibreStateMsg(tx sdk.Tx) bool {
 		}
 	}
 	return false
+}
+
+// checkTxDecoder returns the tx decoder with a recover, so a tx whose decoding
+// panics is rejected like any other tx that fails to decode. The panic is
+// logged at debug level because any peer can send such a tx.
+func (app *App) checkTxDecoder() sdk.TxDecoder {
+	return recoverTxDecoder(app.Logger().Debug, app.encodingConfig.TxConfig.TxDecoder())
 }
