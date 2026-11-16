@@ -5,8 +5,12 @@ import (
 	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v11/app/ante"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // govEndBlockKey marks the context of the x/gov EndBlocker.
@@ -53,6 +57,17 @@ func govMsgHandler(handler baseapp.MsgServiceHandler) baseapp.MsgServiceHandler 
 				res, err = nil, govMsgError{cause: errorsmod.ErrPanic}
 			}
 		}()
+		// Revalidate queued proposals against the policy at execution, including
+		// nested authz/proposal messages. Pre-v12 behavior stays unchanged.
+		if appconsts.CortoV12Active(ctx.ChainID(), ctx.ConsensusParams().Version.GetApp()) {
+			filter := ante.NewParamFilterDecorator(map[string]ante.ParamFilter{
+				sdk.MsgTypeURL((*stakingtypes.MsgUpdateParams)(nil)):   stakingParamFilter,
+				sdk.MsgTypeURL((*consensustypes.MsgUpdateParams)(nil)): consensusParamFilter,
+			})
+			if err := filter.ValidateMsgs(ctx, []sdk.Msg{msg}); err != nil {
+				return nil, govMsgError{cause: err}
+			}
+		}
 		res, err = handler(ctx, msg)
 		if err != nil {
 			return nil, govMsgError{cause: err}

@@ -40,7 +40,7 @@ func TestGetUpgradeHeightDelay(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := appconsts.GetUpgradeHeightDelay(tc.chainID)
+			got := appconsts.GetUpgradeHeightDelay(tc.chainID, 11)
 			require.Equal(t, tc.expectedUpgradeHeightDelay, got)
 		})
 	}

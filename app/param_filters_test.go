@@ -79,7 +79,7 @@ func TestBankParamFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := bankParamFilter(tt.params)
+			err := bankParamFilter(sdk.Context{}, tt.params)
 			if tt.expectedErr == nil {
 				require.NoError(t, err)
 			} else {
@@ -137,7 +137,7 @@ func TestStakingParamFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := stakingParamFilter(tt.params)
+			err := stakingParamFilter(sdk.Context{}, tt.params)
 			if tt.expectedErr == nil {
 				require.NoError(t, err)
 			} else {
@@ -213,7 +213,7 @@ func TestConsensusParamFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := consensusParamFilter(tt.msg)
+			err := consensusParamFilter(sdk.Context{}, tt.msg)
 			if tt.expectedErr == nil {
 				require.NoError(t, err)
 			} else {
