@@ -17,11 +17,11 @@ import (
 )
 
 func TestUnsupportedFlags(t *testing.T) {
-	// v10 supports every current start flag.
-	require.Empty(t, unsupportedFlags(10))
+	// v10 lacks only the flag added in v11.
+	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}}, unsupportedFlags(10))
 
-	// v6-v9 lack only the flags added in v10.
-	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
+	// v6-v9 also lack the flags added in v10.
+	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}, "otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
 	require.Equal(t, unsupportedFlags(9), unsupportedFlags(6))
 
 	// v4 and v5 also lack flags added in v6.

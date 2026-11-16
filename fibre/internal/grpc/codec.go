@@ -29,8 +29,8 @@ type protoUnmarshaler interface {
 
 // pooledCodec wraps gogoproto's MarshalToSizedBuffer + Unmarshal with
 // per-RPC buffer reuse from gRPC's mem.BufferPool. For UploadShardRequest
-// the scatter path emits row payloads zero-copy; every other message goes
-// through the pooled contiguous path.
+// and DownloadShardResponse the scatter path emits row payloads zero-copy;
+// every other message goes through the pooled contiguous path.
 type pooledCodec struct {
 	pool    mem.BufferPool
 	uploads *uploadBuffers
@@ -64,7 +64,10 @@ func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
-		return marshalUploadShardRequestScatter(req)
+		return marshalUploadShardRequestScatter(req, c.pool, nil)
+	}
+	if resp, ok := v.(*types.DownloadShardResponse); ok {
+		return marshalDownloadShardResponseScatter(resp), nil
 	}
 
 	msg, ok := v.(sizedBufferMarshaler)
@@ -104,7 +107,7 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
 	}
 	if req, ok := v.(*types.UploadShardRequest); ok {
-		// Only the paired server interceptor can release view-decoded backing.
+		// Only the server's admitHandler can release view-decoded backing.
 		var buf []byte
 		reuse := c.uploads != nil && data.Len() >= minUploadBufferSize
 		if reuse {

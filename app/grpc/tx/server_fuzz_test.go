@@ -83,8 +83,9 @@ func (s *stubNode) TxStatusBatch(_ context.Context, hashes [][]byte) (*ctypes.Re
 // (newline separated, any bytes) against a stub node returning fuzz-chosen
 // responses, including fewer or more results than requested, reordered
 // results, nil results and errors. The server must not panic, must reject
-// malformed ids with InvalidArgument, and every batch entry must carry the
-// status of the id it is labelled with.
+// malformed ids with InvalidArgument and malformed node responses with
+// Internal, and every batch entry must carry the status of the id it is
+// labelled with.
 func FuzzTxStatus(f *testing.F) {
 	f.Add("0a1b", uint8(stubFaithful))
 	f.Add("00\nff\nABCD\n", uint8(stubFaithful))
@@ -100,13 +101,6 @@ func FuzzTxStatus(f *testing.F) {
 		node := &stubNode{mode: int(mode % stubModes)}
 		srv := tx.NewTxServer(client.Context{}.WithClient(node), nil)
 		ids := strings.Split(raw, "\n")
-		// Excluded pending a fix; see the Linear issue for this target.
-		// A nil node result, extra results and results out of request order
-		// are not handled yet.
-		if node.mode == stubNil {
-			return
-		}
-		skipBatch := node.mode == stubExtra || node.mode == stubReverse || node.mode == stubDropFirst
 
 		single, err := callNoPanic(t, func() (*tx.TxStatusResponse, error) {
 			return srv.TxStatus(context.Background(), &tx.TxStatusRequest{TxId: ids[0]})
@@ -117,6 +111,8 @@ func FuzzTxStatus(f *testing.F) {
 			require.Equal(t, codes.InvalidArgument, status.Code(err), "TxStatus(%q): %v", ids[0], err)
 		case node.mode == stubError:
 			require.Error(t, err)
+		case node.mode == stubNil:
+			require.Equal(t, codes.Internal, status.Code(err), "TxStatus(%q): %v", ids[0], err)
 		default:
 			require.NoError(t, err)
 			want := stubStatus(decoded)
@@ -124,18 +120,12 @@ func FuzzTxStatus(f *testing.F) {
 			require.Equal(t, want.Height, single.Height)
 		}
 
-		// Excluded pending a fix; see the Linear issue for this target.
-		// TxStatusBatch accepts an empty id, which TxStatus rejects; the oracle
-		// must neither require nor forbid that until the handlers agree.
-		if skipBatch || slices.Contains(ids, "") {
-			return
-		}
 		batch, err := callNoPanic(t, func() (*tx.TxStatusBatchResponse, error) {
 			return srv.TxStatusBatch(context.Background(), &tx.TxStatusBatchRequest{TxIds: ids})
 		})
 		malformed := false
 		for _, id := range ids {
-			if _, err := hex.DecodeString(id); err != nil {
+			if _, err := hex.DecodeString(id); err != nil || id == "" {
 				malformed = true
 			}
 		}
@@ -144,9 +134,11 @@ func FuzzTxStatus(f *testing.F) {
 			require.Equal(t, codes.InvalidArgument, status.Code(err), "TxStatusBatch(%q): %v", ids, err)
 		case node.mode == stubError:
 			require.Error(t, err)
+		case node.mode == stubNil, node.mode == stubTruncate, node.mode == stubDropFirst, node.mode == stubExtra:
+			require.Equal(t, codes.Internal, status.Code(err), "TxStatusBatch(%q): %v", ids, err)
 		default:
 			require.NoError(t, err)
-			require.LessOrEqual(t, len(batch.Statuses), len(ids))
+			require.Len(t, batch.Statuses, len(ids))
 			for i, entry := range batch.Statuses {
 				require.Equal(t, ids[i], entry.TxHash)
 				hash, err := hex.DecodeString(entry.TxHash)

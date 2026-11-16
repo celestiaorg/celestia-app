@@ -186,6 +186,11 @@ func (fx *sigCacheFixture) editFields(tx sigFuzzTx, other []byte, op, flags byte
 		}
 		switch v := r.Byte(); v % 3 {
 		case 0:
+			// An earlier edit can leave a coin without an amount, which
+			// decodes to a nil Int that cannot be added to.
+			if auth.Fee.Amount[0].Amount.IsNil() {
+				return nil, false
+			}
 			auth.Fee.Amount[0].Amount = auth.Fee.Amount[0].Amount.AddRaw(int64(r.Uint16()))
 		case 1:
 			auth.Fee.GasLimit = uint64(r.Uint32())

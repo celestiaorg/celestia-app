@@ -48,6 +48,14 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
+	// Reject fees that do not fit in an int64. Earlier versions rejected them
+	// too, by panicking when recording the observed gas price below, which also
+	// made ProcessProposal reject any block holding one. Returning an error keeps
+	// that outcome on every chain, so no app version gate is needed.
+	if !fee.IsInt64() {
+		return nil, 0, errors.Wrapf(sdkerror.ErrInvalidCoins, "fee %s%s does not fit in an int64", fee, appconsts.BondDenom)
+	}
+
 	// Ensure that the provided fee meets a minimum threshold for the node.
 	// This is only for local mempool purposes, and thus
 	// is only run on check tx.

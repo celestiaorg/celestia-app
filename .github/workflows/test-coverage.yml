@@ -15,6 +15,11 @@ concurrency:
   group: test-coverage-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Test the cgo build that releases ship: a runner without a C compiler fails
+# instead of silently testing the pure-Go fallbacks.
+env:
+  CGO_ENABLED: "1"
+
 jobs:
   # The serial suite takes over 30 minutes on one runner, so run its slowest
   # packages on separate runners. Shard names come from scripts/test_cover.sh;

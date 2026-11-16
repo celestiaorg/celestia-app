@@ -57,14 +57,19 @@ type pffTx struct {
 // signedTx wraps msg in a tx whose envelope signer 0 signs in direct mode, so
 // the envelope fields an edit changes are real ones.
 func (m *pffMutator) signedTx(t *testing.T, msg *types.MsgPayForFibre) []byte {
+	return m.signedTxBy(t, msg, 0)
+}
+
+// signedTxBy is signedTx with the envelope signed by signer key.
+func (m *pffMutator) signedTxBy(t *testing.T, msg *types.MsgPayForFibre, key int) []byte {
 	t.Helper()
-	pubKey, err := codectypes.NewAnyWithValue(m.signers[0].PubKey())
+	pubKey, err := codectypes.NewAnyWithValue(m.signers[key].PubKey())
 	require.NoError(t, err)
 	p := &pffTx{msg: *msg, auth: cosmostx.AuthInfo{SignerInfos: []*cosmostx.SignerInfo{{
 		PublicKey: pubKey,
 		ModeInfo:  &cosmostx.ModeInfo{Sum: &cosmostx.ModeInfo_Single_{Single: &cosmostx.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT}}},
 	}}}}
-	raw, ok := m.encode(p, false, true, false, 0, pffAccountNumber)
+	raw, ok := m.encode(p, false, true, false, key, pffAccountNumber)
 	require.True(t, ok)
 	return raw
 }

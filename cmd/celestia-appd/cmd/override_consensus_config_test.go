@@ -59,12 +59,13 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	// Get the modified config from the server context
 	modifiedCfg := server.GetServerContextFromCmd(cmd).Config
 
-	assert.Equal(t, appconsts.TimeoutPropose, modifiedCfg.Consensus.TimeoutPropose)
-	assert.Equal(t, appconsts.TimeoutPrevote, modifiedCfg.Consensus.TimeoutPrevote)
-	assert.Equal(t, appconsts.TimeoutPrevoteDelta, modifiedCfg.Consensus.TimeoutPrevoteDelta)
-	assert.Equal(t, appconsts.TimeoutPrecommit, modifiedCfg.Consensus.TimeoutPrecommit)
-	assert.Equal(t, appconsts.TimeoutPrecommitDelta, modifiedCfg.Consensus.TimeoutPrecommitDelta)
-	assert.Equal(t, appconsts.TimeoutCommit, modifiedCfg.Consensus.TimeoutCommit)
+	timeouts := appconsts.GetConsensusTimeouts(appconsts.Version)
+	assert.Equal(t, timeouts.TimeoutPropose, modifiedCfg.Consensus.TimeoutPropose)
+	assert.Equal(t, timeouts.TimeoutPrevote, modifiedCfg.Consensus.TimeoutPrevote)
+	assert.Equal(t, timeouts.TimeoutPrevoteDelta, modifiedCfg.Consensus.TimeoutPrevoteDelta)
+	assert.Equal(t, timeouts.TimeoutPrecommit, modifiedCfg.Consensus.TimeoutPrecommit)
+	assert.Equal(t, timeouts.TimeoutPrecommitDelta, modifiedCfg.Consensus.TimeoutPrecommitDelta)
+	assert.Equal(t, timeouts.TimeoutCommit, modifiedCfg.Consensus.TimeoutCommit)
 	assert.Equal(t, 10*time.Millisecond, modifiedCfg.Consensus.PeerGossipSleepDuration)
 }
 
@@ -80,10 +81,11 @@ func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {
 
 	var buf bytes.Buffer
 	require.NoError(t, overrideConsensusTimeouts(cmd, log.NewLogger(&buf, log.ColorOption(false))))
+	timeouts := appconsts.GetConsensusTimeouts(appconsts.Version)
 
-	assert.Contains(t, buf.String(), "configured=10s enforced="+appconsts.TimeoutCommit.String()+" name=timeout_commit")
-	assert.Contains(t, buf.String(), "configured=20s enforced="+appconsts.TimeoutPrevote.String()+" name=timeout_prevote")
+	assert.Contains(t, buf.String(), "configured=10s enforced="+timeouts.TimeoutCommit.String()+" name=timeout_commit")
+	assert.Contains(t, buf.String(), "configured=20s enforced="+timeouts.TimeoutPrevote.String()+" name=timeout_prevote")
 	assert.NotContains(t, buf.String(), "timeout_propose")
-	assert.Equal(t, appconsts.TimeoutCommit, cfg.Consensus.TimeoutCommit)
-	assert.Equal(t, appconsts.TimeoutPrevote, cfg.Consensus.TimeoutPrevote)
+	assert.Equal(t, timeouts.TimeoutCommit, cfg.Consensus.TimeoutCommit)
+	assert.Equal(t, timeouts.TimeoutPrevote, cfg.Consensus.TimeoutPrevote)
 }

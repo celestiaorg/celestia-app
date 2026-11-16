@@ -6,15 +6,19 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	coretypes "github.com/cometbft/cometbft/types"
+	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesZkismV11Fields checks that the v11 zkism genesis fields are
-// only exported for app version 11 and above.
-func TestExportBytesZkismV11Fields(t *testing.T) {
+// TestExportBytesV11Fields checks that the v11 zkism, mint, distribution and
+// ibc channel genesis fields are only exported for app version 11 and above,
+// since the embedded v10 binary rejects them as unknown.
+func TestExportBytesV11Fields(t *testing.T) {
 	tests := []struct {
 		appVersion    uint64
 		wantV11Fields bool
@@ -55,6 +59,31 @@ func TestExportBytesZkismV11Fields(t *testing.T) {
 			require.Equal(t, tc.wantV11Fields, has, "app version %d, ism field %s", tc.appVersion, field)
 		}
 		require.Contains(t, zkismState, "submissions", "app version %d", tc.appVersion)
+
+		var mintState map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(appState[minttypes.ModuleName], &mintState))
+
+		_, hasMinter := mintState["minter"]
+		_, hasGenesisTime := mintState["genesis_time"]
+		require.Equal(t, tc.wantV11Fields, hasMinter, "app version %d", tc.appVersion)
+		require.Equal(t, tc.wantV11Fields, hasGenesisTime, "app version %d", tc.appVersion)
+		require.Contains(t, mintState, "bond_denom", "app version %d", tc.appVersion)
+
+		var distrState map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(appState[distrtypes.ModuleName], &distrState))
+		_, hasUserRewards := distrState["user_outstanding_rewards"]
+		require.Equal(t, tc.wantV11Fields, hasUserRewards, "app version %d", tc.appVersion)
+		require.Contains(t, distrState, "fee_pool", "app version %d", tc.appVersion)
+
+		var ibcState struct {
+			ChannelGenesis map[string]json.RawMessage `json:"channel_genesis"`
+		}
+		require.NoError(t, json.Unmarshal(appState[ibcexported.ModuleName], &ibcState))
+		for _, field := range []string{"upgrades", "counterparty_upgrades", "error_receipts", "pruning_sequence_starts", "recv_start_sequences"} {
+			_, has := ibcState.ChannelGenesis[field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, ibc channel field %s", tc.appVersion, field)
+		}
+		require.Contains(t, ibcState.ChannelGenesis, "channels", "app version %d", tc.appVersion)
 	}
 }
 

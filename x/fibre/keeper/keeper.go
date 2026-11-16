@@ -236,6 +236,9 @@ func (k Keeper) GetWithdrawalsByAvailableIterator(ctx sdk.Context, upToTime time
 // Key layout: 0x04 || available || "/" || requested || "/" || signer
 func (k Keeper) ParseWithdrawalsByAvailableKey(key []byte) (available, requested time.Time, signer string, err error) {
 	// Remove the prefix
+	if len(key) < len(types.WithdrawalsByAvailableKeyPrefix) {
+		return time.Time{}, time.Time{}, "", fmt.Errorf("key too short for prefix")
+	}
 	key = key[len(types.WithdrawalsByAvailableKeyPrefix):]
 
 	// Parse available timestamp (first 29 bytes as per SDK's FormatTimeBytes)
@@ -398,9 +401,15 @@ func (k Keeper) GetProcessedPaymentsByTimeIterator(ctx sdk.Context, upToTime tim
 // ParseProcessedPaymentsByTimeKey parses the processed_at timestamp and payment promise hash from the key
 func (k Keeper) ParseProcessedPaymentsByTimeKey(key []byte) (processedAt time.Time, paymentPromiseHash []byte, err error) {
 	// Remove the prefix
+	if len(key) < len(types.ProcessedPaymentsByTimeKeyPrefix) {
+		return time.Time{}, nil, fmt.Errorf("key too short for prefix")
+	}
 	key = key[len(types.ProcessedPaymentsByTimeKeyPrefix):]
 
 	// Parse the timestamp (first 29 bytes as per SDK's FormatTimeBytes)
+	if len(key) < 29 {
+		return time.Time{}, nil, fmt.Errorf("key too short for timestamp")
+	}
 	timestampBytes := key[:29]
 
 	processedAt, err = sdk.ParseTimeBytes(timestampBytes)

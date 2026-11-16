@@ -24,6 +24,9 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
+	// splitCertificates spreads each certificate over several items, for a
+	// pass too small to fill the CPUs with whole certificates.
+	splitCertificates bool
 }
 
 // PreverifySignatures verifies the MsgPayForFibre signatures in txs across
@@ -78,12 +81,21 @@ func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFib
 		return
 	}
 	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
-		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+		PreverifyOptions{Certificates: true, StopOnFirstFailure: true, splitCertificates: true})
 }
 
 // batchSize is how many validator signatures one work item batch-verifies: 128
 // covers a 100-validator quorum in one item and still leaves more items than CPUs.
 const batchSize = 128
+
+// minSplitBatch is the smallest sub-batch a split certificate gets: smaller
+// batches lose more of the batch speed-up than the extra cores win back.
+const minSplitBatch = 8
+
+// certificateSplitSize spreads a prefix-signature certificate over procs items.
+func certificateSplitSize(prefix, procs int) int {
+	return min(batchSize, max(minSplitBatch, (prefix+procs-1)/procs))
+}
 
 // verification is one independent unit of work: either a payment promise's
 // stateless validation, which carries its secp256k1 check, or a batch of
@@ -231,7 +243,7 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 				continue
 			}
 			if !k.sigCache.Has(d.CertKey) {
-				if !k.appendCertificateItems(ctx, work, valSets, d.PromiseSignBytes, msg, first) {
+				if !k.appendCertificateItems(ctx, work, valSets, d.PromiseSignBytes, msg, opts.splitCertificates) {
 					// Returns false exactly where the sequential verifier
 					// rejects the message, so this message records nothing -
 					// its promise included.
@@ -263,7 +275,7 @@ func (k Keeper) appendCertificateItems(
 	valSets map[int64]*convertedValidatorSet,
 	signBytes []byte,
 	msg *types.MsgPayForFibre,
-	first int,
+	split bool,
 ) bool {
 	height := msg.PaymentPromise.Height
 	converted, ok := valSets[height]
@@ -285,9 +297,13 @@ func (k Keeper) appendCertificateItems(
 		return false
 	}
 
+	size := batchSize
+	if split {
+		size = certificateSplitSize(prefix, runtime.GOMAXPROCS(0))
+	}
 	certFirst := len(work.items)
 	newBatch := func(remaining int) verification {
-		n := min(remaining, batchSize)
+		n := min(remaining, size)
 		return verification{message: signBytes, pubKeys: make([]crypto.PubKey, 0, n), signatures: make([][]byte, 0, n)}
 	}
 	batch := newBatch(prefix)
@@ -298,7 +314,7 @@ func (k Keeper) appendCertificateItems(
 		}
 		batch.pubKeys = append(batch.pubKeys, converted.validators[i].PubKey)
 		batch.signatures = append(batch.signatures, signature)
-		if len(batch.pubKeys) == batchSize {
+		if len(batch.pubKeys) == size {
 			work.items = append(work.items, batch)
 			batch = newBatch(prefix - i - 1)
 		}
@@ -307,8 +323,8 @@ func (k Keeper) appendCertificateItems(
 		work.items = append(work.items, batch)
 	}
 	// Guard against a certificate whose quorum prefix carried no signature at
-	// all: recording its key would claim verification of nothing. first is the
-	// promise item, which is why the count starts after it.
+	// all: recording its key would claim verification of nothing. certFirst is
+	// past the promise item, so only certificate items count.
 	return len(work.items) > certFirst
 }
 

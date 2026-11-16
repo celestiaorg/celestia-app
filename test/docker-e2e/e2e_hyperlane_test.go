@@ -474,7 +474,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateMembership() {
 	s.Require().Equal(stateMembershipValues.Count, treeState.Count)
 }
 
-func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
+func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) *hyperlane.Agent {
 	s.T().Helper()
 
 	cfg := hyperlane.Config{
@@ -494,6 +494,7 @@ func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hy
 		_ = agent.Stop(ctx)
 		_ = agent.Remove(ctx)
 	})
+	return agent
 }
 
 func (s *HyperlaneTestSuite) BridgeNodeAddress(da *dataavailability.Network) string {

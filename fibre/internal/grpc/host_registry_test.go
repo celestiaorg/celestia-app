@@ -50,6 +50,11 @@ func getConsAddrString(val *core.Validator) string {
 	return sdk.ConsAddress(val.Address.Bytes()).String()
 }
 
+// TestDefaultRefreshInterval pins the default to one v11 block (0.8s).
+func TestDefaultRefreshInterval(t *testing.T) {
+	require.Equal(t, 800*time.Millisecond, grpc.DefaultRefreshInterval)
+}
+
 func TestNewHostRegistry(t *testing.T) {
 	registry := grpc.NewHostRegistry(&mockQueryClient{}, slog.Default())
 	require.NotNil(t, registry)
@@ -127,6 +132,15 @@ func TestGetHost(t *testing.T) {
 			},
 			preCache: true,
 			wantErr:  "host not found",
+		},
+		{
+			name: "found without info",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true}, nil
+				},
+			},
+			wantErr: "without provider info",
 		},
 		{
 			name: "garbage host",

@@ -89,7 +89,7 @@ func TestGetEnv(t *testing.T) {
 			assert: func(t *testing.T, a *Appd, env []string) {
 				osEnvLen := len(os.Environ())
 				telemetryEnvs := a.telemetryDisableEnv()
-				require.Equal(t, osEnvLen+len(telemetryEnvs), len(env))
+				require.Equal(t, osEnvLen+len(telemetryEnvs)+len(mptcpDisableEnv()), len(env))
 				for i, te := range telemetryEnvs {
 					assert.Equal(t, te, env[osEnvLen+i])
 				}

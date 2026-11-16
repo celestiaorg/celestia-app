@@ -174,10 +174,7 @@ func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testin
 
 	cmd := exec.CommandContext(ctx, "docker", "cp", srcPath, tmpFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		logsCmd := exec.CommandContext(ctx, "docker", "logs", "--tail", "50", containerName)
-		if logsOutput, logsErr := logsCmd.CombinedOutput(); logsErr == nil {
-			t.Logf("Latency-monitor logs:\n%s", string(logsOutput))
-		}
+		logLatencyMonitorOutput(ctx, t, containerName)
 		return nil, fmt.Errorf("failed to copy results file: %w\nOutput: %s", err, output)
 	}
 
@@ -187,7 +184,44 @@ func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testin
 	}
 	defer file.Close()
 
-	return parseLatencyCSV(file)
+	result, err := parseLatencyCSV(file)
+	if err != nil {
+		// The CSV only holds confirmed or confirm-failed txs: broadcast
+		// failures and txs still unconfirmed at shutdown appear only in the
+		// container output.
+		logLatencyMonitorOutput(ctx, t, containerName)
+	}
+	return result, err
+}
+
+// latencyMonitorTags are the per-tx line prefixes latency-monitor prints.
+var latencyMonitorTags = []string{"[SUBMIT]", "[QUEUED]", "[BROADCAST_FAILED]", "[CONFIRM]", "[FAILED]", "[PARALLEL_FAILED]", "[CANCELLED]"}
+
+// logLatencyMonitorOutput logs how many lines of each per-tx kind
+// latency-monitor printed and the tail of its output.
+func logLatencyMonitorOutput(ctx context.Context, t *testing.T, containerName string) {
+	output, err := exec.CommandContext(ctx, "docker", "logs", containerName).CombinedOutput()
+	if err != nil {
+		t.Logf("Warning: docker logs failed: %v", err)
+		return
+	}
+	lines := strings.Split(strings.TrimRight(string(output), "\n"), "\n")
+	counts := make([]string, 0, len(latencyMonitorTags))
+	for _, tag := range latencyMonitorTags {
+		n := 0
+		for _, line := range lines {
+			if strings.HasPrefix(line, tag) {
+				n++
+			}
+		}
+		counts = append(counts, fmt.Sprintf("%s=%d", tag, n))
+	}
+	t.Logf("Latency-monitor line counts: %s", strings.Join(counts, " "))
+	const tail = 40
+	if len(lines) > tail {
+		lines = lines[len(lines)-tail:]
+	}
+	t.Logf("Latency-monitor output (last %d lines):\n%s", len(lines), strings.Join(lines, "\n"))
 }
 
 // parseLatencyCSV parses the CSV output from latency-monitor into a result.

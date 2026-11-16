@@ -392,17 +392,9 @@ func FuzzFibreStoreKeyRoundTrip(f *testing.F) {
 
 		// Arbitrary bytes, with or without the index prefix, must parse or error.
 		for _, b := range [][]byte{raw, append(bytes.Clone(types.WithdrawalsByAvailableKeyPrefix), raw...)} {
-			// Excluded pending a fix; see the Linear issue for this target.
-			if len(b) == 0 {
-				continue
-			}
 			_, _, _, _ = k.ParseWithdrawalsByAvailableKey(b)
 		}
 		for _, b := range [][]byte{raw, append(bytes.Clone(types.ProcessedPaymentsByTimeKeyPrefix), raw...)} {
-			// Excluded pending a fix; see the Linear issue for this target.
-			if len(b) < len(types.ProcessedPaymentsByTimeKeyPrefix)+len(sdk.SortableTimeFormat) {
-				continue
-			}
 			_, _, _ = k.ParseProcessedPaymentsByTimeKey(b)
 		}
 	})

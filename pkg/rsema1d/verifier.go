@@ -172,6 +172,9 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 	if len(proofs) == 0 {
 		return 0, errors.New("no proofs provided")
 	}
+	if proofs[0] == nil {
+		return 0, errors.New("received nil proof in verifier")
+	}
 	expectedProofDepth := bits.Len(uint(v.config.K+v.config.N)) - 1
 	rowSize := len(proofs[0].Row)
 	for i, p := range proofs {

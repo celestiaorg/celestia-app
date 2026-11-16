@@ -216,7 +216,11 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 
 // Info implements abciv2.ABCI
 func (a *RemoteABCIClientV1) Info(req *abciv2.RequestInfo) (*abciv2.ResponseInfo, error) {
-	resp, err := a.ABCIApplicationClient.Info(context.Background(), &abciv1.RequestInfo{
+	return a.infoWithContext(context.Background(), req)
+}
+
+func (a *RemoteABCIClientV1) infoWithContext(ctx context.Context, req *abciv2.RequestInfo) (*abciv2.ResponseInfo, error) {
+	resp, err := a.ABCIApplicationClient.Info(ctx, &abciv1.RequestInfo{
 		Version:      req.Version,
 		BlockVersion: req.BlockVersion,
 		P2PVersion:   req.P2PVersion,

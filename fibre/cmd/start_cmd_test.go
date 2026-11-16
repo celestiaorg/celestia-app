@@ -235,6 +235,30 @@ func TestStartCmdUnlimitedBudget(t *testing.T) {
 	})
 }
 
+func TestStartCmdForceTLS(t *testing.T) {
+	t.Run("config file value is respected", func(t *testing.T) {
+		home := t.TempDir()
+		cfg := fibre.DefaultServerConfig()
+		cfg.ForceTLS = true
+		require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
+
+		cmd, got := newTestStartCmd(t, home)
+		cmd.SetArgs(nil)
+		require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+		require.True(t, got.ForceTLS, "force_tls from the config file must reach the server config")
+	})
+
+	t.Run("flag forces TLS", func(t *testing.T) {
+		home := t.TempDir()
+		cmd, got := newTestStartCmd(t, home)
+		cmd.SetArgs([]string{"--" + flagForceTLS})
+		require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+		require.True(t, got.ForceTLS, "--force-tls must reject plaintext")
+	})
+}
+
 func TestStartCmdOverrideObjectNamespace(t *testing.T) {
 	home := t.TempDir()
 	cmd, got := newTestStartCmd(t, home)

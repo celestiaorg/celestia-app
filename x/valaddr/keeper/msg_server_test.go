@@ -172,6 +172,17 @@ func TestMsgSetFibreProviderInfo(t *testing.T) {
 		require.True(t, errors.Is(err, types.ErrInvalidValidator))
 	})
 
+	t.Run("message server rejects an invalid host without ValidateBasic", func(t *testing.T) {
+		msgServer := keeper.NewMsgServerImpl(testApp.ValAddrKeeper)
+		for _, host := range []string{"unix:9090", "host:+80", "[host]:80"} {
+			_, err := msgServer.SetFibreProviderInfo(ctx, &types.MsgSetFibreProviderInfo{Signer: valAddrStr, Host: host})
+			require.ErrorIs(t, err, types.ErrInvalidHostAddress, host)
+		}
+		retrievedInfo, found := testApp.ValAddrKeeper.GetFibreProviderInfo(ctx, consAddr)
+		require.True(t, found)
+		require.Equal(t, "validator1.fibre.example.com:7980", retrievedInfo.Host, "a rejected host must not be stored")
+	})
+
 	t.Run("unbonded validator", func(t *testing.T) {
 		validator := validators[0]
 		validator.Status = stakingtypes.Unbonded

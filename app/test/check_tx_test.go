@@ -43,6 +43,7 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -280,8 +281,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				return dtx.Tx
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				return innerTx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
 		},
@@ -473,8 +474,8 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				wrappedTx, err := coretypes.MarshalIndexWrapper(dtx.Tx, 0)
+				innerTx, _ := coretypes.UnwrapBlobTx(btx, appconsts.Version)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(innerTx, 0)
 				require.NoError(t, err)
 				return wrappedTx
 			},
@@ -543,6 +544,26 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "MsgModuleQuerySafe with more than MaxModuleQuerySafeRequests requests, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The message weighs exactly MaxSDKMessages, so the count alone
+				// admits it, but it would take a whole block's SDK message budget.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages-1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/x"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				// Pay for every request so the request limit, not gas, rejects it.
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: sdkerrors.ErrInvalidRequest.ABCICode(),
+		},
+		{
 			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -606,6 +627,26 @@ func TestCheckTx(t *testing.T) {
 				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "blob tx whose inner tx is an index wrapper, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				wrapped, err := tx.MarshalIndexWrapper(innerBlobTx.Tx, 12345)
+				require.NoError(t, err)
+				outer, err := tx.MarshalBlobTx(wrapped, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
+			},
+			expectedABCICode: blobtypes.ErrNestedIndexWrapper.ABCICode(),
 		},
 	}
 
@@ -1124,12 +1165,11 @@ func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFi
 // commitBlockAt is commitBlock with an explicit block time.
 func commitBlockAt(t *testing.T, testApp *app.App, blockTime time.Time, txs ...[]byte) *abci.ResponseFinalizeBlock {
 	t.Helper()
-	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+	resp, err := testApp.FinalizeBlock(testutil.WithBlockHash(&abci.RequestFinalizeBlock{
 		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
-		Hash:   testApp.LastCommitID().Hash,
 		Txs:    txs,
-	})
+	}))
 	require.NoError(t, err)
 	_, err = testApp.Commit()
 	require.NoError(t, err)
@@ -1154,4 +1194,44 @@ func appendUnknownProtoField(raw []byte, padLen int) []byte {
 	out = append(out, varint(uint64(padLen))...)
 	out = append(out, make([]byte, padLen)...)
 	return out
+}
+
+// TestCheckTxDecoderPanic checks that CheckTx rejects a tx whose decoding
+// panics, with and without a blob wrapper, instead of panicking.
+func TestCheckTxDecoderPanic(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "a")
+
+	// The solo machine client state has no consensus state, and
+	// UnpackInterfaces dereferences it.
+	signer := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+	msg, err := clienttypes.NewMsgCreateClient(
+		&solomachine.ClientState{Sequence: 1},
+		&solomachine.ConsensusState{Diversifier: "d", Timestamp: 1},
+		signer,
+	)
+	require.NoError(t, err)
+	builder := encodingConfig.TxConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	rawTx, err := encodingConfig.TxConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	require.Panics(t, func() { _, _ = encodingConfig.TxConfig.TxDecoder()(rawTx) })
+
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("data"))
+	require.NoError(t, err)
+	blobTx, err := tx.MarshalBlobTx(rawTx, blob)
+	require.NoError(t, err)
+
+	for name, txBytes := range map[string][]byte{"normal": rawTx, "blob": blobTx} {
+		for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+			t.Run(fmt.Sprintf("%s/%s", name, checkType), func(t *testing.T) {
+				var resp *abci.ResponseCheckTx
+				require.NotPanics(t, func() {
+					resp, _ = testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: txBytes})
+				})
+				require.NotNil(t, resp)
+				require.Equal(t, sdkerrors.ErrPanic.ABCICode(), resp.Code, resp.Log)
+			})
+		}
+	}
 }

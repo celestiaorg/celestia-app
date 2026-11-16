@@ -2,6 +2,7 @@ package errors_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/errors"
@@ -120,6 +121,15 @@ func TestInsufficientFeeTable(t *testing.T) {
 		{
 			name:                 "error with zero required gas price",
 			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 0utia"),
+			isInsufficientFeeErr: true,
+			expectParsingError:   true,
+		},
+		{
+			// Regression test for PROTOCO-3525: a crafted required amount
+			// near the float64 limit made the result +Inf.
+			name:                 "required amount overflows the min gas price",
+			err:                  errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 1utia required: 1"+strings.Repeat("0", 308)+"utia"),
+			inputGasPrice:        10,
 			isInsufficientFeeErr: true,
 			expectParsingError:   true,
 		},

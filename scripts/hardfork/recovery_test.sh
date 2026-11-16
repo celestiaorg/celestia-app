@@ -50,7 +50,12 @@ cat >"$STUBS/systemctl" <<'EOF'
 #!/usr/bin/env bash
 echo "systemctl $*" >>"$STUB_LOG"
 case "$1" in
-stop) rm -f "$STUB_STATE/active" ;;
+stop)
+    rm -f "$STUB_STATE/active"
+    if [ -f "$STUB_STATE/sign-on-stop" ]; then
+        echo '{"height":"31","round":0,"step":3}' >"$(cat "$STUB_STATE/sign-on-stop")"
+    fi
+    ;;
 start) touch "$STUB_STATE/active" ;;
 is-active) [ -f "$STUB_STATE/active" ] ;;
 esac
@@ -81,9 +86,16 @@ if [ -f "$STUB_STATE/root" ]; then echo 0; else exec /usr/bin/id "$@"; fi
 EOF
 cat >"$STUBS/curl" <<'EOF'
 #!/usr/bin/env bash
-for url; do :; done
+out=""
+for url; do
+    if [ "$prev" = -o ]; then out=$url; fi
+    prev=$url
+done
+height=$(cat "$STUB_STATE/height" 2>/dev/null || echo 20)
+network=$(cat "$STUB_STATE/network" 2>/dev/null || echo test)
 case "$url" in
-*/status) echo '{"result":{"sync_info":{"latest_block_height":"20"}}}' ;;
+*/genesis.json) cp "$STUB_STATE/genesis.json" "$out" ;;
+*/status) echo "{\"result\":{\"node_info\":{\"network\":\"$network\"},\"sync_info\":{\"latest_block_height\":\"$height\"}}}" ;;
 */abci_info) echo '{"result":{"response":{"last_block_height":"19","app_version":"10"}}}' ;;
 */block?height=19) echo '{"result":{"block":{"header":{"app_hash":"ABCD12"}}}}' ;;
 *) exit 7 ;;
@@ -127,6 +139,39 @@ inode() {
 
 called() {
     grep -qxF "$1" "$STUB_LOG"
+}
+
+sha() {
+    sha256sum "$1" | awk '{ print $1 }'
+}
+
+# new_chain_node is new_node with old chain data and a new genesis for chain
+# test-1 at initial height $1 (default 31), whose SHA-256 is in GENESIS_SHA.
+new_chain_node() {
+    new_node
+    mkdir -p "$NODE_HOME/data/blockstore.db" "$NODE_HOME/data/tx_index.db" "$NODE_HOME/data/cs.wal"
+    touch "$NODE_HOME/data/blockstore.db/000001.log" "$NODE_HOME/data/tx_index.db/000001.log" "$NODE_HOME/data/.lock"
+    echo key >"$NODE_HOME/config/node_key.json"
+    echo key >"$NODE_HOME/config/priv_validator_key.json"
+    echo old >"$NODE_HOME/config/genesis.json"
+    echo '{}' >"$NODE_HOME/config/addrbook.json"
+    cat >>"$NODE_HOME/config/config.toml" <<'EOF2'
+persistent_peers = "old@1.2.3.4:26656"
+db_dir = "data"
+genesis_file = "config/genesis.json"
+addr_book_file = "config/addrbook.json"
+wal_file = "data/cs.wal/wal"
+EOF2
+    printf '{"chain_id":"test-1","initial_height":"%s","genesis_time":"2026-01-01T00:00:00.123Z"}\n' "${1:-31}" \
+        >"$STUB_STATE/genesis.json"
+    GENESIS_SHA=$(sha "$STUB_STATE/genesis.json")
+    echo 32 >"$STUB_STATE/height"
+    echo test-1 >"$STUB_STATE/network"
+}
+
+new_chain() {
+    recovery new-chain --home "$NODE_HOME" --genesis "$STUB_STATE/genesis.json" --genesis-sha256 "$GENESIS_SHA" \
+        --chain-id test-1 "$@"
 }
 
 APPD=$STUBS/celestia-appd
@@ -332,6 +377,176 @@ grep -q "^docker run --rm --volumes-from node0 --user celestia --entrypoint sh s
     fail "docker restart halt edit"
 grep -qxF 'halt-height = 0' "$NODE_HOME/config/app.toml" || fail "docker restart did not clear the halt"
 called "docker start node0" || fail "docker restart did not start the container"
+
+# new-chain: stop, move the old data aside keeping the signer state and the tx
+# index, put the genesis in place, clear the halt, set peers, start, verify.
+new_chain_node
+echo 'halt-height = 25' >"$NODE_HOME/config/app.toml"
+PEER=0123456789abcdef0123456789abcdef01234567@val-1:26656
+new_chain --peers "$PEER" || fail "new-chain failed"
+grep -E '^sudo ' "$STUB_LOG" >"$TMP/order.log"
+cat >"$TMP/want.log" <<EOF
+sudo systemctl stop celestia-appd
+sudo systemctl start celestia-appd
+EOF
+diff "$TMP/want.log" "$TMP/order.log" || fail "new-chain call order"
+BACKUP=$NODE_HOME/data/recovery-backup-${GENESIS_SHA:0:12}
+(cd "$NODE_HOME/data" && ls -A) >"$TMP/data.log"
+printf '%s\n' priv_validator_state.json "recovery-backup-${GENESIS_SHA:0:12}" tx_index.db | sort >"$TMP/want.log"
+diff "$TMP/want.log" <(sort "$TMP/data.log") || fail "new-chain kept the wrong files"
+[ -f "$NODE_HOME/data/tx_index.db/000001.log" ] || fail "new-chain lost the tx index"
+[[ -f "$BACKUP/blockstore.db/000001.log" && -d "$BACKUP/cs.wal" && -f "$BACKUP/.lock" ]] || fail "old data not in the backup"
+[ "$(cat "$NODE_HOME/config/priv_validator_key.json")" = key ] || fail "new-chain changed the validator key"
+[ "$(cat "$BACKUP/genesis.json")" = old ] || fail "old genesis not in the backup"
+[[ -f "$BACKUP/addrbook.json" && ! -e "$NODE_HOME/config/addrbook.json" ]] || fail "address book not moved"
+cmp -s "$STUB_STATE/genesis.json" "$NODE_HOME/config/genesis.json" || fail "new genesis not in place"
+grep -qxF 'halt-height = 0' "$NODE_HOME/config/app.toml" || fail "new-chain did not clear the halt"
+grep -qxF "persistent_peers = \"$PEER\"" "$NODE_HOME/config/config.toml" || fail "new-chain did not set peers"
+grep -qxF "chain-id test-1 at height 32" "$TMP/out.log" || fail "new chain not verified"
+
+# new-chain re-run after the start: the new chain data stays, and the signer
+# state above the initial height is accepted.
+touch "$NODE_HOME/data/blockstore.db"
+echo '{"height":"40","round":0,"step":3}' >"$NODE_HOME/data/priv_validator_state.json"
+new_chain || fail "new-chain re-run failed"
+[ -e "$NODE_HOME/data/blockstore.db" ] || fail "new-chain re-run moved the new chain data"
+grep -q "data already replaced" "$TMP/out.log" || fail "new-chain re-run message"
+
+# new-chain interrupted by a failed move: no genesis, no start; a re-run completes.
+new_chain_node
+BACKUP=$NODE_HOME/data/recovery-backup-${GENESIS_SHA:0:12}
+mkdir -p "$BACKUP/blockstore.db/blocker"
+if new_chain; then
+    fail "new-chain with a failed move succeeded"
+fi
+[ ! -e "$BACKUP/.done" ] || fail "failed move marked the data as replaced"
+[ "$(cat "$NODE_HOME/config/genesis.json")" = old ] || fail "failed move put the genesis in place"
+[ ! -f "$STUB_STATE/active" ] || fail "node started after a failed move"
+rm -r "$BACKUP/blockstore.db"
+new_chain || fail "new-chain re-run after a failed move failed"
+cmp -s "$STUB_STATE/genesis.json" "$NODE_HOME/config/genesis.json" || fail "re-run did not put the genesis in place"
+
+# new-chain keeps a signer state and keys configured inside data/.
+new_chain_node
+mkdir -p "$NODE_HOME/data/signer keys"
+mv "$NODE_HOME/data/priv_validator_state.json" "$NODE_HOME/data/signer keys/state.json"
+mv "$NODE_HOME/config/node_key.json" "$NODE_HOME/data/node_key.json"
+cat >"$NODE_HOME/config/config.toml" <<'EOF'
+priv_validator_state_file = "./data/signer keys/state.json"
+node_key_file = "data/node_key.json"
+priv_validator_laddr = ""
+EOF
+new_chain || fail "new-chain with keys in data failed"
+[[ -f "$NODE_HOME/data/signer keys/state.json" && -f "$NODE_HOME/data/node_key.json" ]] || fail "new-chain moved a key or the signer state"
+
+# new-chain keeps the targets of a linked signer state and key inside data/.
+new_chain_node
+mkdir -p "$NODE_HOME/data/signer" "$NODE_HOME/data/keys"
+mv "$NODE_HOME/data/priv_validator_state.json" "$NODE_HOME/data/signer/state.json"
+ln -s signer/state.json "$NODE_HOME/data/priv_validator_state.json"
+mv "$NODE_HOME/config/priv_validator_key.json" "$NODE_HOME/data/keys/key.json"
+ln -s ../data/keys/key.json "$NODE_HOME/config/priv_validator_key.json"
+new_chain || fail "new-chain with linked signer files failed"
+[[ -f "$NODE_HOME/data/signer/state.json" && -f "$NODE_HOME/data/keys/key.json" ]] ||
+    fail "new-chain moved the target of a linked signer file"
+
+# new-chain keeps a signer state given with "//" in the path or the home.
+new_chain_node
+echo 'priv_validator_state_file = "data//priv_validator_state.json"' >"$NODE_HOME/config/config.toml"
+recovery new-chain --home "$TMP/node//home/" --genesis "$STUB_STATE/genesis.json" --genesis-sha256 "$GENESIS_SHA" \
+    --chain-id test-1 || fail "new-chain with // paths failed"
+[ -f "$NODE_HOME/data/priv_validator_state.json" ] || fail "new-chain with // paths moved the signer state"
+
+# new-chain accepts default paths written another way.
+new_chain_node
+sed -i.bak "s|^db_dir = .*|db_dir = \"$NODE_HOME/data/\"|" "$NODE_HOME/config/config.toml"
+echo 'blockstore_dir = ""' >>"$NODE_HOME/config/config.toml"
+new_chain || fail "new-chain refused default paths written another way"
+
+# new-chain: the node signs the initial height while it stops; nothing is replaced.
+new_chain_node
+echo "$NODE_HOME/data/priv_validator_state.json" >"$STUB_STATE/sign-on-stop"
+if new_chain; then
+    fail "new-chain accepted a signer state reaching the initial height at the stop"
+fi
+grep -qF "signer state is at height 31" "$TMP/out.log" || fail "new-chain stop signer message"
+[ "$(cat "$NODE_HOME/config/genesis.json")" = old ] || fail "new-chain replaced the genesis after the stop signer check"
+[ -f "$NODE_HOME/data/blockstore.db/000001.log" ] || fail "new-chain moved data after the stop signer check"
+! called "systemctl start celestia-appd" || fail "new-chain started the node after the stop signer check"
+
+# new-chain refuses a relative home and key paths with "..".
+new_chain_node
+(cd "$TMP/node" && bash "$SCRIPT" new-chain --home home --genesis "$STUB_STATE/genesis.json" \
+    --genesis-sha256 "$GENESIS_SHA" --chain-id test-1 >"$TMP/out.log" 2>&1) && fail "relative home accepted"
+grep -q "absolute --home" "$TMP/out.log" || fail "relative home message"
+recovery new-chain --home // --genesis "$STUB_STATE/genesis.json" --genesis-sha256 "$GENESIS_SHA" \
+    --chain-id test-1 && fail "root home accepted"
+grep -q "other than /" "$TMP/out.log" || fail "root home message"
+echo 'node_key_file = "data/../config/node_key.json"' >>"$NODE_HOME/config/config.toml"
+if new_chain; then
+    fail "key path with .. accepted"
+fi
+grep -q "path with .. is not supported" "$TMP/out.log" || fail "key path with .. message"
+
+# new-chain from a URL.
+new_chain_node
+recovery new-chain --home "$NODE_HOME" --genesis https://example.com/genesis.json --genesis-sha256 "$GENESIS_SHA" \
+    --chain-id test-1 || fail "new-chain from a URL failed"
+cmp -s "$STUB_STATE/genesis.json" "$NODE_HOME/config/genesis.json" || fail "downloaded genesis not in place"
+
+# new-chain refusals before the node is stopped: wrong hash, wrong chain-id,
+# signer state at the initial height, bad peers, a custom or empty db_dir, a
+# custom blockstore_dir, a wal_file outside data/ or in a kept entry.
+for c in sha chain-id signer peers db_dir empty-db_dir blockstore_dir wal wal-kept; do
+    new_chain_node
+    args=()
+    case "$c" in
+    sha) GENESIS_SHA=$(printf '0%.0s' {1..64}); want="genesis SHA-256 is" ;;
+    chain-id) sed -i.bak 's/test-1/test-2/' "$STUB_STATE/genesis.json"; GENESIS_SHA=$(sha "$STUB_STATE/genesis.json"); want="genesis chain-id is test-2" ;;
+    signer) new_chain_node 20; want="signer state is at height 20" ;;
+    peers) args=(--peers 'x@y:1"'); want="--peers must be" ;;
+    db_dir) sed -i.bak 's|^db_dir = .*|db_dir = "/srv/db"|' "$NODE_HOME/config/config.toml"; want="only the default db_dir" ;;
+    empty-db_dir) sed -i.bak 's|^db_dir = .*|db_dir = ""|' "$NODE_HOME/config/config.toml"; want="only the default db_dir" ;;
+    blockstore_dir) echo 'blockstore_dir = "/srv/blocks"' >>"$NODE_HOME/config/config.toml"; want="only the default blockstore_dir" ;;
+    wal) sed -i.bak 's|^wal_file = .*|wal_file = "/srv/wal"|' "$NODE_HOME/config/config.toml"; want="needs wal_file in data/" ;;
+    wal-kept) sed -i.bak 's|^wal_file = .*|wal_file = "data/tx_index.db/wal"|' "$NODE_HOME/config/config.toml"; want="needs wal_file in data/" ;;
+    esac
+    if new_chain ${args[@]+"${args[@]}"}; then
+        fail "new-chain accepted: $c"
+    fi
+    grep -qF -- "$want" "$TMP/out.log" || fail "new-chain $c message"
+    if grep -q '^sudo ' "$STUB_LOG"; then
+        fail "new-chain stopped the node: $c"
+    fi
+    [ "$(cat "$NODE_HOME/config/genesis.json")" = old ] || fail "new-chain replaced the genesis: $c"
+done
+
+# new-chain --dry-run: nothing moves.
+new_chain_node
+new_chain --dry-run || fail "new-chain dry-run failed"
+[[ -d "$NODE_HOME/data/blockstore.db" && "$(cat "$NODE_HOME/config/genesis.json")" = old ]] ||
+    fail "new-chain dry-run changed data"
+if grep -Eq '^systemctl (stop|start)' "$STUB_LOG"; then
+    fail "new-chain dry-run changed state"
+fi
+
+# new-chain with docker: the genesis is written in a one-off container.
+new_chain_node
+new_chain --setup docker --container node0 || fail "docker new-chain failed"
+grep -q "^docker run --rm --volumes-from node0 --user celestia -i --entrypoint sh sha256:feed -c set -e; cat" "$STUB_LOG" ||
+    fail "docker new-chain genesis write"
+cmp -s "$STUB_STATE/genesis.json" "$NODE_HOME/config/genesis.json" || fail "docker new-chain genesis not in place"
+
+# new-chain --no-service: the node is not started or checked.
+new_chain_node
+new_chain --no-service || fail "--no-service new-chain failed"
+grep -qF "then run: recovery.sh verify --chain-id test-1 --check-height 32" "$TMP/out.log" || fail "--no-service new-chain message"
+
+# verify --chain-id: a match passes, another chain-id exits 1.
+recovery verify --check-height 32 --chain-id test-1 || fail "matching chain-id failed"
+status=0
+recovery verify --check-height 32 --chain-id test-2 || status=$?
+[ "$status" = 1 ] || fail "chain-id mismatch exited $status"
 
 # --height 0 means "current height - 1" to the binary, so it is refused.
 new_node

@@ -43,6 +43,9 @@ var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, default
 // against every current start flag and embedded binary when either changes.
 func unsupportedFlags(appVersion uint64) map[string]struct{} {
 	result := map[string]struct{}{}
+	if appVersion <= 10 {
+		result[DynamicTimeoutCommitFlag] = struct{}{}
+	}
 	if appVersion <= 9 {
 		result[flagOTelEndpoint] = struct{}{}
 		result[FlagFibrePromiseCache] = struct{}{}

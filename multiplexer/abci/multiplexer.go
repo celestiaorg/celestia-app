@@ -38,6 +38,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/netutil"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -63,6 +64,22 @@ type Multiplexer struct {
 	appVersion uint64
 	// nextAppVersion this is updated based on the consensus params every FinalizeBlock.
 	nextAppVersion uint64
+	// switchInfo is the Info response of the previous app, taken right after it
+	// committed the block that switched the app version. Info returns it until
+	// the new app commits its first block, because before then the new app has
+	// no committed state of its own to answer from. Guarded by mu.
+	switchInfo *abci.ResponseInfo
+	// switchMu serializes Info calls to an app with the app version switch in
+	// Commit, so that an Info call selected for the previous app cannot reach
+	// the next app, which serves the same address, before it has committed.
+	// Info holds it for reading while it selects and calls the app; Commit
+	// holds it for writing while it switches. Take it before mu.
+	switchMu sync.RWMutex
+	// infoCtx is the context of Info calls to the current app. Commit cancels
+	// it before switching so that an Info call stuck on the previous app
+	// cannot block the switch. Guarded by mu.
+	infoCtx    context.Context
+	cancelInfo context.CancelFunc
 	// started indicates if there is an embedded app or native app running
 	started bool
 	// appCreator is a function type responsible for creating a new application instance.
@@ -434,14 +451,56 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 		return blockAPI.StartNewBlockEventListener(m.ctx)
 	})
 
+	lis, err := listenGRPC(m.svrCfg.GRPC.Address, maxGRPCConnections)
+	if err != nil {
+		return nil, m.clientContext, err
+	}
+
 	// Start the gRPC server in a goroutine. Note, the provided ctx will ensure
 	// that the server is gracefully shut down.
 	m.g.Go(func() error {
-		return servergrpc.StartGRPCServer(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), m.svrCfg.GRPC, grpcSrv)
+		return serveGRPC(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), lis, grpcSrv)
 	})
 
 	m.conn = grpcClient
 	return grpcSrv, m.clientContext, nil
+}
+
+// maxGRPCConnections caps the number of connections the app gRPC server
+// serves at once. It matches the SDK default for the API server
+// (api.max-open-connections). Extra connections wait in the kernel accept
+// queue and do not use a file descriptor of this process.
+const maxGRPCConnections = 1000
+
+// listenGRPC opens the app gRPC listener on address and caps it at maxConns
+// concurrent connections.
+func listenGRPC(address string, maxConns int) (net.Listener, error) {
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on address %s: %w", address, err)
+	}
+	return netutil.LimitListener(lis, maxConns), nil
+}
+
+// serveGRPC serves grpcSrv on lis until ctx is done, then stops it
+// gracefully. It replaces servergrpc.StartGRPCServer, which opens its own
+// listener and so cannot apply a connection cap.
+func serveGRPC(ctx context.Context, logger log.Logger, lis net.Listener, grpcSrv *grpc.Server) error {
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("starting gRPC server...", "address", lis.Addr().String())
+		errCh <- grpcSrv.Serve(lis)
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("stopping gRPC server...", "address", lis.Addr().String())
+		grpcSrv.GracefulStop()
+		return nil
+	case err := <-errCh:
+		logger.Error("failed to start gRPC server", "err", err)
+		return err
+	}
 }
 
 // startAPIServer initializes and starts the API server, setting up routes, telemetry, and running it within an error group.
@@ -517,6 +576,11 @@ func openTraceWriter(traceWriterFile string) (w io.WriteCloser, err error) {
 func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.getAppLocked()
+}
+
+// getAppLocked is getApp for callers that hold m.mu.
+func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
 
 	// get the appropriate version for the latest app version.

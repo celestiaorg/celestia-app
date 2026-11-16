@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -73,9 +74,27 @@ func (b *localBackend) Get(ctx context.Context, commitment Commitment, promiseHa
 		return nil, err
 	}
 	defer f.Close()
-	// Buffer small codec reads to avoid per-field file reads and metric updates.
-	return readShardBinary(bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendLocal, f), 1<<20))
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	// Any file larger than a maximum shard message is corrupt; reject it
+	// before allocating.
+	if info.Size() > int64(maxShardFileSize) {
+		return nil, fmt.Errorf("shard file size %d exceeds limit %d", info.Size(), maxShardFileSize)
+	}
+	// Read the file into one buffer that the rows alias, instead of one
+	// allocation and copy per row.
+	data := make([]byte, info.Size())
+	if _, err := io.ReadFull(b.metrics.backendReader(ctx, storageBackendLocal, f), data); err != nil {
+		return nil, err
+	}
+	return decodeShardBinary(data)
 }
+
+// maxShardFileSize bounds a stored shard file: a shard never exceeds the
+// upload message that carried it.
+var maxShardFileSize = DefaultProtocolParams.MaxMessageSize()
 
 func (b *localBackend) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
 	_, err := b.fs.Stat(b.shardPath(commitment, promiseHash))

@@ -211,6 +211,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
+		// FinalizeBlock runs these message checks before the ante handler, so
+		// a tx failing them would be included without paying fees.
+		if err := validateTxMsgs(sdkTx, app.MsgServiceRouter()); err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("tx %d failed message validation", idx), err)
+			return reject(), nil
+		}
+
 		// Handle non-blob transactions. This also validates MsgPayForFibre txs
 		// (plain SDK txs, not wrapped in BlobTx).
 		if !isBlobTx {

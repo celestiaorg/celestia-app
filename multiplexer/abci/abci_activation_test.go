@@ -140,13 +140,15 @@ func TestCommitRoutesFromEmbeddedToNativeApp(t *testing.T) {
 	m := newActivationTestMultiplexer(native, 1)
 	m.started = true
 	m.activeVersion = m.versions[0]
+	// Commit asks the embedded app for its Info before switching.
+	m.conn = newInfoConn(t, 3)
 
 	app, err := m.getApp()
 	require.NoError(t, err)
 	require.IsType(t, &RemoteABCIClientV1{}, app)
 
 	// RemoteABCIClientV1.Commit makes no remote call, so this exercises the
-	// embedded path without a running binary.
+	// embedded path without a running binary; only Info reaches newInfoConn.
 	m.nextAppVersion = 3
 	_, err = m.Commit(context.Background(), &abci.RequestCommit{})
 	require.NoError(t, err)

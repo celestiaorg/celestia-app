@@ -1,0 +1,67 @@
+name: Mutation Testing
+
+# Nightly, informational mutation testing with gremlins on a few critical
+# packages (listed in scripts/test_mutation.sh). Scores are written to the job
+# summary and the JSON reports are uploaded as artifacts. A low score never
+# fails this workflow; only a tool error (e.g. the package fails to build or
+# its tests fail unmutated) does. This workflow is intentionally not watched by
+# notify-protocol-ci.yml.
+
+on:
+  schedule:
+    # 4 AM UTC, after the 2 AM nightly tests have started.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-testing
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.list.outputs.packages }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - id: list
+        run: echo "packages=$(scripts/test_mutation.sh --list-json)" >> "$GITHUB_OUTPUT"
+
+  mutation:
+    needs: packages
+    runs-on: ubuntu-latest
+    # Each mutant relinks the package's test binary, so a package with a few
+    # hundred mutants takes on the order of an hour.
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.packages.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - uses: ./.github/actions/setup-go
+
+      - name: Compute artifact name
+        id: name
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: echo "value=mutation-$(echo "$PACKAGE" | sed -E 's#^\./##; s#[/.]+#-#g')" >> "$GITHUB_OUTPUT"
+
+      - name: Run gremlins
+        env:
+          PACKAGES: ${{ matrix.package }}
+          MUTATION_OUT_DIR: ${{ runner.temp }}/mutation
+        run: make test-mutation PACKAGES="$PACKAGES"
+
+      - name: Upload mutation report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
+        with:
+          name: ${{ steps.name.outputs.value }}
+          path: ${{ runner.temp }}/mutation/*.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -81,6 +81,8 @@ type ServerConfig struct {
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 100)."`
 	// MaxRequestMemory is the budget, in bytes, for request messages buffered in memory.
 	MaxRequestMemory int64 `toml:"max_request_memory" comment:"Budget in bytes for request messages buffered in memory (default 16 GiB); not an RSS bound, decode/verify allocate on top, so leave headroom."`
+	// ForceTLS rejects plaintext HTTP/2 shard connections and serves TLS only.
+	ForceTLS bool `toml:"force_tls" comment:"ForceTLS rejects plaintext HTTP/2 shard connections and serves TLS only (default false). Default serves plaintext next to TLS for throughput; on-path observers can then see blob data before its MsgPayForFibre inclusion, so set true to require TLS."`
 	// Health configures the readiness checks behind the gRPC health service.
 	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 

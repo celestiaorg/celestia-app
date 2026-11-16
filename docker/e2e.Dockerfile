@@ -1,6 +1,6 @@
 # Runtime stage of docker/multiplexer.Dockerfile around a prebuilt celestia-appd,
 # used by the docker e2e tests in CI. scripts/e2e_dockerfile_test.sh keeps the two in sync.
-ARG RUNTIME_IMAGE=docker.io/alpine:3.22
+ARG RUNTIME_IMAGE=docker.io/alpine:3.24
 
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339

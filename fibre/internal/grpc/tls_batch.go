@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// uploadWriteBufferSize is the gRPC write buffer for client connections. With
-// [batchingCreds] one buffer flush becomes one socket write instead of one per
-// 16 KiB TLS record.
-const uploadWriteBufferSize = 256 << 10
+// writeBufferSize is the gRPC write buffer for client and server connections.
+// With [batchingCreds] one buffer flush becomes one socket write instead of one
+// per 16 KiB TLS record.
+const writeBufferSize = 256 << 10
 
 // batchingCreds wraps TLS credentials so the records produced by one Write
 // reach the socket in a single syscall.
@@ -22,6 +22,15 @@ type batchingCreds struct {
 func (c batchingCreds) ClientHandshake(ctx context.Context, authority string, raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
 	bc := &batchConn{Conn: raw}
 	conn, info, err := c.TransportCredentials.ClientHandshake(ctx, authority, bc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &flushConn{Conn: conn, bc: bc}, info, nil
+}
+
+func (c batchingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	bc := &batchConn{Conn: raw}
+	conn, info, err := c.TransportCredentials.ServerHandshake(bc)
 	if err != nil {
 		return nil, nil, err
 	}

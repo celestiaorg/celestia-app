@@ -19,19 +19,16 @@ import (
 var (
 	_ types.MsgServer   = &Keeper{}
 	_ types.QueryServer = Keeper{}
-
-	// defaultSignalThreshold is 5/6 or approximately 83.33%
-	defaultSignalThreshold = math.LegacyNewDec(5).Quo(math.LegacyNewDec(6))
 )
 
-// Threshold is the fraction of voting power that is required
-// to signal for a version change. It is set to 5/6 as the middle point
-// between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
-// network during an upgrade period. It can be modified through a
-// hard fork change that modified the app version
-func Threshold(_ uint64) math.LegacyDec {
-	return defaultSignalThreshold
-}
+const (
+	// thresholdNumerator and thresholdDenominator give the fraction of voting
+	// power required to signal for a version change: 5/6, the midpoint between
+	// 2/3 and 3/3, which gives 1/6 fault tolerance to halting the network
+	// during an upgrade period. It can only change in a new app version.
+	thresholdNumerator   = 5
+	thresholdDenominator = 6
+)
 
 type Keeper struct {
 	// binaryCodec is used to marshal and unmarshal data from the store.
@@ -44,6 +41,11 @@ type Keeper struct {
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
 	stakingKeeper StakingKeeper
+
+	// versionGetter returns the current app version from the consensus
+	// params. The block header can not be used because it carries no app
+	// version during FinalizeBlock.
+	versionGetter VersionGetter
 }
 
 // NewKeeper returns a signal keeper.
@@ -51,11 +53,13 @@ func NewKeeper(
 	binaryCodec codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
+	versionGetter VersionGetter,
 ) Keeper {
 	return Keeper{
 		binaryCodec:   binaryCodec,
 		storeKey:      storeKey,
 		stakingKeeper: stakingKeeper,
+		versionGetter: versionGetter,
 	}
 }
 
@@ -72,7 +76,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	currentVersion := sdkCtx.BlockHeader().Version.App
+	currentVersion, err := k.versionGetter.AppVersion(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
 	if req.Version < currentVersion {
 		return nil, types.ErrInvalidSignalVersion.Wrapf("signalled version %d, current version %d", req.Version, currentVersion)
 	}
@@ -117,7 +124,10 @@ func (k *Keeper) TryUpgrade(ctx context.Context, req *types.MsgTryUpgrade) (*typ
 	}
 
 	if hasQuorum {
-		appVersion := sdkCtx.BlockHeader().Version.App
+		appVersion, err := k.versionGetter.AppVersion(sdkCtx)
+		if err != nil {
+			return nil, err
+		}
 		if version <= appVersion {
 			return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, appVersion)
 		}
@@ -292,8 +302,11 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) (math.Int, error) {
 		return math.ZeroInt(), err
 	}
 
-	thresholdFraction := Threshold(ctx.BlockHeader().Version.App)
-	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt(), nil
+	// ceil(total * 5 / 6), computed with integers. Multiplying by the 18-digit
+	// decimal 5/6 can round one below the exact ceiling once the total power
+	// reaches 5e17.
+	numerator := totalVotingPower.MulRaw(thresholdNumerator).AddRaw(thresholdDenominator - 1)
+	return numerator.QuoRaw(thresholdDenominator), nil
 }
 
 // ShouldUpgrade returns whether the signalling mechanism has concluded that the

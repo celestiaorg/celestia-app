@@ -138,6 +138,14 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	// --- 5. Collect latency results ---
 	t.Log("Collecting latency results...")
 	latencyResults, err := s.CollectLatencyResults(ctx, t, container.Name)
+	if err != nil {
+		// A chain that stopped producing blocks leaves every tx unconfirmed.
+		if st, statusErr := rpcClient.Status(ctx); statusErr == nil {
+			t.Logf("Corto height went from %d to %d during the load test", startHeight, st.SyncInfo.LatestBlockHeight)
+		} else {
+			t.Logf("Corto status failed after the load test: %v", statusErr)
+		}
+	}
 	require.NoError(t, err, "failed to collect latency results")
 
 	// --- 6. Collect block time data ---

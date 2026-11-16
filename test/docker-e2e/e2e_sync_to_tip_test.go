@@ -45,6 +45,10 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	t.Logf("Using trust height: %d", trustHeight)
 	t.Logf("Using trust hash: %s", trustHash)
 
+	stateSyncRPCs, err := networks.SelectStateSyncRPCs(ctx, mochaConfig.RPCs, trustHeight)
+	s.Require().NoError(err, "not enough mocha RPCs can serve state sync")
+	t.Logf("Using state sync RPCs: %v", stateSyncRPCs)
+
 	dockerCfg, err := networks.NewConfig(mochaConfig, s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
@@ -64,7 +68,7 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	builder = builder.WithAdditionalStartArgs(startArgs...).
 		WithBlockWaitTimeout(syncToTipTimeout).
 		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			return configureStateSyncClient(ctx, node, mochaConfig.RPCs, trustHeight, trustHash)
+			return configureStateSyncClient(ctx, node, stateSyncRPCs, trustHeight, trustHash)
 		})
 	mochaChain, err := builder.
 		WithNodes(cosmos.NewChainNodeConfigBuilder().

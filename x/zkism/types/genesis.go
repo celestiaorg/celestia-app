@@ -49,7 +49,7 @@ func (gs GenesisState) Validate() error {
 			return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
 		}
 
-		if err := ValidateGroth16Vkey(ism.Groth16Vkey); err != nil {
+		if err := ValidateGenesisGroth16Vkey(ism.Groth16Vkey); err != nil {
 			return errorsmod.Wrapf(ErrInvalidVerifyingKey, "ism %s: %v", ism.Id.String(), err)
 		}
 

@@ -32,7 +32,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
 	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
 	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
-		return app.BaseApp.CheckTx(req)
+		return app.recheckPayForFibre(req)
 	}
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -47,7 +47,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return app.handleBlobCheckTx(req, btx)
 	}
 
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
+	sdkTx, err := app.checkTxDecoder()(tx)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
@@ -82,18 +82,48 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 	// A tx whose gas limit alone exceeds the block's SDK gas budget can never be
 	// included. PayForFibre txs are bounded by their own per-block count instead.
-	if fibretypes.PayForFibreMsg(sdkTx) == nil {
+	isPFF := fibretypes.PayForFibreMsg(sdkTx) != nil
+	if !isPFF {
 		if gas := txGasLimit(sdkTx); !fitsSDKGas(0, gas) {
 			err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKGas, "tx gas limit is %d, limit is %d", gas, appconsts.MaxSDKGas)
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 		}
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if isPFF && req.Type == abci.CheckTxType_New && err == nil && res.Code == abci.CodeTypeOK {
+		app.recheckTxs.add(tx, sdkTx)
+	}
+	return res, err
+}
+
+// recheckPayForFibre rechecks a PayForFibre on the decode cached at admission.
+func (app *App) recheckPayForFibre(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	sdkTx, ok := app.recheckTxs.get(req.Tx)
+	if !ok {
+		return app.BaseApp.CheckTx(req)
+	}
+	res, err := app.checkDecoded(req, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		app.recheckTxs.drop(req.Tx)
+	}
+	return res, err
+}
+
+// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx.
+func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
+	defer app.txHandoff.lend(req.Tx, sdkTx)()
+	return app.BaseApp.CheckTx(req)
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {
 	baseReq := &abci.RequestCheckTx{Tx: btx.Tx, Type: req.GetType()}
+
+	// Decode before ValidateBlobTx, which decodes without a recover.
+	sdkTx, err := app.checkTxDecoder()(baseReq.Tx)
+	if err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
 
 	switch req.Type {
 	case abci.CheckTxType_New:
@@ -104,11 +134,6 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		// no need to re-validate a blob
 	default:
 		err := fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(baseReq.Tx)
-	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
@@ -127,7 +152,7 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 }
 
 func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
-	res, err := app.BaseApp.CheckTx(req)
+	res, err := app.checkDecoded(req, sdkTx)
 	if err != nil {
 		return res, err
 	}
@@ -228,4 +253,11 @@ func containsFibreStateMsg(tx sdk.Tx) bool {
 		}
 	}
 	return false
+}
+
+// checkTxDecoder returns the tx decoder with a recover, so a tx whose decoding
+// panics is rejected like any other tx that fails to decode. The panic is
+// logged at debug level because any peer can send such a tx.
+func (app *App) checkTxDecoder() sdk.TxDecoder {
+	return recoverTxDecoder(app.Logger().Debug, app.encodingConfig.TxConfig.TxDecoder())
 }

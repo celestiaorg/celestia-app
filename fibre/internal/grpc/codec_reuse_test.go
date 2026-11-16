@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,10 +53,10 @@ func TestUploadBufferLifetime(t *testing.T) {
 			clear(input[0].ReadOnlyData())
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			// Recover outside intercept, as admitHandler does, so a panic
+			// Recover outside the release, as admitHandler does, so a panic
 			// unwinds through the cleanup.
 			err := recoverHandler(func() error {
-				_, err := codec.uploads.intercept(ctx, &got, nil, func(ctx context.Context, request any) (any, error) {
+				_, err := handleUpload(ctx, codec.uploads, &got, func(ctx context.Context, request any) (any, error) {
 					require.Empty(t, codec.uploads.idle)
 					scratch := codec.uploads.get(len(wire))
 					for i := range scratch {
@@ -88,6 +89,13 @@ func TestUploadBufferLifetime(t *testing.T) {
 			require.Len(t, codec.uploads.idle, 2, "release must be idempotent")
 		})
 	}
+}
+
+// handleUpload runs handler on req and then releases its decode state, as
+// admitHandler does for the requests it decodes.
+func handleUpload(ctx context.Context, p *uploadBuffers, req any, handler grpc.UnaryHandler) (any, error) {
+	defer p.releaseDecoded(req)
+	return handler(ctx, req)
 }
 
 func recoverHandler(handle func() error) (err error) {
@@ -179,7 +187,7 @@ func TestUploadReuseConcurrentReaders(t *testing.T) {
 				if !assert.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &got)) {
 					return
 				}
-				_, err := codec.uploads.intercept(context.Background(), &got, nil, func(_ context.Context, _ any) (any, error) {
+				_, err := handleUpload(context.Background(), codec.uploads, &got, func(_ context.Context, _ any) (any, error) {
 					// Model a synchronous store waiting for its body reader to finish.
 					done := make(chan struct{})
 					go func() { defer close(done); runtime.Gosched(); assert.Equal(t, req, &got) }()
@@ -245,4 +253,64 @@ func TestUploadReuseGRPC(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func heapAfterGC() uint64 {
+	runtime.GC()
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return ms.HeapAlloc
+}
+
+// TestUploadBufferReleasedWhenRecvFails covers streams whose RecvMsg fails after
+// the codec decoded the request, so the generated handler never runs.
+func TestUploadBufferReleasedWhenRecvFails(t *testing.T) {
+	const (
+		maxMsg  = 8 << 20
+		payload = 4 << 20
+		rounds  = 16
+	)
+	server, err := Listen("127.0.0.1:0", 0, 100, AdmissionConfig{Budget: 64 << 20, MaxMessage: maxMsg})
+	require.NoError(t, err)
+	defer server.Stop(context.Background())
+	var handled atomic.Int64
+	svc := &reuseTestService{upload: func(*types.UploadShardRequest) { handled.Add(1) }}
+	server.RegisterWithUploadBufferReuse(svc, maxMsg, testMaxRows, testMaxProofs)
+	server.Serve()
+
+	conn, err := grpc.NewClient(server.ListenAddress(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codecName)))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Large enough to take the buffer-reuse path; no promise or valid rows needed.
+	req := &types.UploadShardRequest{Shard: &types.BlobShard{Rlcs: bytes.Repeat([]byte{1}, payload)}}
+	desc := &grpc.StreamDesc{StreamName: "UploadShard", ClientStreams: true, ServerStreams: true}
+
+	before := heapAfterGC()
+	for i := range rounds {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		st, err := conn.NewStream(ctx, desc, "/celestia.fibre.v1.Fibre/UploadShard")
+		require.NoError(t, err)
+		require.NoError(t, st.SendMsg(req))
+		if i%2 == 0 {
+			// A second message violates unary cardinality.
+			require.NoError(t, st.SendMsg(&types.UploadShardRequest{}))
+			require.NoError(t, st.CloseSend())
+			var resp types.UploadShardResponse
+			require.Error(t, st.RecvMsg(&resp))
+		} else {
+			// Never half-close, then reset the stream.
+			time.Sleep(100 * time.Millisecond)
+		}
+		cancel()
+	}
+	require.Eventually(t, func() bool { return server.Stats().ReservedBytes == 0 }, 5*time.Second, 20*time.Millisecond)
+	grew := int64(heapAfterGC()) - int64(before)
+	t.Logf("handler calls=%d heap grew %d MiB (sent %d MiB)", handled.Load(), grew>>20, rounds*payload>>20)
+	require.Zero(t, handled.Load())
+	// The idle pool keeps at most maxMsg; anything beyond that was never released.
+	require.Less(t, grew, int64(maxMsg+(4<<20)), "server pinned upload buffers that were never released")
 }

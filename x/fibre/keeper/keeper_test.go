@@ -462,6 +462,26 @@ func (suite *KeeperTestSuite) TestProcessedPayment() {
 		suite.Equal(testHash, parsedHash, "parsed hash should match original")
 	})
 
+	suite.T().Run("keeper should reject short index keys", func(t *testing.T) {
+		// Keys written by the keeper are never this short, but parsing
+		// one must return an error rather than panic in BeginBlocker.
+		shortKeys := [][]byte{
+			nil,
+			{},
+			types.ProcessedPaymentsByTimeKeyPrefix,
+			append(bytes.Clone(types.ProcessedPaymentsByTimeKeyPrefix), '2'),
+			append(bytes.Clone(types.WithdrawalsByAvailableKeyPrefix), '2'),
+		}
+		for _, key := range shortKeys {
+			suite.NotPanics(func() {
+				_, _, err := suite.keeper.ParseProcessedPaymentsByTimeKey(key)
+				suite.Error(err, "processed payment key %x", key)
+				_, _, _, err = suite.keeper.ParseWithdrawalsByAvailableKey(key)
+				suite.Error(err, "withdrawal key %x", key)
+			})
+		}
+	})
+
 	suite.T().Run("keeper should get processed payments by time", func(t *testing.T) {
 		// Create processed payments at different times
 		baseTime := suite.ctx.BlockTime()

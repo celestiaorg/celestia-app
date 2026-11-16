@@ -1,0 +1,6 @@
+go test fuzz v1
+byte('$')
+byte('\x02')
+uint32(65345)
+byte('L')
+[]byte("0")

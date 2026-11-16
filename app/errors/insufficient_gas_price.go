@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 
@@ -58,13 +59,21 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 	// calculate the actual min gas price of the node based on the difference
 	// between the got and required values. If gas price was zero, we need to use
 	// the gasLimit to infer this.
+	var minGasPrice float64
 	if gasPrice == 0 || got == 0 {
 		if gasLimit == 0 {
 			return 0, fmt.Errorf("gas limit and gas price cannot be zero")
 		}
-		return required / float64(gasLimit), nil
+		minGasPrice = required / float64(gasLimit)
+	} else {
+		minGasPrice = required / got * gasPrice
 	}
-	return required / got * gasPrice, nil
+	// got and required come from a node's error string, so a crafted amount
+	// can overflow the result.
+	if math.IsInf(minGasPrice, 0) || math.IsNaN(minGasPrice) {
+		return 0, fmt.Errorf("min gas price parsed from the error is not finite: %v", minGasPrice)
+	}
+	return minGasPrice, nil
 }
 
 // IsInsufficientFee checks if the error is due to the gas price being too low.

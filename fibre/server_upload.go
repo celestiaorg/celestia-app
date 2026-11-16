@@ -33,18 +33,24 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	uploadShardDone := s.metrics.observeUploadShard(ctx)
 	defer func() { uploadShardDone(uploadSize, err) }()
 
-	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
-	if err != nil {
+	promiseFailed := func(err error) error {
 		s.log.WarnContext(ctx, "payment promise verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "payment promise verification failed")
 		if isUnavailable(err) {
-			return nil, status.Error(grpccodes.InvalidArgument, "payment promise verification failed: app unavailable")
+			return status.Error(grpccodes.InvalidArgument, "payment promise verification failed: app unavailable")
 		}
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
+		return status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
 	}
 
-	uploadSize = int64(promise.UploadSize)
+	// Cheap structural checks on the promise and the shard run first, so a
+	// malformed request is rejected before the signature check and any query
+	// to the app node.
+	promise, blobCfg, err := s.parsePromise(req.Promise)
+	if err != nil {
+		return nil, promiseFailed(err)
+	}
+
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
 
 	// validate request shape before verifyAssignment/verifyShard dereference
@@ -58,14 +64,13 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		return nil, status.Error(grpccodes.InvalidArgument, err.Error())
 	}
 
-	span.AddEvent("promise_verified", trace.WithAttributes(
-		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
-		attribute.String("blob_commitment", promise.Commitment.String()),
-		attribute.Int64("promise_height", int64(promise.Height)),
-		attribute.String("namespace", promise.Namespace.String()),
-		attribute.Int64("upload_size", int64(promise.UploadSize)),
-	))
+	promiseHash, err := promise.Hash()
+	if err != nil {
+		return nil, promiseFailed(fmt.Errorf("computing payment promise hash: %w", err))
+	}
 
+	// A local lookup: a stored shard was verified on its first upload, so a
+	// duplicate skips the shard checks below.
 	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
@@ -73,6 +78,34 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		span.SetStatus(codes.Error, "store presence check failed")
 		return nil, status.Error(grpccodes.Internal, "failed to check if store has the commitment")
 	}
+
+	var (
+		rows []*rsema1d.RowProof
+		rlcs rlc.Vector
+	)
+	if !has {
+		rows, rlcs, err = checkShard(blobCfg, promise, req.Shard)
+		if err != nil {
+			log.WarnContext(ctx, "shard verification failed", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "shard verification failed")
+			return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
+		}
+	}
+
+	pruneAt, err := s.verifyPromise(ctx, promise, req.Promise)
+	if err != nil {
+		return nil, promiseFailed(err)
+	}
+	uploadSize = int64(promise.UploadSize)
+
+	span.AddEvent("promise_verified", trace.WithAttributes(
+		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
+		attribute.String("blob_commitment", promise.Commitment.String()),
+		attribute.Int64("promise_height", int64(promise.Height)),
+		attribute.String("namespace", promise.Namespace.String()),
+		attribute.Int64("upload_size", int64(promise.UploadSize)),
+	))
 
 	if has {
 		// Already stored: skip verification and storage, just re-sign.
@@ -91,7 +124,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		span.AddEvent("assignment_verified")
 
 		// verify row proofs using rsema1d and set RLC root
-		if err := s.verifyShard(ctx, blobCfg, promise, req.Shard); err != nil {
+		if err := s.verifyShard(ctx, promise, rows, rlcs); err != nil {
 			log.WarnContext(ctx, "shard verification failed", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "shard verification failed")
@@ -232,60 +265,59 @@ func cancellationCode(cause error) grpccodes.Code {
 	return grpccodes.Canceled
 }
 
-// verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
-// It does both stateless and stateful verification.
-// Returns the BlobConfig for the blob version and the pruneAt time computed by shardPruneAt.
-func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
+// parsePromise runs the cheap checks on the proto of [PaymentPromise] and
+// returns its unmarshaled form with the BlobConfig for its blob version. It
+// does not verify the signature or query state; see [Server.verifyPromise].
+func (s *Server) parsePromise(promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, error) {
 	// Reject anything the chain's stateless checks would reject: a promise that
 	// fails ValidateBasic can never be settled by MsgPayForFibre or
 	// MsgPaymentPromiseTimeout, so storing and signing for it is unpaid work.
 	if promisePb == nil {
-		return nil, BlobConfig{}, nil, time.Time{}, errors.New("nil payment promise")
+		return nil, BlobConfig{}, errors.New("nil payment promise")
 	}
 	if err := promisePb.ValidateBasic(); err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise: %w", err)
+		return nil, BlobConfig{}, fmt.Errorf("invalid payment promise: %w", err)
 	}
 
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
+		return nil, BlobConfig{}, fmt.Errorf("invalid payment promise proto: %w", err)
 	}
 
 	// validate PP chain ID matches the connected app chain ID
 	chainID := s.state.ChainID()
 	if promise.ChainID != chainID {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", chainID, promise.ChainID)
+		return nil, BlobConfig{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", chainID, promise.ChainID)
 	}
 	// validate blob version is supported
 	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
 	if err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("unsupported blob version %d: %w", promise.BlobVersion, err)
-	}
-
-	// stateless validation
-	if err := promise.Validate(); err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
+		return nil, BlobConfig{}, fmt.Errorf("unsupported blob version %d: %w", promise.BlobVersion, err)
 	}
 
 	// Reject below the local minimum before reserving escrow through the state
 	// query or doing shard verification, storage, and signing.
 	if uint64(promise.UploadSize) < uint64(s.Config.MinUploadSize) {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("upload size %d is below local minimum %d bytes", promise.UploadSize, s.Config.MinUploadSize)
+		return nil, BlobConfig{}, fmt.Errorf("upload size %d is below local minimum %d bytes", promise.UploadSize, s.Config.MinUploadSize)
+	}
+	return promise, blobCfg, nil
+}
+
+// verifyPromise verifies the signature and the stateful constraints of a
+// promise that passed [Server.parsePromise], and returns the pruneAt time
+// computed by shardPruneAt.
+func (s *Server) verifyPromise(ctx context.Context, promise *PaymentPromise, promisePb *types.PaymentPromise) (time.Time, error) {
+	// stateless validation, including the signature
+	if err := promise.Validate(); err != nil {
+		return time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
 	}
 
 	// validate stateful constraints
 	verifyResult, err := s.state.VerifyPromise(ctx, promisePb)
 	if err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("stateful validation: %w", err)
+		return time.Time{}, fmt.Errorf("stateful validation: %w", err)
 	}
-
-	promiseHash, err := promise.Hash()
-	if err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
-	}
-
-	pruneAt := shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, verifyResult.ShardRetention)
-	return promise, blobCfg, promiseHash, pruneAt, nil
+	return shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, verifyResult.ShardRetention), nil
 }
 
 // shardPruneAt returns when an uploaded shard should be pruned. It anchors on
@@ -332,24 +364,25 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	return nil
 }
 
-// verifyShard verifies the shard's rows and proofs using a pooled
-// [rsema1d.Verifier], blocking until one is free.
-func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
+// checkShard runs the structural checks on a shard that need neither the
+// validator assignment nor state: row sizes, proof shapes and RLC length. It
+// returns the parsed rows and RLCs for [Server.verifyShard].
+func checkShard(blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error) {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	// reject oversized rows: a row larger than MaxRowSize cannot be backed by
 	// the protocol's row pool on the read side and must never be signed/stored.
 	if blobCfg.MaxRowSize > 0 && rowSize > blobCfg.MaxRowSize {
-		return fmt.Errorf("row size %d exceeds maximum %d", rowSize, blobCfg.MaxRowSize)
+		return nil, nil, fmt.Errorf("row size %d exceeds maximum %d", rowSize, blobCfg.MaxRowSize)
 	}
 
 	// validate upload size matches the row size
 	expectedUploadSize := rowSize * blobCfg.OriginalRows
 	if int(promise.UploadSize) != expectedUploadSize {
-		return fmt.Errorf("upload size mismatch: promise has %d, but row size %d * %d original rows = %d",
+		return nil, nil, fmt.Errorf("upload size mismatch: promise has %d, but row size %d * %d original rows = %d",
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
@@ -357,23 +390,28 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	// known up front.
 	expectedRLCBytes := blobCfg.OriginalRows * field.GF128Size
 	if len(shard.GetRlcs()) != expectedRLCBytes {
-		return fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
+		return nil, nil, fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
 	}
 
 	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	rows := make([]*rsema1d.RowProof, len(shard.Rows))
 	for i, rowPb := range shard.Rows {
 		row, err := parseRow(rowPb)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rows[i] = row
 	}
+	return rows, rlcs, nil
+}
 
+// verifyShard verifies rows and RLCs from [checkShard] against the promise
+// commitment using a pooled [rsema1d.Verifier], blocking until one is free.
+func (s *Server) verifyShard(ctx context.Context, promise *PaymentPromise, rows []*rsema1d.RowProof, rlcs rlc.Vector) error {
 	verifier, err := s.getVerifier(ctx)
 	if err != nil {
 		return fmt.Errorf("acquiring verifier: %w", err)

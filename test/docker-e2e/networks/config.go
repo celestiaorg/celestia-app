@@ -60,11 +60,13 @@ func NewMochaConfig() *Config {
 		// third-party providers rate-limit CI runners, and a third provider
 		// keeps one witness alive when another returns 429. It is also an
 		// archival node, so FetchArchivePeers finds a second archive peer
-		// besides itrocket.
+		// besides itrocket. A fourth provider lets state sync drop one that
+		// is slow (SelectStateSyncRPCs) and still keep two witnesses.
 		RPCs: []string{
 			"https://rpc.celestia-mocha.com:443",
 			"https://rpc-mocha.pops.one:443",
 			"https://celestia-testnet-rpc.itrocket.net:443",
+			"https://celestia-testnet.rpc.kjnodes.com:443",
 		},
 		// seeds provide dynamic peer discovery — the node contacts a seed,
 		// gets a fresh list of currently-alive peers, and connects. This is

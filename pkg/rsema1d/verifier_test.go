@@ -126,6 +126,27 @@ func TestVerifierVerifyShared(t *testing.T) {
 	}
 }
 
+// TestVerifierRejectsNilFirstProof checks that a batch starting with a nil
+// proof is rejected with an error instead of panicking.
+func TestVerifierRejectsNilFirstProof(t *testing.T) {
+	cfg := &rsema1d.Config{K: 64, N: 64, WorkerCount: 1}
+	v, err := rsema1d.NewVerifier(cfg)
+	if err != nil {
+		t.Fatalf("NewVerifier: %v", err)
+	}
+
+	r := rand.New(rand.NewPCG(13, 13))
+	ed, commitment, rlcOrig := encodeRandom(t, r, cfg, 1024)
+
+	proofs := append([]*rsema1d.RowProof{nil}, rangeProofs(t, ed, 0, 4)...)
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+		t.Fatalf("Verify accepted a nil first proof")
+	}
+	if err := v.VerifyShared(commitment, proofs); err == nil {
+		t.Fatalf("VerifyShared accepted a nil first proof")
+	}
+}
+
 // TestVerifierVerifySharedConcurrent runs many VerifyShared calls against the
 // same cached RLC state from parallel goroutines. Best run with -race, which is
 // what guards the "concurrent-safe after Verify" contract.

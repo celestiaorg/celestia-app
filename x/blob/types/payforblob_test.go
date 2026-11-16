@@ -264,14 +264,6 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:   "msg PFB with tx namespace returns an error",
-			signer: testfactory.TestAccAddr,
-			blobs: []*share.Blob{
-				mustNewBlob(t, share.TxNamespace, random.Bytes(1000000), share.ShareVersionZero, nil),
-			},
-			expectedErr: true,
-		},
-		{
 			name:   "msg PFB with invalid signer returns an error",
 			signer: testfactory.TestAccAddr[:10],
 			blobs: []*share.Blob{
@@ -320,11 +312,6 @@ func TestValidateBlobs(t *testing.T) {
 			name:        "valid blob",
 			blob:        mustNewBlob(t, share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil),
 			expectError: false,
-		},
-		{
-			name:        "invalid namespace",
-			blob:        mustNewBlob(t, share.TxNamespace, []byte{1}, appconsts.DefaultShareVersion, nil),
-			expectError: true,
 		},
 		{
 			name:        "empty blob",

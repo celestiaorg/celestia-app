@@ -78,8 +78,8 @@ func newProposalFixture(t *testing.T) *proposalFixture {
 	defer func() { testutil.TestAppLogger = prev }()
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := testfactory.GenerateAccounts(5)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	accounts := testfactory.GenerateDeterministicAccounts(5)
+	testApp, kr := testutil.SetupDeterministicTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	// A fixed clock keeps the pay-for-fibre promise fresh for the whole run.
 	blockTime := testutil.GenesisTime.Add(time.Hour)
 	commitBlockAt(t, testApp, blockTime)

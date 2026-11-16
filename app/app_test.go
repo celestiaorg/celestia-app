@@ -2,20 +2,25 @@ package app_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,4 +213,59 @@ func getTestApp() *app.App {
 	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
 	return app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions)
+}
+
+// TestInitChainMigratesLegacyFibreGenesis imports fibre state as v10 exports it.
+// InitChainer records the v11 module versions, so InitGenesis must apply the
+// fibre 1-to-2 migration itself.
+func TestInitChainMigratesLegacyFibreGenesis(t *testing.T) {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	testApp := app.New(logger, db, &NoopWriter{}, time.Second, 0, NoopAppOptions{}, baseapp.SetChainID(testfactory.ChainID))
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
+	cdc := testApp.AppCodec()
+
+	lower := sdk.AccAddress([]byte("genesis_signer______")).String()
+	upper := strings.ToUpper(lower)
+	other := sdk.AccAddress([]byte("genesis_other_signer")).String()
+	escrowed := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 500), sdk.NewInt64Coin("stake", 70))
+
+	fibreGenesis := fibretypes.DefaultGenesis()
+	fibreGenesis.EscrowAccounts = []fibretypes.EscrowAccount{
+		{Signer: upper, Balance: sdk.NewInt64Coin(appconsts.BondDenom, 500), AvailableBalance: sdk.NewInt64Coin(appconsts.BondDenom, 500)},
+		{Signer: other, Balance: sdk.NewInt64Coin("stake", 70), AvailableBalance: sdk.NewInt64Coin("stake", 70)},
+	}
+	genesisState[fibretypes.ModuleName] = cdc.MustMarshalJSON(fibreGenesis)
+
+	var bankGenesis banktypes.GenesisState
+	cdc.MustUnmarshalJSON(genesisState[banktypes.ModuleName], &bankGenesis)
+	bankGenesis.Balances = append(bankGenesis.Balances, banktypes.Balance{
+		Address: authtypes.NewModuleAddress(fibretypes.ModuleName).String(),
+		Coins:   escrowed,
+	})
+	if !bankGenesis.Supply.IsZero() {
+		bankGenesis.Supply = bankGenesis.Supply.Add(escrowed...)
+	}
+	genesisState[banktypes.ModuleName] = cdc.MustMarshalJSON(&bankGenesis)
+
+	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+	genesis := testnode.DefaultConfig().Genesis.WithChainID(testApp.ChainID())
+	_, err = testApp.InitChain(&abci.RequestInitChain{
+		Time:            genesis.GenesisTime,
+		ChainId:         genesis.ChainID,
+		ConsensusParams: genesis.ConsensusParams,
+		AppStateBytes:   appStateBytes,
+	})
+	require.NoError(t, err)
+
+	ctx := testApp.NewContext(false)
+	account, found := testApp.FibreKeeper.GetEscrowAccount(ctx, lower)
+	require.True(t, found, "the uppercase escrow is stored under its canonical signer")
+	require.Equal(t, sdk.NewInt64Coin(appconsts.BondDenom, 500), account.Balance)
+	_, found = testApp.FibreKeeper.GetEscrowAccount(ctx, other)
+	require.False(t, found, "the non-utia escrow is refunded")
+	otherAddr, err := sdk.AccAddressFromBech32(other)
+	require.NoError(t, err)
+	require.Equal(t, sdk.NewInt64Coin("stake", 70), testApp.BankKeeper.GetBalance(ctx, otherAddr, "stake"))
 }

@@ -141,15 +141,6 @@ func expectedAssignedRows(power, total int64, originalRows, minRows int, lt cmtm
 	return min(max(int(rows.Int64()), minRows), originalRows)
 }
 
-// assignedRowsOverflows reports whether AssignedRows' int64 intermediate
-// products overflow.
-func assignedRowsOverflows(power, total int64, originalRows int, lt cmtmath.Fraction) bool {
-	num := new(big.Int).Mul(big.NewInt(int64(originalRows)), big.NewInt(power))
-	num.Mul(num, new(big.Int).SetUint64(lt.Denominator))
-	den := new(big.Int).Mul(big.NewInt(total), new(big.Int).SetUint64(lt.Numerator))
-	return !new(big.Int).Add(num, den).IsInt64()
-}
-
 // FuzzAssign checks the shard map that clients upload by and that fibre servers
 // verify uploads against: every validator gets exactly AssignedRows distinct
 // rows below totalRows, rows do not overlap while the total fits, and
@@ -181,11 +172,8 @@ func FuzzAssign(f *testing.F) {
 			want := valSet.AssignedRows(val, original, minimum, lt)
 			require.GreaterOrEqual(t, want, min(minimum, original))
 			require.LessOrEqual(t, want, original)
-			// Excluded pending a fix; see the Linear issue for this target.
-			if !assignedRowsOverflows(val.VotingPower, valSet.TotalVotingPower(), original, lt) {
-				require.Equal(t, expectedAssignedRows(val.VotingPower, valSet.TotalVotingPower(), original, minimum, lt), want,
-					"AssignedRows for power %d of %d", val.VotingPower, valSet.TotalVotingPower())
-			}
+			require.Equal(t, expectedAssignedRows(val.VotingPower, valSet.TotalVotingPower(), original, minimum, lt), want,
+				"AssignedRows for power %d of %d", val.VotingPower, valSet.TotalVotingPower())
 			require.Len(t, rows, want)
 			sum += len(rows)
 

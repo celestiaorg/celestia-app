@@ -54,6 +54,9 @@ type IBCTestSuite struct {
 
 	// Transaction clients
 	celestiaTxClient *user.TxClient
+
+	// hermesOpts change the Hermes config before the clients are created.
+	hermesOpts []relayer.ConfigOption
 }
 
 // setupIBCInfrastructure sets up IBC test infrastructure with specified app
@@ -119,7 +122,7 @@ func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64, withTransferCha
 	s.hermes, err = relayer.NewHermes(ctx, s.client, t.Name(), s.network, 0, s.logger)
 	s.Require().NoError(err, "failed to create hermes")
 
-	err = s.hermes.Init(ctx, []tastoratypes.Chain{s.chainA, s.chainB})
+	err = s.hermes.Init(ctx, []tastoratypes.Chain{s.chainA, s.chainB}, s.hermesOpts...)
 	s.Require().NoError(err, "failed to initialize hermes")
 
 	// create IBC clients

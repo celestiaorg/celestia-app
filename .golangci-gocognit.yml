@@ -1,0 +1,13 @@
+version: "2"
+run:
+  modules-download-mode: readonly
+  tests: false
+linters:
+  default: none
+  enable:
+    - gocognit
+  settings:
+    gocognit:
+      min-complexity: 30
+  exclusions:
+    generated: lax

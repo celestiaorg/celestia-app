@@ -18,21 +18,38 @@ PACKAGE_NAME := github.com/celestiaorg/celestia-app/v11
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag
 # and update GOLANG_CROSS_DIGEST to the digest of that tag's manifest index.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
+# The image's own Go version is not used: the goreleaser targets pass GOTOOLCHAIN,
+# so releases are built with the Go version in go.mod.
 GOLANG_CROSS_VERSION  ?= v1.26.5
 GOLANG_CROSS_DIGEST   ?= sha256:0cf2b7f757b40397d2bef5423adb88d0ac63899e88a9f0c4bbb370d3fb7b2fb5
 GOLANG_CROSS_IMAGE    := ghcr.io/goreleaser/goreleaser-cross:$(GOLANG_CROSS_VERSION)@$(GOLANG_CROSS_DIGEST)
+# Build with the exact Go version in the go directive of go.mod, the same one
+# the release binaries use, even when a newer Go is installed locally.
+GO_VERSION := $(shell sed -n 's/^go //p' go.mod)
+ifeq ($(GO_VERSION),)
+$(error could not read the go directive from go.mod)
+endif
+export GOTOOLCHAIN := go$(GO_VERSION)
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
-BUILD_TAGS_STANDALONE := ledger
-BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
+# STATIC=true links a cgo build statically, so it runs on a host with another libc.
+comma := ,
+ifeq ($(STATIC),true)
+BUILD_TAGS_STATIC := netgo,osusergo
+LDFLAGS_STATIC := -linkmode=external -extldflags=-static
+endif
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+BUILD_TAGS_STANDALONE := ledger$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
+BUILD_TAGS_MULTIPLEXER := ledger,multiplexer$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
+
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT) $(LDFLAGS_STATIC)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
-BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
-BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
+# -trimpath matches the release binaries built by .goreleaser.yaml.
+BUILD_FLAGS_STANDALONE := -trimpath -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
+BUILD_FLAGS_MULTIPLEXER := -trimpath -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
 # The fibre server keeps its version metadata in package main, so that a binary
 # built from source reports a real version rather than "dev". These mirror the
@@ -45,8 +62,8 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # .git: an empty -X value blanks the field out rather than leaving the default in
 # place.
 COMMIT_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null)
-LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown)
-BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
+LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown) $(LDFLAGS_STATIC)
+BUILD_FLAGS_FIBRE := -trimpath $(if $(BUILD_TAGS_STATIC),-tags=$(BUILD_TAGS_STATIC)) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -73,6 +90,7 @@ build-standalone: mod
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
+	@./scripts/check-build-info.sh build/celestia-appd
 .PHONY: build-standalone
 
 DOWNLOAD ?= true
@@ -84,6 +102,7 @@ endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
+	@./scripts/check-build-info.sh build/celestia-appd
 .PHONY: build
 
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
@@ -138,6 +157,8 @@ mod-verify: mod
 
 BUF_VERSION=v1.50.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
+# Mutation testing tool used by `make test-mutation` and the nightly mutation workflow.
+GREMLINS_VERSION := v0.6.0
 
 ## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
@@ -204,8 +225,7 @@ docker-build: build-docker-multiplexer
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
 	$(DOCKER) build \
-		--build-arg TARGETOS=$(DOCKER_GOOS) \
-		--build-arg TARGETARCH=$(DOCKER_GOARCH) \
+		--platform $(DOCKER_GOOS)/$(DOCKER_GOARCH) \
 		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
@@ -221,6 +241,13 @@ lint:
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
+
+## lint-complexity: Flag functions with cognitive complexity above 30 in code changed since LINT_BASE (default origin/main). Existing code is not checked.
+LINT_BASE ?= origin/main
+lint-complexity:
+	@echo "--> Running gocognit on code changed since $(LINT_BASE)"
+	@go tool golangci-lint run --config .golangci-gocognit.yml --new-from-merge-base=$(LINT_BASE)
+.PHONY: lint-complexity
 
 ## govulncheck: Check for vulnerabilities in dependencies.
 govulncheck:
@@ -281,7 +308,7 @@ test-docker-e2e:
 ## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.
 test-docker-e2e-upgrade-all:
 	@echo "--> Building celestia-appd docker image (tag $(CELESTIA_TAG))"
-	@DOCKER_BUILDKIT=0 docker build --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
+	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t "ghcr.io/celestiaorg/celestia-app:$(CELESTIA_TAG)" . -f docker/multiplexer.Dockerfile
 	@echo "--> Running upgrade test for all app versions starting from v2"
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade-all
@@ -312,10 +339,16 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
-## test-fuzz: Run all fuzz tests.
+## test-fuzz: Run all fuzz tests, or one with FUZZ_TARGET=FuzzX.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## test-mutation: Run informational mutation testing with gremlins. Set PACKAGES to override the default critical packages.
+test-mutation:
+	@GOBIN=$(CURDIR)/build/tools go install github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)
+	@GREMLINS=$(CURDIR)/build/tools/gremlins bash scripts/test_mutation.sh $(PACKAGES)
+.PHONY: test-mutation
 
 ## build-fibre-server: Build the fibre server binary into the ./build directory.
 build-fibre-server:
@@ -354,15 +387,24 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build binaries for talis VMs (ubuntu 22.04 LTS), including the fibre experiment tools.
+# TALIS_CGO_BUILD builds celestia-appd and fibre with cgo in a linux/amd64 Alpine
+# container. The static musl link runs on any VM regardless of its glibc.
+TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
+	-v celestia-app-talis-gomod:/go/pkg/mod -v celestia-app-talis-gocache:/root/.cache/go-build \
+	-e GOFLAGS=-buildvcs=false docker.io/golang:1.26.11-alpine3.24 sh -c ' \
+	apk add -q --no-cache gcc linux-headers make musl-dev && \
+	make -o mod build-standalone build-fibre-server STATIC=true \
+		VERSION=$(VERSION) COMMIT=$(COMMIT) COMMIT_DATE=$(COMMIT_DATE) CELESTIA_TAG=$(CELESTIA_TAG) && \
+	chown $(shell id -u):$(shell id -g) build/celestia-appd build/fibre'
+
+## build-talis-bins: Build binaries for talis VMs (ubuntu 22.04 LTS), including the fibre experiment tools. Requires Docker.
 build-talis-bins:
 	mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_FIBRE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	$(TALIS_CGO_BUILD)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
 
 CARGO := $(HOME)/.cargo/bin/cargo
@@ -396,14 +438,13 @@ build-rust-fibre-txsim: ensure-rust
 	$(call build_rust_crate,tools/rust-fibre-txsim,rust-fibre-txsim,fibre-txsim)
 .PHONY: build-rust-fibre-txsim
 
-## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim. Requires Docker.
 build-talis-bins-rust-fibre:
 	mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	$(TALIS_CGO_BUILD)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre
 
@@ -433,6 +474,7 @@ goreleaser-check:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -450,6 +492,7 @@ prebuilt-binary:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -465,6 +508,7 @@ goreleaser-dry-run:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \

@@ -42,12 +42,6 @@ func FuzzValidateTxFee(f *testing.F) {
 		feeBig := new(big.Int).Lsh(new(big.Int).SetUint64(feeHigh), 64)
 		feeBig.Or(feeBig, new(big.Int).SetUint64(feeLow))
 		fee := sdkmath.NewIntFromBigInt(feeBig)
-		// ValidateTxFee panics on fees above MaxInt64 when it records the
-		// observed gas price; the ante chain recovers it. Remove this exclusion
-		// with the fix: https://linear.app/celestia/issue/PROTOCO-3433 item 2.
-		if !fee.IsInt64() {
-			return
-		}
 
 		builder := enc.TxConfig.NewTxBuilder()
 		builder.SetGasLimit(gas)
@@ -76,7 +70,8 @@ func FuzzValidateTxFee(f *testing.F) {
 		minimum := new(big.Int).SetUint64(gas)
 		minimum.Add(minimum, big.NewInt(999_999))
 		minimum.Quo(minimum, big.NewInt(1_000_000))
-		require.Equal(t, !foreign && feeBig.Cmp(minimum) >= 0, err == nil, "fee %s gas %d denom %q: %v", feeBig, gas, otherDenom, err)
+		// Fees that do not fit in an int64 are rejected.
+		require.Equal(t, !foreign && feeBig.IsInt64() && feeBig.Cmp(minimum) >= 0, err == nil, "fee %s gas %d denom %q: %v", feeBig, gas, otherDenom, err)
 		require.GreaterOrEqual(t, priority, int64(0))
 	})
 }

@@ -54,6 +54,13 @@ const (
 	numUploadOps
 )
 
+// minProtoTimestamp and maxProtoTimestamp bound the times a protobuf Timestamp
+// can encode: 0001-01-01 up to, not including, 10000-01-01.
+var (
+	minProtoTimestamp = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+	maxProtoTimestamp = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
 // uploadFixture holds a valid upload for the server's validator, built once per
 // fuzz worker.
 type uploadFixture struct {
@@ -307,7 +314,12 @@ func (f *uploadFixture) mutate(req *types.UploadShardRequest, op byte, idx int, 
 		}
 	case opTimestamp:
 		if pb != nil {
-			pb.CreationTimestamp = pb.CreationTimestamp.Add(time.Duration(int32(arg)) * time.Second)
+			// Repeated shifts can leave the range a protobuf Timestamp can
+			// encode, which no peer can send, so keep the last valid time.
+			ts := pb.CreationTimestamp.Add(time.Duration(int32(arg)) * time.Second)
+			if !ts.Before(minProtoTimestamp) && ts.Before(maxProtoTimestamp) {
+				pb.CreationTimestamp = ts
+			}
 		}
 	case opNamespaceFlip:
 		if pb != nil {

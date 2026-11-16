@@ -53,7 +53,7 @@ You have two options when it comes to running talis. You can run it on your loca
 go install ./tools/talis/
 ```
 
-All binaries used by nodes in the network are compiled on the user's local machine. Either change the target when compiling celestia-app, or use the docker image to ensure complete compatibility.
+All binaries used by nodes in the network are compiled on the user's local machine. celestia-appd and fibre are built with cgo in a linux/amd64 Docker container, so Docker must be running.
 
 ```sh
 make build-talis-bins

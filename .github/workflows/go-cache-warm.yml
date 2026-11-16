@@ -41,14 +41,14 @@ jobs:
           make build
           make build-fibre-server
           GOOS=linux GOARCH=mips CGO_ENABLED=0 go build ./...
-          CGO_ENABLED=0 GOOS=linux go build -tags=ledger,multiplexer -o /dev/null ./cmd/celestia-appd
+          GOOS=linux go build -tags=ledger,multiplexer,netgo,osusergo -o /dev/null ./cmd/celestia-appd
       - name: Compile multiplexer tests
         run: go test -count=1 -run '^$' -tags multiplexer ./multiplexer/... ./cmd/celestia-appd/cmd
       - name: Compile e2e tests
         working-directory: test/docker-e2e
         run: |
           go test -count=1 -run '^$' ./...
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -o "$RUNNER_TEMP/e2e.test" .
+          GOOS=linux GOARCH=amd64 go test -c -tags=netgo,osusergo -o "$RUNNER_TEMP/e2e.test" .
       - name: Compile govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -version
       - name: Run golangci-lint

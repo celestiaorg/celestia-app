@@ -2,6 +2,7 @@ package testfactory
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v11/test/util/random"
@@ -66,6 +67,17 @@ func GenerateAccounts(count int) []string {
 		address := sdk.AccAddress(pubKey.Address())
 		// Convert to bech32 string format
 		accounts[i] = address.String()
+	}
+	return accounts
+}
+
+// GenerateDeterministicAccounts is GenerateAccounts with each address derived
+// from a fixed secret, so every process gets the same account names.
+func GenerateDeterministicAccounts(count int) []string {
+	accounts := make([]string, count)
+	for i := range count {
+		privKey := secp256k1.GenPrivKeyFromSecret(fmt.Appendf(nil, "celestia-app deterministic test account %d", i))
+		accounts[i] = sdk.AccAddress(privKey.PubKey().Address()).String()
 	}
 	return accounts
 }
