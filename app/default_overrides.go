@@ -293,6 +293,11 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	return cfg
 }
 
+// iavlCacheSize is the default iavl-cache-size in nodes, 8x the SDK's 781,250.
+// The SDK default is too small for a store with millions of processed
+// payments: most IAVL node loads miss the cache and read from disk.
+const iavlCacheSize = 6_250_000
+
 func DefaultAppConfig() *serverconfig.Config {
 	cfg := serverconfig.DefaultConfig()
 	cfg.API.Enable = false
@@ -312,5 +317,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.MinRetainBlocks = appconsts.MinRetainBlocks
+	cfg.IAVLCacheSize = iavlCacheSize
 	return cfg
 }

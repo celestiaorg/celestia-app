@@ -59,6 +59,7 @@ func TestDefaultAppConfig(t *testing.T) {
 
 	assert.Equal(t, appconsts.DefaultUpperBoundMaxBytes*2, cfg.GRPC.MaxRecvMsgSize)
 	assert.Equal(t, uint64(9_750), cfg.MinRetainBlocks)
+	assert.Equal(t, uint64(6_250_000), cfg.IAVLCacheSize)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
