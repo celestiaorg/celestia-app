@@ -386,7 +386,7 @@ build_genesis() {
     inputs=$(printf '%q ' "${cmd[@]}")
     if [ -f "$OUT/genesis.json.sha256" ]; then
         [ "$(cat "$OUT/genesis.inputs" 2>/dev/null)" = "$inputs" ] ||
-            die "$OUT/genesis.json was built from other inputs; remove it and genesis.json.sha256 to rebuild"
+            die "$OUT/genesis.json was built from other inputs; remove it, genesis.json.sha256 and genesis.json.report.json to rebuild"
         GENESIS_SHA=$(awk '{ print $1 }' "$OUT/genesis.json.sha256")
         [ "$(sha256 "$OUT/genesis.json")" = "$GENESIS_SHA" ] || die "$OUT/genesis.json does not match genesis.json.sha256"
         echo "reusing genesis.json $GENESIS_SHA"
@@ -434,6 +434,7 @@ main() {
     echo "export.sh sha256 $(sha256 "${BASH_SOURCE[0]}")"
     setup_out
     trap stop_node EXIT
+    trap 'exit 143' TERM; trap 'exit 130' INT
     step preflight
     step reference_header
     if [ "$RESUME" = 0 ]; then
