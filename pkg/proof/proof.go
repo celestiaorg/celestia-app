@@ -28,12 +28,10 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	// square.Construct and square.TxShareRange reject txs that are not in
-	// square order (normal, then blob, then pay-for-fibre). Without that check
-	// the builder regroups txs by kind, so the share range of txIndex in the
-	// regrouped square would not belong to the caller's tx at txIndex.
-	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-	if err != nil {
+	// The square builder regroups txs by kind (normal, then blob, then
+	// pay-for-fibre). If the txs are not already in that order, the share range
+	// of txIndex in the square would belong to a different tx, so reject them.
+	if err := validateTxOrder(classifiedTxs); err != nil {
 		return ShareProof{}, err
 	}
 
@@ -41,18 +39,68 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	shareRange, err := square.TxShareRange(classifiedTxs, txIndexInt, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+
+	// Build the square once and use it for both the share range and the proof.
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, classifiedTxs...)
+	if err != nil {
+		return ShareProof{}, err
+	}
+	dataSquare, err := builder.Export()
+	if err != nil {
+		return ShareProof{}, err
+	}
+	shareRange, err := builder.FindTxShareRange(txIndexInt)
 	if err != nil {
 		return ShareProof{}, err
 	}
 
-	namespace := getTxNamespace(classifiedTxs[txIndex])
-	return NewShareInclusionProof(dataSquare, namespace, shareRange)
+	return NewShareInclusionProof(dataSquare, txNamespace(classifiedTxs[txIndex]), shareRange)
 }
 
-func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
+// validateTxOrder returns an error unless all normal txs come before all blob
+// txs, and all blob txs come before all pay-for-fibre txs.
+func validateTxOrder(txs []square.ClassifiedTx) error {
+	prev := share.TxNamespace
+	for i, tx := range txs {
+		ns := txNamespace(tx)
+		if txNamespaceRank(ns) < txNamespaceRank(prev) {
+			return fmt.Errorf("tx at index %d is out of square order: %s tx after %s tx", i, txKindName(ns), txKindName(prev))
+		}
+		prev = ns
+	}
+	return nil
+}
+
+func txNamespaceRank(ns share.Namespace) int {
+	switch {
+	case ns.Equals(share.TxNamespace):
+		return 0
+	case ns.Equals(share.PayForBlobNamespace):
+		return 1
+	default:
+		return 2
+	}
+}
+
+func txKindName(ns share.Namespace) string {
+	switch txNamespaceRank(ns) {
+	case 0:
+		return "normal"
+	case 1:
+		return "blob"
+	default:
+		return "pay-for-fibre"
+	}
+}
+
+// txNamespace returns the namespace of the compact shares that hold tx. It
+// classifies tx the same way the square builder does.
+func txNamespace(tx square.ClassifiedTx) share.Namespace {
 	if tx.FibreTx != nil {
 		return share.PayForFibreNamespace
+	}
+	if tx.BlobTx != nil {
+		return share.PayForBlobNamespace
 	}
 	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx.Bytes)
 	if isBlobTx {
