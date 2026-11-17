@@ -77,6 +77,9 @@ func CheckState(cdc codec.JSONCodec, g *Genesis, opts Options) (*CheckResult, er
 	if err != nil {
 		return nil, err
 	}
+	if err := checkDelegations(cdc, g); err != nil {
+		return nil, err
+	}
 	if err := checkDistribution(cdc, g, bals[distrtypes.ModuleName]); err != nil {
 		return nil, err
 	}
