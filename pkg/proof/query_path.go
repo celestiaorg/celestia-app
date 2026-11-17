@@ -2,14 +2,8 @@ package proof
 
 import "github.com/cosmos/cosmos-sdk/baseapp"
 
-// IsProofQueryPath reports whether an ABCI query path routes to one of the
-// inclusion proof queriers in this package. It parses the path the same way
-// BaseApp.Query does, so any spelling that reaches a proof querier matches.
-//
-// The proof queriers build a full data square from caller-supplied block
-// bytes. Only celestia-core may call them, with blocks from its own store.
-// Entry points that accept queries from outside the node must reject these
-// paths.
+// IsProofQueryPath reports whether an ABCI query path routes to an inclusion
+// proof querier, parsing it the same way BaseApp.Query does.
 func IsProofQueryPath(path string) bool {
 	parts := baseapp.SplitABCIQueryPath(path)
 	if len(parts) < 2 || parts[0] != baseapp.QueryPathCustom {
