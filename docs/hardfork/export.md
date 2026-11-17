@@ -64,6 +64,12 @@ HASH=<CHECK_APP_HASH>
    jq -r .height "$HOME_DIR/data/priv_validator_state.json"
    ```
 
+   With docker, `HOME_DIR` is the path inside the container:
+
+   ```sh
+   docker run --rm --volumes-from "$CONTAINER" --entrypoint jq <image> -r .height "$HOME_DIR/data/priv_validator_state.json"
+   ```
+
    With a remote signer, send the last height in its state instead.
 
 5. If the protocol team asks you to reproduce the export, export the state at E with the binary of the release in the announcement and send the SHA-256:
