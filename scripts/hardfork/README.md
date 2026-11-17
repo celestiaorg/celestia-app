@@ -11,8 +11,11 @@ celestia-appd recovery-script > recovery.sh
 docker run --rm --entrypoint celestia-appd <image> recovery-script > recovery.sh
 ```
 
+`export.sh` syncs a stopped node to a height, exports its state there and optionally builds a candidate genesis from it. Run `bash export.sh --help` for flags.
+
 ## Test
 
 ```bash
 bash scripts/hardfork/recovery_test.sh
+bash scripts/hardfork/export_test.sh
 ```
