@@ -17,8 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// forwardMemo returns a forward memo with the given extra fields after a valid
-// receiver, port and channel.
+// forwardMemo returns a forward memo with a valid receiver, port and channel followed by extra.
 func forwardMemo(extra string) string {
 	return `{"forward":{"receiver":"cosmos1receiver","port":"transfer","channel":"channel-7"` + extra + `}}`
 }
@@ -84,7 +83,6 @@ func TestValidateForwardMemoRejects(t *testing.T) {
 		name string
 		memo string
 	}{
-		// Validate() failures.
 		{"receiver empty", `{"forward":{"receiver":"","port":"transfer","channel":"channel-7"}}`},
 		{"receiver missing", `{"forward":{"port":"transfer","channel":"channel-7"}}`},
 		{"port blank", `{"forward":{"receiver":"x","port":"","channel":"channel-7"}}`},
@@ -94,7 +92,6 @@ func TestValidateForwardMemoRejects(t *testing.T) {
 		{"port huge", `{"forward":{"receiver":"x","port":"` + strings.Repeat("p", 200) + `","channel":"channel-7"}}`},
 		{"channel blank", `{"forward":{"receiver":"x","port":"transfer","channel":""}}`},
 		{"channel slash", `{"forward":{"receiver":"x","port":"transfer","channel":"channel/1"}}`},
-		// JSON type errors.
 		{"forward number", `{"forward":5}`},
 		{"forward array", `{"forward":[]}`},
 		{"forward string", `{"forward":"abc"}`},
@@ -112,7 +109,6 @@ func TestValidateForwardMemoRejects(t *testing.T) {
 		{"timeout object", forwardMemo(`,"timeout":{}`)},
 		{"timeout null", forwardMemo(`,"timeout":null`)},
 		{"timeout 1e400", forwardMemo(`,"timeout":1e400`)},
-		// Numeric timeouts outside int64.
 		{"timeout 1e19", forwardMemo(`,"timeout":1e19`)},
 		{"timeout 9.3e18", forwardMemo(`,"timeout":9.3e18`)},
 		{"timeout -1e19", forwardMemo(`,"timeout":-1e19`)},
@@ -121,7 +117,6 @@ func TestValidateForwardMemoRejects(t *testing.T) {
 		{"timeout 2^63 float", forwardMemo(`,"timeout":9.223372036854775808e18`)},
 		{"timeout below -2^63", forwardMemo(`,"timeout":-9223372036854777856`)},
 		{"timeout fraction", forwardMemo(`,"timeout":1.5`)},
-		// next that cannot be re-encoded.
 		{"next bad primitive", forwardMemo(`,"next":"abc"`)},
 		{"next bad escaped JSON", forwardMemo(`,"next":"{\"a\":"`)},
 		// Shapes whose decoding depends on JSON library details.
