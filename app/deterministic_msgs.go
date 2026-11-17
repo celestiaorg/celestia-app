@@ -180,6 +180,10 @@ func validateForwardMemo(memo string) error {
 	if !utf8.Valid(bz) || hasLoneSurrogate(bz) {
 		return fmt.Errorf("memo must be valid UTF-8 without lone surrogate escapes")
 	}
+	// The same limits as the packet-forward memo check on main.
+	if !pfmForwardMemoWithinLimits(memo) {
+		return fmt.Errorf("memo repeats a key, nests deeper than %d levels, or has a forward.next that is not null, an object, or a string holding a JSON object", maxPFMForwardMemoDepth)
+	}
 
 	fields := make(map[string][]byte, len(forwardFields))
 	var fieldErr error
