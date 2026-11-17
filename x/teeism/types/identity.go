@@ -42,6 +42,17 @@ func (id *EnclaveIdentity) pinnedEvents() [3]struct {
 	}
 }
 
+// PinnedEventNames are the IMR 3 event names every identity pins, the only
+// names an attestation's event log is indexed for.
+func PinnedEventNames() []string {
+	evs := (&EnclaveIdentity{}).pinnedEvents()
+	names := make([]string, len(evs))
+	for i, ev := range evs {
+		names[i] = ev.Name
+	}
+	return names
+}
+
 // Digest is a stable id for a pinned identity, mirrored into the ISM state so
 // anyone can see which enclave an ISM was created for without disassembling an
 // image.
@@ -102,7 +113,7 @@ func VerifyEnclaveIdentity(
 	if err := id.verifyMeasurements(measured); err != nil {
 		return err
 	}
-	events, err := IndexApplicationEvents(eventlog)
+	events, err := IndexApplicationEvents(eventlog, PinnedEventNames())
 	if err != nil {
 		return ErrIdentityMismatch.Wrap(err.Error())
 	}
@@ -164,7 +175,7 @@ func VerifyEnclaveIdentities(
 	}
 	// One pass over the log for every identity: the self-commitment checks and
 	// the name rules do not depend on which identity is being tried.
-	events, err := IndexApplicationEvents(eventlog)
+	events, err := IndexApplicationEvents(eventlog, PinnedEventNames())
 	if err != nil {
 		return ErrIdentityMismatch.Wrap(err.Error())
 	}

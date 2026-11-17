@@ -167,9 +167,9 @@ func ReplayEventLogs(eventlog []EventLog) [RtmrCount]Digest {
 	return rtmrs
 }
 
-// ApplicationEvents is what IMR 3 of one event log says, indexed in a single
-// pass so that reading several pinned values, for several identities, costs no
-// more than reading one.
+// ApplicationEvents is what IMR 3 of one event log says about the names it was
+// asked for, indexed in a single pass so that reading several pinned values, for
+// several identities, costs no more than reading one.
 //
 // A value resolves only from an IMR 3 entry, the only register the replay binds
 // it into, that is the single entry of its name in the whole log, and whose name
@@ -181,28 +181,39 @@ type ApplicationEvents struct {
 	values map[string][]byte
 }
 
-// IndexApplicationEvents reads the log once. Every IMR 3 entry with a digest
-// must commit to its own text, or nothing in the log is readable: an attacker
-// could otherwise keep every genuine digest, so the RTMR replay still matches,
-// and merely relabel the surrounding text to impersonate a pinned key.
-func IndexApplicationEvents(eventlog []EventLog) (*ApplicationEvents, error) {
-	count := make(map[string]int, len(eventlog))
-	last := make(map[string]*EventLog, len(eventlog))
-	poisoned := map[string]bool{}
+// IndexApplicationEvents reads the log once and resolves the given names. Every
+// IMR 3 entry with a digest must commit to its own text, or nothing in the log
+// is readable: an attacker could otherwise keep every genuine digest, so the
+// RTMR replay still matches, and merely relabel the surrounding text to
+// impersonate a pinned key.
+//
+// The prefix rule is checked for the requested names only, so the work is
+// linear in the log: the log is attacker-controlled and indexed before any
+// pinned measurement is compared, and checking every ':' prefix of every name
+// would hash quadratically many bytes on every validator.
+func IndexApplicationEvents(eventlog []EventLog, names []string) (*ApplicationEvents, error) {
+	count := make(map[string]int, len(names))
+	last := make(map[string]*EventLog, len(names))
+	poisoned := make(map[string]bool, len(names))
+	for _, name := range names {
+		count[name] = 0
+	}
 	for i := range eventlog {
 		e := &eventlog[i]
 		if e.IMR == ApplicationIMR {
 			if !e.Digest.IsZero() && !EventDigestMatches(e) {
 				return nil, fmt.Errorf("imr 3 entry %q: digest does not commit to its text", e.Event)
 			}
-			for j := 0; j < len(e.Event); j++ {
-				if e.Event[j] == ':' {
-					poisoned[e.Event[:j]] = true
+			for _, name := range names {
+				if len(e.Event) > len(name) && e.Event[len(name)] == ':' && strings.HasPrefix(e.Event, name) {
+					poisoned[name] = true
 				}
 			}
 		}
-		count[e.Event]++
-		last[e.Event] = e
+		if _, wanted := count[e.Event]; wanted {
+			count[e.Event]++
+			last[e.Event] = e
+		}
 	}
 	values := make(map[string][]byte, len(last))
 	for name, e := range last {
@@ -213,7 +224,8 @@ func IndexApplicationEvents(eventlog []EventLog) (*ApplicationEvents, error) {
 	return &ApplicationEvents{values: values}, nil
 }
 
-// Get returns a pinned value, and whether it resolves at all.
+// Get returns a pinned value, and whether it resolves at all. A name the index
+// was not asked for never resolves.
 func (a *ApplicationEvents) Get(name string) ([]byte, bool) {
 	v, ok := a.values[name]
 	return v, ok
@@ -222,7 +234,7 @@ func (a *ApplicationEvents) Get(name string) ([]byte, bool) {
 // GetEventValue reads one pinned value out of the log under the rules of
 // IndexApplicationEvents. Index the log once instead when reading several.
 func GetEventValue(eventlog []EventLog, name string) ([]byte, bool) {
-	idx, err := IndexApplicationEvents(eventlog)
+	idx, err := IndexApplicationEvents(eventlog, []string{name})
 	if err != nil {
 		return nil, false
 	}
