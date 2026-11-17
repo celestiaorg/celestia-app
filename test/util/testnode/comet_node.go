@@ -3,8 +3,8 @@ package testnode
 import (
 	"path/filepath"
 
+	celestiaapp "github.com/celestiaorg/celestia-app/v11/app"
 	tmconfig "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/mempool"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
@@ -56,13 +56,8 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 		return nil, nil, err
 	}
 
-	// Serve QuerySequence from the mempool, as the multiplexer does.
-	if s, ok := app.(interface {
-		SetPendingSequencer(mempool.PendingSequencer)
-	}); ok {
-		if p, ok := cometNode.Mempool().(mempool.PendingSequencer); ok {
-			s.SetPendingSequencer(p)
-		}
+	if err := celestiaapp.WirePendingSequencer(app, cometNode); err != nil {
+		return nil, nil, err
 	}
 	return cometNode, app, nil
 }
