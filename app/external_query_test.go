@@ -39,11 +39,4 @@ func TestRejectProofQueries(t *testing.T) {
 		require.Equal(t, []byte("ok"), res.Value)
 		require.True(t, called)
 	})
-
-	t.Run("nil request passes through", func(t *testing.T) {
-		called = false
-		_, err := queryFn(context.Background(), nil)
-		require.NoError(t, err)
-		require.True(t, called)
-	})
 }

@@ -54,55 +54,40 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 		return ShareProof{}, err
 	}
 
-	return NewShareInclusionProof(dataSquare, txNamespace(classifiedTxs[txIndex]), shareRange)
+	return NewShareInclusionProof(dataSquare, getTxNamespace(classifiedTxs[txIndex]), shareRange)
 }
 
 // validateTxOrder returns an error unless all normal txs come before all blob
-// txs, and all blob txs come before all pay-for-fibre txs.
+// txs, and all blob txs come before all pay-for-fibre txs. It classifies txs
+// the same way the square builder does.
 func validateTxOrder(txs []square.ClassifiedTx) error {
-	prev := share.TxNamespace
+	seenBlobTx, seenFibreTx := false, false
 	for i, tx := range txs {
-		ns := txNamespace(tx)
-		if txNamespaceRank(ns) < txNamespaceRank(prev) {
-			return fmt.Errorf("tx at index %d is out of square order: %s tx after %s tx", i, txKindName(ns), txKindName(prev))
+		ns := getTxNamespace(tx)
+		switch {
+		case ns.Equals(share.PayForFibreNamespace):
+			seenFibreTx = true
+		case ns.Equals(share.PayForBlobNamespace):
+			if seenFibreTx {
+				return fmt.Errorf("blob tx at index %d is after a pay-for-fibre tx", i)
+			}
+			seenBlobTx = true
+		default:
+			if seenBlobTx || seenFibreTx {
+				return fmt.Errorf("normal tx at index %d is after a blob or pay-for-fibre tx", i)
+			}
 		}
-		prev = ns
 	}
 	return nil
 }
 
-func txNamespaceRank(ns share.Namespace) int {
-	switch {
-	case ns.Equals(share.TxNamespace):
-		return 0
-	case ns.Equals(share.PayForBlobNamespace):
-		return 1
-	default:
-		return 2
-	}
-}
-
-func txKindName(ns share.Namespace) string {
-	switch txNamespaceRank(ns) {
-	case 0:
-		return "normal"
-	case 1:
-		return "blob"
-	default:
-		return "pay-for-fibre"
-	}
-}
-
-// txNamespace returns the namespace of the compact shares that hold tx. It
-// classifies tx the same way the square builder does.
-func txNamespace(tx square.ClassifiedTx) share.Namespace {
+// getTxNamespace returns the namespace of the compact shares that hold tx. It
+// uses the same blob tx check as the square builder.
+func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
 	if tx.FibreTx != nil {
 		return share.PayForFibreNamespace
 	}
-	if tx.BlobTx != nil {
-		return share.PayForBlobNamespace
-	}
-	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx.Bytes)
+	_, isBlobTx, _ := blobtx.UnmarshalBlobTxNoCopy(tx.Bytes)
 	if isBlobTx {
 		return share.PayForBlobNamespace
 	}
