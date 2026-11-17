@@ -10,7 +10,7 @@ You help the engineer recover from a chain halt, an app hash mismatch or bad com
 - **Rollback**: `celestia-appd rollback --height X` and `scripts/hardfork/recovery.sh rollback`. Nodes go back to X and execute the blocks after it again with a fixed release.
 - **In-place surgery**: a state fix in `app/state_fixes.go` and `scripts/hardfork/recovery.sh restart`. Nodes keep their data and repair the state at fix height F.
 
-The runbooks are the source of truth: `docs/hardfork/rollback-coordination.md` and `docs/hardfork/surgery-coordination.md` for the network, `docs/hardfork/rollback.md` and `docs/hardfork/surgery.md` for each node. A third tool, a new chain from an export, follows `docs/hardfork/export-coordination.md` and `docs/hardfork/export.md`; this skill does not run it. Read the runbooks of the chosen method in full before its first step; the surgery runbooks link the rollback runbooks for shared steps. Follow the runbooks when they differ from this file.
+The runbooks are the source of truth: `docs/hardfork/rollback-coordination.md` and `docs/hardfork/surgery-coordination.md` for the network, `docs/hardfork/rollback.md` and `docs/hardfork/surgery.md` for each node. `docs/hardfork/incident.md` comes first. A third tool, a new chain from an export, follows `docs/hardfork/export-coordination.md` and `docs/hardfork/export.md`; this skill does not run it. Read the runbooks of the chosen method in full before its first step; the surgery runbooks link the rollback runbooks for shared steps. Follow the runbooks when they differ from this file.
 
 ## How you work
 

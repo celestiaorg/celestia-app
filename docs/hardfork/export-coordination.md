@@ -1,6 +1,7 @@
 # Coordinate a new chain from an export
 
 This runbook is for the protocol team. Validators and node operators follow [export.md](export.md).
+For a suspected network halt, start with [incident.md](incident.md) to confirm the halt and choose the recovery tool.
 
 A new chain starts from the state of the old chain at export height E. We export the state on our own node and build the genesis. Validators keep their keys and signer state and start from the published genesis. The old chain's blocks stay on archive nodes.
 
@@ -8,7 +9,7 @@ A new chain starts from the state of the old chain at export height E. We export
 
 Use a new chain when the state is too broken for a rollback or in-place surgery. See [When to use a rollback](rollback-coordination.md#when-to-use-a-rollback) and [When to use surgery](surgery-coordination.md#when-to-use-surgery). Check [Known limitations](#known-limitations) first.
 
-A new chain repairs nothing by itself: the genesis tool copies the state at E as it is. Broken state is left behind only by exporting below the height where it went wrong. E is then the last height whose state is correct.
+A new chain repairs nothing by itself: the genesis tool copies the state at E as it is. Broken state is left behind only by exporting below the height where it went wrong. E is then X in [incident.md](incident.md#assess-the-damage), the last height whose state is correct.
 
 ## Decisions for the new chain
 
@@ -25,7 +26,7 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
 
 ## Before the restart
 
-1. Announce the incident in the validator channels, as in item 1 of [Before the restart](rollback-coordination.md#before-the-restart). Also ask validators not to start nodes on the old chain again once they stop them.
+1. Send the halt notice, as in [incident.md](incident.md#contain-in-the-first-minutes). Also ask validators not to start nodes on the old chain again once they stop them.
 2. Ask each validator for its block height, app height and app hash while its RPC answers, with the commands in item 2 of [Before the restart](rollback-coordination.md#before-the-restart). Take C and E from the answers.
 3. Ask every validator to stop its node and remote signer and send its signer height (steps 3 and 4 of [export.md](export.md#steps)). Publish a deadline. V is the highest height sent. An honest validator signs at most C + 1, so investigate any higher V before the start. After the deadline, continue without the missing validators: if they are honest and stopped, their signer state is at most C + 1, which I covers.
 4. Emergency restart: compute I = max(V, C, E) + 11. A planned restart uses the I fixed in its proposal; see [Planned restart](#planned-restart).
