@@ -4,9 +4,12 @@ import "time"
 
 // GetUpgradeHeightDelay returns the delay in blocks after a quorum has been
 // reached that the chain should upgrade to the new version.
-func GetUpgradeHeightDelay(chainID string) int64 {
+func GetUpgradeHeightDelay(chainID string, appVersion uint64) int64 {
 	if chainID == TestChainID {
 		return TestUpgradeHeightDelay
+	}
+	if CortoV12Active(chainID, appVersion) {
+		return CortoV12UpgradeHeightDelay
 	}
 	if chainID == CortoChainID {
 		return CortoUpgradeHeightDelay

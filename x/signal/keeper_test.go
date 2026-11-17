@@ -264,7 +264,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.GetUpgradeHeightDelay(appconsts.TestChainID, 0))
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
@@ -541,7 +541,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
-		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
+		assert.Equal(t, appconsts.GetUpgradeHeightDelay(appconsts.TestChainID, 0), got.Upgrade.UpgradeHeight)
 	})
 }
 
@@ -679,4 +679,41 @@ func (m *mockStakingKeeper) IterateValidators(_ context.Context, cb func(index i
 		index++
 	}
 	return nil
+}
+
+func TestCortoUpgradeDelayUsesSchedulingVersion(t *testing.T) {
+	for _, version := range []uint64{11, 12} {
+		k, ctx, _ := setup(t)
+		header := ctx.BlockHeader()
+		header.Version.App = version
+		ctx = ctx.WithBlockHeader(header).WithBlockHeight(100).WithHeaderInfo(headerinfoForCorto(100))
+		for _, addr := range testutil.ValAddrs[:4] {
+			_, err := k.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: addr.String(), Version: 13})
+			require.NoError(t, err)
+		}
+		_, err := k.TryUpgrade(ctx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+		delay := appconsts.CortoUpgradeHeightDelay
+		if version == 12 {
+			delay = 4_500
+		}
+		got, err := k.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		require.Equal(t, int64(100)+delay, got.Upgrade.UpgradeHeight)
+		// Changing the current version cannot reschedule an already pending upgrade.
+		header.Version.App = 12
+		_, err = k.TryUpgrade(ctx.WithBlockHeader(header), &types.MsgTryUpgrade{})
+		require.ErrorIs(t, err, types.ErrUpgradePending)
+		got, err = k.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		require.Equal(t, int64(100)+delay, got.Upgrade.UpgradeHeight)
+		ready, _ := k.ShouldUpgrade(ctx.WithBlockHeight(100 + delay - 1))
+		require.False(t, ready)
+		ready, _ = k.ShouldUpgrade(ctx.WithBlockHeight(100 + delay))
+		require.True(t, ready)
+	}
+}
+
+func headerinfoForCorto(height int64) header.Info {
+	return header.Info{ChainID: appconsts.CortoChainID, Height: height}
 }

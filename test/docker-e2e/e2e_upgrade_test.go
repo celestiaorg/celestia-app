@@ -373,6 +373,10 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
 
+	beforeUpgrade, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err)
+	schedulingVersion := beforeUpgrade.Response.GetAppVersion()
+
 	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
 	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
 	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
@@ -411,7 +415,7 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	s.T().Logf("GetUpgrade returned no pending upgrade (err: %v); checking if the upgrade was already applied", getUpgradeErr)
 
 	// The upgrade height follows from the height MsgTryUpgrade landed at.
-	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID)
+	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID, schedulingVersion)
 
 	// ABCIInfo fails or blocks while the multiplexer swaps binaries at the
 	// upgrade height. Bound each call so one blocked request cannot use up the

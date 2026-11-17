@@ -13,6 +13,7 @@ import (
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
 
@@ -41,6 +42,9 @@ func NewCandidate(cdc codec.JSONCodec, exp *Export, opts Options) (*Genesis, err
 		return nil, &CheckError{Step: stepOptions, Field: "genesis-time", Want: ">= " + formatTime(blockTime), Got: formatTime(genesisTime)}
 	}
 	if err := checkMintTime(cdc, &exp.Genesis, genesisTime); err != nil {
+		return nil, err
+	}
+	if err := checkAuthzTime(cdc, &exp.Genesis, genesisTime); err != nil {
 		return nil, err
 	}
 
@@ -116,6 +120,20 @@ func checkMintTime(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) error
 	}
 	if gs.GenesisTime.After(genesisTime) {
 		return &CheckError{Step: stepOptions, Module: minttypes.ModuleName, Field: "genesis_time", Want: "<= " + formatTime(genesisTime), Got: formatTime(*gs.GenesisTime)}
+	}
+	return nil
+}
+
+// checkAuthzTime rejects a grant expiring exactly at G: authz InitGenesis skips only grants expiring before G and fails on it.
+func checkAuthzTime(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) error {
+	var gs authz.GenesisState
+	if err := decodeModule(cdc, g, authz.ModuleName, &gs); err != nil {
+		return err
+	}
+	for i, a := range gs.Authorization {
+		if a.Expiration != nil && a.Expiration.Equal(genesisTime) {
+			return &CheckError{Step: stepOptions, Module: authz.ModuleName, Field: fmt.Sprintf("authorization[%d].expiration", i), Want: "not genesis-time " + formatTime(genesisTime) + "; choose another genesis-time", Got: fmt.Sprintf("granter %s, grantee %s", a.Granter, a.Grantee)}
+		}
 	}
 	return nil
 }

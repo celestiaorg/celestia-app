@@ -230,7 +230,7 @@ func fuzzSignalTryUpgrade(t *testing.T, script []byte) {
 				require.NoError(t, err)
 				require.NotNil(t, after, "quorum for version %d but no upgrade scheduled", wantVersion)
 				require.Equal(t, wantVersion, after.AppVersion)
-				require.Equal(t, height+appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), after.UpgradeHeight)
+				require.Equal(t, height+appconsts.GetUpgradeHeightDelay(appconsts.TestChainID, 0), after.UpgradeHeight)
 			default:
 				require.NoError(t, err)
 				require.Nil(t, after, "upgrade scheduled without quorum")

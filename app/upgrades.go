@@ -101,7 +101,10 @@ func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 	if err != nil {
 		return err
 	}
-	consensusParams.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+	_, consensusParams.Evidence.MaxAgeNumBlocks = appconsts.GetEvidenceAgeLimits(ctx.ChainID(), appconsts.Version)
+	if appconsts.CortoV12Active(ctx.ChainID(), appconsts.Version) {
+		consensusParams.Evidence.MaxAgeDuration = appconsts.CortoMaxAgeDuration
+	}
 	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, consensusParams); err != nil {
 		return err
 	}
@@ -120,6 +123,9 @@ func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 		return err
 	}
 	stakingParams.HistoricalEntries = appconsts.HistoricalEntries
+	if ctx.ChainID() == appconsts.CortoChainID && appconsts.Version == 12 {
+		stakingParams.UnbondingTime = appconsts.CortoUnbondingTime
+	}
 	if err := app.StakingKeeper.SetParams(ctx, stakingParams); err != nil {
 		return err
 	}
@@ -133,7 +139,7 @@ func (app App) rescaleForBlockInterval(ctx sdk.Context) error {
 	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, connectionParams)
 
 	ctx.Logger().Info("rescaled block-count parameters for 0.8s blocks",
-		"max_age_num_blocks", appconsts.MaxAgeNumBlocks,
+		"max_age_num_blocks", consensusParams.Evidence.MaxAgeNumBlocks,
 		"signed_blocks_window", appconsts.SignedBlocksWindow,
 		"historical_entries", appconsts.HistoricalEntries,
 		"payment_promise_height_window", fibretypes.DefaultPaymentPromiseHeightWindow,
