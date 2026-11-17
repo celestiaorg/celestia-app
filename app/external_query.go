@@ -18,7 +18,7 @@ type abciQueryFn = func(context.Context, *abci.RequestQuery) (*abci.ResponseQuer
 // touch.
 func rejectProofQueries(next abciQueryFn) abciQueryFn {
 	return func(ctx context.Context, req *abci.RequestQuery) (*abci.ResponseQuery, error) {
-		if req != nil && proof.IsProofQueryPath(req.Path) {
+		if proof.IsProofQueryPath(req.Path) {
 			return nil, status.Errorf(codes.PermissionDenied, "query path %q is not served over this endpoint; use the CometBFT RPC routes tx, tx_search or prove_shares_v2", req.Path)
 		}
 		return next(ctx, req)
