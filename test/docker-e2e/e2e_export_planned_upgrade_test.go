@@ -47,10 +47,10 @@ const (
 // TestIBCPlannedUpgradeRestart restarts Celestia from an export as a new
 // revision through a planned IBC upgrade. One governance proposal opens the
 // circuit breaker for MsgIBCSoftwareUpgrade, schedules the upgrade at H and
-// closes the circuit again. The chain halts at H and restarts from the export
-// at H-1 as revision 1, which header H allows when the EndBlock of H-1 changed
-// no validators. Hermes upgrades simapp's client of Celestia from two archives of
-// the old chain that skip the upgrade.
+// closes the circuit again. The chain halts at H and restarts as revision 1
+// from a plain export, at H-1, which the app allows because the EndBlock of
+// H-1 changed no validators. Hermes upgrades simapp's client of Celestia from
+// two archives of the old chain that skip the upgrade.
 func (s *IBCTestSuite) TestIBCPlannedUpgradeRestart() {
 	if testing.Short() {
 		s.T().Skip("skipping IBC planned upgrade restart test in short mode")
@@ -104,24 +104,17 @@ func (s *IBCTestSuite) TestIBCPlannedUpgradeRestart() {
 	s.Require().NoError(s.chainA.Stop(ctx), "failed to stop the chain")
 	s.seedArchives(ctx, seed, archives, upgradeHeight)
 
-	v := s.chainA.Validators[0]
-	stdout, stderr, err := v.Exec(ctx, []string{"celestia-appd", "export", "--home", v.HomeDir()}, nil)
-	s.Require().Error(err, "export below a scheduled upgrade succeeded")
-	// Tastora returns the command output in err when the command fails.
-	refused := string(stdout) + string(stderr) + err.Error()
-	s.Require().Contains(refused, fmt.Sprintf("upgrade %q is scheduled for height %d: export with --height %d instead",
-		plannedUpgradeName, upgradeHeight, upgradeHeight-2))
-	s.Require().Contains(refused, "pass --allow-upgrade-window")
-
-	r := &exportRestart{newChainID: newChainID, exportAt: upgradeHeight - 1, exportFlags: []string{"--allow-upgrade-window"}, initialHeight: initialHeight}
+	r := &exportRestart{newChainID: newChainID, initialHeight: initialHeight}
 	s.exportAndRestart(ctx, s.chainA, r)
+	s.Require().Equal(upgradeHeight-1, r.exportHeight, "the plain export is not at H-1")
 	s.celestiaTxClient, err = s.setupTxClient(ctx, s.chainA)
 	s.Require().NoError(err, "failed to set up the tx client on the new chain")
 	s.Require().Equal(before, s.ibcBalances(ctx, ""), "balances differ from the export height")
 	// The upgraded client trusts the next validators of header H-1, the
 	// validators of block H; the export at H-1 holds them only if the EndBlock
-	// of H-1 changed no validators, so header H has equal hashes. Nothing in
-	// this test changes validators.
+	// of H-1 changed no validators, so header H has equal hashes. The app
+	// allows the export at H-1 only then. Nothing in this test changes
+	// validators.
 	archive := archives[0]
 	header := s.block(ctx, archive, upgradeHeight).Block.Header
 	s.Require().Equal(header.ValidatorsHash, header.NextValidatorsHash, "the EndBlock of H-1 changed validators")
