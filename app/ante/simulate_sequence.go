@@ -11,9 +11,9 @@ import (
 // or false if it has none. It must not take app locks: Simulate holds them.
 type PendingNextSequenceFn func(signer []byte) (uint64, bool)
 
-// SimulateSequenceDecorator raises a lagging checkState sequence, unmetered, past
-// the signer's pending txs (committed state never exceeds it here), so during
-// recheck only next passes and any other sequence fails reporting next.
+// SimulateSequenceDecorator raises, unmetered, a checkState sequence that lags the
+// signer's pending txs to one past the highest, so Simulate does not fail with a
+// stale sequence during recheck. Simulate discards the write.
 type SimulateSequenceDecorator struct {
 	ak   ante.AccountKeeper
 	next PendingNextSequenceFn

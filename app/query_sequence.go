@@ -22,6 +22,13 @@ func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
 		return
 	}
 	app.pendingSequencer.Store(&p)
+	// Read the loaded state until the first Commit, e.g. after the multiplexer
+	// switches to this app with txs already pending.
+	if app.committedCtx.Load() == nil && app.LastBlockHeight() > 0 {
+		if ctx, err := app.CreateQueryContext(0, false); err == nil {
+			app.committedCtx.CompareAndSwap(nil, &ctx)
+		}
+	}
 }
 
 type pendingSequencerSetter interface {
@@ -54,7 +61,7 @@ func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence)
 }
 
 // nextSequence returns max(committed sequence, highest pending sequence + 1),
-// or false without an in-process mempool or a Commit since start. Lock free.
+// or false without an in-process mempool or a committed height. Takes no app locks.
 func (app *App) nextSequence(signer []byte) (uint64, bool) {
 	if app.pendingSequencer.Load() == nil {
 		return 0, false
@@ -91,6 +98,7 @@ func (app *App) pendingNextSequence(signer []byte) (uint64, bool) {
 func (app *App) storeCommittedContext() {
 	ctx, err := app.CreateQueryContext(0, false)
 	if err != nil {
+		app.Logger().Error("QuerySequence falls back to checkState", "err", err)
 		app.committedCtx.Store(nil)
 		return
 	}
@@ -98,7 +106,7 @@ func (app *App) storeCommittedContext() {
 }
 
 // querySequenceFromCheckState is the fallback when nextSequence has no answer
-// (out-of-process node, no Commit yet); it lags the true value during recheck.
+// (out-of-process node, no committed height); it lags the true value during recheck.
 func (app *App) querySequenceFromCheckState(signer []byte) (*abci.ResponseQuerySequence, error) {
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()

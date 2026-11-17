@@ -411,11 +411,11 @@ func TestSimulateSequenceBeforeFirstCommit(t *testing.T) {
 
 	restarted := h.restart()
 	restarted.SetPendingSequencer(h.pool)
-	// Same height, no committed context: QuerySequence falls back to the lagging checkState.
+	// Same height, no Commit yet: QuerySequence reads the loaded state and the pool.
 	require.Equal(t, h.app.LastBlockHeight(), restarted.LastBlockHeight())
 	rsp, err := restarted.QuerySequence(context.Background(), &abci.RequestQuerySequence{Signer: h.addrs[0]})
 	require.NoError(t, err)
-	require.Equal(t, start, rsp.Sequence)
+	require.Equal(t, next, rsp.Sequence)
 
 	_, _, err = restarted.Simulate(h.sendTx(0, next))
 	require.NoError(t, err)
