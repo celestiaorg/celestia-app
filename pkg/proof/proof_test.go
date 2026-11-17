@@ -105,6 +105,32 @@ func TestNewTxInclusionProof(t *testing.T) {
 	}
 }
 
+// TestNewTxInclusionProofRejectsOutOfOrderTxs checks that txs not in square
+// order are rejected. The square builder regroups txs by kind, so the proof for
+// an index would otherwise cover a different tx than the one at that index.
+func TestNewTxInclusionProofRejectsOutOfOrderTxs(t *testing.T) {
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+	blobTxs := blobfactory.RandBlobTxs(signer, random.New(), 2, 1, 500).ToSliceOfBytes()
+	normalTxs := testfactory.GenerateRandomTxs(2, 500).ToSliceOfBytes()
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	fibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
+
+	testCases := map[string][][]byte{
+		"normal after blob":  {blobTxs[0], normalTxs[0], normalTxs[1], blobTxs[1]},
+		"normal after fibre": {fibreTx, normalTxs[0]},
+		"blob after fibre":   {fibreTx, blobTxs[0]},
+	}
+	for name, txs := range testCases {
+		t.Run(name, func(t *testing.T) {
+			for i := range txs {
+				_, err := proof.NewTxInclusionProof(txs, uint64(i), appconsts.Version)
+				require.Error(t, err, "tx index %d", i)
+			}
+		})
+	}
+}
+
 func TestNewShareInclusionProof(t *testing.T) {
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	ns2 := share.MustNewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
