@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -3,7 +3,7 @@ package proof_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
 	"github.com/stretchr/testify/require"
 )
 
