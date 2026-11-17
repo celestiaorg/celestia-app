@@ -18,13 +18,8 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 )
 
-// validateDeterministicMsgs returns an error if tx carries a message in a form
-// this node does not admit (see checkDeterministicMsg), either at the top level or one level down in a MsgExec or MsgSubmitProposal.
-// Deeper nesting is not inspected because the ante handler rejects it.
-//
-// This is a local mempool and proposal policy, not a validity rule:
-// ProcessProposal and FinalizeBlock still accept such a tx, so blocks built by
-// nodes without this check stay valid.
+// validateDeterministicMsgs returns an error if tx, or a MsgExec or MsgSubmitProposal in it, holds a message that
+// checkDeterministicMsg rejects. It is mempool and proposal policy only, not a block validity rule.
 func validateDeterministicMsgs(tx sdk.Tx) error {
 	for _, msg := range tx.GetMsgs() {
 		if err := checkDeterministicMsg(msg); err != nil {
@@ -41,7 +36,7 @@ func validateDeterministicMsgs(tx sdk.Tx) error {
 			nested, err = m.GetMsgs()
 		}
 		if err != nil {
-			// Undecodable inner messages are rejected by the ante handler.
+			// The ante handler rejects undecodable and deeper nested messages.
 			continue
 		}
 		for _, nestedMsg := range nested {
@@ -73,19 +68,14 @@ func checkDeterministicMsg(msg sdk.Msg) error {
 	return nil
 }
 
-// maxTransferPacketDataSize is the largest ICS-20 packet data inspected before
-// the ante handler. It fits an ibc-go sender's largest memo and receiver, a
-// 1023-byte sender, a 78-digit amount and a 16 KiB denom trace, each with every
-// byte JSON-escaped to six bytes, plus 1 KiB for the field names.
+// maxTransferPacketDataSize is the largest packet data inspected: the largest valid ICS-20 fields, JSON-escaped, plus 1 KiB.
 const maxTransferPacketDataSize = 6*(transfertypes.MaximumMemoLength+transfertypes.MaximumReceiverLength+1023+78+16<<10) + 1<<10
 
 // ics20Fields are the JSON keys of ICS-20 packet data.
 var ics20Fields = []string{"amount", "denom", "memo", "receiver", "sender"}
 
-// validateTransferPacketData returns an error if data is too large, holds a
-// key other than the ICS-20 fields or a field twice, or carries a forward memo
-// that validateForwardMemo rejects. Packet data the middleware cannot decode is
-// passed on unchanged, so it is allowed.
+// validateTransferPacketData returns an error if data is too large, has a repeated key or one other than the
+// ICS-20 fields, or has a forward memo that validateForwardMemo rejects.
 func validateTransferPacketData(data []byte) error {
 	if len(data) > maxTransferPacketDataSize {
 		return fmt.Errorf("packet data is longer than %d bytes", maxTransferPacketDataSize)
@@ -125,8 +115,7 @@ func truncate(s string) string {
 
 var forwardFields = []string{"receiver", "port", "channel", "timeout", "retries", "next"}
 
-// forwardMetadata mirrors pfmtypes.ForwardMetadata but keeps next raw, so that
-// decoding it costs time linear in its size.
+// forwardMetadata is pfmtypes.ForwardMetadata with next kept raw, so decoding it is linear in its size.
 type forwardMetadata struct {
 	Receiver string            `json:"receiver,omitempty"`
 	Port     string            `json:"port,omitempty"`
@@ -136,9 +125,7 @@ type forwardMetadata struct {
 	Next     *json.RawMessage  `json:"next,omitempty"`
 }
 
-// validateForwardMemo returns an error if the packet-forward middleware would
-// treat memo as a forward request and memo is not in the supported form. Its
-// cost is linear in the memo length.
+// validateForwardMemo returns an error if memo is a forward request in an unsupported form, in linear time.
 func validateForwardMemo(memo string) error {
 	bz := []byte(memo)
 	var (
@@ -180,7 +167,7 @@ func validateForwardMemo(memo string) error {
 	if !utf8.Valid(bz) || hasLoneSurrogate(bz) {
 		return fmt.Errorf("memo must be valid UTF-8 without lone surrogate escapes")
 	}
-	// The same limits as the packet-forward memo check on main.
+	// The packet-forward memo limits from celestia-app#8629 (not merged).
 	if !pfmForwardMemoWithinLimits(memo) {
 		return fmt.Errorf("memo repeats a key, nests deeper than %d levels, or has a forward.next that is not null, an object, or a string holding a JSON object", maxPFMForwardMemoDepth)
 	}
@@ -219,7 +206,6 @@ func validateForwardMemo(memo string) error {
 		return fmt.Errorf("forward.retries must be a non-negative integer")
 	}
 
-	// Decode and validate as the middleware does.
 	var metadata struct {
 		Forward *forwardMetadata `json:"forward"`
 	}
@@ -234,8 +220,7 @@ func validateForwardMemo(memo string) error {
 		return fmt.Errorf("invalid forward metadata")
 	}
 	if f.Next != nil && (*f.Next)[0] == '"' {
-		// The middleware re-encodes the content of a string next as the next
-		// memo, which fails unless that content is JSON.
+		// The middleware re-encodes a string next as the next memo, so it must hold JSON.
 		var next string
 		if err := json.Unmarshal(*f.Next, &next); err != nil {
 			return fmt.Errorf("invalid forward.next")
@@ -246,7 +231,6 @@ func validateForwardMemo(memo string) error {
 		}
 	}
 
-	// Accept a numeric timeout only as an integer in the int64 range.
 	if numericTimeout {
 		var v float64
 		if err := json.Unmarshal(timeout, &v); err != nil {
@@ -259,10 +243,8 @@ func validateForwardMemo(memo string) error {
 	return nil
 }
 
-// scanObject calls fn with the raw key and raw value of each member of the
-// JSON object in bz, and returns the nesting depth of bz. isObject is false if
-// bz does not start with '{'. It tolerates malformed JSON and reads each byte
-// a constant number of times.
+// scanObject calls fn with the raw key and value of each member of the JSON object in bz and returns its depth.
+// It tolerates malformed JSON and runs in linear time.
 func scanObject(bz []byte, fn func(key, value []byte)) (depth int, isObject bool) {
 	i := skipSpace(bz, 0)
 	if i >= len(bz) || bz[i] != '{' {
@@ -293,8 +275,7 @@ func scanObject(bz []byte, fn func(key, value []byte)) (depth int, isObject bool
 	}
 }
 
-// skipValue returns the index after the JSON value that starts at bz[i], and
-// the nesting depth of that value.
+// skipValue returns the index after the JSON value at bz[i] and the nesting depth of that value.
 func skipValue(bz []byte, i int) (end, depth int) {
 	level := 0
 	for ; i < len(bz); i++ {
@@ -344,9 +325,8 @@ func skipSpace(bz []byte, i int) int {
 	return i
 }
 
-// matchKey reports whether the raw JSON string key decodes to name, and
-// whether it matches name ignoring case, '_' and '-', as some JSON decoders do.
-// name must be lower-case ASCII.
+// matchKey reports whether the raw JSON key decodes to name, and whether it matches name ignoring case, '_'
+// and '-' as some JSON decoders do. name must be lower-case ASCII.
 func matchKey(key []byte, name string) (exact, similar bool) {
 	exact, similar = true, true
 	exactLen, similarLen := 0, 0
@@ -377,8 +357,7 @@ func equalFoldRune(r, t rune) bool {
 	}
 }
 
-// decodeStringRune decodes the rune at s[i] in the raw content of a JSON
-// string, and returns it with the number of bytes it takes.
+// decodeStringRune returns the rune at s[i] in a raw JSON string and the number of bytes it takes.
 func decodeStringRune(s []byte, i int) (rune, int) {
 	if s[i] != '\\' {
 		return utf8.DecodeRune(s[i:])
@@ -412,8 +391,7 @@ func decodeStringRune(s []byte, i int) (rune, int) {
 	return rune(s[i+1]), 2
 }
 
-// hexRune returns the rune spelled by four hex digits at s[i], or
-// utf8.RuneError if there are none.
+// hexRune returns the rune spelled by four hex digits at s[i], or utf8.RuneError if there are none.
 func hexRune(s []byte, i int) rune {
 	if i+4 > len(s) {
 		return utf8.RuneError
@@ -435,8 +413,7 @@ func hexRune(s []byte, i int) rune {
 	return r
 }
 
-// hasLoneSurrogate reports whether a string in the JSON text bz holds a \u
-// escape of a UTF-16 surrogate that is not part of a valid pair.
+// hasLoneSurrogate reports whether a string in the JSON text bz escapes a UTF-16 surrogate outside a valid pair.
 func hasLoneSurrogate(bz []byte) bool {
 	for i := 0; i < len(bz); i++ {
 		if bz[i] != '"' {
