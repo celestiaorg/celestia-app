@@ -20,7 +20,7 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
 - **Signer state.** Validators keep it. `recovery.sh new-chain` refuses a local signer state at or above I. Never reset it.
 - **Genesis time.** G is the planned start time, and the first block of the new chain has that time. G can't be earlier than the block time of E. Nothing is minted for the halt, and the inflation schedule continues from the original genesis time.
 - **Binary.** The new chain runs the exported app version. Use the same release binary for the export, the genesis tool and every validator. The genesis records the release in `app_name` and `app_version`.
-- **Signal.** x/signal state is not exported. Validators signal again for any upgrade after the restart.
+- **Signal and upgrade plans.** x/signal state and x/upgrade plans are not exported. A pending upgrade starts over on the new chain; see item 2 of [After the restart](#after-the-restart).
 - **DA.** Bridge and light nodes of celestia-node need their own procedure, which the celestia-node team handles separately.
 
 ## Before the restart
@@ -31,7 +31,15 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
 4. Emergency restart: compute I = max(V, C, E) + 11. A planned restart uses the I fixed in its proposal; see [Planned restart](#planned-restart).
 5. Keep at least two archive nodes of the old chain. Use full nodes without a validator key that hold every block up to C and ran with `discard_abci_responses = false` and `indexer = "kv"`. Do not prune them, and do not move them to the new chain. Before G, isolate them in `config/config.toml` and restart them: `persistent_peers = ""`, `seeds = ""`, `pex = false`, `max_num_inbound_peers = 0` and `max_num_outbound_peers = 0`. Keep them up after the restart: Hermes and the Hyperlane relayer read old blocks from them. If C is above E, Hermes needs one with every block up to C, and the Hyperlane relayer one trimmed to E (see [Hyperlane](#hyperlane)). A planned restart sets up its archives differently.
 6. Choose the release and G. Leave time to publish the genesis, download it (about 2.6 GB for mainnet) and run the dry runs.
-7. Run the export script (not merged yet, #8668) from a checkout of the release tag, on a stopped node of ours that has already executed E. The script can sync a node that is behind, but on a halted chain it may not reach E: block sync verifies block E only with block E+1. The script runs the node with a throwaway signer, so it never signs, exports the state, hashes it and builds the genesis with `celestia-appd genesis from-export` (not merged yet, #8669). HOME_DIR is the node home, OUT an empty output directory and ARCHIVE_RPC an archive node's RPC:
+7. Record what the export drops. On an archive at E, query the pending signal upgrade, the signal tally for the next app version and the x/upgrade plan, and post the output in `<incident channel>`. The export does not carry them and prints a warning for each (not merged yet):
+
+   ```sh
+   celestia-appd query signal upgrade --height "$E" --node "$ARCHIVE_RPC"
+   celestia-appd query signal tally <next-version> --height "$E" --node "$ARCHIVE_RPC"
+   celestia-appd query upgrade plan --height "$E" --node "$ARCHIVE_RPC"
+   ```
+
+8. Run the export script (not merged yet, #8668) from a checkout of the release tag, on a stopped node of ours that has already executed E. The script can sync a node that is behind, but on a halted chain it may not reach E: block sync verifies block E only with block E+1. The script runs the node with a throwaway signer, so it never signs, exports the state, hashes it and builds the genesis with `celestia-appd genesis from-export` (not merged yet, #8669). HOME_DIR is the node home, OUT an empty output directory and ARCHIVE_RPC an archive node's RPC:
 
    ```sh
    bash scripts/hardfork/export.sh --home "$HOME_DIR" --height "$E" --rpc "$ARCHIVE_RPC" --out "$OUT" \
@@ -40,15 +48,15 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
 
    Add `--chain-id <id>` only for a new chain-id. The script writes these files to `--out`: `export.json`, `export.json.sha256`, `export.manifest`, `header.json`, `node.log`, `export.log`, `timings.tsv` and `summary.txt`, and, when it builds the genesis, `genesis.json`, `genesis.json.sha256`, `genesis.json.report.json` and `genesis.log`.
 
-8. Check `app_hash_at_height` in `summary.txt`. The script compares the node's app hash at E with the header of block E+1 on `--rpc`, and stops before the export on a mismatch. `matches block <E+1>: <hash>` is the good case. `not verified (<rpc> has no block <E+1>)`, `not verified (node.log has no finalized block <E>)` and `not verified (the app is at <N>)` mean the script could not compare. Then compare the node's app hash at E with the ones validators sent in item 2. Read it in `<out>/node.log`: the `finalized block` line for height E (`block_app_hash`), or, if the node was already at E, the `ABCI Handshake App Info` line (`hash`). Both are info-level lines, so they need `log_level` info, the default. If `node.log` has neither, the export reproduction in item 11 is the check. The log and `summary.txt` print hex, and `/abci_info` prints base64; compare hashes in the same encoding.
-9. Review the report. Its `status` says the candidate may be published only after the checks in this runbook pass, items 8 to 12.
-   - `chain_id`, `initial_height` and `genesis_time` change from the export to the values you chose. `chain_id_warning` appears only with a new chain-id.
-   - `export_height` is E and `app_version` the release.
-   - `validators` and `total_power` list the validator set of the new chain.
-   - `checks` lists the supply, module and escrow balances, their surpluses and the mint excess. Compare them with the old chain at E, for example `celestia-appd query bank total --height "$E" --node "$ARCHIVE_RPC"`.
-10. If the script stops with `genesis from-export failed; see <out>/genesis.log` and the log shows `conservation: "mint": "excess": want "<= 0 or acknowledged", got "<X>"`, check the excess. A positive excess is normal after a slash or burn since the yearly inflation recompute. Once reviewed, run item 7 again with `--accept-mint-excess <X>`.
-11. Ask validators with more than 2/3 of voting power to reproduce the export (step 5 of [export.md](export.md#steps)). Their SHA-256 must equal ours in `export.json.sha256`. The export takes only `genesis_time`, `chain_id` and `app_hash` from the node's `config/genesis.json` (cosmos-sdk `server/export.go`); the rest comes from the state and the binary. So the hashes match when validators run the same release binary on a node with the chain's genesis file. Do not publish the genesis until it does; if a hash differs, find out why first.
-12. At the same time, dry start the candidate. This runs InitChain on it. Use a host where no other node runs, with about 64 GB of memory for mainnet, and an empty directory SCRATCH with room for the state:
+9. Check `app_hash_at_height` in `summary.txt`. The script compares the node's app hash at E with the header of block E+1 on `--rpc`, and stops before the export on a mismatch. `matches block <E+1>: <hash>` is the good case. `not verified (<rpc> has no block <E+1>)`, `not verified (node.log has no finalized block <E>)` and `not verified (the app is at <N>)` mean the script could not compare. Then compare the node's app hash at E with the ones validators sent in item 2. Read it in `<out>/node.log`: the `finalized block` line for height E (`block_app_hash`), or, if the node was already at E, the `ABCI Handshake App Info` line (`hash`). Both are info-level lines, so they need `log_level` info, the default. If `node.log` has neither, the export reproduction in item 12 is the check. The log and `summary.txt` print hex, and `/abci_info` prints base64; compare hashes in the same encoding.
+10. Review the report. Its `status` says the candidate may be published only after the checks in this runbook pass, items 9 to 13.
+    - `chain_id`, `initial_height` and `genesis_time` change from the export to the values you chose. `chain_id_warning` appears only with a new chain-id.
+    - `export_height` is E and `app_version` the release.
+    - `validators` and `total_power` list the validator set of the new chain.
+    - `checks` lists the supply, module and escrow balances, their surpluses and the mint excess. Compare them with the old chain at E, for example `celestia-appd query bank total --height "$E" --node "$ARCHIVE_RPC"`.
+11. If the script stops with `genesis from-export failed; see <out>/genesis.log` and the log shows `conservation: "mint": "excess": want "<= 0 or acknowledged", got "<X>"`, check the excess. A positive excess is normal after a slash or burn since the yearly inflation recompute. Once reviewed, run item 8 again with `--accept-mint-excess <X>`.
+12. Ask validators with more than 2/3 of voting power to reproduce the export (step 5 of [export.md](export.md#steps)). Their SHA-256 must equal ours in `export.json.sha256`. The export takes only `genesis_time`, `chain_id` and `app_hash` from the node's `config/genesis.json` (cosmos-sdk `server/export.go`); the rest comes from the state and the binary. So the hashes match when validators run the same release binary on a node with the chain's genesis file. Do not publish the genesis until it does; if a hash differs, find out why first.
+13. At the same time, dry start the candidate. This runs InitChain on it. Use a host where no other node runs, with about 64 GB of memory for mainnet, and an empty directory SCRATCH with room for the state:
 
     ```sh
     celestia-appd init dry-start --home "$SCRATCH" --chain-id "$CHAIN_ID"
@@ -64,10 +72,10 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
     rm -rf "$SCRATCH"
     ```
 
-13. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. Post the SHA-256 in the validator channels, not only next to the file.
-14. Tell relayer operators what to do; see [IBC](#ibc) and [Hyperlane](#hyperlane).
-15. Ask every validator to run the dry run (steps 6-8 of [export.md](export.md#steps)). Continue when every report contains the genesis line and no `error:` line.
-16. Before G, confirm that validators ready to start hold more than 2/3 of `total_power` in the report. They run `recovery.sh new-chain` before G, and their nodes wait for G.
+14. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. Post the SHA-256 in the validator channels, not only next to the file.
+15. Tell relayer operators what to do; see [IBC](#ibc) and [Hyperlane](#hyperlane).
+16. Ask every validator to run the dry run (steps 6-8 of [export.md](export.md#steps)). Continue when every report contains the genesis line and no `error:` line.
+17. Before G, confirm that validators ready to start hold more than 2/3 of `total_power` in the report. They run `recovery.sh new-chain` before G, and their nodes wait for G.
 
 If an export script run fails or is interrupted, run it again with the same `--out`, `--height` and chain. It reuses `export.json` if it matches `export.json.sha256` and skips the sync and the export. It reuses `genesis.json` only if it was built with the same values. To build the genesis with other values, delete `genesis.json`, `genesis.json.sha256` and `genesis.json.report.json` first. If it says `<out> is not empty` or `remove <out>`, use an empty `--out`. If it says `stop it first`, stop that node.
 
@@ -104,7 +112,7 @@ Then:
 
 1. Tell explorers and indexers that the new chain starts at I. Heights E+1 to I-1 do not exist on it, and older blocks are only on the archives. Nothing is minted for the halt. Unbondings that matured during the halt complete in the first block.
    After an export below the tip, the kept tx index still returns transactions from heights E+1 to C.
-2. Ask validators to signal again for any pending upgrade.
+2. If item 7 of [Before the restart](#before-the-restart) found a pending upgrade, validators signal the same version again with `celestia-appd tx signal signal <version> --from <key>`. Once the tally passes, anyone sends `celestia-appd tx signal try-upgrade --from <key>`. The upgrade delay starts over: 756,000 blocks on mainnet (`MainnetUpgradeHeightDelay`), about 7 days at 0.8 s blocks. A pending x/upgrade plan is scheduled again through governance.
 3. Keep the archive nodes up. Devops runs them: the archive with every block up to C (Hermes, the damage assessment above E, undelivered Hyperlane messages, DA blobs below E) and, when needed, the one rolled back to E for the Hyperlane relayer. Keep them for at least 30 days and at least the trusting period of the counterparty IBC clients, and until the damage assessment and the list of undelivered messages are closed. Then take a final snapshot of each and keep it in cold storage.
 4. Tell validators when they may delete their backups (step 13 of [export.md](export.md#steps)).
 5. Fibre. The genesis carries no staking historical info, so the new chain can't verify a certificate signed for an old height, even with the same chain-id. A `MsgPayForFibre` that did not land before the halt fails. Tell fibre clients to upload that data again, with a new payment promise and certificate at a height of the new chain. Settling an old promise with `MsgPaymentPromiseTimeout` needs no validator set. With the same chain-id it works while the promise's creation time is less than `WithdrawalDelay` (24 hours by default) before the block time, which starts at G. With a new chain-id it fails: the promise names the old chain-id.
@@ -188,11 +196,11 @@ A planned restart moves IBC clients to a new revision of the chain-id, for examp
 2. Pass one governance proposal with three messages: `MsgResetCircuitBreaker` for `MsgIBCSoftwareUpgrade`, `MsgIBCSoftwareUpgrade` with U and the upgraded client state (the new chain-id, latest height (1, I)), and `MsgTripCircuitBreaker`. The circuit breaker blocks `MsgIBCSoftwareUpgrade` by default.
    The proposal must execute by the EndBlock of block U-2. The IBC module stores the upgraded consensus state only in the BeginBlock of U-1, and only if the upgrade is already scheduled. A proposal that executes in the EndBlock of U-1 still halts the chain at U, and the export still succeeds, but Hermes has no upgraded consensus state to prove. A proposal executes in the EndBlock of the first block whose time is at or after its `voting_end_time`. So choose U so that block U-2 comes well after that time, at least an hour of blocks at the current block time, and check that `celestia-appd query upgrade plan` shows U before the chain reaches U-2.
 3. The chain halts at U. Block U is committed but never executed, so its transactions are always dropped. Not every validator exits at U: in a nightly run of the test, 1 of 3 exited and the others waited one height below. Once one validator has exited, stop all of them.
-4. Before item 7 of [Before the restart](#before-the-restart), set up two archives of the old chain. `export.sh` reads header U from `--rpc`, and Hermes needs block U later:
+4. Before item 8 of [Before the restart](#before-the-restart), set up two archives of the old chain. `export.sh` reads header U from `--rpc`, and Hermes needs block U later:
    - copy `data/` from a validator that exited at U, without `data/cs.wal` and keeping each archive's own `priv_validator_state.json`. Gossip may not deliver block U;
    - peer the archives only with each other: `persistent_peers` set to the other archive, `seeds = ""`, `pex = false`. Hermes refuses a node that is catching up, and a node without peers stays catching up;
    - start them with `--unsafe-skip-upgrades=<U>`, so they execute block U.
-5. Before item 13 of [Before the restart](#before-the-restart), check on an archive that the upgraded client state and the upgraded consensus state for U exist at height U-1. Hermes proves both at that height. Each line must print `present`:
+5. Before item 14 of [Before the restart](#before-the-restart), check on an archive that the upgraded client state and the upgraded consensus state for U exist at height U-1. Hermes proves both at that height. Each line must print `present`:
 
    ```sh
    for k in upgradedClient upgradedConsState; do
@@ -202,7 +210,7 @@ A planned restart moves IBC clients to a new revision of the chain-id, for examp
    done
    ```
 
-6. E is U-1 and C is U. The IBC upgrade trusts the next validators hash in header U-1, the validator set of block U. An export at U-1 (not merged yet, #8665) checks that its validator set matches that hash, which holds when block U-1 changed no validator power. Otherwise it fails, and `export.sh` shows `upgrade "<name>" is scheduled for height <U> and block <U-1> changed the validator set: export with --height <U-2> instead`. Then run item 7 of [Before the restart](#before-the-restart) again with `--height <U-2>` and an empty `--out`: the transactions of block U-1 are dropped too, and [Export below the tip](#export-below-the-tip) applies to them. The test covers only the export at U-1.
+6. E is U-1 and C is U. The IBC upgrade trusts the next validators hash in header U-1, the validator set of block U. An export at U-1 (not merged yet, #8665) checks that its validator set matches that hash, which holds when block U-1 changed no validator power. Otherwise it fails, and `export.sh` shows `upgrade "<name>" is scheduled for height <U> and block <U-1> changed the validator set: export with --height <U-2> instead`. Then run item 8 of [Before the restart](#before-the-restart) again with `--height <U-2>` and an empty `--out`: the transactions of block U-1 are dropped too, and [Export below the tip](#export-below-the-tip) applies to them. The test covers only the export at U-1.
 7. Pass the new chain-id to `export.sh` with `--chain-id`.
 8. After the restart, wait until an archive serves the commit of U, its app height is U and it is not catching up. Relayers point the Celestia entry in Hermes at that archive and move each client with `hermes upgrade client --host-chain <counterparty-chain-id> --client <client-id> --upgrade-height <U>`. Then they point the entry back at a node of the new chain, rename it to the new chain-id as in [New chain-id without a proposal](#new-chain-id-without-a-proposal), and start Hermes. In the test, a transfer sent before the halt was delivered once and transfers worked both ways at revision 1.
 
@@ -212,6 +220,7 @@ A planned restart moves IBC clients to a new revision of the chain-id, for examp
 - If validators with 1/3 or more of voting power can't take part, the new chain does not produce blocks. There is no tool to replace the validator set.
 - The dry start runs only InitChain. State that imports but fails in the first BeginBlock or EndBlock is not caught.
 - The import resets the staking unbonding ID counter to 1 and loses the unbonding-type and reverse ID indexes, as measured on a mainnet export. Queued unbondings still pay out. A fix in the cosmos-sdk fork is tracked.
+- The new chain drops a pending signal upgrade, the signals and any x/upgrade plan. An upgrade that was pending waits a full new delay after validators signal again.
 - The first block after the restart sends the fee collector balance to the community pool, because distribution has no previous commit to pay. Supply does not change; only the recipients do.
 
 More than 2/3 of voting power reproduce the export SHA-256, so a tampered export is outside this procedure. The genesis tool does not check these malformed inputs, which an honest export does not produce. Each one stops InitChain:
