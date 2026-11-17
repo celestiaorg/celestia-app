@@ -944,7 +944,7 @@ func (app *App) getMinGasPrice() (float64, error) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, app.Query)
+	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, rejectProofQueries(app.Query))
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
