@@ -166,7 +166,7 @@ func addStartFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
-	startCmd.Flags().Duration(DynamicTimeoutCommitFlag, 0, "Override the DynamicTimeoutCommit, the floor on the block interval from app version 11. Note: only for testing purposes.")
+	startCmd.Flags().Duration(DynamicTimeoutCommitFlag, 0, "Override the DynamicTimeoutCommit, the floor on the block interval from app version 12. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass config overrides for consensus timeouts, P2P rates, and mempool settings. The CAT mempool type and min-retain-blocks are always enforced. WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")

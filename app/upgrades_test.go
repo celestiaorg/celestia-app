@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestUpgrades(t *testing.T) {
-	t.Run("app.New() should register a v11 upgrade handler", func(t *testing.T) {
+	t.Run("app.New() should register a v12 upgrade handler", func(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
@@ -29,15 +30,17 @@ func TestUpgrades(t *testing.T) {
 
 		testApp := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
+		// v11 is released from the v11.x branch, which owns the 10 -> 11 upgrade.
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v10"))
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v11"))
+		require.False(t, testApp.UpgradeKeeper.HasHandler("v11"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v12"))
 	})
 }
 
-// TestV11UpgradePreservesState checks that the v11 upgrade rescales the
+// TestV12UpgradePreservesState checks that the v12 upgrade rescales the
 // block-count parameters for 0.8s blocks, runs module migrations and doesn't
 // repeat the v10 upgrade's state changes.
-func TestV11UpgradePreservesState(t *testing.T) {
+func TestV12UpgradePreservesState(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false).WithBlockHeight(1)
 	seedV10BlockCountParams(t, testApp, ctx)
@@ -55,7 +58,7 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
-		Name:   "v11",
+		Name:   "v12",
 		Height: ctx.BlockHeight(),
 	}))
 
@@ -83,8 +86,45 @@ func TestV11UpgradePreservesState(t *testing.T) {
 	require.Equal(t, uint64((4 * time.Second).Nanoseconds()), testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx).MaxExpectedTimePerBlock)
 }
 
+// TestV12UpgradeSetsBlobParams checks that the v12 upgrade copies the blob
+// params from the legacy subspace when the blob store has none, so
+// BlobKeeper.GetParams needs no legacy fallback.
+func TestV12UpgradeSetsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	legacyParams := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, legacyParams)
+	blobStore := ctx.KVStore(testApp.GetKey(blobtypes.StoreKey))
+	blobStore.Delete([]byte(blobtypes.ParamsKey))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v12",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.True(t, blobStore.Has([]byte(blobtypes.ParamsKey)))
+	require.Equal(t, legacyParams, testApp.BlobKeeper.GetParams(ctx))
+}
+
+// TestV12UpgradeKeepsBlobParams checks that the v12 upgrade does not replace
+// blob params that are already in the blob store.
+func TestV12UpgradeKeepsBlobParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	testApp.BlobKeeper.SetParamsLegacy(ctx, blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 64))
+	params := blobtypes.NewParams(blobtypes.DefaultGasPerBlobByte, 32)
+	testApp.BlobKeeper.SetParams(ctx, params)
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v12",
+		Height: ctx.BlockHeight(),
+	}))
+
+	require.Equal(t, params, testApp.BlobKeeper.GetParams(ctx))
+}
+
 // seedV10BlockCountParams sets the mainnet v10 values of the parameters the
-// v11 upgrade rescales.
+// v12 upgrade rescales. The v11 upgrade on the v11.x branch keeps them.
 func seedV10BlockCountParams(t *testing.T, testApp *app.App, ctx sdk.Context) {
 	t.Helper()
 	consensusParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)

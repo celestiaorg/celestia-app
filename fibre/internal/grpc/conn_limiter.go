@@ -32,7 +32,7 @@ func (l *limitedListener) Accept() (net.Conn, error) {
 			_ = c.Close()
 			continue
 		}
-		return &limitedConn{Conn: c, l: l, key: key}, nil
+		return &stallConn{Conn: &limitedConn{Conn: c, l: l, key: key}}, nil
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
 )
@@ -105,6 +106,18 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 			}
 
 			appGenesisState := basicManager.DefaultGenesis(codec)
+			if appconsts.CortoV12Active(chainID, appconsts.Version) {
+				var staking stakingtypes.GenesisState
+				if err := codec.UnmarshalJSON(appGenesisState[stakingtypes.ModuleName], &staking); err != nil {
+					return err
+				}
+				staking.Params.UnbondingTime = appconsts.GetUnbondingTime(chainID, appconsts.Version)
+				bz, err := codec.MarshalJSON(&staking)
+				if err != nil {
+					return err
+				}
+				appGenesisState[stakingtypes.ModuleName] = bz
+			}
 			appState, err := json.MarshalIndent(appGenesisState, "", " ")
 			if err != nil {
 				return errorsmod.Wrap(err, "Failed to marshal default genesis state")
@@ -129,7 +142,7 @@ func initCmd(basicManager module.BasicManager, defaultNodeHome string) *cobra.Co
 			appGenesis.InitialHeight = initialHeight
 			appGenesis.Consensus = &types.ConsensusGenesis{
 				Validators: nil,
-				Params:     getConsensusParams(),
+				Params:     getConsensusParams(chainID),
 			}
 
 			if err = genutil.ExportGenesisFile(appGenesis, genesisFile); err != nil {
@@ -182,9 +195,12 @@ func displayInfo(info printInfo) error {
 	return err
 }
 
-func getConsensusParams() *comettypes.ConsensusParams {
+func getConsensusParams(chainID string) *comettypes.ConsensusParams {
 	params := comettypes.DefaultConsensusParams()
 	params.Version.App = appconsts.Version
+	if appconsts.CortoV12Active(chainID, appconsts.Version) {
+		params.Evidence.MaxAgeDuration, params.Evidence.MaxAgeNumBlocks = appconsts.GetEvidenceAgeLimits(chainID, appconsts.Version)
+	}
 	params.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return params
 }

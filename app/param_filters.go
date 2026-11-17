@@ -24,7 +24,7 @@ func (app *App) GovParamFilters() map[string]ante.ParamFilter {
 }
 
 // bankParamFilter checks if the parameters in the MsgUpdateParams ensures that only valid changes are allowed.
-func bankParamFilter(msg sdk.Msg) error {
+func bankParamFilter(_ sdk.Context, msg sdk.Msg) error {
 	msgUpdateParams, ok := msg.(*banktypes.MsgUpdateParams)
 	if !ok {
 		return errors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", (*banktypes.MsgUpdateParams)(nil), msg)
@@ -40,7 +40,7 @@ func bankParamFilter(msg sdk.Msg) error {
 }
 
 // stakingParamFilter ensures that the parameters in the MsgUpdateParams contain only valid changes.
-func stakingParamFilter(msg sdk.Msg) error {
+func stakingParamFilter(ctx sdk.Context, msg sdk.Msg) error {
 	msgUpdateParams, ok := msg.(*stakingtypes.MsgUpdateParams)
 	if !ok {
 		return errors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", (*stakingtypes.MsgUpdateParams)(nil), msg)
@@ -50,15 +50,16 @@ func stakingParamFilter(msg sdk.Msg) error {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid bond denom: expected %s, got %s", params.BondDenom, msgUpdateParams.Params.BondDenom)
 	}
 
-	if msgUpdateParams.Params.UnbondingTime != appconsts.UnbondingTime {
-		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", appconsts.UnbondingTime, msgUpdateParams.Params.UnbondingTime)
+	want := appconsts.GetUnbondingTime(ctx.ChainID(), ctx.ConsensusParams().Version.GetApp())
+	if msgUpdateParams.Params.UnbondingTime != want {
+		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", want, msgUpdateParams.Params.UnbondingTime)
 	}
 
 	return nil
 }
 
 // consensusParamFilter checks if the parameters in the MsgUpdateParams ensures that only valid changes are allowed.
-func consensusParamFilter(msg sdk.Msg) error {
+func consensusParamFilter(ctx sdk.Context, msg sdk.Msg) error {
 	msgUpdateParams, ok := msg.(*consensustypes.MsgUpdateParams)
 	if !ok {
 		return errors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", (*consensustypes.MsgUpdateParams)(nil), msg)
@@ -75,6 +76,7 @@ func consensusParamFilter(msg sdk.Msg) error {
 	}
 
 	evidenceParams := EvidenceParams()
+	evidenceParams.MaxAgeDuration, evidenceParams.MaxAgeNumBlocks = appconsts.GetEvidenceAgeLimits(ctx.ChainID(), ctx.ConsensusParams().Version.GetApp())
 	if !updateParams.Evidence.Equal(evidenceParams) {
 		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid evidence parameters")
 	}

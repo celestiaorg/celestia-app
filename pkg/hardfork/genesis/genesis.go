@@ -68,6 +68,8 @@ type Options struct {
 	ChainID string
 	// AcceptMintExcess acknowledges a positive mint excess and must equal it exactly; nil means none.
 	AcceptMintExcess math.LegacyDec
+	// BlockedAddresses is the app blocklist (app.BlockedAddresses()); gov deposits from these addresses are rejected.
+	BlockedAddresses map[string]bool
 }
 
 // CheckError reports the first failed check.

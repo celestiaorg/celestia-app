@@ -221,46 +221,65 @@ func decodeShard(src shardSource) (*types.BlobShard, error) {
 		Rlcs: rlcs,
 	}
 	for i := range numRows {
-		index, err := src.uint32()
+		row, err := decodeShardRow(src, i)
 		if err != nil {
-			return nil, fmt.Errorf("reading row %d index: %w", i, err)
+			return nil, err
 		}
-		dataLen, err := src.uint32()
-		if err != nil {
-			return nil, fmt.Errorf("reading row %d data len: %w", i, err)
-		}
-		data, err := src.bytes(dataLen)
-		if err != nil {
-			return nil, fmt.Errorf("reading row %d data: %w", i, err)
-		}
-		numProof, err := src.uint32()
-		if err != nil {
-			return nil, fmt.Errorf("reading row %d num proof: %w", i, err)
-		}
-		var proof [][]byte
-		if numProof > 0 {
-			if numProof > maxRowProofSegments {
-				return nil, fmt.Errorf("row %d num proof %d exceeds limit %d", i, numProof, maxRowProofSegments)
-			}
-			proof = make([][]byte, numProof)
-			for j := range numProof {
-				segLen, err := src.uint32()
-				if err != nil {
-					return nil, fmt.Errorf("reading row %d proof %d len: %w", i, j, err)
-				}
-				seg, err := src.bytes(segLen)
-				if err != nil {
-					return nil, fmt.Errorf("reading row %d proof %d: %w", i, j, err)
-				}
-				proof[j] = seg
-			}
-		}
-		shard.Rows[i] = &types.BlobRow{
-			Index: index,
-			Data:  data,
-			Proof: proof,
-		}
+		shard.Rows[i] = row
 	}
 
 	return shard, nil
+}
+
+// decodeShardRow decodes row i of a shard.
+func decodeShardRow(src shardSource, i uint32) (*types.BlobRow, error) {
+	index, err := src.uint32()
+	if err != nil {
+		return nil, fmt.Errorf("reading row %d index: %w", i, err)
+	}
+	dataLen, err := src.uint32()
+	if err != nil {
+		return nil, fmt.Errorf("reading row %d data len: %w", i, err)
+	}
+	data, err := src.bytes(dataLen)
+	if err != nil {
+		return nil, fmt.Errorf("reading row %d data: %w", i, err)
+	}
+	proof, err := decodeRowProof(src, i)
+	if err != nil {
+		return nil, err
+	}
+	return &types.BlobRow{
+		Index: index,
+		Data:  data,
+		Proof: proof,
+	}, nil
+}
+
+// decodeRowProof decodes the proof segments of row i. It returns nil for a
+// row without proof segments.
+func decodeRowProof(src shardSource, i uint32) ([][]byte, error) {
+	numProof, err := src.uint32()
+	if err != nil {
+		return nil, fmt.Errorf("reading row %d num proof: %w", i, err)
+	}
+	if numProof == 0 {
+		return nil, nil
+	}
+	if numProof > maxRowProofSegments {
+		return nil, fmt.Errorf("row %d num proof %d exceeds limit %d", i, numProof, maxRowProofSegments)
+	}
+	proof := make([][]byte, numProof)
+	for j := range numProof {
+		segLen, err := src.uint32()
+		if err != nil {
+			return nil, fmt.Errorf("reading row %d proof %d len: %w", i, j, err)
+		}
+		seg, err := src.bytes(segLen)
+		if err != nil {
+			return nil, fmt.Errorf("reading row %d proof %d: %w", i, j, err)
+		}
+		proof[j] = seg
+	}
+	return proof, nil
 }
