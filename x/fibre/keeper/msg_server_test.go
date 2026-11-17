@@ -361,6 +361,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
 		suite.True(found)
 		suite.Equal(promiseHash, processedPayment.PaymentPromiseHash)
+		suite.True(paymentPromise.CreationTimestamp.Equal(processedPayment.CreationTimestamp))
 
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
@@ -681,6 +682,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
 		suite.True(found)
 		suite.Equal(promiseHash, processedPayment.PaymentPromiseHash)
+		suite.True(paymentPromise.CreationTimestamp.Equal(processedPayment.CreationTimestamp))
 
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)

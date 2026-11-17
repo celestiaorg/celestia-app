@@ -127,10 +127,11 @@ Processed payments are stored for replay protection and pruning. The hash index 
 message ProcessedPayment {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
-`MsgPayForFibre` and `MsgPaymentPromiseTimeout` both compute the internal payment-promise hash and store a `ProcessedPayment` at the current block time. BeginBlock prunes processed payments whose `processed_at` is outside the processed-payment retention window (`Params.PaymentPromiseRetentionWindow()`).
+`MsgPayForFibre` and `MsgPaymentPromiseTimeout` both compute the internal payment-promise hash and store a `ProcessedPayment` at the current block time with the promise's `creation_timestamp`. Payments processed before v12 have a zero `creation_timestamp`. BeginBlock prunes processed payments whose `processed_at` is outside the processed-payment retention window (`Params.PaymentPromiseRetentionWindow()`).
 
 ### GenesisState
 
@@ -146,7 +147,7 @@ message GenesisState {
 }
 ```
 
-Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`. `InitGenesis` also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.
+Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash, nonzero `processed_at` and a `creation_timestamp` no later than `processed_at + 10m`. `InitGenesis` also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.
 
 ## PaymentPromise
 
