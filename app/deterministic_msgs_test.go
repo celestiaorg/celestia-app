@@ -416,6 +416,16 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 			}
 			require.Greater(t, size, txSize*9/10)
 			require.LessOrEqual(t, size, txSize+txSize/10)
+			// The filter stops at the first rejected packet. Each rejected
+			// case repeats one packet, so the filter runs once per packet to
+			// visit as many packets as the baseline decodes.
+			filterRuns := 1
+			if tc.wantErr {
+				for _, p := range packets {
+					require.Same(t, packets[0], p)
+				}
+				filterRuns = len(packets)
+			}
 
 			// Decoding every packet's data is a baseline that scales with the
 			// machine. The baseline and the filter are timed in turn, and the
@@ -432,14 +442,17 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 				baseline = min(baseline, time.Since(start))
 
 				start = time.Now()
-				err := validateDeterministicMsgs(msgsTx{msgs: tc.msgs})
+				var err error
+				for range filterRuns {
+					err = validateDeterministicMsgs(msgsTx{msgs: tc.msgs})
+				}
 				elapsed = min(elapsed, time.Since(start))
 				if tc.wantErr {
 					require.ErrorIs(t, err, sdkerrors.ErrInvalidRequest)
 				} else {
 					require.NoError(t, err)
 				}
-				t.Logf("run %d: %d packets, %d bytes: filter took %s, decoding took %s (best so far)", run, len(packets), size, elapsed, baseline)
+				t.Logf("run %d: %d packets, %d bytes: %d filter calls took %s, decoding took %s (best so far)", run, len(packets), size, filterRuns, elapsed, baseline)
 				if elapsed < 5*baseline+100*time.Millisecond && elapsed < maxFilterCost {
 					break
 				}
