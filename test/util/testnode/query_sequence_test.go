@@ -222,7 +222,9 @@ func (s *MempoolQuerySequenceSuite) TestQuerySequenceMonotonicOnNode() {
 		msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
 		raw, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10_000_000), user.SetFee(50_000))
 		require.NoError(err)
-		require.NoError(s.cctx.tmNode.Mempool().CheckTx(raw, nil, mempool.TxInfo{}))
+		require.NoError(s.cctx.tmNode.Mempool().CheckTx(raw, func(rsp *abci.ResponseCheckTx) {
+			require.Equal(abci.CodeTypeOK, rsp.Code, rsp.Log)
+		}, mempool.TxInfo{}))
 		require.NoError(signer.IncrementSequence(s.accounts[2]))
 	}
 	require.Equal(start+burst, query())
