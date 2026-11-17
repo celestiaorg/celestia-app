@@ -259,9 +259,7 @@ func TestValidateDeterministicMsgsNamesPacket(t *testing.T) {
 	require.NotContains(t, err.Error(), "\n")
 }
 
-// The tests below are ported from the packet-forward memo limit tests on
-// main (app/pfm_timeout_internal_test.go), so that this filter rejects every
-// forward memo that main rejects in consensus.
+// The tests below come from the packet-forward memo limit tests in celestia-app#8629 (not merged).
 
 // transferPacketData returns ICS-20 packet data that carries memo.
 func transferPacketData(t *testing.T, memo string) []byte {
@@ -283,9 +281,7 @@ func nestedJSON(depth int) string {
 	return strings.Repeat(`{"a":`, depth-1) + `{}` + strings.Repeat(`}`, depth-1)
 }
 
-// pfmForwardMemo returns a forward memo whose JSON nesting depth is depth
-// (at least 2) and whose length is at least size. Its next value is a chain
-// of nested objects.
+// pfmForwardMemo returns a forward memo that nests depth levels (at least 2) and is at least size bytes long.
 func pfmForwardMemo(depth, size int) string {
 	next := ""
 	if depth > 2 {
@@ -294,8 +290,7 @@ func pfmForwardMemo(depth, size int) string {
 	return pfmForwardMemoWithNext(next, size)
 }
 
-// pfmForwardMemoWithNext returns a forward memo with the given JSON value of
-// forward.next (empty to omit it), padded to at least size bytes.
+// pfmForwardMemoWithNext returns a forward memo with forward.next set to next (omitted if empty), of at least size bytes.
 func pfmForwardMemoWithNext(next string, size int) string {
 	head := `{"forward":{"receiver":"`
 	tail := `","port":"transfer","channel":"channel-0"`
@@ -316,9 +311,7 @@ func jsonString(s string) string {
 	return string(bz)
 }
 
-// pfmRepeatedNextMemo returns a forward memo of about 32 KB whose next key
-// repeats: the first next holds 2000 distinct keys, and 1860 empty next
-// objects follow it.
+// pfmRepeatedNextMemo returns a forward memo of about 32 KB that repeats the next key.
 func pfmRepeatedNextMemo() string {
 	var keys strings.Builder
 	for i := range 2000 {
@@ -331,14 +324,12 @@ func pfmRepeatedNextMemo() string {
 	return `{"forward":{"next":{` + keys.String() + `}` + strings.Repeat(`,"next":{}`, 1860) + `}}`
 }
 
-// pfmDeepStringNextMemo returns a forward memo whose string next holds a JSON
-// object that nests depth levels.
+// pfmDeepStringNextMemo returns a forward memo whose string next holds an object that nests depth levels.
 func pfmDeepStringNextMemo(depth int) string {
 	return `{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","timeout":"1ns","retries":255,"next":` + jsonString(nestedJSON(depth)) + `}}`
 }
 
-// TestRejectPFMForwardMemoLimits checks the bounds on the nesting depth and
-// the length of a forward memo, at the limits and one past them.
+// TestRejectPFMForwardMemoLimits checks the forward memo depth and length limits, at and one past them.
 func TestRejectPFMForwardMemoLimits(t *testing.T) {
 	require.Len(t, pfmForwardMemo(2, transfertypes.MaximumMemoLength), transfertypes.MaximumMemoLength)
 
@@ -365,8 +356,8 @@ func TestRejectPFMForwardMemoLimits(t *testing.T) {
 		{"string next with repeated key", pfmForwardMemoWithNext(jsonString(`{"a":1,"a":2}`), 0), true},
 		{"string next with repeated nested key", pfmForwardMemoWithNext(jsonString(`{"a":{"b":1,"b":2}}`), 0), true},
 		{"string next holding a JSON string", pfmForwardMemoWithNext(jsonString(jsonString(`{"a":1}`)), 0), true},
-		// main accepts a string next that is not JSON; this filter rejects
-		// it, because packet-forward-middleware cannot encode it.
+		// celestia-app#8629 accepts a string next that is not JSON. This filter rejects it, because
+		// packet-forward-middleware cannot encode it.
 		{"string next, not JSON", pfmForwardMemoWithNext(jsonString(`{"a":`), 0), true},
 		{"string next, number", pfmForwardMemoWithNext(jsonString(`5`), 0), true},
 		{"string next, null", pfmForwardMemoWithNext(jsonString(`null`), 0), true},
@@ -380,8 +371,7 @@ func TestRejectPFMForwardMemoLimits(t *testing.T) {
 		{"Next key case, next array", `{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","Next":[]}}`, true},
 		{"next key in a nested object is not forward.next", `{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","next":{"next":[1]}},"a":{"next":5}}`, false},
 		{"Next key case, string next over depth limit", `{"forward":{"receiver":"r","port":"transfer","channel":"channel-0","NEXT":` + jsonString(nestedJSON(maxPFMForwardMemoDepth+1)) + `}}`, true},
-		// Memos that packet-forward-middleware does not forward are not
-		// bounded here.
+		// Memos that packet-forward-middleware does not forward are not bounded here.
 		{"deep memo without forward", `{"a":` + strings.Repeat(`{"a":`, 4000) + `1` + strings.Repeat(`}`, 4001), false},
 		{"long memo without forward", `{"a":"` + strings.Repeat("r", 2*transfertypes.MaximumMemoLength) + `"}`, false},
 		{"repeated keys without forward", `{"a":1,"a":2,"forward":null}`, false},
@@ -404,11 +394,8 @@ func TestRejectPFMForwardMemoLimits(t *testing.T) {
 	require.LessOrEqual(t, len(pfmDeepStringNextMemo(3000)), transfertypes.MaximumMemoLength)
 }
 
-// TestRejectPFMForwardMemoRepeatedKeys checks that a forward memo with a
-// repeated object key is rejected. encoding/json matches the keys of the
-// memo and of the forward object to struct fields without case, so those
-// compare without case. The keys inside next compare exactly, as
-// packet-forward-middleware keeps them.
+// TestRejectPFMForwardMemoRepeatedKeys checks that a forward memo with a repeated key is rejected. Top-level and
+// forward keys compare without case, as encoding/json matches them; keys inside next compare exactly.
 func TestRejectPFMForwardMemoRepeatedKeys(t *testing.T) {
 	const fwd = `"receiver":"r","port":"transfer","channel":"channel-0"`
 	testCases := []struct {
@@ -439,8 +426,7 @@ func TestRejectPFMForwardMemoRepeatedKeys(t *testing.T) {
 	}
 }
 
-// TestPFMMemoWithinLimitsMalformed checks that the limit check returns a
-// result and does not panic on malformed JSON.
+// TestPFMMemoWithinLimitsMalformed checks that the limit check does not panic on malformed JSON.
 func TestPFMMemoWithinLimitsMalformed(t *testing.T) {
 	for _, bz := range []string{``, ` `, `{`, `}`, `]`, `[}`, `{]`, `{"a"`, `{"a":}`, `{"a":1,}`, `"`, `{"forward":{"next":"`, `{"forward":{"NEXT":"\"`, "\xff", `{"\xff":1,"\xfe":2}`, `1 2`, `{}}`} {
 		require.NotPanics(t, func() {
@@ -450,8 +436,7 @@ func TestPFMMemoWithinLimitsMalformed(t *testing.T) {
 			_ = validateForwardMemo(bz)
 		}, bz)
 	}
-	// The entry points that expect valid JSON return false on malformed
-	// input instead of panicking.
+	// The entry points that expect valid JSON return false on malformed input.
 	for _, bz := range []string{``, ` `, `}`, `]`, `{}}`, `[]]`, `{"a":1}}`} {
 		require.NotPanics(t, func() {
 			require.False(t, pfmForwardMemoWithinLimits(bz), bz)
@@ -462,8 +447,7 @@ func TestPFMMemoWithinLimitsMalformed(t *testing.T) {
 	}
 }
 
-// TestPFMForwardMemoDepthLimitIs16 checks the depth limit at 16 levels and
-// one past it, for a forward memo and a string next.
+// TestPFMForwardMemoDepthLimitIs16 checks depths 16 and 17 for a forward memo and a string next.
 func TestPFMForwardMemoDepthLimitIs16(t *testing.T) {
 	for depth, want := range map[int]bool{16: false, 17: true} {
 		require.Equal(t, want, rejectPFMForwardMemo(transferPacketData(t, pfmForwardMemo(depth, 0))), "forward memo depth %d", depth)
@@ -471,9 +455,7 @@ func TestPFMForwardMemoDepthLimitIs16(t *testing.T) {
 	}
 }
 
-// TestPFMNextTokenMatchesDecoder checks that pfmNextToken returns the same
-// tokens as json.Decoder.Token with UseNumber, which the limit check on main
-// uses.
+// TestPFMNextTokenMatchesDecoder checks that pfmNextToken returns the same tokens as json.Decoder.Token with UseNumber.
 func TestPFMNextTokenMatchesDecoder(t *testing.T) {
 	for _, s := range []string{
 		`{}`, `[]`, `null`, `true`, `-1.5e+10`, `"x"`,
