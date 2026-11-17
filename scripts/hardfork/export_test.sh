@@ -19,9 +19,8 @@ export STUB_LOG=$TMP/calls.log STUB_STATE=$TMP/state PATH=$STUBS:$PATH
 # STUB_STATE set the app height (app-height), the app hash in base64
 # (app-hash), the exported initial height and chain-id (initial, chain), the
 # halt log lines (halt), a leftover embedded app (orphan), a binary that
-# ignores the signer override (ignore-env), an upgrade at height 21 (window),
-# next_validators_hash of block 21 (next-vals) and the presence of
-# "genesis from-export" (from-export).
+# ignores the signer override (ignore-env), an export refused for an upgrade
+# (upgrade) and the presence of "genesis from-export" (from-export).
 cat >"$STUBS/celestia-appd" <<'EOF'
 #!/usr/bin/env bash
 echo "celestia-appd $*" >>"$STUB_LOG"
@@ -52,8 +51,8 @@ case "$1 $2" in
     while :; do sleep 1; done
     ;;
 "export "*)
-    if [ -f "$STUB_STATE/window" ] && [ "$8" != --allow-upgrade-window ]; then
-        echo 'upgrade "v12" is scheduled for height 21: export with --height 19 instead' >&2
+    if [ -f "$STUB_STATE/upgrade" ]; then
+        echo 'upgrade "v12" is scheduled for height 21 and block 20 changed the validator set: export with --height 19 instead' >&2
         exit 1
     fi
     printf '{\n  "chain_id": "%s",\n  "initial_height": %s,\n  "app_state": {}\n}\n' "$(state chain test)" "$(state initial 21)" >"$7"
@@ -81,7 +80,7 @@ http://localhost:26657/*)
     height=${url##*=}
     hash=0000
     if [ "$height" = 21 ]; then hash=ABCD12; fi
-    echo "{\"result\":{\"block\":{\"header\":{\"height\":\"$height\",\"time\":\"2026-11-16T10:00:00.123456789Z\",\"chain_id\":\"test\",\"app_hash\":\"$hash\",\"validators_hash\":\"AA\",\"next_validators_hash\":\"$(state next-vals AA)\"}}}}"
+    echo "{\"result\":{\"block\":{\"header\":{\"height\":\"$height\",\"time\":\"2026-11-16T10:00:00.123456789Z\",\"chain_id\":\"test\",\"app_hash\":\"$hash\"}}}}"
     ;;
 *) exit 7 ;;
 esac
@@ -153,7 +152,7 @@ called "genesis from-export $OUT/export.json --export-sha256 $SHA --export-heigh
     fail "from-export command"
 [ ! -f "$STUB_STATE/running" ] || fail "node left running"
 (cd "$OUT" && sha256sum -c export.json.sha256 >/dev/null && sha256sum -c genesis.json.sha256 >/dev/null) || fail "sha256 files"
-printf 'height: 20\nchain_id: test\nexport_sha256: %s\napp_hash_at_height: matches block 21: abcd12\nupgrade_window: not needed\n' "$SHA" |
+printf 'height: 20\nchain_id: test\nexport_sha256: %s\napp_hash_at_height: matches block 21: abcd12\n' "$SHA" |
     diff - "$OUT/export.manifest" || fail "manifest"
 [ "$(jq -r .app_hash_after_height "$OUT/header.json")" = abcd12 ] || fail "header.json app hash"
 summary "app_hash_at_height: matches block 21: abcd12"
@@ -205,18 +204,8 @@ export_sh --initial-height 40 || fail "export at a handshake halt failed"
 summary "app_hash_at_height: not verified (halt path)"
 grep -q "^genesis_sha256: skipped; run: .*--genesis-time GENESIS_TIME" "$OUT/summary.txt" || fail "genesis time placeholder"
 
-# upgrade at height 21 and block 20 changed no validators: a second export
-# with --allow-upgrade-window.
-new_node
-touch "$STUB_STATE/window"
-export_sh || fail "export in the upgrade window failed"
-[ "$(grep -c "^celestia-appd export " "$STUB_LOG")" = 2 ] || fail "export not retried once"
-called "export --home $NODE_HOME --height 20 --output-document $OUT/export.json --allow-upgrade-window" ||
-    fail "retry without --allow-upgrade-window"
-summary "upgrade_window: allowed (header 21 validators_hash == next_validators_hash)"
-
 # refusals: nothing is marked as exported and no node is left running.
-for c in running signer app-hash initial-height chain-id window timeout orphan not-empty; do
+for c in running signer app-hash initial-height chain-id upgrade timeout orphan not-empty; do
     new_node
     args=()
     case "$c" in
@@ -225,7 +214,7 @@ for c in running signer app-hash initial-height chain-id window timeout orphan n
     app-hash) echo AAAA >"$STUB_STATE/app-hash"; want="the local state differs from the chain" ;;
     initial-height) echo 20 >"$STUB_STATE/initial"; want="export.json has initial_height 20, expected 21" ;;
     chain-id) echo other >"$STUB_STATE/chain"; want="export.json has chain_id other, expected test" ;;
-    window) touch "$STUB_STATE/window"; echo BB >"$STUB_STATE/next-vals"; want="block 20 changed validators or header 21 is unknown" ;;
+    upgrade) touch "$STUB_STATE/upgrade"; want="block 20 changed the validator set: export with --height 19 instead" ;;
     timeout) echo 19 >"$STUB_STATE/app-height"; args=(--sync-timeout 3); want="did not reach height 20 (app at 19)" ;;
     orphan) touch "$STUB_STATE/orphan"; want="process for $NODE_HOME runs (pid" ;;
     not-empty) mkdir -p "$OUT"; touch "$OUT/node.log"; want="is not empty" ;;

@@ -59,7 +59,6 @@ RESUME=0
 NODE_PID=""
 APP_HASH_CHECK=""
 GENESIS_SHA=""
-UPGRADE_WINDOW="not needed"
 
 die() {
     echo "error: $*" >&2
@@ -196,18 +195,15 @@ rpc_block() {
 }
 
 # reference_header reads the time and chain-id of block HEIGHT, and the app
-# hash after HEIGHT and the validator set hashes from block HEIGHT+1 if it
-# exists.
+# hash after HEIGHT from block HEIGHT+1 if it exists.
 reference_header() {
     local block
     block=$(rpc_block "$HEIGHT") || die "$RPC has no block $HEIGHT"
     BLOCK_TIME=$(jq -r .result.block.header.time <<<"$block")
     CHAIN=$(jq -r .result.block.header.chain_id <<<"$block")
-    REF_HASH="" VALS="" NEXT_VALS=""
+    REF_HASH=""
     if block=$(rpc_block "$NEXT"); then
         REF_HASH=$(jq -r .result.block.header.app_hash <<<"$block" | tr '[:upper:]' '[:lower:]')
-        VALS=$(jq -r '.result.block.header.validators_hash // empty' <<<"$block")
-        NEXT_VALS=$(jq -r '.result.block.header.next_validators_hash // empty' <<<"$block")
     else
         echo "warning: $RPC has no block $NEXT; the app hash after $HEIGHT is not known"
     fi
@@ -215,9 +211,8 @@ reference_header() {
         check_resume
     fi
     jq -n --arg rpc "$RPC" --arg h "$HEIGHT" --arg t "$BLOCK_TIME" --arg c "$CHAIN" --arg a "$REF_HASH" \
-        --arg v "$VALS" --arg nv "$NEXT_VALS" '{rpc: $rpc, height: $h, time: $t, chain_id: $c,
-        app_hash_after_height: $a, next_block_validators_hash: $v, next_block_next_validators_hash: $nv}
-        | map_values(if . == "" then null else . end)' >"$OUT/header.json"
+        '{rpc: $rpc, height: $h, time: $t, chain_id: $c, app_hash_after_height: (if $a == "" then null else $a end)}' \
+        >"$OUT/header.json"
     echo "block $HEIGHT: time $BLOCK_TIME, chain-id $CHAIN, app hash after it ${REF_HASH:-unknown}"
 }
 
@@ -234,7 +229,6 @@ check_resume() {
     [ "$(manifest)" = "$(head -n 3 "$OUT/export.manifest" 2>/dev/null)" ] ||
         die "$OUT/export.manifest is not for height $HEIGHT on $CHAIN; remove $OUT"
     APP_HASH_CHECK=$(sed -n 's/^app_hash_at_height: //p' "$OUT/export.manifest")
-    UPGRADE_WINDOW=$(sed -n 's/^upgrade_window: //p' "$OUT/export.manifest")
     echo "reusing export.json $EXPORT_SHA"
 }
 
@@ -339,21 +333,12 @@ check_app_hash() {
 }
 
 # export_state exports the state at HEIGHT and checks its initial height and
-# chain-id. With an upgrade planned at HEIGHT+1, it exports again with
-# --allow-upgrade-window, which old binaries lack, only if block HEIGHT changed
-# no validator power: the upgrade trusts the validator set of block HEIGHT+1.
+# chain-id. A refused export shows the end of its log, which says what to do,
+# e.g. export a lower height when an upgrade is due.
 export_state() {
-    local top initial chain drop="rerun with --height $((HEIGHT - 1)), which drops the transactions of block $HEIGHT"
-    local args=(export --home "$NODE_HOME" --height "$HEIGHT" --output-document "$OUT/export.json")
-    if ! measured "$OUT/export.log" "$BIN" "${args[@]}"; then
-        grep -qF "is scheduled for height $NEXT:" "$OUT/export.log" || die "export failed; see $OUT/export.log"
-        if [ -z "$VALS" ] || [ "$VALS" != "$NEXT_VALS" ]; then
-            die "upgrade at height $NEXT, and block $HEIGHT changed validators or header $NEXT is unknown; $drop"
-        fi
-        measured "$OUT/export.log" "$BIN" "${args[@]}" --allow-upgrade-window ||
-            die "export with --allow-upgrade-window failed, see $OUT/export.log; $drop"
-        UPGRADE_WINDOW="allowed (header $NEXT validators_hash == next_validators_hash)"
-    fi
+    local top initial chain
+    measured "$OUT/export.log" "$BIN" export --home "$NODE_HOME" --height "$HEIGHT" --output-document "$OUT/export.json" ||
+        die "export failed, see $OUT/export.log:"$'\n'"$(tail -n 5 "$OUT/export.log")"
     # The outer fields come before app_state; the file can be gigabytes.
     top=$(head -c 65536 "$OUT/export.json")
     initial=$(grep -m1 -Eo '"initial_height"[[:space:]]*:[[:space:]]*"?[0-9]+' <<<"$top" | grep -Eo '[0-9]+$' || true)
@@ -366,7 +351,7 @@ export_state() {
 # as done.
 hash_export() {
     EXPORT_SHA=$(sha256 "$OUT/export.json")
-    { manifest; echo "app_hash_at_height: $APP_HASH_CHECK"; echo "upgrade_window: $UPGRADE_WINDOW"; } >"$OUT/export.manifest"
+    { manifest; echo "app_hash_at_height: $APP_HASH_CHECK"; } >"$OUT/export.manifest"
     printf '%s  export.json\n' "$EXPORT_SHA" >"$OUT/export.json.sha256.tmp"
     mv "$OUT/export.json.sha256.tmp" "$OUT/export.json.sha256"
     echo "export.json sha256 $EXPORT_SHA"
@@ -412,8 +397,7 @@ build_genesis() {
 write_summary() {
     {
         printf 'height: %s\nblock_time: %s\nchain_id: %s\nbinary: %s %s\n' "$HEIGHT" "$BLOCK_TIME" "$CHAIN" "$BIN" "$VERSION"
-        printf 'app_hash_at_height: %s\nupgrade_window: %s\n' "$APP_HASH_CHECK" "$UPGRADE_WINDOW"
-        printf 'export_sha256: %s\ngenesis_sha256: %s\n' "$EXPORT_SHA" "$GENESIS_SHA"
+        printf 'app_hash_at_height: %s\nexport_sha256: %s\ngenesis_sha256: %s\n' "$APP_HASH_CHECK" "$EXPORT_SHA" "$GENESIS_SHA"
         awk -F'\t' 'NR > 1 {
             if ($3 + 0 > d) d = $3
             if ($4 + 0 > o) o = $4
