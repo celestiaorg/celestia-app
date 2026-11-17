@@ -27,10 +27,10 @@ var (
 	WithdrawalsBySignerKeyPrefix = []byte{0x03}
 	// WithdrawalsByAvailableKeyPrefix is the prefix for withdrawal keys indexed by available time
 	WithdrawalsByAvailableKeyPrefix = []byte{0x04}
-	// ProcessedPaymentsByHashKeyPrefix is the prefix for processed payment promise keys indexed by hash
-	ProcessedPaymentsByHashKeyPrefix = []byte{0x05}
-	// ProcessedPaymentsByTimeKeyPrefix is the prefix for processed payment keys indexed by processed time
-	ProcessedPaymentsByTimeKeyPrefix = []byte{0x06}
+	// LegacyProcessedPaymentsByHashKeyPrefix indexes payments processed before v12 by hash.
+	LegacyProcessedPaymentsByHashKeyPrefix = []byte{0x05}
+	// LegacyProcessedPaymentsByTimeKeyPrefix indexes payments processed before v12 by processed time.
+	LegacyProcessedPaymentsByTimeKeyPrefix = []byte{0x06}
 	// PromiseFreshnessFloorKey holds a single timestamp: the oldest creation_timestamp we
 	// still treat as fresh. It only ever moves forward, which is what stops a settled,
 	// already-pruned promise from being replayed after governance raises WithdrawalDelay.
@@ -38,6 +38,9 @@ var (
 	// GenesisHeightKey holds the height of the first block this chain's state executed,
 	// recorded by InitGenesis. Its signing set has no historical info at the height before.
 	GenesisHeightKey = []byte{0x08}
+	// ProcessedPaymentsKeyPrefix indexes processed payments by promise creation time, then
+	// hash. Settled promises are recent, so inserts and pruning stay at the edges of the tree.
+	ProcessedPaymentsKeyPrefix = []byte{0x09}
 )
 
 // EscrowAccountKey returns the store key for an escrow account
@@ -76,24 +79,34 @@ func WithdrawalsByAvailablePrefix(availableAt time.Time) []byte {
 	return append(WithdrawalsByAvailableKeyPrefix, timestampBytes...)
 }
 
-// ProcessedPaymentsByHashKey returns the store key for a processed payment indexed by hash.
-// Note: all payment promises that are stored in the SDK module state have already been processed.
-func ProcessedPaymentsByHashKey(paymentPromiseHash []byte) []byte {
-	return append(ProcessedPaymentsByHashKeyPrefix, paymentPromiseHash...)
+// ProcessedPaymentKey returns the store key for a processed payment. The promise hash
+// commits to its ns-precise creation time, so a hash maps to exactly one key.
+func ProcessedPaymentKey(creationTimestamp time.Time, paymentPromiseHash []byte) []byte {
+	return append(ProcessedPaymentsPrefix(creationTimestamp), paymentPromiseHash...)
 }
 
-// ProcessedPaymentsByTimeKey returns the store key for a processed payment indexed by processed time
-// This index is used for efficient time-ordered iteration in BeginBlocker for pruning
-func ProcessedPaymentsByTimeKey(processedAt time.Time, paymentPromiseHash []byte) []byte {
-	key := ProcessedPaymentsByTimeKeyPrefix
+// ProcessedPaymentsPrefix returns the prefix for all processed payments of promises
+// created at creationTimestamp.
+func ProcessedPaymentsPrefix(creationTimestamp time.Time) []byte {
+	return append(ProcessedPaymentsKeyPrefix, sdk.FormatTimeBytes(creationTimestamp)...)
+}
+
+// LegacyProcessedPaymentsByHashKey returns the pre-v12 store key for a processed payment indexed by hash.
+func LegacyProcessedPaymentsByHashKey(paymentPromiseHash []byte) []byte {
+	return append(LegacyProcessedPaymentsByHashKeyPrefix, paymentPromiseHash...)
+}
+
+// LegacyProcessedPaymentsByTimeKey returns the pre-v12 store key for a processed payment indexed by processed time.
+func LegacyProcessedPaymentsByTimeKey(processedAt time.Time, paymentPromiseHash []byte) []byte {
+	key := LegacyProcessedPaymentsByTimeKeyPrefix
 	timestampBytes := sdk.FormatTimeBytes(processedAt)
 	key = append(key, timestampBytes...)
 	key = append(key, []byte("/")...)
 	return append(key, paymentPromiseHash...)
 }
 
-// ProcessedPaymentsByTimePrefix returns the prefix for all processed payments up to a certain time
-func ProcessedPaymentsByTimePrefix(processedAt time.Time) []byte {
+// LegacyProcessedPaymentsByTimePrefix returns the pre-v12 prefix for all processed payments up to a certain time.
+func LegacyProcessedPaymentsByTimePrefix(processedAt time.Time) []byte {
 	timestampBytes := sdk.FormatTimeBytes(processedAt)
-	return append(ProcessedPaymentsByTimeKeyPrefix, timestampBytes...)
+	return append(LegacyProcessedPaymentsByTimeKeyPrefix, timestampBytes...)
 }

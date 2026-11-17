@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"slices"
 	"strings"
@@ -624,6 +625,7 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	payment1 := types.ProcessedPayment{
 		PaymentPromiseHash: payment1Hash,
 		ProcessedAt:        baseTime.Add(-30 * 24 * time.Hour),
+		CreationTimestamp:  baseTime.Add(-30 * 24 * time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment1)
 
@@ -631,6 +633,7 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	payment2 := types.ProcessedPayment{
 		PaymentPromiseHash: payment2Hash,
 		ProcessedAt:        baseTime.Add(-12 * time.Hour),
+		CreationTimestamp:  baseTime.Add(-12 * time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment2)
 
@@ -638,15 +641,16 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	payment3 := types.ProcessedPayment{
 		PaymentPromiseHash: payment3Hash,
 		ProcessedAt:        baseTime.Add(-25 * time.Hour),
+		CreationTimestamp:  baseTime.Add(-25 * time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment3)
 
 	// Verify all payments are in the store
-	_, found := suite.keeper.GetProcessedPayment(suite.ctx, payment1Hash)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, payment1.CreationTimestamp, payment1Hash)
 	suite.True(found, "payment1 should be in store before pruning")
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2.CreationTimestamp, payment2Hash)
 	suite.True(found, "payment2 should be in store before pruning")
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment3Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment3.CreationTimestamp, payment3Hash)
 	suite.True(found, "payment3 should be in store before pruning")
 
 	// Run BeginBlocker - should prune payment1 and payment3
@@ -654,13 +658,13 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	suite.NoError(err)
 
 	// Verify payment1 and payment3 were pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1.CreationTimestamp, payment1Hash)
 	suite.False(found, "payment1 should be pruned (30 days old)")
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment3Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment3.CreationTimestamp, payment3Hash)
 	suite.False(found, "payment3 should be pruned (25 hours old)")
 
 	// Verify payment2 was NOT pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2.CreationTimestamp, payment2Hash)
 	suite.True(found, "payment2 should NOT be pruned (12 hours old)")
 
 	// Advance time by another 13 hours
@@ -671,7 +675,7 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	suite.NoError(err)
 
 	// Verify payment2 was pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2.CreationTimestamp, payment2Hash)
 	suite.False(found, "payment2 should be pruned after advancing time")
 }
 
@@ -693,6 +697,7 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithDerivedRetentionWindow() {
 	payment1 := types.ProcessedPayment{
 		PaymentPromiseHash: payment1Hash,
 		ProcessedAt:        baseTime.Add(-retention - time.Hour),
+		CreationTimestamp:  baseTime.Add(-retention - time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment1)
 
@@ -700,13 +705,14 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithDerivedRetentionWindow() {
 	payment2 := types.ProcessedPayment{
 		PaymentPromiseHash: payment2Hash,
 		ProcessedAt:        baseTime.Add(-retention + time.Hour),
+		CreationTimestamp:  baseTime.Add(-retention + time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment2)
 
 	// Verify both payments are in the store
-	_, found := suite.keeper.GetProcessedPayment(suite.ctx, payment1Hash)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, payment1.CreationTimestamp, payment1Hash)
 	suite.True(found)
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2.CreationTimestamp, payment2Hash)
 	suite.True(found)
 
 	// Run BeginBlocker - should prune only payment1
@@ -714,11 +720,11 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithDerivedRetentionWindow() {
 	suite.NoError(err)
 
 	// Verify payment1 was pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1.CreationTimestamp, payment1Hash)
 	suite.False(found, "payment1 should be pruned (processed before the retention window)")
 
 	// Verify payment2 was NOT pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2.CreationTimestamp, payment2Hash)
 	suite.True(found, "payment2 should NOT be pruned (processed within the retention window)")
 }
 
@@ -875,7 +881,7 @@ func (suite *ABCITestSuite) TestInitGenesisCanonicalStateUnchanged() {
 	// Export iterates in store key order.
 	slices.SortFunc(genesis.EscrowAccounts, func(a, b types.EscrowAccount) int { return strings.Compare(a.Signer, b.Signer) })
 	slices.SortFunc(genesis.Withdrawals, func(a, b types.Withdrawal) int { return strings.Compare(a.Signer, b.Signer) })
-	genesis.ProcessedPayments = []types.ProcessedPayment{{PaymentPromiseHash: []byte("hash"), ProcessedAt: requested}}
+	genesis.ProcessedPayments = []types.ProcessedPayment{{PaymentPromiseHash: []byte("hash"), ProcessedAt: requested, CreationTimestamp: requested.Add(-time.Second)}}
 	genesis.PromiseFreshnessFloor = requested.Add(-time.Hour)
 	suite.Require().NoError(genesis.Validate())
 
@@ -913,6 +919,76 @@ func (suite *ABCITestSuite) TestInitGenesisCanonicalStateUnchanged() {
 
 	suite.Equal(wantKeys, gotKeys)
 	suite.Equal(wantValues, gotValues)
+}
+
+// TestInitGenesisLegacyProcessedPayments checks that payments exported before v12,
+// which carry no creation time, stay in the legacy indexes, keep blocking replays
+// and round-trip through export.
+func (suite *ABCITestSuite) TestInitGenesisLegacyProcessedPayments() {
+	now := suite.ctx.BlockTime()
+	genesis := types.DefaultGenesis()
+	legacy := types.ProcessedPayment{PaymentPromiseHash: []byte("legacy-hash"), ProcessedAt: now.Add(-time.Hour)}
+	current := types.ProcessedPayment{PaymentPromiseHash: []byte("current-hash"), ProcessedAt: now, CreationTimestamp: now.Add(-time.Second)}
+	genesis.ProcessedPayments = []types.ProcessedPayment{current, legacy}
+	suite.Require().NoError(genesis.Validate())
+
+	suite.keeper.InitGenesis(suite.ctx, *genesis)
+	store := suite.ctx.KVStore(suite.storeKey)
+	suite.True(store.Has(types.LegacyProcessedPaymentsByHashKey(legacy.PaymentPromiseHash)))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, now.Add(-2*time.Hour), legacy.PaymentPromiseHash))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, current.CreationTimestamp, current.PaymentPromiseHash))
+
+	exported := suite.keeper.ExportGenesis(suite.ctx)
+	suite.Equal(genesis.ProcessedPayments, exported.ProcessedPayments)
+}
+
+// TestPruneProcessedPaymentsIsBounded checks that records which expire together,
+// legacy ones included, are pruned over several blocks, oldest first.
+func (suite *ABCITestSuite) TestPruneProcessedPaymentsIsBounded() {
+	const perBlock = 2000 // maxProcessedPaymentPrunesPerBlock
+	now := suite.ctx.BlockTime()
+	created := now.Add(-suite.keeper.GetParams(suite.ctx).PaymentPromiseRetentionWindow() - time.Hour)
+	for i := range perBlock + 5 {
+		hash := []byte(fmt.Sprintf("hash-%05d", i))
+		suite.keeper.SetProcessedPayment(suite.ctx, types.ProcessedPayment{PaymentPromiseHash: hash, ProcessedAt: now, CreationTimestamp: created.Add(time.Duration(i))})
+	}
+	store := suite.ctx.KVStore(suite.storeKey)
+	for i := range 10 {
+		legacy := types.ProcessedPayment{PaymentPromiseHash: []byte(fmt.Sprintf("legacy-%02d", i)), ProcessedAt: created}
+		store.Set(types.LegacyProcessedPaymentsByHashKey(legacy.PaymentPromiseHash), suite.cdc.MustMarshal(&legacy))
+		store.Set(types.LegacyProcessedPaymentsByTimeKey(legacy.ProcessedAt, legacy.PaymentPromiseHash), suite.cdc.MustMarshal(&legacy))
+	}
+
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.Equal(5, countPrefix(store, types.ProcessedPaymentsKeyPrefix))
+	suite.Equal(10, countPrefix(store, types.LegacyProcessedPaymentsByTimeKeyPrefix))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, created.Add(perBlock), []byte(fmt.Sprintf("hash-%05d", perBlock))))
+
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.Zero(countPrefix(store, types.ProcessedPaymentsKeyPrefix))
+	suite.Zero(countPrefix(store, types.LegacyProcessedPaymentsByTimeKeyPrefix))
+	suite.Zero(countPrefix(store, types.LegacyProcessedPaymentsByHashKeyPrefix))
+}
+
+// TestPruneLegacyProcessedPayments checks that legacy entries are pruned by processed time.
+func (suite *ABCITestSuite) TestPruneLegacyProcessedPayments() {
+	now := suite.ctx.BlockTime()
+	retention := suite.keeper.GetParams(suite.ctx).PaymentPromiseRetentionWindow()
+	genesis := types.DefaultGenesis()
+	old := types.ProcessedPayment{PaymentPromiseHash: []byte("old"), ProcessedAt: now.Add(-retention - time.Minute)}
+	recent := types.ProcessedPayment{PaymentPromiseHash: []byte("recent"), ProcessedAt: now.Add(-retention + time.Minute)}
+	genesis.ProcessedPayments = []types.ProcessedPayment{old, recent}
+	suite.keeper.InitGenesis(suite.ctx, *genesis)
+	store := suite.ctx.KVStore(suite.storeKey)
+
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.False(suite.keeper.IsPromiseProcessed(suite.ctx, time.Time{}, old.PaymentPromiseHash))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, time.Time{}, recent.PaymentPromiseHash))
+
+	suite.ctx = suite.ctx.WithBlockTime(now.Add(2 * time.Minute))
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.False(suite.keeper.IsPromiseProcessed(suite.ctx, time.Time{}, recent.PaymentPromiseHash))
+	suite.Zero(countPrefix(store, types.LegacyProcessedPaymentsByHashKeyPrefix))
 }
 
 // TestInitGenesisRejectsWithdrawalWithoutEscrow documents that InitGenesis
@@ -1042,6 +1118,7 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneAndWithdrawal() {
 	oldPayment := types.ProcessedPayment{
 		PaymentPromiseHash: oldPaymentHash,
 		ProcessedAt:        baseTime.Add(-30 * 24 * time.Hour),
+		CreationTimestamp:  baseTime.Add(-30 * 24 * time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, oldPayment)
 
@@ -1059,6 +1136,6 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneAndWithdrawal() {
 	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.Balance)
 
 	// Verify old payment was pruned
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, oldPaymentHash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, oldPayment.CreationTimestamp, oldPaymentHash)
 	suite.False(found, "old payment should be pruned")
 }

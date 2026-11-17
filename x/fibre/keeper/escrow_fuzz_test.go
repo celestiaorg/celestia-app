@@ -233,7 +233,7 @@ func fuzzEscrowMsgSequence(t *testing.T, script []byte) {
 				require.NoError(t, herr)
 				require.False(t, settled[string(hash)], "payment promise settled twice")
 				settled[string(hash)] = true
-				require.True(t, s.keeper.IsPaymentProcessedByHash(s.ctx, hash))
+				require.True(t, s.keeper.IsPaymentPromiseProcessed(s.ctx, &promise))
 				charge := types.PaymentAmount(promise.BlobSize)
 				after, _ := s.keeper.GetEscrowAccount(s.ctx, payer)
 				require.True(t, before.Balance.Amount.Sub(charge.Amount).Equal(after.Balance.Amount), "settlement charged the wrong amount")
@@ -330,7 +330,6 @@ func requireEscrowInvariants(t *testing.T, s *MsgServerTestSuite, ledger *escrow
 
 	store := s.ctx.KVStore(s.storeKey)
 	require.Equal(t, countPrefix(store, types.WithdrawalsBySignerKeyPrefix), countPrefix(store, types.WithdrawalsByAvailableKeyPrefix), "withdrawal indexes disagree")
-	require.Equal(t, countPrefix(store, types.ProcessedPaymentsByHashKeyPrefix), countPrefix(store, types.ProcessedPaymentsByTimeKeyPrefix), "processed payment indexes disagree")
 }
 
 // requireNoMaturedWithdrawals checks that BeginBlocker paid out every
@@ -364,7 +363,7 @@ func FuzzFibreStoreKeyRoundTrip(f *testing.F) {
 	f.Add(int64(1_900_000_000), uint32(5), int64(1_900_003_600), uint32(0), "celestia1signer", []byte{1, 2, 3}, []byte{0x04})
 	f.Add(int64(253402300799), uint32(999_999_999), int64(-62135596800), uint32(0), "", []byte{}, []byte{})
 	f.Add(int64(253402300800), uint32(0), int64(-62135596801), uint32(1), "a/b", []byte("/"), []byte{0x06, '2'})
-	f.Fuzz(func(t *testing.T, availSec int64, availNs uint32, reqSec int64, reqNs uint32, signer string, hash, raw []byte) {
+	f.Fuzz(func(t *testing.T, availSec int64, availNs uint32, reqSec int64, reqNs uint32, signer string, _, raw []byte) {
 		available := time.Unix(availSec, int64(availNs%1e9)).UTC()
 		requested := time.Unix(reqSec, int64(reqNs%1e9)).UTC()
 		var k keeper.Keeper
@@ -380,22 +379,9 @@ func FuzzFibreStoreKeyRoundTrip(f *testing.F) {
 			require.Equal(t, signer, gotSigner)
 		}
 
-		pkey := types.ProcessedPaymentsByTimeKey(available, hash)
-		gotAt, gotHash, err := k.ParseProcessedPaymentsByTimeKey(pkey)
-		if fourDigitYear(available) {
-			require.NoError(t, err)
-		}
-		if err == nil {
-			require.True(t, gotAt.Equal(available), "processed_at %v parsed as %v", available, gotAt)
-			require.True(t, bytes.Equal(hash, gotHash))
-		}
-
 		// Arbitrary bytes, with or without the index prefix, must parse or error.
 		for _, b := range [][]byte{raw, append(bytes.Clone(types.WithdrawalsByAvailableKeyPrefix), raw...)} {
 			_, _, _, _ = k.ParseWithdrawalsByAvailableKey(b)
-		}
-		for _, b := range [][]byte{raw, append(bytes.Clone(types.ProcessedPaymentsByTimeKeyPrefix), raw...)} {
-			_, _, _ = k.ParseProcessedPaymentsByTimeKey(b)
 		}
 	})
 }
