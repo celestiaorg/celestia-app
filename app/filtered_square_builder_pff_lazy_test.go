@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -33,8 +34,8 @@ type pffFill struct {
 	reject       map[string]bool
 	router       baseapp.MessageRouter
 	anteCalls    int
-	sdkDecodes   int
-	pffDecodes   int
+	sdkDecodes   atomic.Int64
+	pffDecodes   atomic.Int64
 	preverified  [][]byte
 	preverifyRan bool
 }
@@ -51,7 +52,7 @@ func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	fsb.decodePFF = func(raw []byte, msg *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre {
-		p.pffDecodes++
+		p.pffDecodes.Add(1)
 		return fibrekeeper.DerivePayForFibre(raw, msg)
 	}
 	if p.preverify {
@@ -82,7 +83,7 @@ func TestFillStopsPFFDecodesAtCap(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	txs := newPFFs(t, txConfig, 2*appconsts.MaxPayForFibreCandidates)
 
-	_, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(int)}, txs)
+	_, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(atomic.Int64)}, txs)
 	require.Len(t, entries, len(txs))
 	for i, e := range entries {
 		require.Equal(t, txs[i], e.raw)
@@ -91,13 +92,13 @@ func TestFillStopsPFFDecodesAtCap(t *testing.T) {
 
 	lazy := &pffFill{txConfig: txConfig}
 	require.Equal(t, txs[:appconsts.MaxPayForFibreMessages], lazy.run(t, txs))
-	require.Equal(t, appconsts.MaxPayForFibreMessages, lazy.sdkDecodes)
-	require.Equal(t, appconsts.MaxPayForFibreMessages, lazy.pffDecodes)
+	require.EqualValues(t, appconsts.MaxPayForFibreMessages, lazy.sdkDecodes.Load())
+	require.EqualValues(t, appconsts.MaxPayForFibreMessages, lazy.pffDecodes.Load())
 
 	warm := &pffFill{txConfig: txConfig, preverify: true}
 	require.Equal(t, txs[:appconsts.MaxPayForFibreMessages], warm.run(t, txs))
-	require.Equal(t, appconsts.MaxPayForFibreCandidates, warm.sdkDecodes)
-	require.Equal(t, appconsts.MaxPayForFibreCandidates, warm.pffDecodes)
+	require.EqualValues(t, appconsts.MaxPayForFibreCandidates, warm.sdkDecodes.Load())
+	require.EqualValues(t, appconsts.MaxPayForFibreCandidates, warm.pffDecodes.Load())
 }
 
 // TestFillKeepsValidPFFsBehindRejectedOnes pins the fix: PayForFibre txs that fail ante past the

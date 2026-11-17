@@ -111,6 +111,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// not recorded, so the fill still performs and decides each check itself.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
+		// Decode the first candidates in parallel; the walk below reuses each entry's result and
+		// decodes past them only when some are invalid, which CheckTx makes rare.
+		head := payForFibreTxs[:min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates)]
+		forEachParallel(len(head), func(i int) { fsb.decodeFibreTx(logger, dec, &head[i]) })()
 		for i := range payForFibreTxs {
 			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
 				break
