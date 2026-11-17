@@ -37,20 +37,20 @@ var (
 
 // CheckResult holds, for the report, the signed annual_provisions - inflation_rate * supply[bond_denom] and the exported mint values.
 type CheckResult struct {
-	MintExcess       math.LegacyDec
-	AnnualProvisions math.LegacyDec
-	InflationRate    math.LegacyDec
-	MintGenesisTime  time.Time
+	MintExcess       math.LegacyDec `json:"mint_excess"`
+	AnnualProvisions math.LegacyDec `json:"annual_provisions"`
+	InflationRate    math.LegacyDec `json:"inflation_rate"`
+	MintGenesisTime  time.Time      `json:"mint_genesis_time"`
 	// Totals and records to compare with the old chain. Balances are keyed by module name; Surplus is, for gov, fibre
 	// and transfer, the balance above what the records need. Lists are sorted by their keys; closed channels are included.
-	Supply          sdk.Coins
-	Balances        map[string]sdk.Coins
-	Surplus         map[string]sdk.Coins
-	FibreEscrows    []FibreEscrow
-	TotalEscrowed   sdk.Coins
-	TransferEscrows []TransferEscrow
-	WarpTokens      []warptypes.HypToken
-	WarpRouters     []warptypes.GenesisRemoteRouterWrapper
+	Supply          sdk.Coins                              `json:"supply"`
+	Balances        map[string]sdk.Coins                   `json:"balances"`
+	Surplus         map[string]sdk.Coins                   `json:"surplus"`
+	FibreEscrows    []FibreEscrow                          `json:"fibre_escrows"`
+	TotalEscrowed   sdk.Coins                              `json:"total_escrowed"`
+	TransferEscrows []TransferEscrow                       `json:"transfer_escrows"`
+	WarpTokens      []warptypes.HypToken                   `json:"warp_tokens"`
+	WarpRouters     []warptypes.GenesisRemoteRouterWrapper `json:"warp_routers"`
 }
 
 // CheckState runs the record-level rules and then the conservation equations on g.
@@ -75,6 +75,9 @@ func CheckState(cdc codec.JSONCodec, g *Genesis, opts Options) (*CheckResult, er
 	}
 	bondDenom, err := checkStaking(cdc, g, bals)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkDelegations(cdc, g); err != nil {
 		return nil, err
 	}
 	if err := checkDistribution(cdc, g, bals[distrtypes.ModuleName]); err != nil {
