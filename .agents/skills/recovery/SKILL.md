@@ -1,16 +1,16 @@
 ---
 name: recovery
-description: Lead a celestia-app chain or node recovery - choose between a rollback and in-place surgery, then guide or run each step of the runbooks in docs/hardfork/. Use when the chain halted, nodes disagree on the app hash, a node logs "wrong Block.Header.AppHash", committed state is wrong and must be repaired on the same chain, or the engineer asks to roll back a node or the network, or for a state fix.
+description: Lead a celestia-app chain or node recovery - choose between a rollback and in-place surgery (a new chain from an export has its own runbooks), then guide or run each step of the runbooks in docs/hardfork/. Use when the chain halted, nodes disagree on the app hash, a node logs "wrong Block.Header.AppHash", committed state is wrong and must be repaired on the same chain, or the engineer asks to roll back a node or the network, or for a state fix.
 ---
 
 # /recovery — incident recovery by rollback or in-place surgery
 
-You help the engineer recover from a chain halt, an app hash mismatch or bad committed state. There are two methods:
+You help the engineer recover from a chain halt, an app hash mismatch or bad committed state. This skill runs two methods:
 
 - **Rollback**: `celestia-appd rollback --height X` and `scripts/hardfork/recovery.sh rollback`. Nodes go back to X and execute the blocks after it again with a fixed release.
 - **In-place surgery**: a state fix in `app/state_fixes.go` and `scripts/hardfork/recovery.sh restart`. Nodes keep their data and repair the state at fix height F.
 
-The runbooks are the source of truth: `docs/hardfork/rollback-coordination.md` and `docs/hardfork/surgery-coordination.md` for the network, `docs/hardfork/rollback.md` and `docs/hardfork/surgery.md` for each node. Read the runbooks of the chosen method in full before its first step; the surgery runbooks link the rollback runbooks for shared steps. Follow the runbooks when they differ from this file.
+The runbooks are the source of truth: `docs/hardfork/rollback-coordination.md` and `docs/hardfork/surgery-coordination.md` for the network, `docs/hardfork/rollback.md` and `docs/hardfork/surgery.md` for each node. A third tool, a new chain from an export, follows `docs/hardfork/export-coordination.md` and `docs/hardfork/export.md`; this skill does not run it. Read the runbooks of the chosen method in full before its first step; the surgery runbooks link the rollback runbooks for shared steps. Follow the runbooks when they differ from this file.
 
 ## How you work
 
@@ -79,7 +79,7 @@ Check against "When to use surgery" in `surgery-coordination.md`:
 4. **No node executed F on the old release.** On a halted chain every node's app height is F-1. A node at F or above rolls back to F-1 first (`docs/hardfork/rollback.md`). If the network committed F+1 without the fix, choose a new F.
 5. **App version at F.** Record `app_version` from `/abci_info`. It decides the release line of the fix (step S1.6).
 
-Report each point with the evidence. If neither method fits, say which point fails, explain the alternative (new chain from an export, state sync or a snapshot, a code patch, an upgrade), and stop. Otherwise propose the method and X or F with the reasoning, and wait for confirmation (gates 1 and 2). Then follow the R steps for a rollback or the S steps for surgery.
+Report each point with the evidence. If neither method fits, say which point fails, explain the alternative (a new chain from an export per `docs/hardfork/export-coordination.md` and `docs/hardfork/export.md`, state sync or a snapshot, a code patch, an upgrade), and stop. Otherwise propose the method and X or F with the reasoning, and wait for confirmation (gates 1 and 2). Then follow the R steps for a rollback or the S steps for surgery.
 
 ## Rollback
 
@@ -154,7 +154,7 @@ Operators of nodes you can't reach: give them `docs/hardfork/rollback.md` with t
 4. The change is consensus-critical: offer `/implement` with the adversarial review. The PR title has `!` and `[high]`.
 5. Gate 5: show the diff, the test result and the review result.
 6. Prepare the release as in "Release the fix": a patch of the line that executes F, and, if validators run a later major, a release of that major whose embedded pin of this line is a tag with the fix. List every pin file the runbook names. Check every binary and image with `celestia-appd passthrough v<N> version`.
-7. If a new chain from a zero-height export may follow, note that it needs a new chain ID or a release without the fix.
+7. If a new chain from an export may follow, compare F with its E and I, as in "Release the fix" in `surgery-coordination.md`.
 
 ### Step S2 — Before the restart
 
