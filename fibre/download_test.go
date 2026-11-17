@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
@@ -79,7 +78,6 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 		ParityRows:   testN,
 		MaxDataSize:  testK*testRowSize - blobHeaderLen,
 		Coder:        coder,
-		DataPool:     row.NewPool(testRowSize, testK),
 	}
 	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
 	require.NoError(t, err)
@@ -103,7 +101,7 @@ func TestParseShardRejectsOversizedRLCs(t *testing.T) {
 
 // A malicious/custom uploader can serve a shard whose row size exceeds the
 // reader's configured MaxRowSize. AddShard must reject it gracefully rather
-// than panicking inside the DataPool (which is sized for MaxRowSize).
+// than allocating a slab for it.
 func TestDownload_OversizedRowReturnsError(t *testing.T) {
 	cfg := &rsema1d.Config{K: testK, N: testN, WorkerCount: 1}
 	coder, err := rsema1d.NewCoder(cfg)
@@ -150,7 +148,6 @@ func TestDownload_OversizedRowReturnsError(t *testing.T) {
 		MaxDataSize:  testK*testRowSize - blobHeaderLen,
 		MaxRowSize:   readerMaxRowSize,
 		Coder:        coder,
-		DataPool:     row.NewPool(readerMaxRowSize, testK),
 	}
 	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
 	require.NoError(t, err)
@@ -312,7 +309,6 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 		ParityRows:   testN,
 		MaxDataSize:  testK*testRowSize - blobHeaderLen,
 		Coder:        coder,
-		DataPool:     row.NewPool(testRowSize, testK),
 	}
 	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
 	require.NoError(t, err)

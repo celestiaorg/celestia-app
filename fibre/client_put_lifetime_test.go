@@ -61,6 +61,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 				err    error
 			}
 			done := make(chan outcome, 1)
+			var released atomic.Int64
 			var raw weak.Pointer[byte]
 			newData := func() []byte {
 				data := bytes.Repeat([]byte{0x47}, 256<<10)
@@ -68,12 +69,13 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 				return data
 			}
 			go func() {
-				result, err := fibre.Put(ctx, client, txClient, testNamespace, newData())
+				result, err := fibre.PutOwned(ctx, client, txClient, testNamespace, newData(), func() { released.Add(1) })
 				done <- outcome{result, err}
 			}()
 			awaitLifetimeSignal(t, entered)
 			awaitLifetimeSignal(t, settlement.entered)
 			require.EqualValues(t, 1, gate.active.Load(), "quorum must not release a delayed reader's admission")
+			require.Zero(t, released.Load(), "data released while an upload still reads it")
 
 			if canceled {
 				cancel()
@@ -84,6 +86,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 					t.Fatal("Put did not stop waiting for confirmation")
 				}
 				require.EqualValues(t, 1, gate.active.Load(), "cancellation must not release storage still in use")
+				require.Zero(t, released.Load())
 			}
 
 			// Reusing the same pool shape must not overwrite the delayed RPC's rows.
@@ -94,6 +97,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			require.NoError(t, <-checked)
 			client.Await()
 			require.Zero(t, gate.active.Load())
+			require.EqualValues(t, 1, released.Load())
 			if !canceled {
 				require.Eventually(t, func() bool {
 					runtime.GC()
@@ -110,6 +114,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 					require.NoError(t, result.err)
 					require.EqualValues(t, 123, result.result.Height)
 					require.Equal(t, lifetimeTxHash, result.result.TxHash)
+					require.EqualValues(t, 1, released.Load())
 				case <-time.After(10 * time.Second):
 					t.Fatal("Put did not return after confirmation")
 				}
@@ -121,20 +126,25 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 func TestPutMemoryAdmissionFailuresReleaseCapacity(t *testing.T) {
 	gate := &putMemoryGate{}
 	client, txClient, _ := newLifetimePutClient(t, gate.acquire, nil)
-	_, err := fibre.Put(t.Context(), client, txClient, testNamespace, nil)
+	var released atomic.Int64
+	release := func() { released.Add(1) }
+	_, err := fibre.PutOwned(t.Context(), client, txClient, testNamespace, nil, release)
 	require.Error(t, err)
 	require.Zero(t, gate.active.Load(), "encoding failure must release admission")
+	require.EqualValues(t, 1, released.Load())
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err = fibre.Put(ctx, client, txClient, testNamespace, []byte("canceled"))
+	_, err = fibre.PutOwned(ctx, client, txClient, testNamespace, []byte("canceled"), release)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Zero(t, gate.active.Load())
+	require.EqualValues(t, 2, released.Load())
 
 	acquired := gate.acquired.Load()
 	require.NoError(t, client.Stop(t.Context()))
-	_, err = fibre.Put(t.Context(), client, txClient, testNamespace, []byte("closed"))
+	_, err = fibre.PutOwned(t.Context(), client, txClient, testNamespace, []byte("closed"), release)
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
+	require.EqualValues(t, 3, released.Load())
 	require.Equal(t, acquired, gate.acquired.Load(), "closed client must fail before admission")
 }
 
@@ -148,8 +158,10 @@ func TestPutUnstartedClientFailsBeforeAdmission(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	_, err = fibre.Put(ctx, client, nil, testNamespace, []byte("unstarted"))
+	var released atomic.Int64
+	_, err = fibre.PutOwned(ctx, client, nil, testNamespace, []byte("unstarted"), func() { released.Add(1) })
 	require.ErrorContains(t, err, "not started")
+	require.EqualValues(t, 1, released.Load())
 	require.NoError(t, ctx.Err(), "Put waited for admission")
 }
 

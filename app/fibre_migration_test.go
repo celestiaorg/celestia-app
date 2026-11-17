@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func applyV11FromFibreV1(t *testing.T, testApp *app.App, ctx sdk.Context) error {
+func applyV12FromFibreV1(t *testing.T, testApp *app.App, ctx sdk.Context) error {
 	t.Helper()
 	versions, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
 	require.NoError(t, err)
@@ -24,7 +24,7 @@ func applyV11FromFibreV1(t *testing.T, testApp *app.App, ctx sdk.Context) error 
 	// Like FinalizeBlock, commit the enclosing context only if the upgrade
 	// succeeds. The migration must not allocate its own full-state cache.
 	upgradeCtx, write := ctx.CacheContext()
-	if err := testApp.UpgradeKeeper.ApplyUpgrade(upgradeCtx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}); err != nil {
+	if err := testApp.UpgradeKeeper.ApplyUpgrade(upgradeCtx, upgradetypes.Plan{Name: "v12", Height: ctx.BlockHeight()}); err != nil {
 		return err
 	}
 	write()
@@ -37,7 +37,7 @@ func fundFibreModule(t *testing.T, testApp *app.App, ctx sdk.Context, coins sdk.
 	require.NoError(t, testApp.BankKeeper.SendCoinsFromModuleToModule(ctx, minttypes.ModuleName, fibretypes.ModuleName, coins))
 }
 
-func TestV11UpgradeMigratesFibreEscrows(t *testing.T) {
+func TestV12UpgradeMigratesFibreEscrows(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false).WithBlockHeight(1).WithBlockTime(util.GenesisTime.Add(time.Hour))
 	owner := sdk.AccAddress(bytes.Repeat([]byte{1}, 20))
@@ -66,7 +66,7 @@ func TestV11UpgradeMigratesFibreEscrows(t *testing.T) {
 	supply := testApp.BankKeeper.GetSupply(ctx, "stake")
 	accountNumber := testApp.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName).GetAccountNumber()
 
-	require.NoError(t, applyV11FromFibreV1(t, testApp, ctx))
+	require.NoError(t, applyV12FromFibreV1(t, testApp, ctx))
 	account, found := k.GetEscrowAccount(ctx, lower)
 	require.True(t, found)
 	require.Equal(t, sdk.NewInt64Coin("utia", 1500), account.Balance)
@@ -93,7 +93,7 @@ func TestV11UpgradeMigratesFibreEscrows(t *testing.T) {
 	require.NoError(t, exported.Validate())
 
 	// Repeating the migration cannot refund twice or duplicate withdrawals.
-	require.NoError(t, applyV11FromFibreV1(t, testApp, ctx))
+	require.NoError(t, applyV12FromFibreV1(t, testApp, ctx))
 	require.Equal(t, exported, k.ExportGenesis(ctx))
 	require.Equal(t, sdk.NewInt64Coin("stake", 700), testApp.BankKeeper.GetBalance(ctx, other, "stake"))
 	// Exercise the availability index: the colliding requests must not pay early.
@@ -111,7 +111,7 @@ func TestV11UpgradeMigratesFibreEscrows(t *testing.T) {
 	require.False(t, iterator.Valid(), "no stale availability entries may pay a withdrawal twice")
 }
 
-func TestV11FibreMigrationRollsBackRefunds(t *testing.T) {
+func TestV12FibreMigrationRollsBackRefunds(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false).WithBlockHeight(1).WithBlockTime(util.GenesisTime.Add(time.Hour))
 	owners := []sdk.AccAddress{bytes.Repeat([]byte{1}, 20), bytes.Repeat([]byte{2}, 20)}
@@ -127,13 +127,13 @@ func TestV11FibreMigrationRollsBackRefunds(t *testing.T) {
 	// The second refund fails after the first one has succeeded in the cache.
 	fundFibreModule(t, testApp, ctx, sdk.NewCoins(sdk.NewInt64Coin("stake", 50)))
 	before := testApp.FibreKeeper.ExportGenesis(ctx)
-	require.Error(t, applyV11FromFibreV1(t, testApp, ctx))
+	require.Error(t, applyV12FromFibreV1(t, testApp, ctx))
 	require.Equal(t, before, testApp.FibreKeeper.ExportGenesis(ctx))
 	for _, owner := range owners {
 		require.True(t, testApp.BankKeeper.GetBalance(ctx, owner, "stake").IsZero())
 	}
 	fundFibreModule(t, testApp, ctx, sdk.NewCoins(sdk.NewInt64Coin("stake", 50)))
-	require.NoError(t, applyV11FromFibreV1(t, testApp, ctx))
+	require.NoError(t, applyV12FromFibreV1(t, testApp, ctx))
 	for _, owner := range owners {
 		require.Equal(t, sdk.NewInt64Coin("stake", 50), testApp.BankKeeper.GetBalance(ctx, owner, "stake"))
 	}

@@ -151,9 +151,11 @@ jobs:
             entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportRestart
             entrypoint: TestHyperlaneTestSuite
-          # Export below the last height Hermes relayed.
+          # Export below the last height Hermes or the Hyperlane relayer saw.
           - test: TestIBCExportBelowTip
             entrypoint: TestIBCTestSuite
+          - test: TestHyperlaneExportBelowTip
+            entrypoint: TestHyperlaneTestSuite
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0

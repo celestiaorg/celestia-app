@@ -171,7 +171,7 @@ func fuzzSignalTryUpgrade(t *testing.T, script []byte) {
 	cms.MountStoreWithDB(key, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, cms.LoadLatestVersion())
 	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-	k := signal.NewKeeper(cdc, key, staking)
+	k := signal.NewKeeper(cdc, key, staking, headerVersionGetter{})
 	height := int64(10)
 	mkCtx := func() sdk.Context {
 		return sdk.NewContext(cms, tmproto.Header{Version: cmtversion.Consensus{Block: 1, App: appVersion}, Height: height}, false, log.NewNopLogger()).
@@ -230,7 +230,7 @@ func fuzzSignalTryUpgrade(t *testing.T, script []byte) {
 				require.NoError(t, err)
 				require.NotNil(t, after, "quorum for version %d but no upgrade scheduled", wantVersion)
 				require.Equal(t, wantVersion, after.AppVersion)
-				require.Equal(t, height+appconsts.GetUpgradeHeightDelay(appconsts.TestChainID), after.UpgradeHeight)
+				require.Equal(t, height+appconsts.GetUpgradeHeightDelay(appconsts.TestChainID, 0), after.UpgradeHeight)
 			default:
 				require.NoError(t, err)
 				require.Nil(t, after, "upgrade scheduled without quorum")
