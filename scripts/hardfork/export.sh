@@ -305,13 +305,18 @@ sync_node() {
     case "$reached" in
     rpc) check_app_hash ;;
     halt)
-        # Only block sync panics with this, after it checked the app hash in
-        # the block against the local one. Handshake replay does not check it.
-        APP_HASH_CHECK="not verified (halt path)"
-        if grep -F "Failed to process committed block ($NEXT:" "$OUT/node.log" | grep -F "$halt" >/dev/null; then
-            APP_HASH_CHECK="checked by block sync against block $NEXT"
+        # The app hash the node computed for HEIGHT, from the "finalized block"
+        # line in node.log (log level info, plain or JSON format).
+        APP_HEIGHT=$HEIGHT
+        APP_HASH=$(sed $'s/\033\\[[0-9;]*m//g' "$OUT/node.log" | grep -F "finalized block" |
+            grep -E "(^|[ {,])\"?height\"?[=:]\"?$HEIGHT([ ,}\"]|\$)" | tail -n 1 |
+            sed -nE 's/.*block_app_hash"?[=:]"?([0-9A-Fa-f]+).*/\1/p' | tr '[:upper:]' '[:lower:]' || true)
+        if [ -n "$APP_HASH" ]; then
+            check_app_hash
+        else
+            APP_HASH_CHECK="not verified (node.log has no finalized block $HEIGHT)"
+            echo "the node stopped at the halt; app hash at $HEIGHT $APP_HASH_CHECK"
         fi
-        echo "the node stopped at the halt; app hash at $HEIGHT: $APP_HASH_CHECK"
         ;;
     *) die "the node did not reach height $HEIGHT (app at $APP_HEIGHT); see $OUT/node.log" ;;
     esac

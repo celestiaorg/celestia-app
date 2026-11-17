@@ -182,36 +182,45 @@ cp "$OUT/header.json" "$TMP/header.json"
 grep -q "export.manifest is not for height 19 on test" "$TMP/out.log" || fail "manifest mismatch message"
 cmp -s "$TMP/header.json" "$OUT/header.json" || fail "rejected resume rewrote header.json"
 
-# halt in block sync, no from-export, no GNU time: the app hash was checked by
-# block sync, the genesis command is printed.
+# halt_log writes the colored log of a block sync halt at 21 after block 20
+# finalized with app hash $1.
+halt_log() {
+    printf '%s\n' $'10:00AM \033[32mINF\033[0m finalized block \033[36mblock_app_hash=\033[0m'"$1"$' \033[36mheight=\033[0m20 \033[36mmodule=\033[0mstate \033[36mnum_txs_res=\033[0m0 \033[36mnum_val_updates=\033[0m0' \
+        '10:00AM ERR error in proxyAppConn.FinalizeBlock err="halt per configuration height 21 time 0" module=state' \
+        'panic: Failed to process committed block (21:AB): halt per configuration height 21 time 0' >"$STUB_STATE/halt"
+}
+
+# halt in block sync, no from-export, no GNU time: the app hash of block 20 in
+# node.log matches block 21, the genesis command is printed.
 new_node
-printf '%s\n' 'ERR error in proxyAppConn.FinalizeBlock err="halt per configuration height 21 time 0" module=state' \
-    'panic: Failed to process committed block (21:AB): halt per configuration height 21 time 0' >"$STUB_STATE/halt"
+halt_log ABCD12
 printf '#!/usr/bin/env bash\nexit 1\n' | tee "$STUBS/time" >"$STUBS/gtime"
 export_sh --genesis-time 2026-11-17T00:00:00Z --initial-height 40 || fail "export at a block sync halt failed"
-summary "app_hash_at_height: checked by block sync against block 21"
+summary "app_hash_at_height: matches block 21: abcd12"
 summary "export_peak_rss_kb: n/a"
 grep -q "^genesis_sha256: skipped; run: .*genesis from-export .*--initial-height 40 --output" "$OUT/summary.txt" ||
     fail "skipped genesis command"
 [ ! -e "$OUT/genesis.json" ] || fail "genesis built without from-export"
 
-# halt in handshake replay, from-export without --genesis-time: the app hash is
-# not verified, the command has a placeholder.
+# halt in handshake replay, from-export without --genesis-time: no finalized
+# block 20 in node.log, so the app hash is not verified; the command has a
+# placeholder.
 new_node
 echo "error during handshake: halt per configuration height 21 time 0" >"$STUB_STATE/halt"
 touch "$STUB_STATE/from-export"
 export_sh --initial-height 40 || fail "export at a handshake halt failed"
-summary "app_hash_at_height: not verified (halt path)"
+summary "app_hash_at_height: not verified (node.log has no finalized block 20)"
 grep -q "^genesis_sha256: skipped; run: .*--genesis-time GENESIS_TIME" "$OUT/summary.txt" || fail "genesis time placeholder"
 
 # refusals: nothing is marked as exported and no node is left running.
-for c in running signer app-hash initial-height chain-id upgrade timeout orphan not-empty; do
+for c in running signer app-hash halt-hash initial-height chain-id upgrade timeout orphan not-empty; do
     new_node
     args=()
     case "$c" in
     running) touch "$STUB_STATE/running"; want="stop it first" ;;
     signer) touch "$STUB_STATE/ignore-env"; want="does not take the signer from CELESTIA_APPD_PRIV_VALIDATOR_KEY_FILE" ;;
     app-hash) echo AAAA >"$STUB_STATE/app-hash"; want="the local state differs from the chain" ;;
+    halt-hash) halt_log FFFF; want="app hash at 20 is ffff, block 21 has abcd12: the local state differs" ;;
     initial-height) echo 20 >"$STUB_STATE/initial"; want="export.json has initial_height 20, expected 21" ;;
     chain-id) echo other >"$STUB_STATE/chain"; want="export.json has chain_id other, expected test" ;;
     upgrade) touch "$STUB_STATE/upgrade"; want="block 20 changed the validator set: export with --height 19 instead" ;;
