@@ -236,6 +236,9 @@ func (s *CelestiaTestSuite) armHaltHeight(ctx context.Context, validators cosmos
 		err = s.WaitForSync(ctx, fullNode.Client, rollbackTimeout, func(info coretypes.SyncInfo) bool {
 			return info.LatestBlockHeight > before
 		})
+		if err != nil {
+			s.logRollbackDiagnostics(ctx, append(cosmos.ChainNodes{fullNode}, validators...))
+		}
 		s.Require().NoError(err, "chain did not advance after restarting %s", v.Name())
 	}
 	height, err = fullNode.Height(ctx)
@@ -394,18 +397,22 @@ func (s *CelestiaTestSuite) waitForHeight(ctx context.Context, nodes cosmos.Chai
 			return info.LatestBlockHeight > height
 		})
 		if err != nil {
-			diag := make([]tastoratypes.ChainNode, 0, len(nodes))
-			for _, d := range nodes {
-				diag = append(diag, d)
-			}
-			// Bound the diagnostics so a node that stopped answering does not
-			// delay the failure below.
-			diagCtx, cancel := context.WithTimeout(ctx, time.Minute)
-			s.logNodeDiagnostics(diagCtx, diag)
-			cancel()
+			s.logRollbackDiagnostics(ctx, nodes)
 		}
 		s.Require().NoError(err, "%s did not pass height %d", n.Name(), height)
 	}
+}
+
+// logRollbackDiagnostics logs the status and container logs of nodes. It has a
+// deadline so a node that stopped answering does not delay the test failure.
+func (s *CelestiaTestSuite) logRollbackDiagnostics(ctx context.Context, nodes cosmos.ChainNodes) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	diag := make([]tastoratypes.ChainNode, 0, len(nodes))
+	for _, n := range nodes {
+		diag = append(diag, n)
+	}
+	s.logNodeDiagnostics(ctx, diag)
 }
 
 // rollback runs celestia-appd rollback on a stopped node and returns stdout and stderr combined.
