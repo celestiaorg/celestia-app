@@ -10,6 +10,8 @@ import (
 	"math"
 	"math/bits"
 	"runtime"
+	"slices"
+	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
@@ -18,7 +20,8 @@ import (
 const (
 	// embeddedServerLimit is the gRPC receive limit of an embedded older app (celestia-core abci/server/grpc_server.go).
 	embeddedServerLimit = 75 << 20
-	candidateStatus     = "candidate: do not publish until trial-import passes for genesis_sha256"
+	candidateStatus     = "candidate: publish only after the new-chain runbook checks pass for genesis_sha256"
+	chainIDWarning      = "new chain-id: IBC counterparties still track the export's chain-id; continuity needs an IBC upgrade proposal or MsgRecoverClient on every counterparty"
 )
 
 // Sizes are the byte counts of a written genesis.
@@ -41,6 +44,12 @@ type Change struct {
 	Candidate string `json:"candidate"`
 }
 
+// Validator is a consensus validator of the candidate.
+type Validator struct {
+	Address string `json:"address"`
+	Power   int64  `json:"power"`
+}
+
 // Report records a candidate genesis and what changed from the export.
 type Report struct {
 	Status          string `json:"status"`
@@ -51,16 +60,23 @@ type Report struct {
 	AppName         string `json:"app_name"`
 	AppVersion      string `json:"app_version"`
 	ChainID         Change `json:"chain_id"`
+	ChainIDWarning  string `json:"chain_id_warning,omitempty"`
 	InitialHeight   Change `json:"initial_height"`
 	GenesisTime     Change `json:"genesis_time"`
 	GenesisSHA256   string `json:"genesis_sha256"`
 	Sizes           Sizes  `json:"sizes"`
 	Transport       string `json:"transport,omitempty"`
+	// AcceptMintExcess is the acknowledged mint excess, if given; Checks.MintExcess is the signed value.
+	AcceptMintExcess string       `json:"accept_mint_excess,omitempty"`
+	Checks           *CheckResult `json:"checks,omitempty"`
+	// Validators are sorted by hex consensus address.
+	Validators []Validator `json:"validators"`
+	TotalPower int64       `json:"total_power"`
 }
 
 // NewReport returns the report of cand built from exp; Install fills the genesis hash and sizes.
 func NewReport(exp *Export, cand *Genesis, opts Options) *Report {
-	return &Report{
+	rep := &Report{
 		Status:          candidateStatus,
 		ToolGoVersion:   runtime.Version(),
 		ExportSHA256:    hex.EncodeToString(exp.SHA256[:]),
@@ -72,6 +88,19 @@ func NewReport(exp *Export, cand *Genesis, opts Options) *Report {
 		InitialHeight:   Change{fmt.Sprint(exp.InitialHeight), fmt.Sprint(cand.InitialHeight)},
 		GenesisTime:     Change{formatTime(exp.GenesisTime), formatTime(cand.GenesisTime)},
 	}
+	if cand.ChainID != exp.ChainID {
+		rep.ChainIDWarning = chainIDWarning
+	}
+	if !opts.AcceptMintExcess.IsNil() {
+		rep.AcceptMintExcess = opts.AcceptMintExcess.String()
+	}
+	// checkValidators bounds the total power to MaxTotalVotingPower.
+	for _, v := range cand.Consensus.Validators {
+		rep.Validators = append(rep.Validators, Validator{Address: v.PubKey.Address().String(), Power: v.Power})
+		rep.TotalPower += v.Power
+	}
+	slices.SortFunc(rep.Validators, func(a, b Validator) int { return strings.Compare(a.Address, b.Address) })
+	return rep
 }
 
 // countWriter hashes and counts the bytes written to w.

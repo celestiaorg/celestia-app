@@ -24,14 +24,18 @@ import (
 
 // FibreEscrow is the escrow of one owner in one denom; Balance == Available + Pending withdrawals.
 type FibreEscrow struct {
-	Owner, Denom                string
-	Balance, Available, Pending math.Int
+	Owner     string   `json:"owner"`
+	Denom     string   `json:"denom"`
+	Balance   math.Int `json:"balance"`
+	Available math.Int `json:"available"`
+	Pending   math.Int `json:"pending"`
 }
 
 // TransferEscrow is the balance of the escrow account of one transfer channel.
 type TransferEscrow struct {
-	Port, Channel string
-	Balance       sdk.Coins
+	Port    string    `json:"port"`
+	Channel string    `json:"channel"`
+	Balance sdk.Coins `json:"balance"`
 }
 
 // CheckGovNulls rejects missing or null gov params, a deposit param without an amount and null proposals, messages,
@@ -126,7 +130,38 @@ func checkGov(cdc codec.JSONCodec, g *Genesis, bal sdk.Coins, opts Options) (sdk
 			return nil, overflowError(module, "deposits", err)
 		}
 	}
-	return coversCoins(module, "balance", deposits.coins(), bal)
+	surplus, err := coversCoins(module, "balance", deposits.coins(), bal)
+	if err != nil {
+		return nil, err
+	}
+	return surplus, checkGovGenesis(&gs)
+}
+
+// checkGovGenesis runs in order the checks that gov ValidateGenesis runs in goroutines, so the first error is
+// deterministic and gov ValidateGenesis cannot fail on accepted input. CheckGovNulls has rejected null params.
+func checkGovGenesis(gs *govv1.GenesisState) error {
+	const module = govtypes.ModuleName
+	ids := make(map[uint64]bool, len(gs.Proposals))
+	for _, p := range gs.Proposals {
+		ids[p.Id] = true
+	}
+	orphan := func(records string, i int, id uint64) error {
+		return &CheckError{Step: stepRecords, Module: module, Field: fmt.Sprintf("%s[%d].proposal_id", records, i), Want: "an existing proposal", Got: fmt.Sprint(id)}
+	}
+	for i, d := range gs.Deposits {
+		if !ids[d.ProposalId] {
+			return orphan("deposits", i, d.ProposalId)
+		}
+	}
+	for i, v := range gs.Votes {
+		if !ids[v.ProposalId] {
+			return orphan("votes", i, v.ProposalId)
+		}
+	}
+	if err := gs.Params.ValidateBasic(); err != nil {
+		return &CheckError{Step: stepRecords, Module: module, Field: "params", Want: "valid params", Got: err.Error()}
+	}
+	return nil
 }
 
 // blockedAddrs decodes the app blocklist; an empty one means the caller did not pass it.
