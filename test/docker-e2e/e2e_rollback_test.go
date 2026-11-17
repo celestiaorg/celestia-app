@@ -263,7 +263,9 @@ type haltResult struct {
 // validators every precommit is needed, so the first validator to commit that
 // block can exit before its own precommit reaches the others. They then stay
 // one height below, waiting for a vote that never comes, and do not exit. Once
-// that has lasted haltStallTimeout, waitForHalt stops them itself.
+// that has lasted haltStallTimeout, waitForHalt stops them itself. When every
+// validator exits before the full node gets their precommits, the full node
+// stays one height below.
 func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.ChainNodes, fullNode *cosmos.ChainNode, height int64) haltResult {
 	res := haltResult{halted: make(map[string]bool)}
 	var stalled []*cosmos.ChainNode
@@ -288,7 +290,10 @@ func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.C
 		}
 		res.fullNodeHeight = fullNodeHeight
 		if len(running) == 0 {
-			return fullNodeHeight >= height, nil
+			// Every validator exited, so the chain cannot advance. When they all
+			// exited before their precommits reached the full node, it stays
+			// one height below.
+			return fullNodeHeight >= height-1, nil
 		}
 		if len(res.halted) == 0 {
 			return false, nil
@@ -331,7 +336,7 @@ func (s *CelestiaTestSuite) waitForHalt(ctx context.Context, validators cosmos.C
 	fullNodeHeight, err := fullNode.Height(ctx)
 	s.Require().NoError(err)
 	if len(stalled) == 0 {
-		s.Require().Equal(height, fullNodeHeight, "chain did not stop at the halt height")
+		s.Require().Contains([]int64{height - 1, height}, fullNodeHeight, "chain did not stop at the halt height")
 	} else {
 		s.Require().Equal(height-1, fullNodeHeight, "chain did not stop one height below the halt height")
 	}
