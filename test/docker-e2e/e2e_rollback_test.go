@@ -398,7 +398,11 @@ func (s *CelestiaTestSuite) waitForHeight(ctx context.Context, nodes cosmos.Chai
 			for _, d := range nodes {
 				diag = append(diag, d)
 			}
-			s.logNodeDiagnostics(ctx, diag)
+			// Bound the diagnostics so a node that stopped answering does not
+			// delay the failure below.
+			diagCtx, cancel := context.WithTimeout(ctx, time.Minute)
+			s.logNodeDiagnostics(diagCtx, diag)
+			cancel()
 		}
 		s.Require().NoError(err, "%s did not pass height %d", n.Name(), height)
 	}
