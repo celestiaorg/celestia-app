@@ -290,6 +290,7 @@ func TestCheckState(t *testing.T) {
 			gs.Proposals = append(gs.Proposals, &govv1.Proposal{Id: 1, SubmitTime: &afterT})
 		}), want: cons("gov", "proposals[0].submit_time", notAfterT)},
 		{name: "starting proposal id not above the largest", edit: chain(proposal(&afterT), govEdit(func(gs *govv1.GenesisState) { gs.StartingProposalId = 1 })), want: rec("gov", "starting_proposal_id", "> 1 (the largest proposal id)")},
+		{name: "vote on a missing proposal", edit: vote("1", acc), want: rec("gov", "votes[0].proposal_id", "an existing proposal")},
 		{name: "vote weights below 1", edit: vote("0.5", acc), want: rec("gov", "votes[0].options", "distinct valid options with weights summing to 1")},
 		{name: "upper-case alias of a vote", edit: vote("1", acc, strings.ToUpper(acc)), want: rec("gov", "votes[1]", "a distinct key")},
 		// fibre

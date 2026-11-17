@@ -127,9 +127,11 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	configCmd := confixcmd.ConfigCommand()
 	configCmd.AddCommand(syncConfigCmd())
+	genesisCmd := genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome)
+	genesisCmd.AddCommand(genesisFromExportCmd(capp))
 	rootCommand.AddCommand(
 		InitCmd(capp),
-		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
+		genesisCmd,
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
 		configCmd,
