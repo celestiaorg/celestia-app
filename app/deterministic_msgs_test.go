@@ -261,8 +261,7 @@ func TestValidateDeterministicMsgsNamesPacket(t *testing.T) {
 	require.NotContains(t, err.Error(), "\n")
 }
 
-// TestValidateDeterministicMsgsCost checks that the filter cost stays linear in
-// the tx size for worst-case packets in an 8 MiB tx.
+// TestValidateDeterministicMsgsCost checks that the filter cost is linear in the tx size for worst-case 8 MiB txs.
 func TestValidateDeterministicMsgsCost(t *testing.T) {
 	const txSize = 8 << 20
 	addr := sdk.AccAddress("addr________________").String()
@@ -326,8 +325,7 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 	require.LessOrEqual(t, len(oneKeyObjects), maxMemo)
 	require.Greater(t, len(oneKeyObjects), maxMemo-16)
 	require.NoError(t, validateForwardMemo(oneKeyObjects))
-	// recvMax returns a packet with the largest memo from build whose packet
-	// data stays within the size limit.
+	// recvMax returns a packet with the largest memo from build that keeps the packet data within the size limit.
 	recvMax := func(build func(size int) string) *channeltypes.MsgRecvPacket {
 		for size := maxTransferPacketDataSize; ; {
 			msg := recv(build(size))
@@ -411,9 +409,7 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 			}
 			require.Greater(t, size, txSize*9/10)
 			require.LessOrEqual(t, size, txSize+txSize/10)
-			// The filter stops at the first rejected packet. Each rejected
-			// case repeats one packet, so the filter runs once per packet to
-			// visit as many packets as the baseline decodes.
+			// The filter stops at the first rejected packet, so for rejected cases it runs once per packet.
 			filterRuns := 1
 			if tc.wantErr {
 				for _, p := range packets {
@@ -422,11 +418,8 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 				filterRuns = len(packets)
 			}
 
-			// Decoding every packet's data is a baseline that scales with the
-			// machine. The baseline and the filter are timed in turn, and the
-			// best of up to costRuns runs of each is kept, so that load on a
-			// shared runner, which slows down single runs, cancels out. The
-			// loop stops as soon as the best times meet both bounds.
+			// Decoding every packet's data is a baseline that scales with the machine. Keep the best of up to
+			// costRuns runs of each, so that load on a shared runner cancels out.
 			baseline, elapsed := time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)
 			for run := range costRuns {
 				start := time.Now()
@@ -452,8 +445,7 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 					break
 				}
 			}
-			// The filter must cost at most a small multiple of decoding the
-			// same packet data, so it is linear in the tx size.
+			// The filter must cost at most a small multiple of decoding the same packet data.
 			require.Less(t, elapsed, 5*baseline+100*time.Millisecond, "filter took %s, decoding took %s", elapsed, baseline)
 			// A backstop against a slowdown that the baseline also suffers.
 			require.Less(t, elapsed, maxFilterCost, "filter took %s", elapsed)

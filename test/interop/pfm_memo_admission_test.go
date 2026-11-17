@@ -30,10 +30,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestPacketForwardMemoAdmission checks that packets with forward memos, and
-// gov proposals, that may execute differently across builds are kept out of
-// the mempool and out of proposals this node builds, that honest forward memos
-// are not, and that blocks including the rejected txs stay valid.
+// TestPacketForwardMemoAdmission checks that the filter keeps unsupported forward memos and gov params out of the
+// mempool and proposals, admits honest forward memos, and that blocks with the rejected txs stay valid.
 func TestPacketForwardMemoAdmission(t *testing.T) {
 	coordinator, celestia, chainA, chainB := SetupTest(t)
 	pathA := ibctesting.NewTransferPath(chainA, celestia)
@@ -66,7 +64,7 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 		`{"forward":{"receiver":"x","port":"transfer","channel":"{CH}","retries":300}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":1e19}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":-1e19}}`,
-		// The packet-forward memo limits of main.
+		// The packet-forward memo limits from celestia-app#8629 (not merged).
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":` + nestedObject(15) + `}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"a":1},"next":{}}}`,
 		`{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","next":{"a":1,"a":2}}}`,
@@ -76,8 +74,7 @@ func TestPacketForwardMemoAdmission(t *testing.T) {
 	}
 	execMemo := `{"forward":{"receiver":"{RCV}","port":"transfer","channel":"{CH}","timeout":9.3e18}}`
 
-	// Send every packet from chainA, then update Celestia's client once so all
-	// proofs verify.
+	// Send every packet from chainA, then update Celestia's client once so all proofs verify.
 	sendPacket := func(memo string) channeltypes.Packet {
 		msg := transfertypes.NewMsgTransfer(pathA.EndpointA.ChannelConfig.PortID, pathA.EndpointA.ChannelID,
 			sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000)), chainA.SenderAccount.GetAddress().String(),
