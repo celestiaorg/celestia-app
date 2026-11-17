@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -44,7 +45,7 @@ func NewCandidate(cdc codec.JSONCodec, exp *Export, opts Options) (*Genesis, err
 	if err := checkMintTime(cdc, &exp.Genesis, genesisTime); err != nil {
 		return nil, err
 	}
-	if err := checkAuthzTime(cdc, &exp.Genesis, genesisTime); err != nil {
+	if err := checkAuthz(cdc, &exp.Genesis, genesisTime); err != nil {
 		return nil, err
 	}
 
@@ -56,8 +57,9 @@ func NewCandidate(cdc codec.JSONCodec, exp *Export, opts Options) (*Genesis, err
 	if !utf8.ValidString(chainID) {
 		return nil, &CheckError{Step: stepOptions, Field: "chain-id", Want: "valid UTF-8", Got: chainID}
 	}
-	if len(chainID) > cmttypes.MaxChainIDLen || chainID == legacyMochaChainID {
-		return nil, &CheckError{Step: stepOptions, Field: "chain-id", Want: fmt.Sprintf("at most %d bytes and not %s", cmttypes.MaxChainIDLen, legacyMochaChainID), Got: chainID}
+	// Fibre payment promises carry the chain-id and must match it.
+	if len(chainID) > fibretypes.MaxChainIDSize || chainID == legacyMochaChainID {
+		return nil, &CheckError{Step: stepOptions, Field: "chain-id", Want: fmt.Sprintf("at most %d bytes and not %s", fibretypes.MaxChainIDSize, legacyMochaChainID), Got: chainID}
 	}
 	knownNetwork := slices.Contains(appconsts.PublicNetworks, chainID) || chainID == appconsts.CortoChainID
 	if knownNetwork && chainID != exp.ChainID {
@@ -124,8 +126,10 @@ func checkMintTime(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) error
 	return nil
 }
 
-// checkAuthzTime rejects a grant expiring exactly at G: authz InitGenesis skips only grants expiring before G and fails on it.
-func checkAuthzTime(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) error {
+// checkAuthz rejects grants that authz InitGenesis fails on: one expiring exactly
+// at G, as it skips only grants expiring before G, an invalid address or a
+// missing authorization.
+func checkAuthz(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) error {
 	var gs authz.GenesisState
 	if err := decodeModule(cdc, g, authz.ModuleName, &gs); err != nil {
 		return err
@@ -133,6 +137,15 @@ func checkAuthzTime(cdc codec.JSONCodec, g *Genesis, genesisTime time.Time) erro
 	for i, a := range gs.Authorization {
 		if a.Expiration != nil && a.Expiration.Equal(genesisTime) {
 			return &CheckError{Step: stepOptions, Module: authz.ModuleName, Field: fmt.Sprintf("authorization[%d].expiration", i), Want: "not genesis-time " + formatTime(genesisTime) + "; choose another genesis-time", Got: fmt.Sprintf("granter %s, grantee %s", a.Granter, a.Grantee)}
+		}
+		if _, err := decodeAddr(accCodec, nil, authz.ModuleName, "authorization", i, "granter", a.Granter); err != nil {
+			return err
+		}
+		if _, err := decodeAddr(accCodec, nil, authz.ModuleName, "authorization", i, "grantee", a.Grantee); err != nil {
+			return err
+		}
+		if _, err := (authz.Grant{Authorization: a.Authorization}).GetAuthorization(); err != nil {
+			return &CheckError{Step: stepRecords, Module: authz.ModuleName, Field: fmt.Sprintf("authorization[%d].authorization", i), Want: "an authorization", Got: err.Error()}
 		}
 	}
 	return nil
