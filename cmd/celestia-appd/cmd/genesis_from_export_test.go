@@ -21,6 +21,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -98,6 +99,20 @@ func TestGenesisFromExport(t *testing.T) {
 		require.Equal(t, files[0], files[1])
 		require.Equal(t, reports[0], reports[1])
 		requireImports(t, testApp.AppCodec(), files[0])
+	})
+
+	t.Run("root command leaves home untouched", func(t *testing.T) {
+		home := t.TempDir()
+		dir, args := write(t, export)
+		root := NewRootCmd()
+		root.SetArgs(append(append([]string{"genesis", "from-export"}, args...), "--home", home))
+		root.SetOut(io.Discard)
+		// As main does; it adds --home. The root pre-run would create config files in home.
+		require.NoError(t, svrcmd.Execute(root, app.EnvPrefix, home))
+		entries, err := os.ReadDir(home)
+		require.NoError(t, err)
+		require.Empty(t, entries)
+		require.FileExists(t, filepath.Join(dir, "genesis.json"))
 	})
 
 	t.Run("new chain-id warns about IBC", func(t *testing.T) {
