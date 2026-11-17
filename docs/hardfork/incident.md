@@ -80,7 +80,7 @@ Do this before choosing a tool; it is the same for all three. Post the answers i
    - C: the last committed height.
    - Whether the network committed a header with a wrong app hash. The app hash of block N is in the header of block N+1. Check the committed headers on independent nodes; a log line alone is not enough.
 2. What is wrong: the module, the accounts, whether funds were minted or lost, and how much. If the cause is unknown, collect evidence with [app-hash-mismatch.md](../maintainers/app-hash-mismatch.md).
-3. What left through bridges. List the IBC and Hyperlane events from FIRST to C with the loop in item 4 of [Before the restart](surgery-coordination.md#before-the-restart). For each one, ask the relayer operators whether it was delivered on the other chain.
+3. What left through bridges. List the IBC and Hyperlane events from FIRST to C with the loop in item 4 of [Before the restart](surgery-coordination.md#before-the-restart), using `seq "$FIRST" "$C"` as its range: F is not chosen yet. For each one, ask the relayer operators whether it was delivered on the other chain.
 4. What other chains saw. On each counterparty chain, read the latest height of its Celestia client. A height above FIRST means that chain trusts an app hash of the bad state:
 
    ```sh
