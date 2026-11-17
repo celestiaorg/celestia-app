@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,8 +39,9 @@ import (
 
 // TestIBCExportRestart checks that IBC transfers, a pending packet and an ICA
 // survive a halt, an export and a restart of Celestia from that export with
-// the same chain-id. Hermes moves simapp's client of Celestia across the
-// restart with the old blocks of an archive node.
+// the same chain-id. simapp's client of Celestia is at C, the last height of
+// the archive node that keeps the old blocks, as when Hermes updates it right
+// before the halt. Hermes moves it across the restart from an older height.
 func (s *IBCTestSuite) TestIBCExportRestart() {
 	s.runIBCExportRestart(false)
 }
@@ -107,7 +109,7 @@ func (s *IBCTestSuite) runIBCExportRestart(newChainID bool) {
 		substitute := s.createSubstituteClient(ctx, r.newChainID)
 		s.recoverClientByGovernance(ctx, clientID, substitute)
 	} else {
-		s.updateClientAcrossRestart(ctx, clientID, archive)
+		s.updateClientFromHalt(ctx, clientID, archive, r.initialHeight)
 	}
 	s.requireCelestiaClientActive(ctx)
 
@@ -161,6 +163,40 @@ func (s *IBCTestSuite) updateClientAcrossRestart(ctx context.Context, clientID s
 		"--archive-address", "http://"+archive.HostName()+":26657",
 	)
 	s.T().Logf("hermes update client across the restart at height %d: %s", restartHeight, out)
+}
+
+// updateClientFromHalt updates simapp's client of Celestia to C, the last
+// height of the archive, as when Hermes updates it right before the halt, and
+// then across the restart to the initial height I. Hermes needs the light
+// block at the trusted height plus one, and C+1 is in the height gap, so an
+// update from C fails and an update from an older stored height T works.
+func (s *IBCTestSuite) updateClientFromHalt(ctx context.Context, clientID string, archive *cosmos.ChainNode, initialHeight int64) {
+	status, err := archive.Client.Status(ctx)
+	s.Require().NoError(err, "failed to query the archive")
+	c := status.SyncInfo.LatestBlockHeight
+	latest := func() int64 { return int64(s.celestiaClientState(ctx, clientID).LatestHeight.RevisionHeight) }
+	trusted := latest()
+	s.Require().Less(trusted, c, "client is already at the last height of the archive")
+
+	// Hermes reads heights up to C from the archive and higher ones from the new chain.
+	route := []string{"--restart-height", strconv.FormatInt(c, 10), "--archive-address", "http://" + archive.HostName() + ":26657"}
+	update := []string{"update", "client", "--host-chain", simappChainID, "--client", clientID}
+	s.hermesExec(ctx, slices.Concat(update, []string{"--height", strconv.FormatInt(c, 10)}, route)...)
+	s.Require().Equal(c, latest(), "client is not at the last height of the archive")
+
+	toI := slices.Concat(update, []string{"--height", strconv.FormatInt(initialHeight, 10)}, route)
+	execCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	// Tastora returns the output of a failed command in the error.
+	_, _, err = s.hermes.Exec(execCtx, s.logger, slices.Concat([]string{"hermes", "--json"}, toI), nil)
+	s.Require().Error(err, "update from the last old height succeeded")
+	s.T().Logf("hermes update client from C=%d: %v", c, err)
+	s.Require().ErrorContains(err, fmt.Sprintf("height %d is not available", c+1), "update from C failed for another reason than the missing block C+1")
+	s.Require().Equal(c, latest(), "failed update moved the client")
+
+	s.hermesExec(ctx, slices.Concat(toI, []string{"--trusted-height", strconv.FormatInt(trusted, 10)})...)
+	s.Require().Equal(initialHeight, latest(), "client was not updated to the initial height")
+	s.T().Logf("client moved from C=%d to I=%d, trusting %d", c, initialHeight, trusted)
 }
 
 // moveHermesToChainID points the Hermes config and key at the new chain-id.
