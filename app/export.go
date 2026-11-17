@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -28,7 +30,7 @@ func (app *App) ExportAppStateAndValidators(
 	// The context must carry the last committed height so that slashing events are accounted for.
 	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
 
-	if err := app.checkExportable(ctx, modulesToExport); err != nil {
+	if err := app.checkExportable(ctx, forZeroHeight, modulesToExport); err != nil {
 		return servertypes.ExportedApp{}, err
 	}
 	blockTime, err := app.lastCommitTime()
@@ -65,13 +67,20 @@ func (app *App) ExportAppStateAndValidators(
 
 // checkExportable refuses state that this binary cannot export into a usable
 // genesis.
-func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error {
+func (app *App) checkExportable(ctx sdk.Context, forZeroHeight bool, modulesToExport []string) error {
 	plan, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
 	switch {
 	case errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
 	case err != nil:
 		return err
-	case plan.Height <= app.LastBlockHeight()+1:
+	case plan.Height == app.LastBlockHeight()+1 && forZeroHeight:
+		return fmt.Errorf("upgrade %q is scheduled for height %d and a zero-height export at block %d may change the validator set: export with --height %d instead",
+			plan.Name, plan.Height, app.LastBlockHeight(), app.LastBlockHeight()-1)
+	case plan.Height == app.LastBlockHeight()+1:
+		if err := app.checkUpgradeWindow(ctx, plan); err != nil {
+			return err
+		}
+	case plan.Height <= app.LastBlockHeight():
 		return fmt.Errorf("upgrade %q is scheduled for height %d: export with --height %d instead",
 			plan.Name, plan.Height, app.LastBlockHeight()-1)
 	}
@@ -88,6 +97,39 @@ func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error
 
 	if len(modulesToExport) > 0 {
 		return errors.New("exporting a subset of modules is not supported: unset --modules-to-export")
+	}
+	return nil
+}
+
+// checkUpgradeWindow refuses an export at the last height before an upgrade if
+// that block changed the validator set: the IBC upgrade trusts the set named
+// by the NextValidatorsHash of its header.
+func (app *App) checkUpgradeWindow(ctx sdk.Context, plan upgradetypes.Plan) error {
+	last := app.LastBlockHeight()
+	info, err := app.StakingKeeper.GetHistoricalInfo(ctx, last)
+	if errors.Is(err, stakingtypes.ErrNoHistoricalInfo) {
+		return fmt.Errorf("upgrade %q is scheduled for height %d and block %d has no historical info: export with --height %d instead",
+			plan.Name, plan.Height, last, last-1)
+	}
+	if err != nil {
+		return err
+	}
+
+	genVals, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	if err != nil {
+		return err
+	}
+	vals := make([]*cmttypes.Validator, len(genVals))
+	for i, v := range genVals {
+		vals[i] = cmttypes.NewValidator(v.PubKey, v.Power)
+	}
+	valSet := &cmttypes.ValidatorSet{}
+	if err := valSet.UpdateWithChangeSet(vals); err != nil {
+		return fmt.Errorf("exported validator set: %w", err)
+	}
+	if !bytes.Equal(valSet.Hash(), info.Header.NextValidatorsHash) {
+		return fmt.Errorf("upgrade %q is scheduled for height %d and block %d changed the validator set: export with --height %d instead",
+			plan.Name, plan.Height, last, last-1)
 	}
 	return nil
 }

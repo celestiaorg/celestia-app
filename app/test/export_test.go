@@ -17,6 +17,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -70,16 +71,34 @@ func TestExportRefusals(t *testing.T) {
 	testCases := []struct {
 		name            string
 		setup           func(*testing.T, *app.App, sdk.Context)
+		forZeroHeight   bool
 		modulesToExport []string
 		wantErr         string
 	}{
 		{
-			name: "upgrade plan for the next height",
+			name: "upgrade plan for the next height and an unchanged validator set",
 			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
 				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
 				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
 			},
-			wantErr: "export with --height 1 instead",
+		},
+		{
+			name: "upgrade plan for the next height and a zero-height export",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+			},
+			forZeroHeight: true,
+			wantErr: "upgrade \"v100\" is scheduled for height 3 and a zero-height export at block 2 may change the validator set: " +
+				"export with --height 1 instead",
+		},
+		{
+			name: "past upgrade plan",
+			setup: func(t *testing.T, testApp *app.App, ctx sdk.Context) {
+				plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight()}
+				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+			},
+			wantErr: "upgrade \"v100\" is scheduled for height 2: export with --height 1 instead",
 		},
 		{
 			name: "upgrade plan for the next height and another app version",
@@ -88,7 +107,7 @@ func TestExportRefusals(t *testing.T) {
 				require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
 				require.NoError(t, testApp.SetAppVersion(ctx, appconsts.Version+1))
 			},
-			wantErr: "export with --height 1 instead",
+			wantErr: fmt.Sprintf("state is at app version %d", appconsts.Version+1),
 		},
 		{
 			name: "state at another app version",
@@ -114,10 +133,41 @@ func TestExportRefusals(t *testing.T) {
 			})
 			require.Equal(t, int64(2), testApp.LastBlockHeight())
 
-			_, err := testApp.ExportAppStateAndValidators(false, nil, tc.modulesToExport)
+			_, err := testApp.ExportAppStateAndValidators(tc.forZeroHeight, nil, tc.modulesToExport)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
 			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
+}
+
+// TestExportUpgradeWindowValidatorChange checks that an export at the last
+// height before an upgrade is refused when that block changed validator power.
+func TestExportUpgradeWindowValidatorChange(t *testing.T) {
+	const delegator = "delegator"
+	testApp, kr := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), delegator)
+	record, err := kr.Key(delegator)
+	require.NoError(t, err)
+	delegatorAddr, err := record.GetAddress()
+	require.NoError(t, err)
+
+	// The delegation lands after EndBlock 2, so EndBlock 3 applies the new power.
+	execBlock(t, testApp, func(ctx sdk.Context) {
+		validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
+		require.NoError(t, err)
+		_, err = testApp.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.DefaultPowerReduction, stakingtypes.Unbonded, validators[0], true)
+		require.NoError(t, err)
+	})
+	execBlock(t, testApp, func(ctx sdk.Context) {
+		plan := upgradetypes.Plan{Name: "v100", Height: ctx.BlockHeight() + 1}
+		require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx, plan))
+	})
+	require.Equal(t, int64(3), testApp.LastBlockHeight())
+
+	_, err = testApp.ExportAppStateAndValidators(false, nil, nil)
+	require.ErrorContains(t, err, `upgrade "v100" is scheduled for height 4 and block 3 changed the validator set: export with --height 2 instead`)
 }
 
 // TestExportUsesLastCommitTime checks that a zero-height export starts the
@@ -286,8 +336,9 @@ func execBlock(t *testing.T, testApp *app.App, fn func(sdk.Context)) {
 
 	height := testApp.LastBlockHeight() + 1
 	_, err := testApp.FinalizeBlock(util.WithBlockHash(&abci.RequestFinalizeBlock{
-		Height: height,
-		Time:   util.GenesisTime.Add(time.Duration(height) * time.Second),
+		Height:             height,
+		Time:               util.GenesisTime.Add(time.Duration(height) * time.Second),
+		NextValidatorsHash: nextValidatorsHash(t, testApp),
 	}))
 	require.NoError(t, err)
 
@@ -295,4 +346,28 @@ func execBlock(t *testing.T, testApp *app.App, fn func(sdk.Context)) {
 
 	_, err = testApp.Commit()
 	require.NoError(t, err)
+}
+
+// nextValidatorsHash returns the hash CometBFT puts in the next header: the set
+// the last EndBlock left, at the powers it reported.
+func nextValidatorsHash(t *testing.T, testApp *app.App) []byte {
+	t.Helper()
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
+	if testApp.LastBlockHeight() == 0 {
+		// Genesis is not committed until the first block.
+		ctx = testApp.NewContextLegacy(false, cmtproto.Header{})
+	}
+	var vals []*cmttypes.Validator
+	err := testApp.StakingKeeper.IterateLastValidatorPowers(ctx, func(addr sdk.ValAddress, power int64) bool {
+		validator, err := testApp.StakingKeeper.GetValidator(ctx, addr)
+		require.NoError(t, err)
+		pk, err := validator.ConsPubKey()
+		require.NoError(t, err)
+		cmtPk, err := cryptocodec.ToCmtPubKeyInterface(pk)
+		require.NoError(t, err)
+		vals = append(vals, cmttypes.NewValidator(cmtPk, power))
+		return false
+	})
+	require.NoError(t, err)
+	return cmttypes.NewValidatorSet(vals).Hash()
 }
