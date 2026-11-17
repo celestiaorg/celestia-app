@@ -137,6 +137,7 @@ jobs:
           # retry once so a slow container restart does not fail the nightly.
           - test: TestRollback
             max-attempts: 2
+          - test: TestSurgeryDA
           - test: TestCortoLoad
             extra-image: true
           # Export and restart from the export: core state, then IBC/ICA and
@@ -149,6 +150,11 @@ jobs:
           - test: TestIBCExportRestartNewChainID
             entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportRestart
+            entrypoint: TestHyperlaneTestSuite
+          # Export below the last height Hermes or the Hyperlane relayer saw.
+          - test: TestIBCExportBelowTip
+            entrypoint: TestIBCTestSuite
+          - test: TestHyperlaneExportBelowTip
             entrypoint: TestHyperlaneTestSuite
     steps:
       - name: Checkout code

@@ -99,6 +99,7 @@ func Listen(listenAddr string, maxConnectionsPerIP, maxConcurrentStreams int, ad
 // fibre service. It must be called exactly once before [Server.Serve].
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
+		grpc.WriteBufferSize(writeBufferSize),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.InitialWindowSize(initialWindowSize),
 		grpc.InitialConnWindowSize(initialConnWindowSize),

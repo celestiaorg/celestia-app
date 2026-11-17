@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"google.golang.org/grpc/mem"
 )
 
 func TestScatterMarshalWireParity(t *testing.T) {
@@ -132,7 +133,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical marshal: %v", err)
 			}
-			bs, err := marshalUploadShardRequestScatter(tc.req)
+			bs, err := marshalUploadShardRequestScatter(tc.req, mem.DefaultBufferPool(), nil)
 			if err != nil {
 				t.Fatalf("scatter marshal: %v", err)
 			}
@@ -141,7 +142,24 @@ func TestScatterMarshalWireParity(t *testing.T) {
 				t.Fatalf("wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
 					len(canonical), canonical, len(scattered), scattered)
 			}
+			requireDownloadScatterParity(t, tc.req.Shard)
 		})
+	}
+}
+
+// requireDownloadScatterParity checks the download scatter marshaler against
+// gogoproto for a response carrying shard.
+func requireDownloadScatterParity(t *testing.T, shard *types.BlobShard) {
+	t.Helper()
+	resp := &types.DownloadShardResponse{Shard: shard}
+	canonical, err := resp.Marshal()
+	if err != nil {
+		t.Fatalf("canonical download marshal: %v", err)
+	}
+	scattered := marshalDownloadShardResponseScatter(resp).Materialize()
+	if !bytes.Equal(canonical, scattered) {
+		t.Fatalf("download wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
+			len(canonical), canonical, len(scattered), scattered)
 	}
 }
 
@@ -168,7 +186,7 @@ func TestScatterMarshalWireParity128MiB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical marshal: %v", err)
 	}
-	scattered, err := marshalUploadShardRequestScatter(req)
+	scattered, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil)
 	if err != nil {
 		t.Fatalf("scatter marshal: %v", err)
 	}
@@ -250,7 +268,7 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		if err != nil {
 			t.Fatalf("canonical marshal: %v", err)
 		}
-		bs, err := marshalUploadShardRequestScatter(req)
+		bs, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil)
 		if err != nil {
 			t.Fatalf("scatter marshal: %v", err)
 		}
@@ -260,6 +278,15 @@ func FuzzScatterMarshalParity(f *testing.F) {
 				seed, rowCount, proofPerRow, dataLen,
 				len(canonical), canonical, len(scattered), scattered)
 		}
+		// Pooled framing relies on scatterFramingSize being exact.
+		framing := len(canonical) - len(req.Shard.Rlcs)
+		for _, row := range rows {
+			framing -= len(row.Data)
+		}
+		if got := scatterFramingSize(req); got != framing {
+			t.Fatalf("scatterFramingSize = %d, framing is %d bytes", got, framing)
+		}
+		requireDownloadScatterParity(t, req.Shard)
 	})
 }
 
@@ -277,24 +304,27 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
 
-	bs, err := marshalUploadShardRequestScatter(req)
+	upload, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, limit := len(bs), 2*rows+3; got > limit {
-		t.Fatalf("got %d buffers, want at most %d", got, limit)
-	}
-	var aliased int
-	for _, b := range bs {
-		d := b.ReadOnlyData()
-		for _, row := range shard.Rows {
-			if len(d) > 0 && &d[0] == &row.Data[0] {
-				aliased++
+	download := marshalDownloadShardResponseScatter(&types.DownloadShardResponse{Shard: shard})
+	for name, bs := range map[string]mem.BufferSlice{"upload": upload, "download": download} {
+		if got, limit := len(bs), 2*rows+3; got > limit {
+			t.Fatalf("%s: got %d buffers, want at most %d", name, got, limit)
+		}
+		var aliased int
+		for _, b := range bs {
+			d := b.ReadOnlyData()
+			for _, row := range shard.Rows {
+				if len(d) > 0 && &d[0] == &row.Data[0] {
+					aliased++
+				}
 			}
 		}
-	}
-	if aliased != rows {
-		t.Fatalf("%d row data buffers are views, want %d", aliased, rows)
+		if aliased != rows {
+			t.Fatalf("%s: %d row data buffers are views, want %d", name, aliased, rows)
+		}
 	}
 }
 
@@ -303,9 +333,10 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 // blobRowSize/blobShardSize, then this count.
 func TestScatterCodecCoversAllFields(t *testing.T) {
 	for typ, want := range map[reflect.Type]int{
-		reflect.TypeFor[types.UploadShardRequest](): 2,
-		reflect.TypeFor[types.BlobShard]():          2,
-		reflect.TypeFor[types.BlobRow]():            3,
+		reflect.TypeFor[types.UploadShardRequest]():    2,
+		reflect.TypeFor[types.DownloadShardResponse](): 1,
+		reflect.TypeFor[types.BlobShard]():             2,
+		reflect.TypeFor[types.BlobRow]():               3,
 	} {
 		if got := typ.NumField(); got != want {
 			t.Errorf("%s has %d fields, scatter codec handles %d", typ.Name(), got, want)
@@ -326,27 +357,90 @@ func scatterTestRequest(rows, depth int) *types.UploadShardRequest {
 }
 
 // TestScatterMarshalAllocsConstant checks that allocations do not grow with
-// the number of buffer views: views are not boxed one by one.
+// the number of buffer views: views are not boxed one by one. The requests
+// carry no proofs so that framing stays below the pooling threshold: pooled
+// framing slices are recycled through a sync.Pool, which is not deterministic.
 func TestScatterMarshalAllocsConstant(t *testing.T) {
 	allocs := func(rows int) float64 {
-		req := scatterTestRequest(rows, 14)
+		req := scatterTestRequest(rows, 0)
+		if !mem.IsBelowBufferPoolingThreshold(scatterFramingSize(req)) {
+			t.Fatalf("framing of %d rows is pooled", rows)
+		}
 		return testing.AllocsPerRun(20, func() {
-			if _, err := marshalUploadShardRequestScatter(req); err != nil {
+			if _, err := marshalUploadShardRequestScatter(req, mem.DefaultBufferPool(), nil); err != nil {
 				t.Fatal(err)
 			}
 		})
 	}
-	if small, large := allocs(16), allocs(256); large != small {
-		t.Fatalf("allocs grew with rows: %v at 16 rows, %v at 256 rows", small, large)
+	if small, large := allocs(8), allocs(96); large != small {
+		t.Fatalf("allocs grew with rows: %v at 8 rows, %v at 96 rows", small, large)
+	}
+}
+
+// TestScatterMarshalPooledAllocsConstant is the pooled-framing counterpart of
+// TestScatterMarshalAllocsConstant, on the production shape (14 proof segments
+// per row). Pooled buffers come from sync.Pools, so allow one allocation of
+// jitter.
+func TestScatterMarshalPooledAllocsConstant(t *testing.T) {
+	if raceEnabled {
+		t.Skip("sync.Pool drops items at random under the race detector")
+	}
+	pool := mem.DefaultBufferPool()
+	allocs := func(rows int) float64 {
+		req := scatterTestRequest(rows, 14)
+		if mem.IsBelowBufferPoolingThreshold(scatterFramingSize(req)) {
+			t.Fatalf("framing of %d rows is not pooled", rows)
+		}
+		marshal := func() {
+			bs, err := marshalUploadShardRequestScatter(req, pool, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bs.Free()
+		}
+		marshal() // warm the pools
+		return testing.AllocsPerRun(20, marshal)
+	}
+	if small, large := allocs(128), allocs(256); large > small+1 || large < small-1 {
+		t.Fatalf("allocs grew with rows: %v at 128 rows, %v at 256 rows", small, large)
 	}
 }
 
 func BenchmarkScatterMarshal(b *testing.B) {
 	req := scatterTestRequest(168, 14)
 	b.ReportAllocs()
+	pool := mem.DefaultBufferPool()
 	for b.Loop() {
-		if _, err := marshalUploadShardRequestScatter(req); err != nil {
+		bs, err := marshalUploadShardRequestScatter(req, pool, nil)
+		if err != nil {
 			b.Fatal(err)
 		}
+		bs.Free()
+	}
+}
+
+// countingPool counts buffers taken from and returned to a real pool.
+type countingPool struct {
+	mem.BufferPool
+	gets, puts int
+}
+
+func (p *countingPool) Get(n int) *[]byte { p.gets++; return p.BufferPool.Get(n) }
+func (p *countingPool) Put(b *[]byte)     { p.puts++; p.BufferPool.Put(b) }
+
+// Pooled framing returns to the pool once gRPC frees the last framing slice.
+func TestScatterMarshalPooledFraming(t *testing.T) {
+	req := scatterTestRequest(168, 14)
+	pool := &countingPool{BufferPool: mem.DefaultBufferPool()}
+	bs, err := marshalUploadShardRequestScatter(req, pool, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pool.gets != 1 || pool.puts != 0 {
+		t.Fatalf("before Free: %d gets, %d puts; want 1, 0", pool.gets, pool.puts)
+	}
+	bs.Free()
+	if pool.puts != 1 {
+		t.Fatalf("after Free: %d puts; want 1", pool.puts)
 	}
 }

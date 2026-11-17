@@ -138,7 +138,7 @@ storage_backend = "local"
 
 ## Transport Security
 
-The Fibre server-to-client gRPC link is TLS-only. On startup the server generates an ephemeral TLS keypair and uses the validator consensus signer to endorse that TLS public key. Clients verify the presented TLS key against the expected validator consensus public key and chain ID. There is no client certificate requirement and no mTLS. `DownloadShard` is public to any reachable client that can complete the server-authenticated TLS handshake.
+By default the Fibre server-to-client gRPC link runs over plaintext HTTP/2, and clients fall back to TLS for servers that only speak TLS. Operators can require TLS with `force_tls` (server) / `ForceTLS` (client); the two sides are independent. Plaintext keeps integrity — receipts and row proofs are verified above the transport — while exposing shard bytes on-path and dropping server authentication; forcing TLS closes that window. When TLS is used, on startup the server generates an ephemeral TLS keypair and uses the validator consensus signer to endorse that TLS public key. Clients verify the presented TLS key against the expected validator consensus public key and chain ID. There is no client certificate requirement and no mTLS. `DownloadShard` is public to any reachable client that can reach the server.
 
 The endorsement travels in a custom, non-critical X.509 extension identified by OID `1.3.6.1.4.1.66463.1.1`, carrying a consensus-key signature over the TLS public key and validity window. The wire format, exact signed bytes, verifier rules, and golden test vectors are specified in [Fibre TLS Identity](./fibre_tls_identity.md).
 

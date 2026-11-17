@@ -9,23 +9,23 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v11/app/appdb"
 	"github.com/celestiaorg/celestia-app/v11/app/observability"
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/mempool"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	pvm "github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
-	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -38,6 +38,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/netutil"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -93,6 +94,8 @@ type Multiplexer struct {
 	// cmNode is the comet node which has been created. A reference is required in order to establish
 	// a local connection to it.
 	cmNode *node.Node
+	// pendingSequencer is cmNode's mempool, which the native app reads in QuerySequence.
+	pendingSequencer mempool.PendingSequencer
 	// versions is a list of versions which contain all embedded binaries.
 	versions Versions
 	// startFlags contains the operator flags parsed by Cobra, reused on upgrades.
@@ -450,14 +453,56 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 		return blockAPI.StartNewBlockEventListener(m.ctx)
 	})
 
+	lis, err := listenGRPC(m.svrCfg.GRPC.Address, maxGRPCConnections)
+	if err != nil {
+		return nil, m.clientContext, err
+	}
+
 	// Start the gRPC server in a goroutine. Note, the provided ctx will ensure
 	// that the server is gracefully shut down.
 	m.g.Go(func() error {
-		return servergrpc.StartGRPCServer(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), m.svrCfg.GRPC, grpcSrv)
+		return serveGRPC(m.ctx, m.logger.With(log.ModuleKey, "grpc-server"), lis, grpcSrv)
 	})
 
 	m.conn = grpcClient
 	return grpcSrv, m.clientContext, nil
+}
+
+// maxGRPCConnections caps the number of connections the app gRPC server
+// serves at once. It matches the SDK default for the API server
+// (api.max-open-connections). Extra connections wait in the kernel accept
+// queue and do not use a file descriptor of this process.
+const maxGRPCConnections = 1000
+
+// listenGRPC opens the app gRPC listener on address and caps it at maxConns
+// concurrent connections.
+func listenGRPC(address string, maxConns int) (net.Listener, error) {
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on address %s: %w", address, err)
+	}
+	return netutil.LimitListener(lis, maxConns), nil
+}
+
+// serveGRPC serves grpcSrv on lis until ctx is done, then stops it
+// gracefully. It replaces servergrpc.StartGRPCServer, which opens its own
+// listener and so cannot apply a connection cap.
+func serveGRPC(ctx context.Context, logger log.Logger, lis net.Listener, grpcSrv *grpc.Server) error {
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("starting gRPC server...", "address", lis.Addr().String())
+		errCh <- grpcSrv.Serve(lis)
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("stopping gRPC server...", "address", lis.Addr().String())
+		grpcSrv.GracefulStop()
+		return nil
+	case err := <-errCh:
+		logger.Error("failed to start gRPC server", "err", err)
+		return err
+	}
 }
 
 // startAPIServer initializes and starts the API server, setting up routes, telemetry, and running it within an error group.
@@ -491,7 +536,7 @@ func (m *Multiplexer) startNativeApp() (servertypes.Application, error) {
 	m.traceWriter = traceWriter
 
 	home := m.svrCtx.Config.RootDir
-	db, err := openDB(home, server.GetAppDBBackend(m.svrCtx.Viper))
+	db, err := appdb.Open(home, server.GetAppDBBackend(m.svrCtx.Viper))
 	if err != nil {
 		return nil, err
 	}
@@ -509,11 +554,6 @@ func getTraceWriter(svrCtx *server.Context) (traceWriter io.WriteCloser, err err
 		return nil, err
 	}
 	return traceWriter, nil
-}
-
-func openDB(rootDir string, backendType db.BackendType) (db.DB, error) {
-	dataDir := filepath.Join(rootDir, "data")
-	return db.NewDB("application", backendType, dataDir)
 }
 
 // openTraceWriter opens a trace writer for the given file.
@@ -561,6 +601,7 @@ func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to start latest app: %w", err)
 			}
+			m.wirePendingSequencer(app)
 
 			// NOTE: we don't need to create a comet node as that will have been created when Start was called.
 
@@ -674,12 +715,34 @@ func (m *Multiplexer) startCmtNode() error {
 		return err
 	}
 
+	if p, ok := cmNode.Mempool().(mempool.PendingSequencer); ok {
+		m.mu.Lock()
+		m.pendingSequencer = p
+		m.wirePendingSequencer(m.nativeApp)
+		m.mu.Unlock()
+	}
+
 	if err := cmNode.Start(); err != nil {
 		return err
 	}
 
 	m.cmNode = cmNode
 	return nil
+}
+
+// pendingSequencerSetter is implemented by apps that read pending sequences
+// from the node's mempool in QuerySequence.
+type pendingSequencerSetter interface {
+	SetPendingSequencer(mempool.PendingSequencer)
+}
+
+// wirePendingSequencer lets an in-process app serve QuerySequence from the
+// node's mempool instead of its recheck-dependent checkState. Hold m.mu.
+func (m *Multiplexer) wirePendingSequencer(app servertypes.Application) {
+	if s, ok := app.(pendingSequencerSetter); ok && m.pendingSequencer != nil {
+		s.SetPendingSequencer(m.pendingSequencer)
+		m.logger.Info("QuerySequence reads pending sequences from the mempool")
+	}
 }
 
 // Stop stops the multiplexer and all its components. It intentionally proceeds

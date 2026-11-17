@@ -31,6 +31,10 @@ type clientMetrics struct {
 	// Per-validator download
 	downloadFromDuration   metric.Float64Histogram
 	downloadFromRPCLatency metric.Float64Histogram
+
+	// Transport
+	dialTotal     metric.Int64Counter
+	dialFallbacks metric.Int64Counter
 }
 
 func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
@@ -151,7 +155,33 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 		return nil, fmt.Errorf("creating download_from rpc_latency histogram: %w", err)
 	}
 
+	// Transport metrics
+	cm.dialTotal, err = m.Int64Counter("fibre.client.dials",
+		metric.WithDescription("Client gRPC dials by transport mode (plaintext or tls)"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating dial total counter: %w", err)
+	}
+
+	cm.dialFallbacks, err = m.Int64Counter("fibre.client.dial.fallbacks",
+		metric.WithDescription("Client gRPC dials that fell back from plaintext HTTP/2 to TLS after a failed probe"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating dial fallbacks counter: %w", err)
+	}
+
 	return &cm, nil
+}
+
+// observeDial records a completed dial by transport mode, counting a
+// plaintext-to-TLS fallback separately. Call it from the grpc dialer via
+// [fibregrpc.WithDialObserver].
+func (m *clientMetrics) observeDial(mode string, fallback bool) {
+	ctx := context.Background()
+	m.dialTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("mode", mode)))
+	if fallback {
+		m.dialFallbacks.Add(ctx, 1)
+	}
 }
 
 // observeUpload records in-flight increment and returns a function that records

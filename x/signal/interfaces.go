@@ -14,3 +14,8 @@ type StakingKeeper interface {
 	GetValidator(ctx context.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, err error)
 	IterateValidators(ctx context.Context, cb func(index int64, validator stakingtypes.ValidatorI) (stop bool)) error
 }
+
+// VersionGetter returns the current app version.
+type VersionGetter interface {
+	AppVersion(ctx context.Context) (uint64, error)
+}

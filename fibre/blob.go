@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
@@ -30,8 +32,8 @@ type BlobConfig struct {
 	// MaxDataSize is the maximum data size that can be passed to NewBlob.
 	MaxDataSize int
 	// MaxRowSize is the maximum allowed size of a single row in bytes. It bounds
-	// the DataPool/Assembler allocations, so rows larger than this must be
-	// rejected before they reach the pool (which would otherwise panic).
+	// the download and Assembler allocations, so rows larger than this must be
+	// rejected before they are allocated.
 	MaxRowSize int
 	// CodingWorkers is the number of workers to use for encoding and decoding rsema1d.
 	CodingWorkers int
@@ -40,8 +42,22 @@ type BlobConfig struct {
 	Coder *rsema1d.Coder
 	// Assembler builds pooled row layouts for encoding blobs.
 	Assembler *row.Assembler
-	// DataPool pools blob downloads allocations.
-	DataPool *row.Pool
+
+	// reconstructSlots bounds concurrent Reed-Solomon reconstructions. Each
+	// one holds a codec work slab of CodecWorkRows rows (~512 MiB for 128 MiB
+	// blobs), and a reconstruction already spreads over idle workers, so more
+	// of them in parallel add memory, not throughput.
+	reconstructSlots chan struct{}
+}
+
+// maxConcurrentReconstructs returns the reconstruction limit:
+// FIBRE_MAX_CONCURRENT_RECONSTRUCTS when set to a positive integer, otherwise
+// one per two schedulable CPUs, at least two.
+func maxConcurrentReconstructs() int {
+	if n, err := strconv.Atoi(os.Getenv("FIBRE_MAX_CONCURRENT_RECONSTRUCTS")); err == nil && n > 0 {
+		return n
+	}
+	return max(2, runtime.GOMAXPROCS(0)/2)
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -94,7 +110,6 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
 	}
-	dataPool := row.NewPool(maxRowSize, params.Rows)
 
 	return BlobConfig{
 		BlobVersion:  blobVersion,
@@ -108,7 +123,8 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		CodingWorkers: runtime.GOMAXPROCS(0),
 		Coder:         coder,
 		Assembler:     assembler,
-		DataPool:      dataPool,
+
+		reconstructSlots: make(chan struct{}, maxConcurrentReconstructs()),
 	}, nil
 }
 
@@ -140,7 +156,9 @@ type Blob struct {
 
 	refCount     atomic.Int32
 	userReleased atomic.Bool
-	releaseFn    func()
+	// releaseFn fires once when the refcount hits zero. It may run on a
+	// transport or GC-cleanup goroutine, so it must be quick and non-blocking.
+	releaseFn func()
 }
 
 // NewBlob creates a new [Blob] instance by encoding the data.
@@ -269,8 +287,10 @@ func (d *Blob) retain() bool {
 }
 
 // release decrements the refcount; when it hits zero the releaseFn fires.
-// Called by internal owners (e.g., Upload's terminal goroutine) after they
-// finish using the blob.
+// Called by internal owners after they finish using the blob. The last call
+// may come from a transport goroutine (e.g. gRPC's loopy writer freeing the
+// last row view) or the runtime cleanup goroutine, not only from Upload, so
+// releaseFn must be quick and non-blocking.
 func (d *Blob) release() {
 	if d.refCount.Add(-1) == 0 {
 		d.data, d.extendedData = nil, nil

@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 	"github.com/celestiaorg/go-square/v4/share"
-	"github.com/cometbft/cometbft/types"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,12 +35,14 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 
 	// additional checks for the sake of future debugging
 	for index := range pfbCount {
-		blobTx1, isBlob := types.UnmarshalBlobTx(marshalledBlobTxs1[index])
+		blobTx1, isBlob, err := blobtx.UnmarshalBlobTx(marshalledBlobTxs1[index])
+		require.NoError(t, err)
 		assert.True(t, isBlob)
 		pfbMsgs1, err := decoder(blobTx1.Tx)
 		assert.NoError(t, err)
 
-		blobTx2, isBlob := types.UnmarshalBlobTx(marshalledBlobTxs2[index])
+		blobTx2, isBlob, err := blobtx.UnmarshalBlobTx(marshalledBlobTxs2[index])
+		require.NoError(t, err)
 		assert.True(t, isBlob)
 		pfbMsgs2, err := decoder(blobTx2.Tx)
 		assert.NoError(t, err)

@@ -30,6 +30,8 @@ func NewAnteHandler(
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
+	sdkMessageCounter SDKMessageCounter,
+	pendingNextSequence PendingNextSequenceFn,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -39,6 +41,9 @@ func NewAnteHandler(
 		ante.NewSetUpContextDecorator(),
 		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
+		// Ensure the tx does not contain messages that can never succeed with
+		// this app's configuration, also inside MsgExec or MsgSubmitProposal.
+		NewUnsupportedMsgDecorator(),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
@@ -66,6 +71,9 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		// When simulating, raise each signer's sequence to its next one if recheck
+		// has not rebuilt checkState up to it yet.
+		NewSimulateSequenceDecorator(accountKeeper, pendingNextSequence),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
@@ -75,6 +83,10 @@ func NewAnteHandler(
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),
+		// Charge gas for every message counted against MaxSDKMessages beyond
+		// the first, including those MsgExec and ICA packets dispatch.
+		// Side effect: consumes gas from the gas meter.
+		NewSDKMessageGasDecorator(sdkMessageCounter),
 		// Charge gas for the signatures a Hyperlane MsgProcessMessage carries.
 		// Side effect: consumes gas from the gas meter.
 		NewISMSignatureGasDecorator(),

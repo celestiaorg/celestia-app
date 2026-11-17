@@ -25,12 +25,13 @@ func overrideConsensusTimeouts(cmd *cobra.Command, logger log.Logger) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 	cfg := sctx.Config
 
-	overrideDuration(logger, "timeout_propose", &cfg.Consensus.TimeoutPropose, appconsts.TimeoutPropose)
-	overrideDuration(logger, "timeout_prevote", &cfg.Consensus.TimeoutPrevote, appconsts.TimeoutPrevote)
-	overrideDuration(logger, "timeout_prevote_delta", &cfg.Consensus.TimeoutPrevoteDelta, appconsts.TimeoutPrevoteDelta)
-	overrideDuration(logger, "timeout_precommit", &cfg.Consensus.TimeoutPrecommit, appconsts.TimeoutPrecommit)
-	overrideDuration(logger, "timeout_precommit_delta", &cfg.Consensus.TimeoutPrecommitDelta, appconsts.TimeoutPrecommitDelta)
-	overrideDuration(logger, "timeout_commit", &cfg.Consensus.TimeoutCommit, appconsts.TimeoutCommit)
+	timeouts := appconsts.GetConsensusTimeouts(appconsts.Version)
+	overrideDuration(logger, "timeout_propose", &cfg.Consensus.TimeoutPropose, timeouts.TimeoutPropose)
+	overrideDuration(logger, "timeout_prevote", &cfg.Consensus.TimeoutPrevote, timeouts.TimeoutPrevote)
+	overrideDuration(logger, "timeout_prevote_delta", &cfg.Consensus.TimeoutPrevoteDelta, timeouts.TimeoutPrevoteDelta)
+	overrideDuration(logger, "timeout_precommit", &cfg.Consensus.TimeoutPrecommit, timeouts.TimeoutPrecommit)
+	overrideDuration(logger, "timeout_precommit_delta", &cfg.Consensus.TimeoutPrecommitDelta, timeouts.TimeoutPrecommitDelta)
+	overrideDuration(logger, "timeout_commit", &cfg.Consensus.TimeoutCommit, timeouts.TimeoutCommit)
 	overrideDuration(logger, "peer_gossip_sleep_duration", &cfg.Consensus.PeerGossipSleepDuration,
 		app.DefaultConsensusConfig().Consensus.PeerGossipSleepDuration)
 

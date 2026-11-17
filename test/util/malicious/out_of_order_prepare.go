@@ -44,6 +44,8 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GovParamFilters(),
 		a.FibreKeeper,
 		app.NewSigCache(app.DefaultMempoolMaxTxs),
+		a.CountSDKMessages,
+		nil,
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(

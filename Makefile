@@ -18,9 +18,18 @@ PACKAGE_NAME := github.com/celestiaorg/celestia-app/v11
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag
 # and update GOLANG_CROSS_DIGEST to the digest of that tag's manifest index.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
+# The image's own Go version is not used: the goreleaser targets pass GOTOOLCHAIN,
+# so releases are built with the Go version in go.mod.
 GOLANG_CROSS_VERSION  ?= v1.26.5
 GOLANG_CROSS_DIGEST   ?= sha256:0cf2b7f757b40397d2bef5423adb88d0ac63899e88a9f0c4bbb370d3fb7b2fb5
 GOLANG_CROSS_IMAGE    := ghcr.io/goreleaser/goreleaser-cross:$(GOLANG_CROSS_VERSION)@$(GOLANG_CROSS_DIGEST)
+# Build with the exact Go version in the go directive of go.mod, the same one
+# the release binaries use, even when a newer Go is installed locally.
+GO_VERSION := $(shell sed -n 's/^go //p' go.mod)
+ifeq ($(GO_VERSION),)
+$(error could not read the go directive from go.mod)
+endif
+export GOTOOLCHAIN := go$(GO_VERSION)
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -38,8 +47,9 @@ LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X g
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
-BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
-BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
+# -trimpath matches the release binaries built by .goreleaser.yaml.
+BUILD_FLAGS_STANDALONE := -trimpath -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
+BUILD_FLAGS_MULTIPLEXER := -trimpath -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
 # The fibre server keeps its version metadata in package main, so that a binary
 # built from source reports a real version rather than "dev". These mirror the
@@ -53,7 +63,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # place.
 COMMIT_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null)
 LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown) $(LDFLAGS_STATIC)
-BUILD_FLAGS_FIBRE := $(if $(BUILD_TAGS_STATIC),-tags=$(BUILD_TAGS_STATIC)) -ldflags '$(LDFLAGS_FIBRE)'
+BUILD_FLAGS_FIBRE := -trimpath $(if $(BUILD_TAGS_STATIC),-tags=$(BUILD_TAGS_STATIC)) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -80,6 +90,7 @@ build-standalone: mod
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
+	@./scripts/check-build-info.sh build/celestia-appd
 .PHONY: build-standalone
 
 DOWNLOAD ?= true
@@ -91,6 +102,7 @@ endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
 	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
+	@./scripts/check-build-info.sh build/celestia-appd
 .PHONY: build
 
 ## install-standalone: Build and install the celestia-appd binary into the $GOPATH/bin directory. This target does not install the multiplexer.
@@ -388,11 +400,11 @@ TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src 
 ## build-talis-bins: Build binaries for talis VMs (ubuntu 22.04 LTS), including the fibre experiment tools. Requires Docker.
 build-talis-bins:
 	mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	$(TALIS_CGO_BUILD)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
 
 CARGO := $(HOME)/.cargo/bin/cargo
@@ -429,10 +441,10 @@ build-rust-fibre-txsim: ensure-rust
 ## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim. Requires Docker.
 build-talis-bins-rust-fibre:
 	mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	$(TALIS_CGO_BUILD)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre
 
@@ -462,6 +474,7 @@ goreleaser-check:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -479,6 +492,7 @@ prebuilt-binary:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -494,6 +508,7 @@ goreleaser-dry-run:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
+		--env GOTOOLCHAIN=$(GOTOOLCHAIN) \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \

@@ -4,6 +4,8 @@
 
 The following is an exhaustive list of supported Cosmos SDK Msgs for app version 11.
 
+The ante handler rejects these registered Msgs, which can never succeed in app version 11, also inside `MsgExec` or `MsgSubmitProposal`: `MsgSubmitEvidence`, `MsgExecLegacyContent`, gov v1beta1 `MsgSubmitProposal`, `MsgCreatePeriodicVestingAccount`, `MsgCreatePermanentLockedAccount`, `MsgChannelCloseInit` and `MsgChannelUpgradeInit`.
+
 ```ascii
 /celestia.blob.v1.MsgPayForBlobs
 /celestia.blob.v1.MsgUpdateBlobParams
@@ -40,19 +42,16 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /cosmos.distribution.v1beta1.MsgUpdateParams
 /cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward
 /cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission
-/cosmos.evidence.v1beta1.MsgSubmitEvidence
 /cosmos.feegrant.v1beta1.MsgGrantAllowance
 /cosmos.feegrant.v1beta1.MsgPruneAllowances
 /cosmos.feegrant.v1beta1.MsgRevokeAllowance
 /cosmos.gov.v1.MsgCancelProposal
 /cosmos.gov.v1.MsgDeposit
-/cosmos.gov.v1.MsgExecLegacyContent
 /cosmos.gov.v1.MsgSubmitProposal
 /cosmos.gov.v1.MsgUpdateParams
 /cosmos.gov.v1.MsgVote
 /cosmos.gov.v1.MsgVoteWeighted
 /cosmos.gov.v1beta1.MsgDeposit
-/cosmos.gov.v1beta1.MsgSubmitProposal
 /cosmos.gov.v1beta1.MsgVote
 /cosmos.gov.v1beta1.MsgVoteWeighted
 /cosmos.slashing.v1beta1.MsgUnjail
@@ -66,8 +65,6 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /cosmos.staking.v1beta1.MsgUpdateParams
 /cosmos.upgrade.v1beta1.MsgCancelUpgrade
 /cosmos.upgrade.v1beta1.MsgSoftwareUpgrade
-/cosmos.vesting.v1beta1.MsgCreatePeriodicVestingAccount
-/cosmos.vesting.v1beta1.MsgCreatePermanentLockedAccount
 /cosmos.vesting.v1beta1.MsgCreateVestingAccount
 /hyperlane.core.interchain_security.v1.MsgAnnounceValidator
 /hyperlane.core.interchain_security.v1.MsgCreateMerkleRootMultisigIsm
@@ -104,7 +101,6 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /ibc.applications.transfer.v1.MsgUpdateParams
 /ibc.core.channel.v1.MsgAcknowledgement
 /ibc.core.channel.v1.MsgChannelCloseConfirm
-/ibc.core.channel.v1.MsgChannelCloseInit
 /ibc.core.channel.v1.MsgChannelOpenAck
 /ibc.core.channel.v1.MsgChannelOpenConfirm
 /ibc.core.channel.v1.MsgChannelOpenInit
@@ -112,7 +108,6 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /ibc.core.channel.v1.MsgChannelUpgradeAck
 /ibc.core.channel.v1.MsgChannelUpgradeCancel
 /ibc.core.channel.v1.MsgChannelUpgradeConfirm
-/ibc.core.channel.v1.MsgChannelUpgradeInit
 /ibc.core.channel.v1.MsgChannelUpgradeOpen
 /ibc.core.channel.v1.MsgChannelUpgradeTimeout
 /ibc.core.channel.v1.MsgChannelUpgradeTry

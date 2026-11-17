@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 11
+	Version uint64 = 12
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -27,43 +27,40 @@ const (
 	// minimum, changing SubtreeRootThreshold requires a new client release and
 	// deployment before the change takes effect on the network.
 	// See: https://github.com/celestiaorg/celestia-app/issues/6831
-	SubtreeRootThreshold  int    = 64
-	TxSizeCostPerByte     uint64 = 10
-	GasPerBlobByte        uint32 = 8
-	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose               = time.Millisecond * 3000
-	TimeoutProposeDelta          = time.Millisecond * 500
-	TimeoutPrevote               = time.Millisecond * 2000
-	TimeoutPrevoteDelta          = time.Millisecond * 500
-	TimeoutPrecommit             = time.Millisecond * 3000
-	TimeoutPrecommitDelta        = time.Millisecond * 500
-	TimeoutCommit                = time.Millisecond * 500
-	// DelayedPrecommitTimeout is the primary determinant of expected block
-	// time. If this value changes, MaxExpectedTimePerBlock should also be
-	// updated. See TestMaxExpectedTimePerBlock.
-	DelayedPrecommitTimeout = time.Millisecond * 2100
+	SubtreeRootThreshold int    = 64
+	TxSizeCostPerByte    uint64 = 10
+	GasPerBlobByte       uint32 = 8
+	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
-	// 3-5x the expected block time. The expected block time is primarily
-	// determined by DelayedPrecommitTimeout + TimeoutCommit (~2.6 seconds), so this value is
-	// 13 seconds (~5x). If the timeout constants change, this value must be
-	// updated.
-	MaxExpectedTimePerBlock = 13 * time.Second
+	// 3-5x the expected block time. From v12 the dynamic timeout commit floors
+	// the block interval at 800ms, so this value is 4 seconds (5x).
+	MaxExpectedTimePerBlock = 4 * time.Second
+
+	// SignedBlocksWindow is the x/slashing liveness window.
+	SignedBlocksWindow int64 = 32_500
+	// HistoricalEntries is the number of x/staking historical infos kept. It
+	// must cover the fibre PaymentPromiseHeightWindow.
+	HistoricalEntries uint32 = 32_500
+	// MempoolTTLNumBlocks is the minimum mempool TTL in blocks.
+	MempoolTTLNumBlocks int64 = 117
+	// SnapshotInterval is the default state sync snapshot interval in blocks.
+	SnapshotInterval uint64 = 4_875
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
 	// CortoUpgradeHeightDelay is the number of blocks that Corto waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 1 day.
-	CortoUpgradeHeightDelay = int64(33_231)
+	// interval of ~0.8 seconds, this is 1 day.
+	CortoUpgradeHeightDelay = int64(108_000)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 2 days.
-	MochaUpgradeHeightDelay = int64(66_462)
+	// interval of ~0.8 seconds, this is 2 days.
+	MochaUpgradeHeightDelay = int64(216_000)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of ~2.6 seconds, this is 7 days.
-	MainnetUpgradeHeightDelay = int64(232_616)
+	// interval of ~0.8 seconds, this is 7 days.
+	MainnetUpgradeHeightDelay = int64(756_000)
 	// MempoolSize determines the default max mempool size.
 	MempoolSize = 400 * mebibyte // 400 MiB
 	// UnbondingTime is the time a validator must wait to unbond in a proof of
@@ -89,6 +86,12 @@ const (
 	// Each request counts as one message against MaxSDKMessages, so allowing a
 	// single request keeps a query priced like any other message.
 	MaxModuleQuerySafeRequests = 1
+
+	// GasPerAdditionalSDKMessage is charged for every message a tx counts
+	// against MaxSDKMessages beyond the first, so taking the whole per-block
+	// budget costs at least ~6M gas. It is below the ~36k gas a MsgSend uses,
+	// so multi-message txs pay well under twice their execution cost.
+	GasPerAdditionalSDKMessage uint64 = 10_000
 )
 
 // MinCommissionRate is 20%.
