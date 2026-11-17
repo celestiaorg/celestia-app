@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"strconv"
@@ -49,9 +50,9 @@ func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 	}
 	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
-	fsb.decodePFF = func(raw []byte) *fibretypes.DecodedPayForFibre {
+	fsb.decodePFF = func(raw []byte, msg *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre {
 		p.pffDecodes++
-		return fibrekeeper.DecodePayForFibre(raw)
+		return fibrekeeper.DerivePayForFibre(raw, msg)
 	}
 	if p.preverify {
 		fsb.preverifyPFF = func(_ sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
@@ -178,4 +179,23 @@ func TestFillSkipsSettledPromiseCopies(t *testing.T) {
 	fill := &pffFill{txConfig: txConfig, preverify: true, router: settleOnceRouter{}}
 	require.Equal(t, [][]byte{copies[0], other}, fill.run(t, append(copies, other)))
 	require.Equal(t, 2, fill.anteCalls)
+}
+
+// TestDerivedPFFViewMatchesParsedView pins that the view PrepareProposal and ProcessProposal derive
+// from the SDK-decoded message equals the one DecodePayForFibre parses from the raw bytes.
+func TestDerivedPFFViewMatchesParsedView(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	msg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
+	msg.ValidatorSignatures = [][]byte{bytes.Repeat([]byte{1}, 64), {}, bytes.Repeat([]byte{2}, 64)}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	raw, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+
+	sdkTx, err := txConfig.TxDecoder()(raw)
+	require.NoError(t, err)
+	derived := fibrekeeper.DerivePayForFibre(raw, fibretypes.PayForFibreMsg(sdkTx))
+	require.True(t, derived.CertKeyed)
+	require.True(t, derived.PromiseKeyed())
+	require.Equal(t, fibrekeeper.DecodePayForFibre(raw), derived)
 }
