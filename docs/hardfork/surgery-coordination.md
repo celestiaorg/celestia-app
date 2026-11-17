@@ -1,6 +1,7 @@
 # Coordinate in-place surgery
 
 This runbook is for the protocol team. Validators and node operators follow [surgery.md](surgery.md).
+For a suspected network halt, start with [incident.md](incident.md) to confirm the halt and choose the recovery tool.
 
 In-place surgery repairs bad state on the same chain. A release lists a state fix in `app/state_fixes.go`. The fix runs once, at fix height F, before BeginBlock, on every node that executes F. Nodes that sync from genesis later run it too.
 

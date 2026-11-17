@@ -1,6 +1,7 @@
 # Coordinate a network rollback
 
 This runbook is for the protocol team. Validators and node operators follow [rollback.md](rollback.md).
+For a suspected network halt, start with [incident.md](incident.md) to confirm the halt and choose the recovery tool.
 
 ## When to use a rollback
 
