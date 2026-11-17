@@ -187,8 +187,8 @@ github.com/celestiaorg/go-square/v4 v4.3.1 h1:4Oazjqn7kuLrUNh/h5nVvdnXBmQnAm/oEe
 github.com/celestiaorg/go-square/v4 v4.3.1/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
 github.com/celestiaorg/hyperlane-cosmos v1.3.4 h1:nfmKlNOgr/FhBMtxdI/1IlF8pFXTd7Bex4u+rqp9Wj8=
 github.com/celestiaorg/hyperlane-cosmos v1.3.4/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
-github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-0.20261117230821-106efffd6a4b h1:yXOIGGtBxFKqfJftr85IZ888B+sMCCtfKBxncg071L0=
-github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-0.20261117230821-106efffd6a4b/go.mod h1:iQr34QYdwkJ7IUIaGTZFElQZOqnOqL1gXhYyYgF0FnA=
+github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-celestia h1:zyBvSN2gcyKvEnpD/p9oN0fDxjzw3/YZgPwYt6f3N+o=
+github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-celestia/go.mod h1:iQr34QYdwkJ7IUIaGTZFElQZOqnOqL1gXhYyYgF0FnA=
 github.com/celestiaorg/ibc-go/modules/capability v1.0.2 h1:7tT6aSuUzL/vJ/EKCT1wdfwG2VT5H+PcmSBOWPHkiQc=
 github.com/celestiaorg/ibc-go/modules/capability v1.0.2/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
 github.com/celestiaorg/ibc-go/v8 v8.7.3 h1:kFsGXwTFadffEAbDoDmxngju0P7lTqHoAoWiQp4YMVo=
