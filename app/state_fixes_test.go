@@ -142,3 +142,37 @@ func stateFixBlock(h int64) *abci.RequestFinalizeBlock {
 		Header: &cmtproto.Header{ChainID: util.ChainID, Height: h},
 	}
 }
+
+// TestStateFixRunsUnderOptimisticExecution runs a fix height through
+// ProcessProposal so FinalizeBlock is served by optimistic execution, whose
+// request must carry the block header.
+func TestStateFixRunsUnderOptimisticExecution(t *testing.T) {
+	var ranAt []int64
+	testApp := newStateFixApp(t, tmdb.NewMemDB(), []app.StateFix{{
+		ChainID: util.ChainID,
+		Height:  2,
+		Name:    "under-oe",
+		Apply: func(ctx sdk.Context, _ *app.App) error {
+			ranAt = append(ranAt, ctx.BlockHeight())
+			return nil
+		},
+	}}, true)
+	runStateFixBlock(t, testApp, 1, false)
+
+	req := stateFixBlock(2)
+	req.Hash = []byte("block-2")
+	prop, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{Height: req.Height, Time: req.Time})
+	require.NoError(t, err)
+	pp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Txs: prop.Txs, SquareSize: prop.SquareSize, DataRootHash: prop.DataRootHash,
+		Hash: req.Hash, Height: req.Height, Time: req.Time, Header: req.Header,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, pp.Status)
+
+	req.Txs = prop.Txs
+	req.Header = nil // only a served speculative run, built from ProcessProposal, has the header
+	_, err = testApp.FinalizeBlock(req)
+	require.NoError(t, err)
+	require.Equal(t, []int64{2}, ranAt)
+}

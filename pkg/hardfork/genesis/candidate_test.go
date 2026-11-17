@@ -13,6 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/hardfork/genesis"
 	"github.com/celestiaorg/celestia-app/v11/test/util"
 	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/stretchr/testify/require"
 )
@@ -38,6 +41,15 @@ func TestOptionsRejects(t *testing.T) {
 			g.AppState, err = json.Marshal(state)
 			require.NoError(t, err)
 		}
+	}
+
+	authzGrant, err := codectypes.NewAnyWithValue(authz.NewGenericAuthorization("/cosmos.bank.v1beta1.MsgSend"))
+	require.NoError(t, err)
+	grant := func(expiration time.Time) func(t *testing.T, g *genutiltypes.AppGenesis) {
+		addr := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()
+		return editModule(f, authz.ModuleName, func(gs *authz.GenesisState) {
+			gs.Authorization = append(gs.Authorization, authz.GrantAuthorization{Granter: addr, Grantee: addr, Authorization: authzGrant, Expiration: &expiration})
+		})
 	}
 
 	testCases := []struct {
@@ -79,6 +91,15 @@ func TestOptionsRejects(t *testing.T) {
 				gs.GenesisTime = &later
 			}),
 			want: &genesis.CheckError{Step: "options", Module: "mint", Field: "genesis_time", Want: "<= " + exportTime.Add(time.Hour).Format(time.RFC3339Nano)},
+		},
+		{
+			name: "authz grant expiring at G",
+			edit: grant(exportTime.Add(time.Hour)),
+			want: &genesis.CheckError{Step: "options", Module: "authz", Field: "authorization[0].expiration", Want: "not genesis-time " + exportTime.Add(time.Hour).Format(time.RFC3339Nano) + "; choose another genesis-time"},
+		},
+		{
+			name: "authz grant expiring after G accepted",
+			edit: grant(exportTime.Add(time.Hour + time.Nanosecond)),
 		},
 		{
 			name: "initial height below E+1",

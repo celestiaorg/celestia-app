@@ -109,9 +109,9 @@ func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMul
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
-	// TODO: this should be changed to k.SetParams after migrations have been run.
+	// MigrateParams reads the legacy subspace.
 	k.SetParamsLegacy(ctx, types.DefaultParams())
-	// k.SetParams(ctx, types.DefaultParams())
+	k.SetParams(ctx, types.DefaultParams())
 
 	return k, stateStore, ctx
 }

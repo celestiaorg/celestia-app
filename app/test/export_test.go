@@ -16,6 +16,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -29,6 +30,40 @@ func TestExportAppStateAndValidators(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, exported)
 	require.Equal(t, appconsts.Version, exported.ConsensusParams.Version.App)
+}
+
+// Explicit genesis state must survive import/export; Corto defaults belong to
+// genesis generation and the v12 migration, not an unconditional InitChain fix.
+func TestCortoGenesisImportExportPreservesParameters(t *testing.T) {
+	for _, duration := range []time.Duration{10 * time.Minute, 337 * time.Hour} {
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+		execBlock(t, a, func(ctx sdk.Context) {
+			params, err := a.StakingKeeper.GetParams(ctx)
+			require.NoError(t, err)
+			params.UnbondingTime = duration
+			require.NoError(t, a.StakingKeeper.SetParams(ctx, params))
+			cp, err := a.ConsensusKeeper.ParamsStore.Get(ctx)
+			require.NoError(t, err)
+			cp.Evidence.MaxAgeDuration = duration
+			cp.Evidence.MaxAgeNumBlocks = 500
+			require.NoError(t, a.ConsensusKeeper.ParamsStore.Set(ctx, cp))
+		})
+		exported, err := a.ExportAppStateAndValidators(true, nil, nil)
+		require.NoError(t, err)
+		b := util.NewTestApp(baseapp.SetChainID(appconsts.CortoChainID))
+		_, err = b.InitChain(&abci.RequestInitChain{
+			ChainId: appconsts.CortoChainID, Time: util.GenesisTime,
+			ConsensusParams: &exported.ConsensusParams, AppStateBytes: exported.AppState,
+		})
+		require.NoError(t, err)
+		ctx := b.NewContext(false)
+		params, err := b.StakingKeeper.GetParams(ctx)
+		require.NoError(t, err)
+		require.Equal(t, duration, params.UnbondingTime)
+		cp, err := b.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, exported.ConsensusParams, cp)
+	}
 }
 
 func TestExportRefusals(t *testing.T) {
@@ -250,11 +285,10 @@ func execBlock(t *testing.T, testApp *app.App, fn func(sdk.Context)) {
 	t.Helper()
 
 	height := testApp.LastBlockHeight() + 1
-	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := testApp.FinalizeBlock(util.WithBlockHash(&abci.RequestFinalizeBlock{
 		Height: height,
 		Time:   util.GenesisTime.Add(time.Duration(height) * time.Second),
-		Hash:   testApp.LastCommitID().Hash,
-	})
+	}))
 	require.NoError(t, err)
 
 	fn(testApp.NewUncachedContext(false, cmtproto.Header{Height: height}))

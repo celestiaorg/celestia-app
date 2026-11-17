@@ -27,7 +27,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(&banktypes.MsgUpdateParams{}),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Context, sdk.Msg) error {
 					return nil
 				},
 			},
@@ -39,7 +39,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(&banktypes.MsgUpdateParams{}),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Context, sdk.Msg) error {
 					return fmt.Errorf("unauthorized message")
 				},
 			},
@@ -51,7 +51,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(&authz.MsgGrant{}),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&authz.MsgGrant{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&authz.MsgGrant{}): func(sdk.Context, sdk.Msg) error {
 					return errors.New("unauthorized message in proposal")
 				},
 			},
@@ -63,7 +63,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				&banktypes.MsgSend{},
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgSend{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgSend{}): func(sdk.Context, sdk.Msg) error {
 					return errors.New("unauthorized message")
 				},
 			},
@@ -83,7 +83,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(&authz.MsgRevoke{}),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&authz.MsgRevoke{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&authz.MsgRevoke{}): func(sdk.Context, sdk.Msg) error {
 					return errors.New("unauthorized message")
 				},
 			},
@@ -95,10 +95,10 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(&banktypes.MsgSend{}, &authz.MsgGrant{}),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgSend{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgSend{}): func(sdk.Context, sdk.Msg) error {
 					return nil
 				},
-				sdk.MsgTypeURL(&authz.MsgGrant{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&authz.MsgGrant{}): func(sdk.Context, sdk.Msg) error {
 					return errors.New("unauthorized message in proposal")
 				},
 			},
@@ -118,7 +118,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createMsgSubmitProposal(createMsgSubmitProposal(&banktypes.MsgUpdateParams{})),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Context, sdk.Msg) error {
 					return fmt.Errorf("unauthorized message")
 				},
 			},
@@ -130,7 +130,7 @@ func TestGovProposalDecorator_AnteHandle(t *testing.T) {
 				createAuthzMsgExec(createAuthzMsgExec(&banktypes.MsgUpdateParams{})),
 			},
 			paramFilters: map[string]ante.ParamFilter{
-				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Msg) error {
+				sdk.MsgTypeURL(&banktypes.MsgUpdateParams{}): func(sdk.Context, sdk.Msg) error {
 					return fmt.Errorf("unauthorized message")
 				},
 			},

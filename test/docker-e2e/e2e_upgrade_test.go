@@ -2,6 +2,7 @@ package docker_e2e
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -26,6 +27,8 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	cmtconsensus "github.com/cometbft/cometbft/consensus/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -60,15 +63,15 @@ const (
 	EvidenceMaxAgeV8Blocks  = 242640
 	EvidenceMaxAgeV9Blocks  = 559940
 	EvidenceMaxAgeV10Blocks = 404400
-	EvidenceMaxAgeV11Blocks = 1011000
+	EvidenceMaxAgeV12Blocks = 1011000
 
-	// IBC MaxExpectedTimePerBlock for v11: 5x the 0.8s block (in nanoseconds)
-	MaxExpectedTimePerBlockV11Ns = uint64(4 * time.Second)
+	// IBC MaxExpectedTimePerBlock for v12: 5x the 0.8s block (in nanoseconds)
+	MaxExpectedTimePerBlockV12Ns = uint64(4 * time.Second)
 
-	// Block counts the v11 upgrade rescales x3.25 for 0.8s blocks.
-	SignedBlocksWindowV11         = int64(32_500)
-	HistoricalEntriesV11          = uint32(32_500)
-	PaymentPromiseHeightWindowV11 = uint64(3_250)
+	// Block counts the v12 upgrade rescales x3.25 for 0.8s blocks.
+	SignedBlocksWindowV12         = int64(32_500)
+	HistoricalEntriesV12          = uint32(32_500)
+	PaymentPromiseHeightWindowV12 = uint64(3_250)
 
 	// Block params for v9
 	MaxBytesV9 = 32 * 1024 * 1024 // 32 MiB
@@ -121,9 +124,12 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			baseAppVersion:   9,
 			targetAppVersion: 10,
 		},
+		// The v11.x branch defines the 10 -> 11 upgrade and this image has no
+		// v11 binary to embed yet, so jump from v10 straight to v12. Replace
+		// with 10 -> 11 and 11 -> 12 once a v11 release is embedded.
 		{
 			baseAppVersion:   10,
-			targetAppVersion: 11,
+			targetAppVersion: 12,
 		},
 	}
 
@@ -177,6 +183,8 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
+
+	s.startConsistencyMonitor(ctx, chain.Nodes())
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
@@ -273,6 +281,7 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 		return nil
 	})
 	s.Require().NoError(err)
+	s.startConsistencyMonitor(ctx, chain.Nodes())
 
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	upgradeHeight := s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
@@ -361,12 +370,22 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 
 	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
-	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
-	resp, err := txClient.SubmitTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
-	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
-	s.Require().Equal(uint32(0), resp.Code, "try-upgrade tx failed with code %d", resp.Code)
+	rpcClient, err := validatorNode.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
 
-	tryUpgradeHeight := resp.Height
+	beforeUpgrade, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err)
+	schedulingVersion := beforeUpgrade.Response.GetAppVersion()
+
+	msgTry := signaltypes.NewMsgTryUpgrade(txClient.DefaultAddress())
+	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msgTry}, user.SetGasLimit(gasLimit), user.SetFee(fee))
+	s.Require().NoError(err, "failed to broadcast try-upgrade tx")
+
+	// Confirm the tx through CometBFT, not the app's gRPC server. The upgrade
+	// lands GetUpgradeHeightDelay blocks after MsgTryUpgrade, and on a fast
+	// chain the multiplexer can stop the old binary, and its gRPC server,
+	// before the TxClient's next confirmation poll.
+	tryUpgradeHeight := s.waitForTxInclusion(ctx, rpcClient, broadcastResp.TxHash)
 	s.T().Logf("MsgTryUpgrade included at height %d", tryUpgradeHeight)
 
 	// Wait for one block so that the upgrade transaction is committed
@@ -394,11 +413,9 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	// GetUpgrade didn't return a pending upgrade. Check if the upgrade has
 	// already been applied by querying ABCIInfo via the RPC client.
 	s.T().Logf("GetUpgrade returned no pending upgrade (err: %v); checking if the upgrade was already applied", getUpgradeErr)
-	rpcClient, err := validatorNode.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client")
 
 	// The upgrade height follows from the height MsgTryUpgrade landed at.
-	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID)
+	upgradeHeight := tryUpgradeHeight + appconsts.GetUpgradeHeightDelay(cfg.Genesis.ChainID, schedulingVersion)
 
 	// ABCIInfo fails or blocks while the multiplexer swaps binaries at the
 	// upgrade height. Bound each call so one blocked request cannot use up the
@@ -454,6 +471,38 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 	return upgradeHeight
 }
 
+// waitForTxInclusion polls CometBFT's tx status until the tx with txHash is
+// committed, requires it to have succeeded and returns its height. CometBFT
+// answers these queries while the multiplexer swaps app binaries.
+func (s *CelestiaTestSuite) waitForTxInclusion(ctx context.Context, rpcClient rpcclient.Client, txHash string) int64 {
+	hash, err := hex.DecodeString(txHash)
+	s.Require().NoError(err, "failed to decode tx hash %s", txHash)
+
+	var (
+		res     *coretypes.ResultTxStatus
+		lastErr error
+	)
+	err = wait.ForCondition(ctx, time.Minute, 250*time.Millisecond, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res, lastErr = rpcClient.TxStatus(callCtx, hash)
+		if lastErr != nil {
+			return false, nil
+		}
+		switch res.Status {
+		case "COMMITTED":
+			return true, nil
+		case "REJECTED", "EVICTED":
+			return false, fmt.Errorf("tx %s is %s: %s", txHash, res.Status, res.Error)
+		default:
+			return false, nil
+		}
+	})
+	s.Require().NoError(err, "tx %s was not committed: last error: %v", txHash, lastErr)
+	s.Require().Equal(uint32(0), res.ExecutionCode, "tx %s failed with code %d: %s", txHash, res.ExecutionCode, res.Error)
+	return res.Height
+}
+
 // validateSignalTally queries the signal tally for the given app version and verifies
 // that the voting power meets or exceeds the threshold power.
 func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
@@ -493,20 +542,20 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 
-	// v11 consensus timeouts: 800ms dynamic timeout commit paces blocks.
+	// v12 consensus timeouts: 800ms dynamic timeout commit paces blocks.
 	s.validateTimeoutInfo(ctx, node, cfg)
 	s.validatePacing(ctx, node, upgradeHeight)
-	// Block-count parameters rescaled x3.25 by the v11 upgrade handler.
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV11Blocks, appVersion)
+	// Block-count parameters rescaled x3.25 by the v12 upgrade handler.
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV12Blocks, appVersion)
 	s.validateBlockCountParams(ctx, node)
-	// IBC MaxExpectedTimePerBlock lowered to 4s by the v11 upgrade handler.
+	// IBC MaxExpectedTimePerBlock lowered to 4s by the v12 upgrade handler.
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB
 	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the v11 values, or the start-flag overrides the test chain
+// parameters match the v12 values, or the start-flag overrides the test chain
 // runs with.
 func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode, cfg *dockerchain.Config) {
 	rpcClient, err := node.GetRPCClient()
@@ -539,7 +588,7 @@ type pacingSample struct {
 
 // validatePacing polls core's round state for 10 heights from upgradeHeight+3 and
 // checks that the dynamic timeout commit spaces height starts.
-// ABCIInfo alone can't show what core uses; v11 timeouts apply from H+2.
+// ABCIInfo alone can't show what core uses; v12 timeouts apply from H+2.
 func (s *CelestiaTestSuite) validatePacing(ctx context.Context, node tastoratypes.ChainNode, upgradeHeight int64) {
 	const heights = 10
 	rpcClient, err := node.GetRPCClient()
@@ -616,7 +665,7 @@ func checkPacing(samples map[int64]pacingSample, timeoutCommit time.Duration) er
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and
-// validates that the v11 upgrade set MaxExpectedTimePerBlock to 4s.
+// validates that the v12 upgrade set MaxExpectedTimePerBlock to 4s.
 func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
 	client, err := getIBCConnectionQueryClient(node)
 	s.Require().NoError(err)
@@ -624,27 +673,27 @@ func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context,
 	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
 	s.Require().NoError(err, "failed to query IBC connection params")
 
-	s.Require().Equal(MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock,
-		"v11 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV11Ns, resp.Params.MaxExpectedTimePerBlock)
+	s.Require().Equal(MaxExpectedTimePerBlockV12Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v12 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV12Ns, resp.Params.MaxExpectedTimePerBlock)
 }
 
 // validateBlockCountParams validates the slashing, staking and fibre block
-// counts the v11 upgrade rescales.
+// counts the v12 upgrade rescales.
 func (s *CelestiaTestSuite) validateBlockCountParams(ctx context.Context, node tastoratypes.ChainNode) {
 	dcNode, ok := node.(*tastoradockertypes.ChainNode)
 	s.Require().True(ok && dcNode.GrpcConn != nil, "node should be a docker chain node with a gRPC connection")
 
 	slashing, err := slashingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &slashingtypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query slashing params")
-	s.Require().Equal(SignedBlocksWindowV11, slashing.Params.SignedBlocksWindow, "SignedBlocksWindow mismatch")
+	s.Require().Equal(SignedBlocksWindowV12, slashing.Params.SignedBlocksWindow, "SignedBlocksWindow mismatch")
 
 	staking, err := stakingtypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &stakingtypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query staking params")
-	s.Require().Equal(HistoricalEntriesV11, staking.Params.HistoricalEntries, "HistoricalEntries mismatch")
+	s.Require().Equal(HistoricalEntriesV12, staking.Params.HistoricalEntries, "HistoricalEntries mismatch")
 
 	fibre, err := fibretypes.NewQueryClient(dcNode.GrpcConn).Params(ctx, &fibretypes.QueryParamsRequest{})
 	s.Require().NoError(err, "failed to query fibre params")
-	s.Require().Equal(PaymentPromiseHeightWindowV11, fibre.Params.PaymentPromiseHeightWindow, "PaymentPromiseHeightWindow mismatch")
+	s.Require().Equal(PaymentPromiseHeightWindowV12, fibre.Params.PaymentPromiseHeightWindow, "PaymentPromiseHeightWindow mismatch")
 }
 
 // validateBlockParams queries consensus params and validates max_bytes.
