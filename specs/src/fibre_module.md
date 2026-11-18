@@ -88,7 +88,7 @@ sequenceDiagram
 
 ## State
 
-The module store key is `fibre`. Module params are stored under the raw key `params`. The other state objects use byte prefixes from `x/fibre/types/keys.go`: escrow accounts use `0x02`, withdrawals-by-signer use `0x03`, withdrawals-by-available-time use `0x04`, processed payments use `0x09`, and the legacy processed-payment indexes from before v12 use `0x05` (by hash) and `0x06` (by processed time). The promise freshness floor is stored under `0x07` and the genesis height under `0x08`.
+The module store key is `fibre`. Module params are stored under the raw key `params`. The other state objects use byte prefixes from `x/fibre/types/keys.go`: escrow accounts use `0x02`, withdrawals-by-signer use `0x03`, withdrawals-by-available-time use `0x04`, processed payments use `0x09`, and the legacy processed-payment indexes from before v12 use `0x05` (by hash) and `0x06` (by processed time). The promise freshness floor is stored under `0x07`, the genesis height under `0x08`, and the creation time of the last pruned processed payment under `0x0A`.
 
 ### EscrowAccount
 
@@ -331,7 +331,7 @@ The destination is independent of which validators signed the PaymentPromise. Th
 
 `processAvailableWithdrawals` iterates the withdrawals-by-available-time index in time order, stops when it reaches a future `available_timestamp`, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total `balance` covers the withdrawal, sends coins from the `fibre` module account to the signer account, and only after a successful send subtracts the withdrawal amount from total `balance`, stores the escrow account, deletes the withdrawal from both indexes, and emits `EventWithdrawFromEscrowExecuted`. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.
 
-`pruneProcessedPayments` computes `cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()`, deletes processed payments whose `creation_timestamp` is at or before the cutoff, oldest first and at most 2000 per block (signers choose creation times, so records settled over many blocks can expire together), and emits `EventProcessedPaymentPruned` for each. It also prunes the legacy indexes by `processed_at` with the same cutoff, sharing the per-block bound.
+`pruneProcessedPayments` computes `cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()`, deletes processed payments whose `creation_timestamp` is at or before the cutoff, oldest first and at most 2000 per block (signers choose creation times, so records settled over many blocks can expire together), and emits `EventProcessedPaymentPruned` for each. It starts at the creation time of the last pruned record (`0x0A`, not exported to genesis), so it does not step over the tombstones of earlier prunes in the underlying LSM store; a cutoff before that time prunes nothing. It also prunes the legacy indexes by `processed_at` with the same cutoff, sharing the per-block bound.
 
 ## Events
 

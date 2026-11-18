@@ -41,6 +41,8 @@ var (
 	// ProcessedPaymentsKeyPrefix indexes processed payments by promise creation time, then
 	// hash. Settled promises are recent, so inserts and pruning stay at the edges of the tree.
 	ProcessedPaymentsKeyPrefix = []byte{0x09}
+	// ProcessedPaymentsPrunedThroughKey holds the creation time of the last pruned record.
+	ProcessedPaymentsPrunedThroughKey = []byte{0x0A}
 )
 
 // EscrowAccountKey returns the store key for an escrow account
