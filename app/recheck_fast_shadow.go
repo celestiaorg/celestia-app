@@ -34,7 +34,7 @@ type prediction struct {
 func (f *fastRecheck) shadowRecheck(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	p := f.predict(req.Tx)
 	f.shadow.predictedHit = p.rec != nil
-	res, err := f.app.checkTx(req)
+	res, err := f.app.checkTx(req, nil)
 	f.shadow.predictedHit = false
 	f.compare(req.Tx, p, res, err)
 	return res, err
@@ -54,7 +54,7 @@ func (f *fastRecheck) predict(tx []byte) (p prediction) {
 	}
 	f.app.ReadCheckState(func(ctx sdk.Context) {
 		branch := ctx.MultiStore().CacheMultiStore()
-		if res, ok := f.try(ctx.WithMultiStore(branch), key, rec); ok {
+		if res, ok := f.trySeq(ctx.WithMultiStore(branch), key, rec); ok {
 			p = prediction{rec: rec, res: res, branch: branch, d: f.lastDelta}
 		}
 	})

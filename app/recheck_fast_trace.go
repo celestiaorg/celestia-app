@@ -229,12 +229,19 @@ func (s traceKV) CacheWrapWithTrace(w io.Writer, tc storetypes.TraceContext) sto
 	return s.KVStore.CacheWrapWithTrace(w, tc)
 }
 
-// wrapAnte traces the ante pass CheckTx asked for (fastRecheck.trace). It is
-// installed only when fast recheck is on.
+// fastTraceKey is the context key of a trace passed with the tx's context.
+type fastTraceKey struct{}
+
+// wrapAnte traces the ante pass CheckTx asked for (fastRecheck.trace, or the
+// tx context's fastTraceKey). It is installed only when fast recheck is on.
 func (app *App) wrapAnte(inner sdk.AnteHandler) sdk.AnteHandler {
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		if mode := ctx.ExecMode(); !simulate && (mode == sdk.ExecModeCheck || mode == sdk.ExecModeReCheck) {
-			if tr := app.fastRecheck.trace; tr != nil {
+			tr, _ := ctx.Value(fastTraceKey{}).(*anteTrace)
+			if tr == nil {
+				tr = app.fastRecheck.trace
+			}
+			if tr != nil {
 				if ms, ok := ctx.MultiStore().(storetypes.CacheMultiStore); ok {
 					ctx = ctx.WithMultiStore(traceMS{cmsInner: ms, tr: tr})
 				} else {
@@ -252,6 +259,11 @@ type depSet struct {
 	checkedAt uint64
 	lastWrite uint64
 	lastKey   string
+}
+
+// stale reports whether a block wrote one of rec's dependencies after it was recorded.
+func (f *fastRecheck) stale(rec *fastRecord) bool {
+	return f.lastBlockWrite(rec.deps) > rec.recordedAt
 }
 
 // lastBlockWrite returns the latest commit counter at which a block wrote one

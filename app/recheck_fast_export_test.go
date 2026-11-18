@@ -11,6 +11,9 @@ const FastRecheckGasPerByte = fastRecheckGasPerByte
 // FastRecheckStats returns the fast path's hits, misses and miss reasons since the last Commit.
 func (app *App) FastRecheckStats() (hits, misses uint64, reasons map[string]uint64) {
 	f := app.fastRecheck
+	if f == nil {
+		return 0, 0, nil
+	}
 	return f.stats.hits, f.stats.misses, maps.Clone(f.stats.missReasons)
 }
 
@@ -41,3 +44,9 @@ func (app *App) FastRecheckRecords() int { return len(app.fastRecheck.records) }
 func (app *App) KVStoreKeyNames() []string {
 	return slices.Sorted(maps.Keys(app.keys))
 }
+
+// SetRecheckForceParallel makes RecheckTxs run in parallel even when the fast path predicts few misses.
+func (app *App) SetRecheckForceParallel() { app.recheckForceParallel = true }
+
+// ParallelRechecks is the number of RecheckTxs batches merged from parallel branches.
+func (app *App) ParallelRechecks() uint64 { return app.parallelRechecks }

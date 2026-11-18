@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
@@ -60,7 +61,8 @@ const fastRecheckGasSlack = 1_000
 
 // fastRecheck answers an eligible tx's recheck by replaying its last passed ante's writes
 // when every ante input is re-read here or unchanged: no block wrote a traced read, and a
-// block write outside fastRecheckBumps' allowlist drops every record. Callers hold App.checkStateMu.
+// block write outside fastRecheckBumps' allowlist drops every record. Callers hold App.checkStateMu;
+// a parallel recheck's workers only call recheck, eligible, readSigner and build.
 type fastRecheck struct {
 	app *App
 
@@ -74,7 +76,8 @@ type fastRecheck struct {
 	authKey, bankKey storetypes.StoreKey
 	fcBalKey         []byte
 
-	// trace is set while CheckTx runs the full ante of an eligible tx (wrapAnte).
+	// trace is set while CheckTx runs the full ante of an eligible tx (wrapAnte);
+	// a worker branch passes it in the tx's context instead.
 	trace   *anteTrace
 	depsets map[string]*depSet
 	// watched maps each dependency key to the last commit counter at which a
@@ -82,7 +85,8 @@ type fastRecheck struct {
 	watched map[string]uint64
 
 	// Block-level promise inputs and escrow accounts, memoized until Commit
-	// (escrows nil): CheckTx never writes the fibre store.
+	// (escrows nil): CheckTx never writes the fibre store. Guarded by mu.
+	mu      sync.Mutex
 	envOK   bool
 	env     fibrekeeper.PromiseCheckEnv
 	escrows map[string]escrowMemo
@@ -145,16 +149,15 @@ type fastPre struct {
 }
 
 func newFastRecheck(app *App, maxRecs int, shadow bool) *fastRecheck {
-	fcAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
 	f := &fastRecheck{
 		app:      app,
 		records:  make(map[string]*fastRecord),
 		maxRecs:  maxRecs,
 		maxBytes: maxRecs * recheckTxBytesPerEntry,
-		fcAddr:   fcAddr,
+		fcAddr:   feeCollectorAddr,
 		authKey:  app.keys[authtypes.StoreKey],
 		bankKey:  app.keys[banktypes.StoreKey],
-		fcBalKey: balanceKey(fcAddr, appconsts.BondDenom),
+		fcBalKey: balanceKey(feeCollectorAddr, appconsts.BondDenom),
 		depsets:  map[string]*depSet{},
 		watched:  map[string]uint64{},
 		stats:    fastRecheckStats{missReasons: map[string]uint64{}, recordRejects: map[string]uint64{}},
@@ -239,13 +242,12 @@ func (f *fastRecheck) peek(sdkTx sdk.Tx) *fastPre {
 	if !f.app.ReadCheckState(func(ctx sdk.Context) { ok = f.readSigner(ctx.MultiStore(), pre) }) || !ok {
 		return nil
 	}
-	pre.trace = newAnteTrace(pre.signer, f.fcAddr, accountNumberKey(pre.accNum), f.app.keys)
 	f.trace = pre.trace
 	return pre
 }
 
 // readSigner fills pre with the signer's account and the payer and fee
-// collector balances; false if the tx cannot be recorded.
+// collector balances, and a trace for its ante pass; false if the tx cannot be recorded.
 func (f *fastRecheck) readSigner(ms storetypes.MultiStore, pre *fastPre) bool {
 	// The account must be a plain BaseAccount (a vesting account's spendable
 	// balance depends on block time) at the tx's sequence.
@@ -261,6 +263,7 @@ func (f *fastRecheck) readSigner(ms storetypes.MultiStore, pre *fastPre) bool {
 		return false
 	}
 	pre.lenPB, pre.lenFB = len(pb), len(bankKV.Get(f.fcBalKey))
+	pre.trace = newAnteTrace(pre.signer, f.fcAddr, accountNumberKey(pre.accNum), f.app.keys)
 	return true
 }
 
@@ -268,16 +271,23 @@ func (f *fastRecheck) readSigner(ms storetypes.MultiStore, pre *fastPre) bool {
 // what the fast path needs to replay it for raw.
 func (f *fastRecheck) record(raw []byte, pre *fastPre, res *abci.ResponseCheckTx, err error) {
 	f.trace = nil
-	if err != nil || res.Code != abci.CodeTypeOK || res.GasUsed < 0 || res.GasWanted <= 0 || uint64(res.GasWanted) != pre.gas {
+	if err != nil {
 		return
 	}
-	if pre.trace.reject != "" {
-		f.stats.recordRejects[pre.trace.reject]++
-		return
-	}
-	old, exists := f.records[string(raw)]
-	if !exists && (len(f.records) >= f.maxRecs || f.bytes+len(raw) > f.maxBytes) {
-		return
+	var rec *fastRecord
+	f.app.ReadCheckState(func(ctx sdk.Context) { rec = f.build(ctx.MultiStore(), pre, res) })
+	f.keep(raw, pre, res, rec)
+}
+
+// passed reports whether res is a recordable pass of pre's tx.
+func (pre *fastPre) passed(res *abci.ResponseCheckTx) bool {
+	return res.Code == abci.CodeTypeOK && res.GasUsed >= 0 && res.GasWanted > 0 && uint64(res.GasWanted) == pre.gas
+}
+
+// build returns the record of pre's passed ante pass, reading its writes from ms, or nil.
+func (f *fastRecheck) build(ms storetypes.MultiStore, pre *fastPre, res *abci.ResponseCheckTx) *fastRecord {
+	if !pre.passed(res) || pre.trace.reject != "" {
+		return nil
 	}
 	rec := &fastRecord{
 		signer:        pre.signer,
@@ -295,22 +305,35 @@ func (f *fastRecheck) record(raw []byte, pre *fastPre, res *abci.ResponseCheckTx
 		accBefore:     pre.accRaw,
 		balKey:        pre.balKey,
 	}
-	var pb, fb []byte
-	if !f.app.ReadCheckState(func(ctx sdk.Context) {
-		rec.accAfter = ctx.MultiStore().GetKVStore(f.authKey).Get(rec.accKey)
-		bankKV := ctx.MultiStore().GetKVStore(f.bankKey)
-		pb, fb = bankKV.Get(rec.balKey), bankKV.Get(f.fcBalKey)
-	}) || rec.accAfter == nil || pb == nil {
+	rec.accAfter = ms.GetKVStore(f.authKey).Get(rec.accKey)
+	bankKV := ms.GetKVStore(f.bankKey)
+	pb, fb := bankKV.Get(rec.balKey), bankKV.Get(f.fcBalKey)
+	if rec.accAfter == nil || pb == nil {
 		// A drained balance is deleted, not written: not what the replay does.
-		return
+		return nil
 	}
 	rec.lens = [4]int{pre.lenPB, len(pb), pre.lenFB, len(fb)}
 	if pre.pff != nil {
 		pc, err := fibrekeeper.NewPromiseCheckCache(pre.pff)
 		if err != nil {
-			return
+			return nil
 		}
 		rec.promiseCache = &pc
+	}
+	return rec
+}
+
+// keep stores rec, built from pre's pass with response res, for raw within the record budget.
+func (f *fastRecheck) keep(raw []byte, pre *fastPre, res *abci.ResponseCheckTx, rec *fastRecord) {
+	if rec == nil {
+		if pre.passed(res) && pre.trace.reject != "" {
+			f.stats.recordRejects[pre.trace.reject]++
+		}
+		return
+	}
+	old, exists := f.records[string(raw)]
+	if !exists && (len(f.records) >= f.maxRecs || f.bytes+len(raw) > f.maxBytes) {
+		return
 	}
 	rec.deps = f.internDeps(pre.trace.deps)
 	if old == nil {
@@ -328,24 +351,7 @@ func (f *fastRecheck) miss(reason string) (*abci.ResponseCheckTx, bool) {
 // blobTxSuffix ends every canonical BlobTx (type_id "BLOB"), so plain txs skip the blob parse.
 var blobTxSuffix = []byte("\x1a\x04" + blobtx.ProtoBlobTxTypeID)
 
-// recheck answers the recheck of tx from its record if the fast path applies.
-// Blob txs are recorded under their inner sdk tx.
-func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
-	key, rec := f.lookup(tx)
-	if rec == nil {
-		return f.miss("norecord")
-	}
-	// Under BaseApp's lock, so Simulate never sees a half-applied replay.
-	unlock := f.app.LockCheckState()
-	defer unlock()
-	ctx, hasState := f.app.CheckState()
-	if !hasState {
-		return f.miss("nostate")
-	}
-	return f.try(ctx, key, rec)
-}
-
-// lookup returns tx's record and the key it is stored under (a blob tx's inner tx).
+// lookup returns tx's record key (a blob tx's inner sdk tx) and record, if any.
 func (f *fastRecheck) lookup(tx []byte) ([]byte, *fastRecord) {
 	key := tx
 	if bytes.HasSuffix(tx, blobTxSuffix) {
@@ -357,48 +363,89 @@ func (f *fastRecheck) lookup(tx []byte) ([]byte, *fastRecord) {
 	return key, f.records[string(key)]
 }
 
-// try replays rec, raw's record, into ctx's state if nothing it depends on changed.
-func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.ResponseCheckTx, bool) {
+// recheck answers the recheck of tx from its record if the fast path applies,
+// on p's worker branch if p (which looked the record up).
+func (f *fastRecheck) recheck(tx []byte, p *parallelTx) (*abci.ResponseCheckTx, bool) {
+	if p != nil {
+		if p.fastRec == nil {
+			p.fastMiss = "norecord"
+			return nil, false
+		}
+		res, reason := f.try(p.w.Context(), nil, p.fastRec, p)
+		p.fastHit, p.fastMiss = res != nil, reason
+		return res, p.fastHit
+	}
+	key, rec := f.lookup(tx)
+	if rec == nil {
+		return f.miss("norecord")
+	}
+	// Under BaseApp's lock, so Simulate never sees a half-applied replay.
+	unlock := f.app.LockCheckState()
+	defer unlock()
+	ctx, hasState := f.app.CheckState()
+	if !hasState {
+		return f.miss("nostate")
+	}
+	return f.trySeq(ctx, key, rec)
+}
+
+// trySeq is try off the parallel workers, counting its outcome.
+func (f *fastRecheck) trySeq(ctx sdk.Context, key []byte, rec *fastRecord) (*abci.ResponseCheckTx, bool) {
+	res, reason := f.try(ctx, key, rec, nil)
+	if res == nil {
+		return f.miss(reason)
+	}
+	f.stats.hits++
+	if rec.promise != nil {
+		// Keep the PayForFibre decode for a later full recheck.
+		f.app.recheckTxs.get(key)
+	}
+	return res, true
+}
+
+// try replays rec, raw's record, into ctx's state if nothing it depends on changed,
+// or returns why not. p is the worker running it, if any.
+func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord, p *parallelTx) (*abci.ResponseCheckTx, string) {
 	rec.used = f.commits
-	if f.lastBlockWrite(rec.deps) > rec.recordedAt {
+	if f.stale(rec) {
 		k := rec.deps.lastKey
 		if i := strings.IndexByte(k, 0); i >= 0 && i+1 < len(k) {
 			k = fmt.Sprintf("%s/%x", k[:i], k[i+1])
 		}
-		return f.miss("deps:" + k)
+		return nil, "deps:" + k
 	}
 	if rec.timeoutHeight > 0 && uint64(ctx.BlockHeight()) > rec.timeoutHeight {
-		return f.miss("timeout")
+		return nil, "timeout"
 	}
 	authKV := ctx.MultiStore().GetKVStore(f.authKey)
 	bankKV := ctx.MultiStore().GetKVStore(f.bankKey)
 	// Equal raw account bytes imply the same type, number, pubkey and sequence.
 	if !bytes.Equal(authKV.Get(rec.accKey), rec.accBefore) {
-		return f.miss("account")
+		return nil, "account"
 	}
 	pbRaw := bankKV.Get(rec.balKey)
 	pb, ok := decodeBalance(pbRaw)
 	if !ok || pb.LTE(rec.fee) {
-		return f.miss("balance")
+		return nil, "balance"
 	}
 	// An empty fee collector also needs its denom index entry: full ante.
 	fbRaw := bankKV.Get(f.fcBalKey)
 	fb, ok := decodeBalance(fbRaw)
 	if !ok {
-		return f.miss("fcbalance")
+		return nil, "fcbalance"
 	}
 	newFB, err := fb.SafeAdd(rec.fee)
 	if err != nil {
-		return f.miss("fcbalance")
+		return nil, "fcbalance"
 	}
 	newPB := pb.Sub(rec.fee) // pb > fee
 	pbEnc, err := sdk.IntValue.Encode(newPB)
 	if err != nil {
-		return f.miss("encode")
+		return nil, "encode"
 	}
 	fbEnc, err := sdk.IntValue.Encode(newFB)
 	if err != nil {
-		return f.miss("encode")
+		return nil, "encode"
 	}
 	// Gas is charged per stored byte, so a length change shifts GasUsed.
 	lens := [4]int{len(pbRaw), len(pbEnc), len(fbRaw), len(fbEnc)}
@@ -412,18 +459,18 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 			}
 		}
 		if rec.gasUsed+d*fastRecheckGasPerByte+fastRecheckGasSlack > rec.gasWanted {
-			return f.miss("gas")
+			return nil, "gas"
 		}
 	}
 	if rec.promise != nil {
 		ctx := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 		env, ok := f.promiseEnv(ctx)
 		if !ok {
-			return f.miss("promiseenv")
+			return nil, "promiseenv"
 		}
 		escrow := func(signer string) (fibretypes.EscrowAccount, bool) { return f.escrow(ctx, signer) }
 		if _, err := f.app.FibreKeeper.ValidatePaymentPromiseStatefulCached(ctx, rec.promise, env, rec.promiseCache, escrow); err != nil {
-			return f.miss("promise")
+			return nil, "promise"
 		}
 	}
 
@@ -434,19 +481,16 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 	bankKV.Set(rec.balKey, pbEnc)
 	authKV.Set(rec.accKey, rec.accAfter)
 
-	if rec.promise != nil {
-		// Keep the PayForFibre decode for a later full recheck.
-		f.app.recheckTxs.get(raw)
+	if p == nil {
+		f.lastDelta = d
 	}
-	f.stats.hits++
-	f.lastDelta = d
 	// Signer fields stay unset, as on the PayForFibre path: CAT ignores them on recheck.
 	return &abci.ResponseCheckTx{
 		Code:      abci.CodeTypeOK,
 		GasWanted: int64(rec.gasWanted),
 		GasUsed:   int64(rec.gasUsed),
 		Priority:  rec.priority,
-	}, true
+	}, ""
 }
 
 // sweep runs at Commit, before BaseApp's: records unused since the previous
@@ -621,6 +665,8 @@ type escrowMemo struct {
 // promiseEnv returns the fibre params and freshness floor of ctx's state,
 // loaded once per Commit.
 func (f *fastRecheck) promiseEnv(ctx sdk.Context) (fibrekeeper.PromiseCheckEnv, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.escrows == nil {
 		env, err := f.app.FibreKeeper.PromiseCheckEnv(ctx)
 		f.env, f.envOK = env, err == nil
@@ -632,11 +678,16 @@ func (f *fastRecheck) promiseEnv(ctx sdk.Context) (fibrekeeper.PromiseCheckEnv, 
 // escrow memoizes escrow lookups for the current state (CheckTx never writes
 // the fibre store). promiseEnv resets the memo.
 func (f *fastRecheck) escrow(ctx sdk.Context, signer string) (fibretypes.EscrowAccount, bool) {
-	if m, ok := f.escrows[signer]; ok {
+	f.mu.Lock()
+	m, ok := f.escrows[signer]
+	f.mu.Unlock()
+	if ok {
 		return m.acc, m.found
 	}
 	acc, found := f.app.FibreKeeper.GetEscrowAccount(ctx, signer)
+	f.mu.Lock()
 	f.escrows[signer] = escrowMemo{acc, found}
+	f.mu.Unlock()
 	return acc, found
 }
 

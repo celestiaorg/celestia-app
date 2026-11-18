@@ -228,6 +228,12 @@ type App struct {
 	txHandoff *txHandoff
 	// fastRecheck replays eligible rechecks from records; nil unless FlagFastRecheck is set.
 	fastRecheck *fastRecheck
+	// recheckWorkers is RecheckTxs' parallelism (app.toml recheck-workers); 1 rechecks sequentially.
+	recheckWorkers int
+	// recheckForceParallel skips the fast-hit prediction that picks a sequential recheck (tests).
+	recheckForceParallel bool
+	// parallelRechecks counts the RecheckTxs batches merged from parallel branches.
+	parallelRechecks uint64
 	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
 	// rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
@@ -613,6 +619,10 @@ func newApp(
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
 	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
+	app.recheckWorkers = cast.ToInt(appOpts.Get(server.FlagRecheckWorkers))
+	if app.recheckWorkers <= 0 {
+		app.recheckWorkers = config.DefaultRecheckWorkers
+	}
 	if shadow := cast.ToBool(appOpts.Get(FlagFastRecheckShadowVerify)); shadow || cast.ToBool(appOpts.Get(FlagFastRecheck)) {
 		app.fastRecheck = newFastRecheck(app, 2*maxTxs+1024, shadow)
 		app.SetAnteHandler(app.wrapAnte(app.AnteHandler()))
