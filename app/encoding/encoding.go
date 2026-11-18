@@ -18,9 +18,14 @@ import (
 // Config specifies the concrete encoding types to use for a given app.
 // This is provided for compatibility between protobuf and amino implementations.
 type Config struct {
-	InterfaceRegistry     codectypes.InterfaceRegistry
-	Codec                 codec.Codec
-	TxConfig              client.TxConfig
+	InterfaceRegistry codectypes.InterfaceRegistry
+	Codec             codec.Codec
+	// TxConfig decodes with the strict decoder. The state machine uses it.
+	TxConfig client.TxConfig
+	// QueryTxConfig decodes with the default SDK decoder. Use it only to read
+	// committed txs: blocks from before the strict rule can hold txs that the
+	// strict decoder rejects.
+	QueryTxConfig         client.TxConfig
 	Amino                 *codec.LegacyAmino
 	AddressPrefix         string
 	AddressCodec          addresscodec.Codec
@@ -54,31 +59,33 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	}
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
-	sdkDecoder := authtx.DefaultTxDecoder(protoCodec)
-	wrappedDecoder := blobTxDecoder(indexWrapperDecoder(sdkDecoder))
-	txDecoder := rejectEmptyTxDecoder(func(raw []byte) (sdk.Tx, error) {
-		if _, plain := txutil.PlainSDKBody(raw); plain {
-			return sdkDecoder(raw)
+	newTxConfig := func(sdkDecoder sdk.TxDecoder) client.TxConfig {
+		wrappedDecoder := blobTxDecoder(indexWrapperDecoder(sdkDecoder))
+		txDecoder := rejectEmptyTxDecoder(func(raw []byte) (sdk.Tx, error) {
+			if _, plain := txutil.PlainSDKBody(raw); plain {
+				return sdkDecoder(raw)
+			}
+			return wrappedDecoder(raw)
+		})
+		txConfig, err := authtx.NewTxConfigWithOptions(protoCodec, authtx.ConfigOptions{
+			EnabledSignModes: authtx.DefaultSignModes,
+			SigningOptions: &signing.Options{
+				AddressCodec:          addressCodec,
+				ValidatorAddressCodec: validatorAddressCodec,
+			},
+			ProtoDecoder: txDecoder,
+		})
+		if err != nil {
+			panic(err)
 		}
-		return wrappedDecoder(raw)
-	})
-
-	txConfig, err := authtx.NewTxConfigWithOptions(protoCodec, authtx.ConfigOptions{
-		EnabledSignModes: authtx.DefaultSignModes,
-		SigningOptions: &signing.Options{
-			AddressCodec:          addressCodec,
-			ValidatorAddressCodec: validatorAddressCodec,
-		},
-		ProtoDecoder: txDecoder,
-	})
-	if err != nil {
-		panic(err)
+		return txConfig
 	}
 
 	return Config{
 		InterfaceRegistry:     interfaceRegistry,
 		Codec:                 protoCodec,
-		TxConfig:              txConfig,
+		TxConfig:              newTxConfig(authtx.StrictTxDecoder(protoCodec)),
+		QueryTxConfig:         newTxConfig(authtx.DefaultTxDecoder(protoCodec)),
 		Amino:                 amino,
 		AddressPrefix:         addressPrefix,
 		AddressCodec:          addressCodec,

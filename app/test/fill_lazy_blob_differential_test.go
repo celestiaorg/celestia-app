@@ -171,10 +171,12 @@ func TestPrepareProposalDifferentialLazyBlob(t *testing.T) {
 	require.NoError(t, sendRaw.Unmarshal(sends[0]))
 	pffDups := make([][]byte, 0, numPFFDups)
 	for range numPFFDups / 4 {
-		// A decoder keeps the last body_bytes: an earlier send body must not hide the PFF.
+		// Duplicated fields used to resolve last-wins; the decoder now rejects
+		// them, so none of these may reach the square.
+		// An earlier send body before the PFF body.
 		tx, _ := pffTx()
 		pffDups = append(pffDups, append(bytesField(1, sendRaw.BodyBytes), tx...))
-		// ...and a later send body hides it (the PFF signature no longer matches).
+		// A later send body after the PFF body.
 		tx, _ = pffTx()
 		var raw txtypes.TxRaw
 		require.NoError(t, raw.Unmarshal(tx))
@@ -183,7 +185,7 @@ func TestPrepareProposalDifferentialLazyBlob(t *testing.T) {
 		rest, err := raw.Marshal()
 		require.NoError(t, err)
 		pffDups = append(pffDups, slices.Concat(bytesField(1, pffBody), bytesField(1, sendRaw.BodyBytes), rest))
-		// A decoder keeps the last type_url of an Any.
+		// Two type_urls in one Any.
 		tx, name := pffTx()
 		raw = txtypes.TxRaw{}
 		require.NoError(t, raw.Unmarshal(tx))
@@ -221,9 +223,9 @@ func TestPrepareProposalDifferentialLazyBlob(t *testing.T) {
 		{"blob-malformed-after-cap", slices.Concat(valid, malformed), appconsts.MaxPFBMessages},
 		{"blob-malformed-before-cap", slices.Concat(malformed, valid), appconsts.MaxPFBMessages},
 		{"blob-envelope-lookalikes", slices.Concat(lookalikes, valid[:50], sends[:10], lookalikes), 60},
-		// Per group of 4 dups: the first and third are PFFs, the fourth is a MsgSend.
-		{"pff-duplicated-fields", every(pffs, pffDups, 1), numPFFs + 3*numPFFDups/4},
-		{"all-mixed", every(slices.Concat(valid, pffs, sends), slices.Concat(malformed, lookalikes, pffDups), 3), appconsts.MaxPFBMessages + numPFFs + numSends + 3*numPFFDups/4},
+		// The decoder rejects every tx with a duplicated field, so all dups are dropped.
+		{"pff-duplicated-fields", every(pffs, pffDups, 1), numPFFs},
+		{"all-mixed", every(slices.Concat(valid, pffs, sends), slices.Concat(malformed, lookalikes, pffDups), 3), appconsts.MaxPFBMessages + numPFFs + numSends},
 	}
 	for _, w := range workloads {
 		t.Run(w.name, func(t *testing.T) {
