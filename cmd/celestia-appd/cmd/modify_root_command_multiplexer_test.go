@@ -17,8 +17,9 @@ import (
 )
 
 func TestUnsupportedFlags(t *testing.T) {
-	// v10 lacks only the flag added in v12.
-	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}}, unsupportedFlags(10))
+	// v10 and v11 lack only the flag added in v12.
+	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}}, unsupportedFlags(11))
+	require.Equal(t, unsupportedFlags(11), unsupportedFlags(10))
 
 	// v6-v9 also lack the flags added in v10.
 	require.Equal(t, map[string]struct{}{"dynamic-timeout-commit": {}, "otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
@@ -56,7 +57,7 @@ func TestUnsupportedFlagsMatchEmbeddedBinaries(t *testing.T) {
 	for i, embedded := range []func() (string, []byte, error){
 		embedding.CelestiaAppV3, embedding.CelestiaAppV4, embedding.CelestiaAppV5,
 		embedding.CelestiaAppV6, embedding.CelestiaAppV7, embedding.CelestiaAppV8, embedding.CelestiaAppV9,
-		embedding.CelestiaAppV10,
+		embedding.CelestiaAppV10, embedding.CelestiaAppV11,
 	} {
 		version, data, err := embedded()
 		require.NoError(t, err)

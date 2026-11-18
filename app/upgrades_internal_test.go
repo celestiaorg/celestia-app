@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestV11StoreLoader checks that the v11 upgrade adds the teeism store to a
-// database written before v11 and loads a database that already has it.
-func TestV11StoreLoader(t *testing.T) {
+// TestTeeismStoreLoader checks that the v12 upgrade adds the teeism store to a
+// database written before v12 and loads a database that already has it.
+func TestTeeismStoreLoader(t *testing.T) {
 	// newStore mounts every app store, optionally skipping teeism.
 	newStore := func(db dbm.DB, withTeeism bool) storetypes.CommitMultiStore {
 		ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
@@ -37,12 +37,12 @@ func TestV11StoreLoader(t *testing.T) {
 	}
 	const upgradeHeight = 2
 
-	t.Run("adds the store to a pre-v11 database", func(t *testing.T) {
+	t.Run("adds the store to a pre-v12 database", func(t *testing.T) {
 		db := commitOnce(t, false)
 		require.ErrorContains(t, baseapp.DefaultStoreLoader(newStore(db, true)), "new stores should be added using StoreUpgrades")
 
 		ms := newStore(db, true)
-		require.NoError(t, v11StoreLoader(upgradeHeight)(ms))
+		require.NoError(t, teeismStoreLoader(upgradeHeight)(ms))
 		ms.Commit()
 		require.True(t, hasStore(ms, upgradeHeight, teeismtypes.StoreKey))
 	})
@@ -50,7 +50,7 @@ func TestV11StoreLoader(t *testing.T) {
 	t.Run("loads a database that already has the store", func(t *testing.T) {
 		db := commitOnce(t, true)
 		ms := newStore(db, true)
-		require.NoError(t, v11StoreLoader(upgradeHeight)(ms))
+		require.NoError(t, teeismStoreLoader(upgradeHeight)(ms))
 		require.True(t, hasStore(ms, upgradeHeight-1, teeismtypes.StoreKey))
 	})
 }

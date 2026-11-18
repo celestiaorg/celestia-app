@@ -43,7 +43,7 @@ var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, default
 // against every current start flag and embedded binary when either changes.
 func unsupportedFlags(appVersion uint64) map[string]struct{} {
 	result := map[string]struct{}{}
-	if appVersion <= 10 {
+	if appVersion <= 11 {
 		result[DynamicTimeoutCommitFlag] = struct{}{}
 	}
 	if appVersion <= 9 {
@@ -147,6 +147,16 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
+	v11Tag, v11CompressedBinary, err := embedding.CelestiaAppV11()
+	if err != nil {
+		panic(err)
+	}
+
+	appdV11, err := appd.New(v11Tag, v11CompressedBinary)
+	if err != nil {
+		panic(err)
+	}
+
 	v3Args := interBlockCacheOnArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
@@ -217,6 +227,11 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV10,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  10,
+			StartArgs:   defaultArgs,
+		}, abci.Version{
+			Appd:        appdV11,
+			ABCIVersion: abci.ABCIClientVersion2,
+			AppVersion:  11,
 			StartArgs:   defaultArgs,
 		})
 	if err != nil {

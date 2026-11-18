@@ -102,14 +102,16 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		app.SetStoreLoader(v11StoreLoader(upgradeInfo.Height))
+		app.SetStoreLoader(teeismStoreLoader(upgradeInfo.Height))
 	}
 }
 
-// v11StoreLoader adds the teeism store at the v11 upgrade height. A database
-// that already has the store, such as one this binary wrote from genesis,
-// loads as is.
-func v11StoreLoader(upgradeHeight int64) baseapp.StoreLoader {
+// teeismStoreLoader adds the teeism store at the v12 upgrade height. The
+// multiplexer serves app version 11 and below with embedded releases, so this
+// binary first opens a database at that height, with the plan the v11 release
+// wrote. A database that already has the store, such as one this binary wrote
+// from genesis, loads as is.
+func teeismStoreLoader(upgradeHeight int64) baseapp.StoreLoader {
 	return func(ms storetypes.CommitMultiStore) error {
 		version := ms.LastCommitID().Version
 		if upgradeHeight != version+1 || hasStore(ms, version, teeismtypes.StoreKey) {
