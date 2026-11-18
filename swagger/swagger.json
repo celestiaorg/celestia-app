@@ -191,6 +191,14 @@
             "required": true,
             "type": "string",
             "format": "byte"
+          },
+          {
+            "name": "creationTimestamp",
+            "description": "creation_timestamp is the promise's creation_timestamp. Processed payments\nare keyed by it, so it is required.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
