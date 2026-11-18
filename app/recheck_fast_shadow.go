@@ -105,8 +105,8 @@ func (f *fastRecheck) compare(tx []byte, p prediction, res *abci.ResponseCheckTx
 			field []byte
 		}{{f.authKey, rec.accKey}, {f.bankKey, rec.balKey}, {f.bankKey, f.fcBalKey}} {
 			stock, fast := ctx.MultiStore().GetKVStore(w.key).Get(w.field), p.branch.GetKVStore(w.key).Get(w.field)
-			if !bytes.Equal(stock, fast) {
-				diffs = append(diffs, fmt.Sprintf("%s/%X stock=%X fast=%X", w.key.Name(), w.field, stock, fast))
+			if !bytes.Equal(stock, fast) { // log sizes, not state values
+				diffs = append(diffs, fmt.Sprintf("%s write differs (stock %d bytes, fast %d bytes)", w.key.Name(), len(stock), len(fast)))
 			}
 		}
 	})
