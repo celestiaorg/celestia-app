@@ -108,11 +108,13 @@ func validateGenesisIsm(ism InterchainSecurityModule) error {
 
 // validateGenesisRoots checks that every root of one entry is a 32-byte hex value.
 //
-// The roots are the ism's retention window, oldest first: exactly the newest
-// min(root_seq, retention) roots it attested, distinct, ending with its tree root.
+// The roots are the ism's retention window, oldest first: the newest roots it
+// attested, distinct, ending with its tree root. The window holds at most
+// min(root_seq, retention) of them, and fewer after an owner lowers the
+// retention and raises it again, until new roots fill it.
 func validateGenesisRoots(entry GenesisRoots, ism InterchainSecurityModule) error {
-	if want := min(ism.RootSeq, ism.Retention()); uint64(len(entry.Roots)) != want {
-		return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s lists %d roots, its retention window holds %d", entry.Id.String(), len(entry.Roots), want)
+	if most := min(ism.RootSeq, ism.Retention()); len(entry.Roots) == 0 || uint64(len(entry.Roots)) > most {
+		return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s lists %d roots, its retention window holds 1 to %d", entry.Id.String(), len(entry.Roots), most)
 	}
 	seen := make(map[string]struct{}, len(entry.Roots))
 	for i, root := range entry.Roots {

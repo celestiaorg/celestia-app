@@ -579,6 +579,38 @@ func (s *KeeperTestSuite) TestSetRootRetention() {
 	s.Require().ErrorIs(err, types.ErrIsmNotFound)
 }
 
+// After the owner lowers the retention and raises it again, the window holds
+// fewer roots than the retention allows until new roots fill it; it still
+// exports, imports and keeps pruning in order.
+func (s *KeeperTestSuite) TestGenesisExportsAWindowBelowItsRetention() {
+	id := s.createIsm()
+	roots := syntheticRoots(40)
+	s.attest(id, roots...)
+	set := func(retention uint32) {
+		_, err := s.msgServer.SetRootRetention(s.ctx, &types.MsgSetRootRetention{Owner: s.owner, Id: id, Retention: retention})
+		s.Require().NoError(err)
+	}
+	set(4)
+	set(types.MaxRootRetention)
+	s.Require().Equal(hexAll(roots[36:]), s.window(id))
+
+	gs, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NoError(gs.Validate())
+	bz, err := s.cdc.MarshalJSON(gs)
+	s.Require().NoError(err)
+	var decoded types.GenesisState
+	s.Require().NoError(s.cdc.UnmarshalJSON(bz, &decoded))
+	s.Require().NoError(decoded.Validate())
+
+	s.SetupTest()
+	s.Require().NoError(s.keeper.InitGenesis(s.ctx, &decoded))
+	s.Require().Equal(hexAll(roots[36:]), s.window(id))
+	next := syntheticRoots(41)[40]
+	s.attest(id, next)
+	s.Require().Equal(append(hexAll(roots[36:]), types.EncodeHex(next)), s.window(id), "the window grows again")
+}
+
 func (s *KeeperTestSuite) TestGenesisRejectsInconsistentWindow() {
 	id := s.createIsm()
 	roots := syntheticRoots(3)
@@ -595,7 +627,8 @@ func (s *KeeperTestSuite) TestGenesisRejectsInconsistentWindow() {
 		f(&c)
 		return c.Validate()
 	}
-	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots[0].Roots = gs.Roots[0].Roots[1:] }), "a root missing from the window")
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots[0].Roots = nil }), "an empty window")
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Isms[0].RootSeq = 2 }), "more roots than were attested")
 	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots[0].Roots[0] = gs.Roots[0].Roots[1] }), "a root listed twice")
 	s.Require().Error(mutate(func(gs *types.GenesisState) {
 		r := gs.Roots[0].Roots
