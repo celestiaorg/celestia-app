@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -424,4 +425,37 @@ func TestSimulateSequenceBeforeFirstCommit(t *testing.T) {
 	expected, err := apperrors.ParseExpectedSequence(err.Error())
 	require.NoError(t, err)
 	require.Equal(t, next, expected)
+}
+
+// The checkState fallback reads the IAVL tree FinalizeBlock writes; run with -race.
+func TestQuerySequenceFallbackConcurrentWithFinalizeBlock(t *testing.T) {
+	const accounts, blocks = 3, 20
+	h := newRecheckHarness(t, accounts, false)
+	var stop atomic.Bool
+	var readers sync.WaitGroup
+	for range 2 {
+		readers.Go(func() {
+			// Unknown signers miss checkState's cache, so each read walks the tree.
+			for !stop.Load() {
+				if _, err := h.querySequence(0); err != nil {
+					t.Error(err)
+					return
+				}
+				signer := make([]byte, 20)
+				_, _ = rand.Read(signer)
+				if _, err := h.conn.QuerySequence(context.Background(), &abci.RequestQuerySequence{Signer: signer}); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		})
+	}
+	defer func() { stop.Store(true); readers.Wait() }()
+	for range blocks {
+		block := make([][]byte, 0, accounts)
+		for i := range accounts {
+			block = append(block, h.sendTx(i, testutil.DirectQueryAccount(h.app, h.addrs[i]).GetSequence()))
+		}
+		require.NoError(t, h.commit(nil, block...))
+	}
 }
