@@ -87,13 +87,23 @@ func (id *EnclaveIdentity) Validate() error {
 			return ErrInvalidEnclaveIdentity.Wrapf("rtmr%d must be %d bytes, got %d", i, DigestLen, len(rtmr))
 		}
 	}
+	// Bounding the values bounds what an ism's identities hold in state. The
+	// largest real one, key-provider (a JSON object naming the KMS and its public
+	// key), is 204 bytes on our enclave; a P-384 KMS key would make it about 262.
 	for _, ev := range id.pinnedEvents() {
 		if len(ev.Value) == 0 {
 			return ErrInvalidEnclaveIdentity.Wrapf("%s must not be empty", ev.Name)
 		}
+		if len(ev.Value) > MaxEventValueBytes {
+			return ErrInvalidEnclaveIdentity.Wrapf("%s must be at most %d bytes, got %d", ev.Name, MaxEventValueBytes, len(ev.Value))
+		}
 	}
 	return nil
 }
+
+// MaxEventValueBytes bounds each pinned event value: os_image_hash,
+// compose_hash and key_provider.
+const MaxEventValueBytes = 512
 
 // VerifyEnclaveIdentity is this module's verdict on the software stack, as
 // distinct from Intel's verdict on the hardware.

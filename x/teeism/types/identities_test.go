@@ -179,3 +179,29 @@ func TestSettingAnUnusableSetIsRefused(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, before, ism.State)
 }
+
+// TestIdentityValuesAreBounded keeps what an ism's identities hold in state small:
+// each pinned event value is at most MaxEventValueBytes.
+func TestIdentityValuesAreBounded(t *testing.T) {
+	require.NoError(t, identityFor(1).Validate())
+
+	full := identityFor(1)
+	full.OsImageHash = bytes.Repeat([]byte{1}, types.MaxEventValueBytes)
+	full.ComposeHash = bytes.Repeat([]byte{1}, types.MaxEventValueBytes)
+	full.KeyProvider = bytes.Repeat([]byte{1}, types.MaxEventValueBytes)
+	require.NoError(t, full.Validate())
+
+	over := bytes.Repeat([]byte{1}, types.MaxEventValueBytes+1)
+	for name, mutate := range map[string]func(*types.EnclaveIdentity){
+		"os_image_hash": func(id *types.EnclaveIdentity) { id.OsImageHash = over },
+		"compose_hash":  func(id *types.EnclaveIdentity) { id.ComposeHash = over },
+		"key_provider":  func(id *types.EnclaveIdentity) { id.KeyProvider = over },
+		"megabytes":     func(id *types.EnclaveIdentity) { id.KeyProvider = bytes.Repeat([]byte{1}, 1<<20) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			id := identityFor(1)
+			mutate(id)
+			require.ErrorIs(t, id.Validate(), types.ErrInvalidEnclaveIdentity)
+		})
+	}
+}
