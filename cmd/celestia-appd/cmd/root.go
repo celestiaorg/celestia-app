@@ -152,7 +152,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	}
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
+	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, overrideIAVLCacheSize, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -168,7 +168,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Duration(DynamicTimeoutCommitFlag, 0, "Override the DynamicTimeoutCommit, the floor on the block interval from app version 11. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
-	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass config overrides for consensus timeouts, P2P rates, and mempool settings. The CAT mempool type and min-retain-blocks are always enforced. WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
+	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass config overrides for consensus timeouts, P2P rates, mempool settings, and iavl-cache-size. The CAT mempool type and min-retain-blocks are always enforced. WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")
 	startCmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "DANGER: allow the privval gRPC endpoint to listen on a non-localhost address without mutual TLS; anyone who can reach it can request signatures from the validator key")
 	addOTelMetricsFlag(startCmd)

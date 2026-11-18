@@ -10,7 +10,7 @@ Every validator MUST run a v12 binary (with its celestia-core) before the v12 ac
 
 On startup, a v12 binary raises `ttl-num-blocks` below 117 to 117 (was 36) and `min-retain-blocks` between 1 and 9,749 to 9,750 (was 3,000). New `app.toml` files get `snapshot-interval = 4875` (was 1500). These keep their durations at 0.8s blocks; between installing the binary and the v12 activation they apply at ~2.6s blocks, so the TTL is ~5 minutes and retention ~7 hours until then.
 
-New `app.toml` files get `iavl-cache-size = 6250000` (was 781250). This cuts disk reads during block execution but uses more RAM: in a single-validator benchmark the node's memory rose from 1.95 GB to 6.8 GB. Existing nodes keep the value already in their `app.toml`; to opt in, set `iavl-cache-size = 6250000` and restart.
+New `app.toml` files get `iavl-cache-size = 6250000` (was 781250), and on startup a v12 binary raises a lower `iavl-cache-size` to 6250000. This cuts disk reads during block execution but uses more RAM: in a single-validator benchmark the node's memory rose from 1.95 GB to 6.8 GB. To keep a lower value, start with `--bypass-config-overrides`.
 
 ### State Machine Changes (v12.0.0)
 
