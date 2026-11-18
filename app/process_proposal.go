@@ -3,8 +3,6 @@ package app
 import (
 	"bytes"
 	"fmt"
-	"runtime"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
@@ -115,7 +114,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
 	decoder := app.encodingConfig.TxConfig.TxDecoder()
-	waitDecode := forEachParallel(len(decodeCandidates), func(candidate int) {
+	waitDecode := parallel.ForEach(len(decodeCandidates), func(candidate int) {
 		idx := decodeCandidates[candidate]
 		sdkTx, err := decoder(req.Txs[idx])
 		if err != nil {
@@ -144,7 +143,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	if verifyPFF != nil {
 		// Runs alongside the walk; a panic is re-raised after it, so the recover above rejects the block.
-		waitVerify := goWait(verifyPFF)
+		waitVerify := parallel.Go(verifyPFF)
 		defer waitVerify()
 	}
 
@@ -161,7 +160,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		waitSquare   func()
 	)
 	if cached == nil {
-		waitSquare = goWait(func() {
+		waitSquare = parallel.Go(func() {
 			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
 		})
 		defer func() {
@@ -345,39 +344,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	return accept(), nil
-}
-
-// forEachParallel calls fn(i) for every i in [0, n) on up to GOMAXPROCS goroutines;
-// the returned wait re-raises a panic from fn on the caller's goroutine.
-func forEachParallel(n int, fn func(i int)) (wait func()) {
-	var (
-		next     atomic.Int64
-		panicked atomic.Pointer[any]
-		wg       sync.WaitGroup
-	)
-	for range min(runtime.GOMAXPROCS(0), n) {
-		wg.Go(func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicked.CompareAndSwap(nil, &r)
-				}
-			}()
-			for i := int(next.Add(1)) - 1; i < n; i = int(next.Add(1)) - 1 {
-				fn(i)
-			}
-		})
-	}
-	return func() {
-		wg.Wait()
-		if r := panicked.Load(); r != nil {
-			panic(*r)
-		}
-	}
-}
-
-// goWait runs fn on its own goroutine; wait blocks until fn returns and re-raises its panic.
-func goWait(fn func()) (wait func()) {
-	return forEachParallel(1, func(int) { fn() })
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
