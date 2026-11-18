@@ -226,6 +226,8 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
+	// fastRecheck replays eligible rechecks from records; nil unless FlagFastRecheck is set.
+	fastRecheck *fastRecheck
 	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
 	// rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
@@ -611,6 +613,11 @@ func newApp(
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
 	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
+	if cast.ToBool(appOpts.Get(FlagFastRecheck)) {
+		app.fastRecheck = newFastRecheck(app, 2*maxTxs+1024, cast.ToBool(appOpts.Get(FlagFastRecheckShadowVerify)))
+		app.SetAnteHandler(app.wrapAnte(app.AnteHandler()))
+		app.fastRecheck.registerListener()
+	}
 
 	protoFiles, err := proto.MergedRegistry()
 	if err != nil {
@@ -732,6 +739,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
+	app.resetFastRecheck()
 	versionMap := app.ModuleManager.GetVersionMap()
 	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, versionMap); err != nil {
 		return nil, err
@@ -757,7 +765,25 @@ func (app *App) DefaultGenesis() GenesisState {
 
 // LoadHeight loads a particular height
 func (app *App) LoadHeight(height int64) error {
+	app.resetFastRecheck()
 	return app.LoadVersion(height)
+}
+
+// ApplySnapshotChunk drops the fast recheck records once a restored chunk replaces state.
+func (app *App) ApplySnapshotChunk(req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
+	res, err := app.BaseApp.ApplySnapshotChunk(req)
+	app.resetFastRecheck()
+	return res, err
+}
+
+// resetFastRecheck drops every fast recheck record (InitChain, snapshot restore, LoadHeight).
+func (app *App) resetFastRecheck() {
+	if app.fastRecheck == nil {
+		return
+	}
+	app.checkStateMu.Lock()
+	defer app.checkStateMu.Unlock()
+	app.fastRecheck.reset()
 }
 
 // ModuleAccountAddrs returns a map of the app's module account addresses.
@@ -1061,6 +1087,9 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 	app.recheckTxs.sweep()
+	if app.fastRecheck != nil {
+		app.fastRecheck.sweep()
+	}
 	res, err := app.BaseApp.Commit()
 	app.storeCommittedContext()
 	return res, err
