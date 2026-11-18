@@ -123,20 +123,20 @@ With the same chain-id, the IBC clients of Celestia on other chains continue. `M
 
 1. Relayer operators stop Hermes before G. The Celestia RPC node of a relayer moves with `recovery.sh new-chain`, which keeps `data/tx_index.db`. Hermes needs it to relay packets sent before the halt.
 2. List the clients to update. On Celestia, `celestia-appd query ibc connection connections` shows each connection's `counterparty.client_id`. The counterparty chain is the `chain_id` in `celestia-appd query ibc client state <client_id>`.
-3. Once the new chain produces blocks, update every client. `--restart-height` and `--archive-address` only route fetches: Hermes reads light blocks at or below C from the archive and higher ones from the live RPC. It needs the full light block at the trusted height T plus one. If T is C, block C+1 is in the height gap and the update fails, so pass an older T. On the counterparty (HOST_CHAIN, HOST_RPC), read the client's latest height and its stored consensus heights; follow `pagination.next_key` to see them all:
+3. Once the new chain produces blocks, update every client. `--restart-height` and `--archive-address` only route fetches: Hermes reads light blocks at or below C from the archive and higher ones from the live RPC. It needs the full light block at the trusted height T plus one, which includes the validators of T+2. The archive serves nothing above C, so the update fails when T is C or C-1; pass T at or below C-2. On the counterparty (HOST_CHAIN, HOST_RPC), read the client's latest height and its stored consensus heights; follow `pagination.next_key` to see them all:
 
    ```sh
    <counterpartyd> query ibc client state "$CLIENT" --node "$HOST_RPC" -o json
    <counterpartyd> query ibc client consensus-state-heights "$CLIENT" --node "$HOST_RPC" --limit 1000 -o json
    ```
 
-   Pick T, the newest stored height below C whose consensus state is still within the trusting period. Do not assume C-1 is stored. Then update the client to I:
+   Pick T, the newest stored height at or below C-2 whose consensus state is still within the trusting period. Do not assume C-2 is stored. Then update the client to I:
 
    ```sh
    hermes update client --host-chain "$HOST_CHAIN" --client "$CLIENT" --trusted-height "$T" --height "$I" --restart-height "$C" --archive-address "$ARCHIVE_RPC"
    ```
 
-   If no stored height below C is usable, stock Hermes v1.13.1 can't update the client; see [Open questions](#open-questions). Changing only `--height` does not help, and an update through C recreates the problem.
+   If no stored height at or below C-2 is usable, stock Hermes v1.13.1 can't update the client; see [Open questions](#open-questions). Changing only `--height` does not help, and an update to C-1 or C recreates the problem.
 
 4. Check on each counterparty that `query ibc client status <client-id>` prints `Active` and that the client's latest height is at least I. Then start Hermes. A packet sent before the halt is delivered once. Transfers whose timeout passed during the halt time out, as after a rollback.
 
@@ -240,7 +240,7 @@ An account number so large that the import runs for an impractically long time i
 
 ## Open questions
 
-- An IBC client whose only usable trusted height is C (no stored consensus height below C within the trusting period): not tested. Options are a patched Hermes that builds the header from the archive's validators at C+1, or governance recovery once the client expires; ibc-go v8 rejects `MsgRecoverClient` while the client is Active. The e2e tests cover only a client below E; a client at C is a follow-up case.
+- An IBC client whose only usable trusted height is C-1 or C (no stored consensus height at or below C-2 within the trusting period): not tested. Options are a patched Hermes that does not fetch the validators above C, or governance recovery once the client expires; ibc-go v8 rejects `MsgRecoverClient` while the client is Active. The e2e tests cover a client at C-1 and a client below E.
 - Hyperlane relayer after an export below the tip: the fresh-database procedure above is checked only with a noop ISM and no Hyperlane validators.
 - Celestia to EVM messages dispatched at or below E but not delivered before the halt are never seen by a fresh relayer database: their events are in old blocks. They are valid on the new chain. Options, none checked: find them in the old database and deliver them separately, run a relayer once against an archive up to E, or let the old relayer drain during the halt (it also delivers messages above E).
 - Hyperlane validators that see a reused nonce likely detect a reorg and stop, and then need a database reset. Not checked.
