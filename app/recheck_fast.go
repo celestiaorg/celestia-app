@@ -327,13 +327,7 @@ var blobTxSuffix = []byte("\x1a\x04" + blobtx.ProtoBlobTxTypeID)
 
 // recheck answers the recheck of tx from its record if the fast path applies.
 // Blob txs are recorded under their inner sdk tx.
-func (f *fastRecheck) recheck(tx []byte) (res *abci.ResponseCheckTx, ok bool) {
-	// A panic in the checks (before any write) falls back to the full ante, which recovers.
-	defer func() {
-		if recover() != nil {
-			res, ok = f.miss("panic")
-		}
-	}()
+func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
 	key := tx
 	if bytes.HasSuffix(tx, blobTxSuffix) {
 		btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -385,7 +379,11 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 	if !ok {
 		return f.miss("fcbalance")
 	}
-	newPB, newFB := pb.Sub(rec.fee), fb.Add(rec.fee)
+	newFB, err := fb.SafeAdd(rec.fee)
+	if err != nil {
+		return f.miss("fcbalance")
+	}
+	newPB := pb.Sub(rec.fee) // pb > fee
 	pbEnc, err := sdk.IntValue.Encode(newPB)
 	if err != nil {
 		return f.miss("encode")

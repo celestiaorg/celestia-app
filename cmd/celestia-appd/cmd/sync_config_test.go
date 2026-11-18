@@ -530,7 +530,7 @@ func TestSyncAppConfigFile(t *testing.T) {
 	home := t.TempDir()
 	cmd := &cobra.Command{}
 	cmd.Flags().String("home", home, "")
-	_, err = server.InterceptConfigsAndCreateContext(cmd, serverconfig.DefaultConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
+	_, err = server.InterceptConfigsAndCreateContext(cmd, app.AppConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 	require.NoError(t, err)
 	added, _, err := syncConfigFile(filepath.Join(home, "config", "app.toml"), reference, false)
 	require.NoError(t, err)
