@@ -227,7 +227,7 @@ func TestSyncConfigDoesNotPersistFlagsOrEnvironment(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("rpc.max_concurrent_heavy_requests", "88"))
 				want = 88
 			}
-			sctx, err := server.InterceptConfigsAndCreateContext(cmd, "", app.DefaultAppConfig(), app.DefaultConsensusConfig())
+			sctx, err := server.InterceptConfigsAndCreateContext(cmd, app.AppConfigTemplate, app.DefaultAppConfig(), app.DefaultConsensusConfig())
 			require.NoError(t, err)
 			require.Equal(t, want, sctx.Config.RPC.MaxConcurrentHeavyRequests)
 			appPath := filepath.Join(home, "config", "app.toml")
