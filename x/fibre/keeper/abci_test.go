@@ -970,6 +970,61 @@ func (suite *ABCITestSuite) TestPruneProcessedPaymentsIsBounded() {
 	suite.Zero(countPrefix(store, types.LegacyProcessedPaymentsByHashKeyPrefix))
 }
 
+// TestPruneProcessedPaymentsResumesFromCursor checks that pruning continues after the
+// last pruned creation time, including records that share it with the last one pruned.
+func (suite *ABCITestSuite) TestPruneProcessedPaymentsResumesFromCursor() {
+	const perBlock = 2000 // maxProcessedPaymentPrunesPerBlock
+	now := suite.ctx.BlockTime()
+	created := now.Add(-suite.keeper.GetParams(suite.ctx).PaymentPromiseRetentionWindow() - time.Hour)
+	for i := range perBlock + 5 {
+		suite.keeper.SetProcessedPayment(suite.ctx, types.ProcessedPayment{PaymentPromiseHash: []byte(fmt.Sprintf("hash-%05d", i)), ProcessedAt: now, CreationTimestamp: created})
+	}
+	store := suite.ctx.KVStore(suite.storeKey)
+
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.Equal(5, countPrefix(store, types.ProcessedPaymentsKeyPrefix))
+	suite.Equal(sdk.FormatTimeBytes(created), store.Get(types.ProcessedPaymentsPrunedThroughKey))
+
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.Zero(countPrefix(store, types.ProcessedPaymentsKeyPrefix))
+}
+
+// TestPruneProcessedPaymentsStartsAtCursor pins the start bound. A record below the
+// cursor cannot be settled (the freshness floor forbids it); here it shows pruning skips it.
+func (suite *ABCITestSuite) TestPruneProcessedPaymentsStartsAtCursor() {
+	now := suite.ctx.BlockTime()
+	created := now.Add(-suite.keeper.GetParams(suite.ctx).PaymentPromiseRetentionWindow() - time.Hour)
+	suite.keeper.SetProcessedPayment(suite.ctx, types.ProcessedPayment{PaymentPromiseHash: []byte("pruned"), ProcessedAt: now, CreationTimestamp: created})
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+
+	below := types.ProcessedPayment{PaymentPromiseHash: []byte("below"), ProcessedAt: now, CreationTimestamp: created.Add(-time.Minute)}
+	suite.keeper.SetProcessedPayment(suite.ctx, below)
+	suite.ctx = suite.ctx.WithBlockTime(now.Add(time.Minute))
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, below.CreationTimestamp, below.PaymentPromiseHash))
+}
+
+// TestPruneProcessedPaymentsAfterWithdrawalDelayIncrease checks that a cutoff behind the
+// cursor prunes nothing and leaves the cursor in place.
+func (suite *ABCITestSuite) TestPruneProcessedPaymentsAfterWithdrawalDelayIncrease() {
+	params := suite.keeper.GetParams(suite.ctx)
+	now := suite.ctx.BlockTime()
+	old := types.ProcessedPayment{PaymentPromiseHash: []byte("old"), ProcessedAt: now, CreationTimestamp: now.Add(-params.PaymentPromiseRetentionWindow() - time.Minute)}
+	kept := types.ProcessedPayment{PaymentPromiseHash: []byte("kept"), ProcessedAt: now, CreationTimestamp: now.Add(-params.PaymentPromiseRetentionWindow() + time.Minute)}
+	suite.keeper.SetProcessedPayment(suite.ctx, old)
+	suite.keeper.SetProcessedPayment(suite.ctx, kept)
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	store := suite.ctx.KVStore(suite.storeKey)
+	cursor := store.Get(types.ProcessedPaymentsPrunedThroughKey)
+	suite.Equal(sdk.FormatTimeBytes(old.CreationTimestamp), cursor)
+
+	params.WithdrawalDelay += time.Hour
+	suite.keeper.SetParams(suite.ctx, params)
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+	suite.True(suite.keeper.IsPromiseProcessed(suite.ctx, kept.CreationTimestamp, kept.PaymentPromiseHash))
+	suite.Equal(cursor, store.Get(types.ProcessedPaymentsPrunedThroughKey))
+}
+
 // TestPruneLegacyProcessedPayments checks that legacy entries are pruned by processed time.
 func (suite *ABCITestSuite) TestPruneLegacyProcessedPayments() {
 	now := suite.ctx.BlockTime()

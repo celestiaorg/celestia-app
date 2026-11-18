@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
@@ -139,16 +140,26 @@ func (k Keeper) pruneProcessedPayments(ctx sdk.Context) error {
 	cutoffTime := ctx.BlockTime().Add(-k.GetParams(ctx).PaymentPromiseRetentionWindow())
 
 	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(types.ProcessedPaymentsKeyPrefix, storetypes.PrefixEndBytes(types.ProcessedPaymentsPrefix(cutoffTime)))
-	defer iterator.Close()
-
+	// Start at the last pruned creation time to skip the LSM tombstones of earlier prunes; the
+	// freshness floor keeps every later settlement above it.
+	start, end := types.ProcessedPaymentsKeyPrefix, storetypes.PrefixEndBytes(types.ProcessedPaymentsPrefix(cutoffTime))
+	if prunedThrough := store.Get(types.ProcessedPaymentsPrunedThroughKey); prunedThrough != nil {
+		start = append(bytes.Clone(types.ProcessedPaymentsKeyPrefix), prunedThrough...)
+	}
 	pruned := 0
-	for ; iterator.Valid() && pruned < maxProcessedPaymentPrunesPerBlock; iterator.Next() {
-		var processedPayment types.ProcessedPayment
-		k.cdc.MustUnmarshal(iterator.Value(), &processedPayment)
-		store.Delete(iterator.Key())
-		k.emitProcessedPaymentPruned(ctx, processedPayment)
-		pruned++
+	if bytes.Compare(start, end) < 0 {
+		iterator := store.Iterator(start, end)
+		var last types.ProcessedPayment
+		for ; iterator.Valid() && pruned < maxProcessedPaymentPrunesPerBlock; iterator.Next() {
+			k.cdc.MustUnmarshal(iterator.Value(), &last)
+			store.Delete(iterator.Key())
+			k.emitProcessedPaymentPruned(ctx, last)
+			pruned++
+		}
+		iterator.Close()
+		if pruned > 0 {
+			store.Set(types.ProcessedPaymentsPrunedThroughKey, sdk.FormatTimeBytes(last.CreationTimestamp))
+		}
 	}
 
 	k.pruneLegacyProcessedPayments(ctx, cutoffTime, maxProcessedPaymentPrunesPerBlock-pruned)
@@ -157,6 +168,9 @@ func (k Keeper) pruneProcessedPayments(ctx sdk.Context) error {
 
 // pruneLegacyProcessedPayments prunes the pre-v12 indexes by processed time.
 func (k Keeper) pruneLegacyProcessedPayments(ctx sdk.Context, cutoffTime time.Time, budget int) {
+	if budget <= 0 {
+		return
+	}
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(types.LegacyProcessedPaymentsByTimeKeyPrefix, storetypes.PrefixEndBytes(types.LegacyProcessedPaymentsByTimePrefix(cutoffTime)))
 	defer iterator.Close()
