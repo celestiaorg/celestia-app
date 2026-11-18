@@ -116,6 +116,10 @@ fanout() {
     "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; rm -rf /tmp/fanout.*; sleep 1" || true
     dir=$("${SSH[@]}" "root@$srcpub" "d=\$(mktemp -d /tmp/fanout.XXXXXX) && cp $file \$d/ && echo \$d")
     [[ "$dir" =~ ^/tmp/fanout\.[A-Za-z0-9]+$ ]] || die "could not stage $file on validator $src"
+    # Stop the server and remove the copy however this script ends; the
+    # values are expanded now, while they are in scope.
+    trap "$(printf '%q ' "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; rm -rf $dir") || true" EXIT
+    trap 'exit 130' INT TERM
     "${SSH[@]}" "root@$srcpub" "cd $dir && (nohup timeout 600 python3 -m http.server 8099 --bind $srcip >/dev/null 2>&1 &); for i in \$(seq 10); do curl -sf -o /dev/null http://$srcip:8099/$(basename "$file") && exit 0; sleep 1; done; exit 1" ||
         die "file server on validator $src did not start"
     local failed=0
@@ -124,7 +128,6 @@ fanout() {
         echo "== $ip: $file" >&2
         "${SSH[@]}" "root@$ip" "curl -sf -o $file http://$srcip:8099/$(basename "$file") && echo '$sum  $file' | sha256sum -c --quiet -" || failed=1
     done
-    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; rm -rf $dir" || true
     [ "$failed" -eq 0 ] || die "fanout failed on some nodes"
 }
 
