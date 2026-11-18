@@ -226,8 +226,8 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
-	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
-	// rechecks, at most one per mempool slot.
+	// recheckTxs keeps the decodes of admitted txs (PayForFibre ~31 KB each) for
+	// their rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool *wrapper.TreePool

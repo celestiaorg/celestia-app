@@ -38,8 +38,8 @@ func (h *txHandoff) decoder(base sdk.TxDecoder) sdk.TxDecoder {
 	}
 }
 
-// recheckTxCache keeps the decode of each admitted PayForFibre tx, keyed by its
-// raw bytes, for the rechecks of those bytes. Callers hold checkStateMu.
+// recheckTxCache keeps the decode of each admitted tx, keyed by the bytes BaseApp
+// checks (the inner tx of a blob tx), for their rechecks. Callers hold checkStateMu.
 type recheckTxCache struct {
 	entries    map[string]*recheckTxEntry
 	maxEntries int

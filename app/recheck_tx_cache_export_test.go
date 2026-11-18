@@ -1,7 +1,12 @@
 package app
 
+import blobtx "github.com/celestiaorg/go-square/v4/tx"
+
 // RecheckTxCached reports whether a recheck of tx would reuse its admitted decode.
 func (app *App) RecheckTxCached(tx []byte) bool {
+	if btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx); isBlob && err == nil {
+		tx = btx.Tx
+	}
 	_, ok := app.recheckTxs.entries[string(tx)]
 	return ok
 }
