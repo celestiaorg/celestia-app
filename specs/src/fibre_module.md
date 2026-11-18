@@ -364,6 +364,8 @@ message EventPaymentPromiseTimeout {
   string processor = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   string escrow_signer = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   bytes payment_promise_hash = 3;
+  // creation_timestamp is the promise's creation_timestamp, needed to query IsPaymentProcessed.
+  google.protobuf.Timestamp creation_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
 message EventUpdateFibreParams {
@@ -374,6 +376,8 @@ message EventUpdateFibreParams {
 message EventProcessedPaymentPruned {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // creation_timestamp is the promise's creation_timestamp, zero for payments processed before v12.
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 

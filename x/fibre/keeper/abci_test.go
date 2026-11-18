@@ -654,8 +654,14 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	suite.True(found, "payment3 should be in store before pruning")
 
 	// Run BeginBlocker - should prune payment1 and payment3
+	suite.ctx = suite.ctx.WithEventManager(sdk.NewEventManager())
 	err := suite.keeper.BeginBlocker(suite.ctx)
 	suite.NoError(err)
+	for _, p := range []types.ProcessedPayment{payment1, payment3} {
+		event, err := sdk.TypedEventToEvent(types.NewEventProcessedPaymentPruned(p.PaymentPromiseHash, p.ProcessedAt, p.CreationTimestamp))
+		suite.Require().NoError(err)
+		suite.Contains(suite.ctx.EventManager().Events(), event)
+	}
 
 	// Verify payment1 and payment3 were pruned
 	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1.CreationTimestamp, payment1Hash)
