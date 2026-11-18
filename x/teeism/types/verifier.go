@@ -30,6 +30,13 @@ const MaxQuoteSkewSecs = 24 * 60 * 60
 // measurements prove nothing about what actually executed.
 const tdAttributesDebug = 0x01
 
+// tdAttributesMigratable is bit 29 of TD_ATTRIBUTES (byte 3 of the little-endian
+// field), set when the host launched the TD so it can be live-migrated. A
+// migration TD then holds the keys its memory is exported under; whoever controls
+// that TD can read and change the TD's state in transit and import it elsewhere,
+// where it still quotes the same measurements.
+const tdAttributesMigratable = 0x20
+
 // AttestationResult is what a verified quote establishes.
 type AttestationResult struct {
 	Update       *AttestedUpdate
@@ -191,6 +198,9 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	// Both versions carry the same TD report fields; v5 wraps the body in a
 	// descriptor and adds TDX 1.5 fields this module does not read.
 	var body tdReport
+	// MRSERVICETD identifies the service TDs (a migration TD) bound to this one;
+	// only a TD 1.5 body carries it.
+	var mrServiceTd []byte
 	switch q := parsed.(type) {
 	case *pb.QuoteV4:
 		if b := q.GetTdQuoteBody(); b != nil {
@@ -199,6 +209,7 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	case *pb.QuoteV5:
 		if b := q.GetTdQuoteBodyDescriptor().GetTdQuoteBodyV5(); b != nil {
 			body = b
+			mrServiceTd = b.GetMrServiceTd()
 		}
 	default:
 		return nil, nil, ErrInvalidQuote.Wrap("only TDX quotes v4 and v5 are supported")
@@ -223,14 +234,8 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 		return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
 	}
 
-	// A debug TD is transparent to its host, so its measurements mean nothing.
-	// go-tdx-guest checks the signature chain but takes no view on this.
-	attrs := body.GetTdAttributes()
-	if len(attrs) != 8 {
-		return nil, nil, ErrInvalidQuote.Wrapf("td_attributes must be 8 bytes, got %d", len(attrs))
-	}
-	if attrs[0]&tdAttributesDebug != 0 {
-		return nil, nil, ErrInvalidQuote.Wrap("td is in debug mode")
+	if err := checkTdLaunch(body.GetTdAttributes(), mrServiceTd); err != nil {
+		return nil, nil, err
 	}
 
 	measured, err := MeasurementsFrom(body.GetMrTd(), body.GetRtmrs())
@@ -243,6 +248,28 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 		return nil, nil, ErrInvalidQuote.Wrapf("report_data must be 64 bytes, got %d", len(reportData))
 	}
 	return measured, reportData, nil
+}
+
+// checkTdLaunch refuses a TD whose launch leaves its measurements meaningless:
+// a debug TD, which its host can read and change, and a TD that can be migrated
+// or has a service TD bound, which is only as safe as that service TD.
+// go-tdx-guest checks the signature chain but takes no view on either.
+func checkTdLaunch(attrs, mrServiceTd []byte) error {
+	if len(attrs) != 8 {
+		return ErrInvalidQuote.Wrapf("td_attributes must be 8 bytes, got %d", len(attrs))
+	}
+	if attrs[0]&tdAttributesDebug != 0 {
+		return ErrInvalidQuote.Wrap("td is in debug mode")
+	}
+	if attrs[3]&tdAttributesMigratable != 0 {
+		return ErrInvalidQuote.Wrap("td is migratable")
+	}
+	for _, b := range mrServiceTd {
+		if b != 0 {
+			return ErrInvalidQuote.Wrap("td has a service td bound (mr_servicetd is not zero)")
+		}
+	}
+	return nil
 }
 
 // tdReport is the part of a TD quote body the checks above read, which v4
