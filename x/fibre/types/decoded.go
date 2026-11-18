@@ -15,7 +15,7 @@ type DecodedPayForFibre struct {
 	Raw []byte
 	Msg *MsgPayForFibre
 	// CertKey is the signature cache key of the validator certificate.
-	// CertKeyed is false when the certificate could not be keyed.
+	// CertKeyed is false when the certificate was not or could not be keyed.
 	CertKey   sigcache.Key
 	CertKeyed bool
 	// PromiseSignBytes is what the validators signed, PromiseKey the promise's cache key;
