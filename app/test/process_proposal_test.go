@@ -450,9 +450,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
 	// +2 accounts are grantees for the authz MsgExec txs built below, +4 sign the
-	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +2 sign the ZK
+	// MsgModuleQuerySafe txs, +4 sign the ICA and tight-gas txs, +3 sign the ZK
 	// proof txs, +3 sign the ISM signature txs and +2 sign the SDK gas txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 17
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 18
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -559,6 +559,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	zkProofsExceedTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages+1)
 	accountIndex++
 	zkProofsAtLimitTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages)
+	accountIndex++
+	zkProofsOneTx := buildZKProofTx(accountIndex, 1)
 	accountIndex++
 
 	// Build a tx with one MsgProcessMessage whose metadata carries sigs
@@ -703,6 +705,12 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
+			name:           "reject block exceeding MaxSDKMessages across txs",
+			txs:            [][]byte{msgExecAtLimitTx, msgSendTxs[0]},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
 			name:           "accept authz MsgExec flattening to exactly MaxSDKMessages",
 			txs:            [][]byte{msgExecAtLimitTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
@@ -711,6 +719,12 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		{
 			name:           "reject block exceeding MaxZKProofMessages",
 			txs:            [][]byte{zkProofsExceedTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject block exceeding MaxZKProofMessages across txs",
+			txs:            [][]byte{zkProofsAtLimitTx, zkProofsOneTx},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 			validSquare:    true,
 		},

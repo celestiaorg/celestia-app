@@ -25,7 +25,6 @@ type FilteredSquareBuilder struct {
 	handler   sdk.AnteHandler
 	msgRouter baseapp.MessageRouter
 	txConfig  client.TxConfig
-	chanKeep  channelKeeper
 	builder   *square.Builder
 	// validateBlobTx, when set, drops blob txs it returns an error for.
 	validateBlobTx func(*tx.BlobTx) (bool, error)
@@ -42,7 +41,6 @@ func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
 	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
-	chanKeep channelKeeper,
 	maxSquareSize,
 	subtreeRootThreshold int,
 ) (*FilteredSquareBuilder, error) {
@@ -54,7 +52,6 @@ func NewFilteredSquareBuilder(
 		handler:   handler,
 		msgRouter: msgRouter,
 		txConfig:  txConfig,
-		chanKeep:  chanKeep,
 		builder:   builder,
 	}, nil
 }
@@ -158,17 +155,17 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
-		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		execMsgCount := countExecutableMsgs(sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
 			continue
 		}
-		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		zkProofCount := countZKProofMsgs(sdkTx.GetMsgs())
 		if zkProofMsgCount+zkProofCount > appconsts.MaxZKProofMessages {
 			logger.Debug("skipping tx because the max ZK proof message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
-		txISMSigCount := countISMSignatures(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		txISMSigCount := countISMSignatures(sdkTx.GetMsgs())
 		if ismSigCount+txISMSigCount > appconsts.MaxISMSignatures {
 			logger.Debug("skipping tx because the max ISM signature count was reached", "tx", lazyTxHash(tx))
 			continue
