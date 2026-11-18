@@ -101,12 +101,12 @@ func (f *fastRecheck) compare(tx []byte, p prediction, res *abci.ResponseCheckTx
 	}
 	f.app.ReadCheckState(func(ctx sdk.Context) {
 		for _, w := range []struct {
+			what  string
 			key   storetypes.StoreKey
 			field []byte
-		}{{f.authKey, rec.accKey}, {f.bankKey, rec.balKey}, {f.bankKey, f.fcBalKey}} {
-			stock, fast := ctx.MultiStore().GetKVStore(w.key).Get(w.field), p.branch.GetKVStore(w.key).Get(w.field)
-			if !bytes.Equal(stock, fast) { // log sizes, not state values
-				diffs = append(diffs, fmt.Sprintf("%s write differs (stock %d bytes, fast %d bytes)", w.key.Name(), len(stock), len(fast)))
+		}{{"account", f.authKey, rec.accKey}, {"payer balance", f.bankKey, rec.balKey}, {"fee collector balance", f.bankKey, f.fcBalKey}} {
+			if !bytes.Equal(ctx.MultiStore().GetKVStore(w.key).Get(w.field), p.branch.GetKVStore(w.key).Get(w.field)) {
+				diffs = append(diffs, w.what+" write differs")
 			}
 		}
 	})
