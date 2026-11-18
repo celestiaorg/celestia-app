@@ -84,7 +84,7 @@ func TestFillDropsTxWhoseAnteHandlerPanics(t *testing.T) {
 				}
 				return ctx, nil
 			}
-			fsb, err := NewFilteredSquareBuilder(handler, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			fsb, err := NewFilteredSquareBuilder(handler, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 
 			var kept [][]byte
@@ -138,7 +138,7 @@ func TestFillDropsTxWhoseDecodingPanics(t *testing.T) {
 	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 		return ctx, nil
 	}
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 
 	ctx, _ := newFillPanicContext(t)
