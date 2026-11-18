@@ -99,22 +99,24 @@ procs() {
 private_ip() { jq -r ".validators[$1].private_ip" "$EXP/config.json"; }
 
 fanout() {
-    local src=$1 file=$2 node=$3 srcip srcpub ip
+    local src=$1 file=$2 node=$3 srcip srcpub ip sum dir
     [[ "$file" =~ ^/[A-Za-z0-9._/-]+$ ]] || die "fanout takes an absolute path of letters, digits, '.', '_', '-' and '/'"
     resolve "$src"
     srcpub=$IPS
     srcip=$(private_ip "$src")
     resolve "$node"
-    local sum
     sum=$("${SSH[@]}" "root@$srcpub" "sha256sum $file" | cut -d' ' -f1)
-    [ -n "$sum" ] || die "no $file on validator $src"
-    # A server left by an interrupted run is stopped first. The new one serves
-    # only the file's directory and stops after 10 minutes even if this script
-    # is interrupted; each node checks the hash of what it got.
-    # pkill runs in its own ssh command: the bracket keeps the pattern from
-    # matching that command's shell, but not a shell that also starts the server.
-    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; sleep 1" || true
-    "${SSH[@]}" "root@$srcpub" "cd $(dirname "$file") && (nohup timeout 600 python3 -m http.server 8099 --bind $srcip >/dev/null 2>&1 &); for i in \$(seq 10); do curl -sf -o /dev/null http://$srcip:8099/$(basename "$file") && exit 0; sleep 1; done; exit 1" ||
+    [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || die "no sha256 of $file on validator $src"
+    # The server serves a fresh directory with only a copy of the file, never
+    # the file's own directory, which may hold keys. A server left by an
+    # interrupted run is stopped first; pkill runs in its own ssh command, as
+    # the bracket keeps the pattern from matching that shell but not a shell
+    # that also starts the server. The server stops after 10 minutes even if
+    # this script is interrupted. Each node checks the hash of what it got.
+    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; rm -rf /tmp/fanout.*; sleep 1" || true
+    dir=$("${SSH[@]}" "root@$srcpub" "d=\$(mktemp -d /tmp/fanout.XXXXXX) && cp $file \$d/ && echo \$d")
+    [[ "$dir" =~ ^/tmp/fanout\.[A-Za-z0-9]+$ ]] || die "could not stage $file on validator $src"
+    "${SSH[@]}" "root@$srcpub" "cd $dir && (nohup timeout 600 python3 -m http.server 8099 --bind $srcip >/dev/null 2>&1 &); for i in \$(seq 10); do curl -sf -o /dev/null http://$srcip:8099/$(basename "$file") && exit 0; sleep 1; done; exit 1" ||
         die "file server on validator $src did not start"
     local failed=0
     for ip in $IPS; do
@@ -122,7 +124,7 @@ fanout() {
         echo "== $ip: $file" >&2
         "${SSH[@]}" "root@$ip" "curl -sf -o $file http://$srcip:8099/$(basename "$file") && echo '$sum  $file' | sha256sum -c --quiet -" || failed=1
     done
-    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'" || true
+    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; rm -rf $dir" || true
     [ "$failed" -eq 0 ] || die "fanout failed on some nodes"
 }
 
