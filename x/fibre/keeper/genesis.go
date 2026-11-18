@@ -35,8 +35,13 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 		panic(fmt.Errorf("migrate %s genesis state: %w", types.ModuleName, err))
 	}
 
+	// Payments processed before v12 carry no creation time and keep the legacy indexes.
 	for _, entry := range genesisState.ProcessedPayments {
-		k.SetProcessedPayment(ctx, entry)
+		if entry.CreationTimestamp.IsZero() {
+			k.setLegacyProcessedPayment(ctx, entry)
+		} else {
+			k.SetProcessedPayment(ctx, entry)
+		}
 	}
 
 	// Restore the payment-promise freshness floor. A zero value means it was never set,
@@ -108,17 +113,27 @@ func (k Keeper) IterateWithdrawals(ctx sdk.Context, callback func(withdrawal typ
 	}
 }
 
-// IterateProcessedPayments iterates over all processed payments and calls the provided callback function
+// IterateProcessedPayments iterates over all processed payments, the legacy ones last,
+// and calls the provided callback function
 func (k Keeper) IterateProcessedPayments(ctx sdk.Context, callback func(entry types.ProcessedPayment) bool) {
 	store := ctx.KVStore(k.storeKey)
-	iterator := storetypes.KVStorePrefixIterator(store, types.ProcessedPaymentsByHashKeyPrefix)
+	for _, prefix := range [][]byte{types.ProcessedPaymentsKeyPrefix, types.LegacyProcessedPaymentsByHashKeyPrefix} {
+		if k.iterateProcessedPayments(store, prefix, callback) {
+			return
+		}
+	}
+}
+
+func (k Keeper) iterateProcessedPayments(store storetypes.KVStore, prefix []byte, callback func(entry types.ProcessedPayment) bool) bool {
+	iterator := storetypes.KVStorePrefixIterator(store, prefix)
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
 		var entry types.ProcessedPayment
 		k.cdc.MustUnmarshal(iterator.Value(), &entry)
 		if callback(entry) {
-			break
+			return true
 		}
 	}
+	return false
 }

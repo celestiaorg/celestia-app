@@ -29,7 +29,7 @@ const (
 // reconcile cached budgets against the chain. The keeper satisfies it.
 type promiseStateReader interface {
 	GetEscrowAccount(ctx sdk.Context, signer string) (types.EscrowAccount, bool)
-	IsPaymentProcessedByHash(ctx sdk.Context, promiseHash []byte) bool
+	IsPromiseProcessed(ctx sdk.Context, creationTimestamp time.Time, promiseHash []byte) bool
 	GetParams(ctx sdk.Context) types.Params
 }
 
@@ -196,7 +196,7 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string, available math
 	committed := math.ZeroInt()
 	for key := range b.hashes {
 		hash, err := hex.DecodeString(key)
-		if err != nil || c.reader.IsPaymentProcessedByHash(ctx, hash) || !c.pending[key].creationTimestamp.After(staleBefore) {
+		if err != nil || c.reader.IsPromiseProcessed(ctx, c.pending[key].creationTimestamp, hash) || !c.pending[key].creationTimestamp.After(staleBefore) {
 			delete(b.hashes, key)
 			delete(c.pending, key)
 			continue

@@ -78,6 +78,9 @@ message QueryWithdrawalsResponse {
 // QueryIsPaymentProcessedRequest is the request type for the Query/IsPaymentProcessed RPC method.
 message QueryIsPaymentProcessedRequest {
   bytes promise_hash = 1;
+  // creation_timestamp is the promise's creation_timestamp. Processed payments
+  // are keyed by it, so it is required.
+  google.protobuf.Timestamp creation_timestamp = 2 [(gogoproto.stdtime) = true];
 }
 
 // QueryIsPaymentProcessedResponse is the response type for the Query/IsPaymentProcessed RPC method.

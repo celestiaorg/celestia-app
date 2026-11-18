@@ -372,13 +372,13 @@ func fuzzPayForFibreMsgServer(t *testing.T, script []byte) int {
 		require.Equal(t, wantSettle, err == nil, "settlement verdict: %v", err)
 		if err != nil {
 			*fx.ledger = saved
-			require.False(t, s.keeper.IsPaymentProcessedByHash(s.ctx, hash) && !settled[string(hash)])
+			require.False(t, s.keeper.IsPaymentPromiseProcessed(s.ctx, &msg.PaymentPromise) && !settled[string(hash)])
 			continue
 		}
 		write()
 		accepted++
 		settled[string(hash)] = true
-		require.True(t, s.keeper.IsPaymentProcessedByHash(s.ctx, hash))
+		require.True(t, s.keeper.IsPaymentPromiseProcessed(s.ctx, &msg.PaymentPromise))
 		after, _ := s.keeper.GetEscrowAccount(s.ctx, payer)
 		require.True(t, before.Balance.Amount.Sub(charge).Equal(after.Balance.Amount), "escrow charged the wrong amount")
 		require.True(t, fx.ledger.balances[authtypes.FeeCollectorName].Sub(feeBefore).Equal(charge))

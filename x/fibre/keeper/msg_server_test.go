@@ -358,7 +358,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		promiseHash, err := pp.Hash()
 		suite.NoError(err)
 
-		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, pp.CreationTimestamp, promiseHash)
 		suite.True(found)
 		suite.Equal(promiseHash, processedPayment.PaymentPromiseHash)
 		suite.True(paymentPromise.CreationTimestamp.Equal(processedPayment.CreationTimestamp))
@@ -679,7 +679,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		promiseHash, err := pp.Hash()
 		suite.NoError(err)
 
-		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+		processedPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, pp.CreationTimestamp, promiseHash)
 		suite.True(found)
 		suite.Equal(promiseHash, processedPayment.PaymentPromiseHash)
 		suite.True(paymentPromise.CreationTimestamp.Equal(processedPayment.CreationTimestamp))
@@ -747,6 +747,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		processedPayment := types.ProcessedPayment{
 			PaymentPromiseHash: promiseHash,
 			ProcessedAt:        suite.ctx.BlockTime(),
+			CreationTimestamp:  alreadyProcessedPaymentPromise.CreationTimestamp,
 		}
 		suite.keeper.SetProcessedPayment(suite.ctx, processedPayment)
 
@@ -1116,7 +1117,7 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 	suite.Require().NoError(pp.FromProto(&promise))
 	promiseHash, err := pp.Hash()
 	suite.Require().NoError(err)
-	_, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, pp.CreationTimestamp, promiseHash)
 	suite.True(found, "replay record must outlive the promise freshness window")
 
 	_, err = suite.msgServer.PaymentPromiseTimeout(suite.ctx, &types.MsgPaymentPromiseTimeout{
@@ -1176,7 +1177,7 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	suite.Require().NoError(pp.FromProto(&promise))
 	promiseHash, err := pp.Hash()
 	suite.Require().NoError(err)
-	_, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, pp.CreationTimestamp, promiseHash)
 	suite.Require().True(found, "settlement must record a replay-protection entry")
 
 	// Advance just past the retention window so BeginBlocker prunes the record.
@@ -1186,7 +1187,7 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	suite.ctx = suite.ctx.WithBlockTime(pruneTime)
 	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
 
-	_, found = suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, pp.CreationTimestamp, promiseHash)
 	suite.Require().False(found, "processed record must be pruned once past the retention window")
 
 	// Governance raises both params. The new pair is itself valid, but the freshness

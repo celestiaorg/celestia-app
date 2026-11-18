@@ -175,7 +175,7 @@ func (suite *KeeperTestSuite) TestMigrateEscrowsUppercaseOnly() {
 	}
 	suite.keeper.SetEscrowAccount(suite.ctx, account)
 	suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
-	payment := types.ProcessedPayment{PaymentPromiseHash: []byte{1, 2, 3}, ProcessedAt: suite.ctx.BlockTime()}
+	payment := types.ProcessedPayment{PaymentPromiseHash: []byte{1, 2, 3}, ProcessedAt: suite.ctx.BlockTime(), CreationTimestamp: suite.ctx.BlockTime()}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment)
 	floor := suite.ctx.BlockTime().Add(-time.Hour)
 	suite.keeper.SetPromiseFreshnessFloor(suite.ctx, floor)
@@ -195,7 +195,7 @@ func (suite *KeeperTestSuite) TestMigrateEscrowsUppercaseOnly() {
 	suite.False(store.Has(types.WithdrawalsBySignerKey(upper, withdrawal.RequestedTimestamp)))
 	suite.False(store.Has(types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.RequestedTimestamp, upper)))
 	suite.True(store.Has(types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.RequestedTimestamp, lower)))
-	gotPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, payment.PaymentPromiseHash)
+	gotPayment, found := suite.keeper.GetProcessedPayment(suite.ctx, payment.CreationTimestamp, payment.PaymentPromiseHash)
 	suite.True(found)
 	suite.Equal(payment, gotPayment)
 	gotFloor, err := suite.keeper.GetPromiseFreshnessFloor(suite.ctx)

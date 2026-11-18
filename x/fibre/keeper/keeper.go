@@ -275,11 +275,14 @@ func (k Keeper) ParseWithdrawalsByAvailableKey(key []byte) (available, requested
 	return available, requested, signer, nil
 }
 
-// GetProcessedPayment retrieves a processed payment by promiseHash
-func (k Keeper) GetProcessedPayment(ctx sdk.Context, promiseHash []byte) (payment types.ProcessedPayment, isFound bool) {
+// GetProcessedPayment retrieves the processed payment of the promise with the given
+// creation time and hash.
+func (k Keeper) GetProcessedPayment(ctx sdk.Context, creationTimestamp time.Time, promiseHash []byte) (payment types.ProcessedPayment, isFound bool) {
 	store := ctx.KVStore(k.storeKey)
-	key := types.ProcessedPaymentsByHashKey(promiseHash)
-	bz := store.Get(key)
+	bz := store.Get(types.ProcessedPaymentKey(creationTimestamp, promiseHash))
+	if bz == nil {
+		bz = store.Get(types.LegacyProcessedPaymentsByHashKey(promiseHash))
+	}
 	if bz == nil {
 		return types.ProcessedPayment{}, false
 	}
@@ -287,34 +290,26 @@ func (k Keeper) GetProcessedPayment(ctx sdk.Context, promiseHash []byte) (paymen
 	return payment, true
 }
 
-// SetProcessedPayment saves a processed payment to both indexes:
-// 1. Primary index: processed_payments_by_hash/{hash}
-// 2. Secondary index: processed_payments_by_time/{processed_at}/{hash}
+// SetProcessedPayment records a processed payment under its promise's creation time.
 func (k Keeper) SetProcessedPayment(ctx sdk.Context, payment types.ProcessedPayment) {
 	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&payment)
-
-	// Store in primary index (by hash)
-	primaryKey := types.ProcessedPaymentsByHashKey(payment.PaymentPromiseHash)
-	store.Set(primaryKey, bz)
-
-	// Store in secondary index (by time)
-	secondaryKey := types.ProcessedPaymentsByTimeKey(payment.ProcessedAt, payment.PaymentPromiseHash)
-	store.Set(secondaryKey, bz)
+	store.Set(types.ProcessedPaymentKey(payment.CreationTimestamp, payment.PaymentPromiseHash), k.cdc.MustMarshal(&payment))
 }
 
-// DeleteProcessedPayment removes a processed payment from both indexes.
-// This should be called when pruning old processed payments.
-func (k Keeper) DeleteProcessedPayment(ctx sdk.Context, payment types.ProcessedPayment) {
+// setLegacyProcessedPayment records a payment that has no creation time in the pre-v12
+// indexes. Only genesis import writes them.
+func (k Keeper) setLegacyProcessedPayment(ctx sdk.Context, payment types.ProcessedPayment) {
 	store := ctx.KVStore(k.storeKey)
+	bz := k.cdc.MustMarshal(&payment)
+	store.Set(types.LegacyProcessedPaymentsByHashKey(payment.PaymentPromiseHash), bz)
+	store.Set(types.LegacyProcessedPaymentsByTimeKey(payment.ProcessedAt, payment.PaymentPromiseHash), bz)
+}
 
-	// Delete from primary index
-	primaryKey := types.ProcessedPaymentsByHashKey(payment.PaymentPromiseHash)
-	store.Delete(primaryKey)
-
-	// Delete from secondary index
-	secondaryKey := types.ProcessedPaymentsByTimeKey(payment.ProcessedAt, payment.PaymentPromiseHash)
-	store.Delete(secondaryKey)
+// deleteLegacyProcessedPayment removes a payment from both pre-v12 indexes.
+func (k Keeper) deleteLegacyProcessedPayment(ctx sdk.Context, payment types.ProcessedPayment) {
+	store := ctx.KVStore(k.storeKey)
+	store.Delete(types.LegacyProcessedPaymentsByHashKey(payment.PaymentPromiseHash))
+	store.Delete(types.LegacyProcessedPaymentsByTimeKey(payment.ProcessedAt, payment.PaymentPromiseHash))
 }
 
 // IsPaymentPromiseProcessed returns true if a payment has been processed for the given promise.
@@ -323,7 +318,7 @@ func (k Keeper) IsPaymentPromiseProcessed(ctx sdk.Context, promise *types.Paymen
 	if err != nil {
 		return false
 	}
-	return k.IsPaymentProcessedByHash(ctx, hash)
+	return k.IsPromiseProcessed(ctx, promise.CreationTimestamp, hash)
 }
 
 // promiseHash returns the canonical hash of a payment promise.
@@ -335,11 +330,14 @@ func promiseHash(promise *types.PaymentPromise) ([]byte, error) {
 	return pp.Hash()
 }
 
-// IsPaymentProcessedByHash returns true if a payment has been processed for the given promise hash.
-func (k Keeper) IsPaymentProcessedByHash(ctx sdk.Context, promiseHash []byte) bool {
+// IsPromiseProcessed returns true if the promise with the given creation time and hash
+// has been processed.
+func (k Keeper) IsPromiseProcessed(ctx sdk.Context, creationTimestamp time.Time, promiseHash []byte) bool {
 	store := ctx.KVStore(k.storeKey)
-	key := types.ProcessedPaymentsByHashKey(promiseHash)
-	return store.Has(key)
+	if store.Has(types.ProcessedPaymentKey(creationTimestamp, promiseHash)) {
+		return true
+	}
+	return store.Has(types.LegacyProcessedPaymentsByHashKey(promiseHash))
 }
 
 // ValidatePromiseStateless runs pp.Validate, skipping it when an identical
@@ -386,46 +384,6 @@ func promiseSigCacheKey(pp *fibre.PaymentPromise) (sigcache.Key, bool) {
 
 func promiseSigCacheKeyFromSignBytes(pp *fibre.PaymentPromise, signBytes []byte) sigcache.Key {
 	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
-}
-
-// GetProcessedPaymentsByTimeIterator returns an iterator for all processed payments up to the given time
-func (k Keeper) GetProcessedPaymentsByTimeIterator(ctx sdk.Context, upToTime time.Time) storetypes.Iterator {
-	store := ctx.KVStore(k.storeKey)
-	// Start from the beginning of the processed-payments-by-time index
-	start := types.ProcessedPaymentsByTimeKeyPrefix
-	// End at the last possible key for the given time
-	end := storetypes.PrefixEndBytes(types.ProcessedPaymentsByTimePrefix(upToTime))
-	return store.Iterator(start, end)
-}
-
-// ParseProcessedPaymentsByTimeKey parses the processed_at timestamp and payment promise hash from the key
-func (k Keeper) ParseProcessedPaymentsByTimeKey(key []byte) (processedAt time.Time, paymentPromiseHash []byte, err error) {
-	// Remove the prefix
-	if len(key) < len(types.ProcessedPaymentsByTimeKeyPrefix) {
-		return time.Time{}, nil, fmt.Errorf("key too short for prefix")
-	}
-	key = key[len(types.ProcessedPaymentsByTimeKeyPrefix):]
-
-	// Parse the timestamp (first 29 bytes as per SDK's FormatTimeBytes)
-	if len(key) < 29 {
-		return time.Time{}, nil, fmt.Errorf("key too short for timestamp")
-	}
-	timestampBytes := key[:29]
-
-	processedAt, err = sdk.ParseTimeBytes(timestampBytes)
-	if err != nil {
-		return time.Time{}, nil, fmt.Errorf("failed to parse timestamp: %w", err)
-	}
-
-	// Skip the separator "/"
-	key = key[29:]
-	if len(key) > 0 && key[0] == '/' {
-		key = key[1:]
-	}
-
-	// The rest is the payment promise hash
-	paymentPromiseHash = key
-	return processedAt, paymentPromiseHash, nil
 }
 
 // validatePaymentPromiseStatefulInternal performs the core stateful validation logic.

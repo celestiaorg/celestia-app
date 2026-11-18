@@ -65,8 +65,8 @@ func (r *sweepRecorder) GetEscrowAccount(ctx sdk.Context, signer string) (types.
 	return acc, found
 }
 
-func (r *sweepRecorder) IsPaymentProcessedByHash(ctx sdk.Context, hash []byte) bool {
-	return r.k.IsPaymentProcessedByHash(ctx, hash)
+func (r *sweepRecorder) IsPromiseProcessed(ctx sdk.Context, creationTimestamp time.Time, hash []byte) bool {
+	return r.k.IsPromiseProcessed(ctx, creationTimestamp, hash)
 }
 
 func (r *sweepRecorder) GetParams(ctx sdk.Context) types.Params {
@@ -209,7 +209,7 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 			for signer := range swept {
 				for h := range after.hashes[signer] {
 					raw, _ := hex.DecodeString(h)
-					require.False(t, k.IsPaymentProcessedByHash(ctx, raw), "a sweep kept a settled promise")
+					require.False(t, k.IsPromiseProcessed(ctx, after.pending[h].creationTimestamp, raw), "a sweep kept a settled promise")
 					require.True(t, after.pending[h].creationTimestamp.After(staleBefore), "a sweep kept an unsettleable promise")
 				}
 			}
@@ -269,9 +269,10 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				})
 			case 3:
 				if len(pool) > 0 {
-					hash, err := promiseHash(&pool[r.Intn(len(pool))])
+					settled := &pool[r.Intn(len(pool))]
+					hash, err := promiseHash(settled)
 					require.NoError(t, err)
-					k.SetProcessedPayment(ctx, types.ProcessedPayment{PaymentPromiseHash: hash, ProcessedAt: ctx.BlockTime()})
+					k.SetProcessedPayment(ctx, types.ProcessedPayment{PaymentPromiseHash: hash, ProcessedAt: ctx.BlockTime(), CreationTimestamp: settled.CreationTimestamp})
 				}
 			case 4:
 				d := time.Duration(r.Byte()%60)*time.Minute + time.Duration(r.Byte()%4)*time.Hour
