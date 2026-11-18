@@ -30,6 +30,10 @@ service Msg {
   // SetVerifierOverrides sets or clears an ism's overrides of Intel's side of
   // verification. Owner only.
   rpc SetVerifierOverrides(MsgSetVerifierOverrides) returns (MsgSetVerifierOverridesResponse);
+
+  // SetRootRetention sets how many of the most recently attested roots stay
+  // accepted for delivery. Only the owner may call it.
+  rpc SetRootRetention(MsgSetRootRetention) returns (MsgSetRootRetentionResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -162,3 +166,22 @@ message MsgSetVerifierOverrides {
 
 // MsgSetVerifierOverridesResponse is the response type for SetVerifierOverrides.
 message MsgSetVerifierOverridesResponse {}
+
+// MsgSetRootRetention is the request type for SetRootRetention.
+message MsgSetRootRetention {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // how many of the most recently attested roots stay accepted, 1 to
+  // MaxRootRetention
+  uint32 retention = 3;
+}
+
+// MsgSetRootRetentionResponse is the response type for SetRootRetention.
+message MsgSetRootRetentionResponse {}

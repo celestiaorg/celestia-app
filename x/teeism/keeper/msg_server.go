@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 
-	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -140,9 +139,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		return nil, err
 	}
 
-	// Every root ever attested stays accepted for delivery, so a proof a relayer
-	// built against one is never invalidated by a later attestation.
-	if err := m.roots.Set(ctx, collections.Join(ism.Id.GetInternalId(), update.TreeRoot[:])); err != nil {
+	// The newest Retention() roots stay accepted for delivery, so a proof a
+	// relayer built against one survives that many later roots.
+	if err := m.recordRoot(ctx, &ism, update.TreeRoot[:]); err != nil {
 		return nil, err
 	}
 
@@ -253,4 +252,34 @@ func (m msgServer) SetVerifierOverrides(ctx context.Context, msg *types.MsgSetVe
 		return nil, err
 	}
 	return &types.MsgSetVerifierOverridesResponse{}, nil
+}
+
+// SetRootRetention implements types.MsgServer.
+//
+// Sets how many of the most recently attested roots the ism keeps accepting for
+// delivery. Lowering it prunes the oldest roots at once; a message whose proof
+// was built against a pruned root is re-proved against a root the ism holds.
+func (m msgServer) SetRootRetention(ctx context.Context, msg *types.MsgSetRootRetention) (*types.MsgSetRootRetentionResponse, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+	previous, err := ism.SetRootRetention(msg.Owner, msg.Retention)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.pruneRoots(ctx, &ism); err != nil {
+		return nil, err
+	}
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitSetRootRetentionEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
+		return nil, err
+	}
+	return &types.MsgSetRootRetentionResponse{}, nil
 }

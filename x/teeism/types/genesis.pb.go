@@ -79,12 +79,13 @@ func (m *GenesisState) GetRoots() []GenesisRoots {
 	return nil
 }
 
-// GenesisRoots contains every origin merkle tree root attested for a tee ism,
-// which a message's delivery proof may be checked against.
+// GenesisRoots contains the origin merkle tree roots in a tee ism's retention
+// window, which a message's delivery proof may be checked against.
 type GenesisRoots struct {
 	// ism identifier
 	Id github_com_bcp_innovations_hyperlane_cosmos_util.HexAddress `protobuf:"bytes,1,opt,name=id,proto3,customtype=github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress" json:"id"`
-	// list of attested tree roots (hex-encoded)
+	// attested tree roots in the order they were attested, oldest first
+	// (hex-encoded). The last is number root_seq - 1 of the ism.
 	Roots []string `protobuf:"bytes,2,rep,name=roots,proto3" json:"roots,omitempty"`
 }
 

@@ -59,12 +59,21 @@ const (
 	// revocation once any newer attestation has landed; the slack absorbs Intel
 	// serving an artifact from a cache behind the one it served last.
 	MaxCollateralRegressionSecs = 24 * 60 * 60
+
+	// DefaultRootRetention is how many of the most recently attested roots an
+	// ism keeps accepting for delivery when its owner has not set a retention.
+	DefaultRootRetention = 32
+	// MaxRootRetention is the most roots an owner may have an ism keep.
+	MaxRootRetention = 256
 )
 
 var (
 	IsmsKeyPrefix = collections.NewPrefix(0)
 	// Prefix 1 held the authorized message ids when attestations named them.
 	RootsKeyPrefix = collections.NewPrefix(2)
+	// RootOrderKeyPrefix numbers each ism's roots in the order they were
+	// attested, so the oldest can be pruned.
+	RootOrderKeyPrefix = collections.NewPrefix(3)
 )
 
 // EncodeHex encodes a byte slice as a 0x prefixed hexadecimal string.

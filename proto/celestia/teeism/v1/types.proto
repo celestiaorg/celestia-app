@@ -65,8 +65,8 @@ message InterchainSecurityModule {
   // the owner's overrides of Intel's side of verification. Unset means none.
   VerifierOverrides verifier_overrides = 6;
   // the origin merkle tree hook's root at the current trusted state, as the
-  // last attestation proved it. Zero until the first attestation. Every root
-  // ever attested stays accepted for delivery; this is the newest.
+  // last attestation proved it. Zero until the first attestation. A delivery
+  // proof may be against any root in the retention window; this is the newest.
   bytes tree_root = 7;
   // the hook's leaf count at tree_root.
   uint32 tree_count = 8;
@@ -78,6 +78,13 @@ message InterchainSecurityModule {
   // issued, unix seconds. A later attestation may not bring collateral more
   // than MaxCollateralRegressionSecs older. Zero before the first attestation.
   uint64 collateral_issued_at = 10;
+  // how many of the most recently attested roots stay accepted for delivery;
+  // older ones are pruned. Zero means DefaultRootRetention; at most
+  // MaxRootRetention. The owner sets it.
+  uint32 root_retention = 11;
+  // how many distinct roots this ism has attested, which numbers each one; the
+  // newest root is number root_seq - 1.
+  uint64 root_seq = 12;
 }
 
 // VerifierOverrides lets the owner update what Intel can change over time and

@@ -68,3 +68,14 @@ func EmitSetVerifierOverridesEvent(ctx sdk.Context, ism types.InterchainSecurity
 		Overrides: ism.VerifierOverrides,
 	})
 }
+
+// EmitSetRootRetentionEvent emits a typed event when an owner changes how many
+// attested roots an ism keeps.
+func EmitSetRootRetentionEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous uint32) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventSetRootRetention{
+		Id:                ism.Id,
+		Owner:             ism.Owner,
+		PreviousRetention: previous,
+		Retention:         uint32(ism.Retention()),
+	})
+}

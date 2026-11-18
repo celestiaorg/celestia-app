@@ -19,10 +19,13 @@ var _ util.InterchainSecurityModule = (*Keeper)(nil)
 // Hyperlane ISM Router.
 type Keeper struct {
 	isms collections.Map[uint64, types.InterchainSecurityModule]
-	// roots holds every origin tree root each ism has ever attested, keyed by
+	// roots holds the origin tree roots in each ism's retention window, keyed by
 	// (ism, root). A delivery proof may be against any of them.
-	roots  collections.KeySet[collections.Pair[uint64, []byte]]
-	schema collections.Schema
+	roots collections.KeySet[collections.Pair[uint64, []byte]]
+	// rootOrder numbers the same roots in the order they were attested, keyed by
+	// (ism, number), so the oldest are pruned first.
+	rootOrder collections.Map[collections.Pair[uint64, uint64], []byte]
+	schema    collections.Schema
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -34,6 +37,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 
 	isms := collections.NewMap(sb, types.IsmsKeyPrefix, "isms", collections.Uint64Key, codec.CollValue[types.InterchainSecurityModule](cdc))
 	roots := collections.NewKeySet(sb, types.RootsKeyPrefix, "roots", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey))
+	rootOrder := collections.NewMap(sb, types.RootOrderKeyPrefix, "root_order", collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key), collections.BytesValue)
 
 	schema, err := sb.Build()
 	if err != nil {
@@ -44,6 +48,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 		coreKeeper: hyperlaneKeeper,
 		isms:       isms,
 		roots:      roots,
+		rootOrder:  rootOrder,
 		schema:     schema,
 		authority:  authority,
 	}
@@ -96,4 +101,51 @@ func (k *Keeper) Verify(ctx context.Context, ismId util.HexAddress, metadata []b
 	var leaf [32]byte
 	copy(leaf[:], message.Id().Bytes())
 	return proof.Proves(leaf), nil
+}
+
+// recordRoot adds root to the ism's retention window as its newest, then prunes
+// the window to the ism's retention. A root the window already holds, as on a
+// heartbeat, changes nothing. The caller stores the ism.
+func (k *Keeper) recordRoot(ctx context.Context, ism *types.InterchainSecurityModule, root []byte) error {
+	id := ism.Id.GetInternalId()
+	held, err := k.roots.Has(ctx, collections.Join(id, root))
+	if err != nil || held {
+		return err
+	}
+	if err := k.roots.Set(ctx, collections.Join(id, root)); err != nil {
+		return err
+	}
+	if err := k.rootOrder.Set(ctx, collections.Join(id, ism.RootSeq), root); err != nil {
+		return err
+	}
+	ism.RootSeq++
+	return k.pruneRoots(ctx, ism)
+}
+
+// pruneRoots drops every root older than the ism's newest Retention(). At most
+// MaxRootRetention roots are past it at once, after an owner lowers retention;
+// one attestation prunes at most one.
+func (k *Keeper) pruneRoots(ctx context.Context, ism *types.InterchainSecurityModule) error {
+	if ism.RootSeq <= ism.Retention() {
+		return nil
+	}
+	id := ism.Id.GetInternalId()
+	keep := ism.RootSeq - ism.Retention()
+	rng := collections.NewPrefixedPairRange[uint64, uint64](id).EndExclusive(keep)
+	var stale []collections.KeyValue[collections.Pair[uint64, uint64], []byte]
+	if err := k.rootOrder.Walk(ctx, rng, func(key collections.Pair[uint64, uint64], root []byte) (bool, error) {
+		stale = append(stale, collections.KeyValue[collections.Pair[uint64, uint64], []byte]{Key: key, Value: root})
+		return false, nil
+	}); err != nil {
+		return err
+	}
+	for _, kv := range stale {
+		if err := k.roots.Remove(ctx, collections.Join(id, kv.Value)); err != nil {
+			return err
+		}
+		if err := k.rootOrder.Remove(ctx, kv.Key); err != nil {
+			return err
+		}
+	}
+	return nil
 }

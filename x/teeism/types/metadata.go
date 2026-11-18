@@ -18,7 +18,7 @@ const DeliveryMetadataBytes = 32 + 4 + 32*util.TreeDepth
 //
 // The relayer builds it from the tree frontier at the ISM's previous state and
 // the leaves inserted since, which it indexes anyway; a proof is against one
-// root, and every root ever attested stays accepted, so it never goes stale.
+// root, and stays good while that root is in the ism's retention window.
 type DeliveryMetadata struct {
 	Root  [32]byte
 	Index uint32

@@ -40,6 +40,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(NewSetEnclaveIdentitiesCmd())
 	cmd.AddCommand(NewUpdateOwnerCmd())
 	cmd.AddCommand(NewSetVerifierOverridesCmd())
+	cmd.AddCommand(NewSetRootRetentionCmd())
 
 	return cmd
 }

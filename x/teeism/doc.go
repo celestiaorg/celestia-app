@@ -9,14 +9,15 @@
 //
 // An ISM is advanced by attestations (MsgSubmitAttestation): a TDX quote from one of the pinned
 // enclaves, verified against Intel's collateral at block time, whose report data commits to the
-// next trusted state and the origin merkle tree root at it. Every root ever attested stays
-// accepted.
+// next trusted state and the origin merkle tree root at it. The newest roots, up to the ISM's
+// retention, stay accepted.
 //
 // A message is delivered with a merkle branch in its metadata (types.DeliveryMetadata), which
 // places it under one of those roots. So an attestation is the same size whatever the origin
 // dispatched, a message dispatched while the relayer was away is deliverable against any later
 // root, and someone else advancing the ISM first only gives a message a newer root to prove
-// against.
+// against. The ISM keeps the newest roots up to its retention; a proof against a pruned root is
+// rebuilt against one it holds.
 //
 // Each ISM has an owner, the creator to begin with, who controls:
 //
@@ -26,6 +27,9 @@
 //     such as a multisig. There is no renouncing.
 //   - MsgSetVerifierOverrides (tx teeism set-verifier-overrides): replace the Intel root CA
 //     quotes must chain to, for when Intel rotates it.
+//   - MsgSetRootRetention (tx teeism set-root-retention): how many of the most recently
+//     attested roots stay accepted for delivery, 1 to 256 (32 until set). Older ones are
+//     pruned.
 //
 // None of these relaxes verification: every attestation must carry a quote that fully
 // verifies, with unexpired collateral, against a trusted root. Each change emits an event.

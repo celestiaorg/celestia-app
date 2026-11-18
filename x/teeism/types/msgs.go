@@ -12,7 +12,19 @@ var (
 	_ sdk.HasValidateBasic = (*MsgSetEnclaveIdentities)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateOwner)(nil)
 	_ sdk.HasValidateBasic = (*MsgSetVerifierOverrides)(nil)
+	_ sdk.HasValidateBasic = (*MsgSetRootRetention)(nil)
 )
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgSetRootRetention) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "owner: %s", err)
+	}
+	return ValidateRootRetention(msg.Retention)
+}
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgUpdateOwner) ValidateBasic() error {

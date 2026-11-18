@@ -123,6 +123,38 @@ func (ism *InterchainSecurityModule) TransferOwnership(owner, newOwner string) (
 	return previous, nil
 }
 
+// Retention is how many of the most recently attested roots the ism keeps
+// accepting for delivery.
+func (ism *InterchainSecurityModule) Retention() uint64 {
+	if ism.RootRetention == 0 {
+		return DefaultRootRetention
+	}
+	return uint64(ism.RootRetention)
+}
+
+// SetRootRetention sets how many attested roots the ism keeps, on behalf of
+// `owner`, and returns the retention before. Roots past the new retention are
+// the caller's to prune.
+func (ism *InterchainSecurityModule) SetRootRetention(owner string, retention uint32) (uint32, error) {
+	if err := ism.authorize(owner); err != nil {
+		return 0, err
+	}
+	if err := ValidateRootRetention(retention); err != nil {
+		return 0, err
+	}
+	previous := uint32(ism.Retention())
+	ism.RootRetention = retention
+	return previous, nil
+}
+
+// ValidateRootRetention checks a retention an owner sets: 1 to MaxRootRetention.
+func ValidateRootRetention(retention uint32) error {
+	if retention == 0 || retention > MaxRootRetention {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "root retention must be 1 to %d, got %d", MaxRootRetention, retention)
+	}
+	return nil
+}
+
 // SetVerifierOverrides replaces the ism's overrides of Intel's side of
 // verification on behalf of `owner`, and returns the overrides before. Empty
 // overrides clear them.

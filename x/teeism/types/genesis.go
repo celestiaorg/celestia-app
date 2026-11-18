@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -13,7 +15,7 @@ func DefaultGenesis() *GenesisState {
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
-	isms := make(map[uint64]struct{}, len(gs.Isms))
+	isms := make(map[uint64]InterchainSecurityModule, len(gs.Isms))
 	for i := range gs.Isms {
 		ism := gs.Isms[i]
 		if ism.Id.IsZeroAddress() {
@@ -24,7 +26,7 @@ func (gs GenesisState) Validate() error {
 		if _, exists := isms[internalID]; exists {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "duplicate ism id %s", ism.Id.String())
 		}
-		isms[internalID] = struct{}{}
+		isms[internalID] = ism
 
 		if err := validateGenesisIsm(ism); err != nil {
 			return err
@@ -39,7 +41,8 @@ func (gs GenesisState) Validate() error {
 		}
 
 		internalID := entry.Id.GetInternalId()
-		if _, exists := isms[internalID]; !exists {
+		ism, exists := isms[internalID]
+		if !exists {
 			return errorsmod.Wrapf(ErrIsmNotFound, "roots defined for unknown ism %s", entry.Id.String())
 		}
 		if _, exists := roots[internalID]; exists {
@@ -47,8 +50,16 @@ func (gs GenesisState) Validate() error {
 		}
 		roots[internalID] = struct{}{}
 
-		if err := validateGenesisRoots(entry); err != nil {
+		if err := validateGenesisRoots(entry, ism); err != nil {
 			return err
+		}
+	}
+
+	// An ism that has attested keeps at least its newest root, so it needs an
+	// entry; one with roots above was checked there.
+	for id, ism := range isms {
+		if _, listed := roots[id]; !listed && ism.RootSeq > 0 {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s has attested %d roots but genesis lists none", ism.Id.String(), ism.RootSeq)
 		}
 	}
 
@@ -87,18 +98,37 @@ func validateGenesisIsm(ism InterchainSecurityModule) error {
 	if len(ism.TreeRoot) != 0 && len(ism.TreeRoot) != 32 {
 		return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s tree root must be empty or 32 bytes, got %d", ism.Id.String(), len(ism.TreeRoot))
 	}
+	if ism.RootRetention != 0 {
+		if err := ValidateRootRetention(ism.RootRetention); err != nil {
+			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
+		}
+	}
 	return nil
 }
 
 // validateGenesisRoots checks that every root of one entry is a 32-byte hex value.
-func validateGenesisRoots(entry GenesisRoots) error {
-	for _, root := range entry.Roots {
+//
+// The roots are the ism's retention window, oldest first: exactly the newest
+// min(root_seq, retention) roots it attested, distinct, ending with its tree root.
+func validateGenesisRoots(entry GenesisRoots, ism InterchainSecurityModule) error {
+	if want := min(ism.RootSeq, ism.Retention()); uint64(len(entry.Roots)) != want {
+		return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s lists %d roots, its retention window holds %d", entry.Id.String(), len(entry.Roots), want)
+	}
+	seen := make(map[string]struct{}, len(entry.Roots))
+	for i, root := range entry.Roots {
 		raw, err := DecodeHex(root)
 		if err != nil {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root %q for ism %s: %v", root, entry.Id.String(), err)
 		}
 		if len(raw) != 32 {
 			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "invalid tree root length for ism %s: expected 32 bytes, got %d", entry.Id.String(), len(raw))
+		}
+		if _, dup := seen[string(raw)]; dup {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "tree root %s listed twice for ism %s", root, entry.Id.String())
+		}
+		seen[string(raw)] = struct{}{}
+		if i == len(entry.Roots)-1 && !bytes.Equal(raw, ism.TreeRoot) {
+			return errorsmod.Wrapf(sdkerrors.ErrAppConfig, "ism %s: newest listed root %s is not its tree root", entry.Id.String(), root)
 		}
 	}
 	return nil

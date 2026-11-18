@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"math/big"
 	"os"
 	"strings"
@@ -34,6 +35,7 @@ type KeeperTestSuite struct {
 	ctx       sdk.Context
 	keeper    *keeper.Keeper
 	msgServer types.MsgServer
+	cdc       codec.Codec
 
 	owner, next, stranger string
 }
@@ -47,6 +49,7 @@ func (s *KeeperTestSuite) SetupTest() {
 	s.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Version: version.Consensus{App: appconsts.Version}})
 	s.keeper = testApp.TeeIsmKeeper
 	s.msgServer = keeper.NewMsgServerImpl(s.keeper)
+	s.cdc = testApp.AppCodec()
 
 	addr := func(b byte) string { return sdk.AccAddress(bytes.Repeat([]byte{b}, 20)).String() }
 	s.owner, s.next, s.stranger = addr(1), addr(2), addr(3)
@@ -217,32 +220,44 @@ func (s *KeeperTestSuite) metadata(v rootVectors, index int, root []byte) []byte
 	return types.EncodeDeliveryMetadata(m)
 }
 
-// attest records roots for an ism the way SubmitAttestation does, through the
-// genesis path, since no real quote commits to a synthetic root.
+// attest records roots on an ism in order, the way SubmitAttestation does,
+// since no real quote commits to a synthetic root.
 func (s *KeeperTestSuite) attest(id util.HexAddress, roots ...[]byte) {
+	for _, r := range roots {
+		s.Require().NoError(s.keeper.RecordRootForTest(s.ctx, id, r))
+	}
+}
+
+// syntheticRoots returns n distinct 32-byte roots.
+func syntheticRoots(n int) [][]byte {
+	roots := make([][]byte, n)
+	for i := range roots {
+		r := make([]byte, 32)
+		r[0], r[1] = byte(i>>8), byte(i)
+		r[31] = 1
+		roots[i] = r
+	}
+	return roots
+}
+
+// window is the roots an ism holds, oldest first, as genesis exports them.
+func (s *KeeperTestSuite) window(id util.HexAddress) []string {
 	gs, err := s.keeper.ExportGenesis(s.ctx)
 	s.Require().NoError(err)
-	at := -1
-	for i := range gs.Roots {
-		if gs.Roots[i].Id.Compare(id) == 0 {
-			at = i
+	for _, entry := range gs.Roots {
+		if entry.Id.Compare(id) == 0 {
+			return entry.Roots
 		}
 	}
-	if at < 0 {
-		gs.Roots = append(gs.Roots, types.GenesisRoots{Id: id})
-		at = len(gs.Roots) - 1
+	return nil
+}
+
+func hexAll(roots [][]byte) []string {
+	out := make([]string, len(roots))
+	for i, r := range roots {
+		out[i] = types.EncodeHex(r)
 	}
-	for _, r := range roots {
-		gs.Roots[at].Roots = append(gs.Roots[at].Roots, types.EncodeHex(r))
-	}
-	for i := range gs.Isms {
-		if gs.Isms[i].Id.Compare(id) == 0 {
-			gs.Isms[i].TreeRoot = roots[len(roots)-1]
-			gs.Isms[i].TreeCount = 7
-		}
-	}
-	s.Require().NoError(gs.Validate())
-	s.Require().NoError(s.keeper.InitGenesis(s.ctx, gs))
+	return out
 }
 
 func (s *KeeperTestSuite) TestVerifyAgainstAttestedRoots() {
@@ -451,28 +466,144 @@ func (s *KeeperTestSuite) TestCreateWithASet() {
 
 // More roots than one page of a paginated query: an export must carry every one,
 // or a fresh import loses roots that messages were proven against.
-func (s *KeeperTestSuite) TestGenesisExportsEveryRoot() {
+func (s *KeeperTestSuite) TestGenesisExportsTheWindow() {
 	id := s.createIsm()
-	const n = types.MaxPaginationLimit + 50
-	roots := make([][]byte, n)
-	for i := range roots {
-		r := make([]byte, 32)
-		r[0], r[1] = byte(i>>8), byte(i)
-		r[31] = 1
-		roots[i] = r
-	}
+	_, err := s.msgServer.SetRootRetention(s.ctx, &types.MsgSetRootRetention{Owner: s.owner, Id: id, Retention: types.MaxRootRetention})
+	s.Require().NoError(err)
+	const n = types.MaxRootRetention + 50
+	roots := syntheticRoots(n)
 	s.attest(id, roots...)
 
 	gs, err := s.keeper.ExportGenesis(s.ctx)
 	s.Require().NoError(err)
+	s.Require().NoError(gs.Validate())
 	s.Require().Len(gs.Roots, 1)
-	s.Require().Len(gs.Roots[0].Roots, n)
+	s.Require().Equal(hexAll(roots[n-types.MaxRootRetention:]), gs.Roots[0].Roots, "the newest roots, oldest first")
+
+	// Through JSON, as an export reaches a new chain.
+	bz, err := s.cdc.MarshalJSON(gs)
+	s.Require().NoError(err)
+	var decoded types.GenesisState
+	s.Require().NoError(s.cdc.UnmarshalJSON(bz, &decoded))
+	s.Require().NoError(decoded.Validate())
 
 	s.SetupTest()
-	s.Require().NoError(s.keeper.InitGenesis(s.ctx, gs))
+	s.Require().NoError(s.keeper.InitGenesis(s.ctx, &decoded))
 	again, err := s.keeper.ExportGenesis(s.ctx)
 	s.Require().NoError(err)
 	s.Require().Equal(gs.Roots, again.Roots)
+	s.Require().Equal(uint64(n), s.getIsm(id).RootSeq)
+
+	// The imported window keeps pruning in order: the next root evicts the oldest.
+	next := syntheticRoots(n + 1)[n]
+	s.attest(id, next)
+	s.Require().Equal(append(hexAll(roots[n-types.MaxRootRetention+1:]), types.EncodeHex(next)), s.window(id))
+}
+
+func (s *KeeperTestSuite) TestRootRetentionWindow() {
+	v := s.rootVectors()
+	root := unhex0x(v.Tree.Root)
+	id := s.createIsm()
+	ism := s.getIsm(id)
+	s.Require().Equal(uint64(types.DefaultRootRetention), ism.Retention())
+	msg := util.HyperlaneMessage{Version: 3, Origin: 7, Destination: 1, Body: []byte("x")}
+	metadata := s.metadata(v, 0, root)
+	known := func() bool {
+		gs, err := s.keeper.ExportGenesis(s.ctx)
+		s.Require().NoError(err)
+		for _, entry := range gs.Roots {
+			for _, r := range entry.Roots {
+				if r == types.EncodeHex(root) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	// A root stays accepted while it is among the newest DefaultRootRetention.
+	s.attest(id, root)
+	later := syntheticRoots(types.DefaultRootRetention)
+	s.attest(id, later[:types.DefaultRootRetention-1]...)
+	s.Require().True(known(), "the root is the oldest of a full window")
+	s.Require().Len(s.window(id), types.DefaultRootRetention)
+	_, err := s.keeper.Verify(s.ctx, id, metadata, msg)
+	s.Require().NoError(err)
+
+	// Re-attesting a root the window holds, as a heartbeat does, prunes nothing.
+	s.attest(id, later[types.DefaultRootRetention-2])
+	s.Require().True(known())
+
+	// One more root pushes it out, and a proof against it is refused.
+	s.attest(id, later[types.DefaultRootRetention-1])
+	s.Require().False(known(), "the root was pruned")
+	s.Require().Len(s.window(id), types.DefaultRootRetention)
+	ok, err := s.keeper.Verify(s.ctx, id, metadata, msg)
+	s.Require().NoError(err)
+	s.Require().False(ok)
+}
+
+func (s *KeeperTestSuite) TestSetRootRetention() {
+	id := s.createIsm()
+	roots := syntheticRoots(40)
+	s.attest(id, roots...)
+	s.Require().Equal(hexAll(roots[40-types.DefaultRootRetention:]), s.window(id))
+
+	set := func(owner string, retention uint32) error {
+		_, err := s.msgServer.SetRootRetention(s.ctx, &types.MsgSetRootRetention{Owner: owner, Id: id, Retention: retention})
+		return err
+	}
+	s.Require().Error(set(s.stranger, 8), "only the owner")
+	s.Require().Error(set(s.owner, 0))
+	s.Require().Error(set(s.owner, types.MaxRootRetention+1))
+	ism := s.getIsm(id)
+	s.Require().Equal(uint64(types.DefaultRootRetention), ism.Retention())
+
+	// Lowering prunes the oldest at once and emits the change.
+	s.Require().NoError(set(s.owner, 4))
+	s.Require().Equal(hexAll(roots[36:]), s.window(id))
+	s.Require().True(s.hasEvent(&types.EventSetRootRetention{Id: id, Owner: s.owner, PreviousRetention: types.DefaultRootRetention, Retention: 4}))
+
+	// Raising keeps what is held and lets the window grow again.
+	s.Require().NoError(set(s.owner, types.MaxRootRetention))
+	s.Require().Equal(hexAll(roots[36:]), s.window(id))
+	more := syntheticRoots(60)[40:]
+	s.attest(id, more...)
+	s.Require().Len(s.window(id), 24)
+
+	// A retention of one keeps only the newest root.
+	s.Require().NoError(set(s.owner, 1))
+	s.Require().Equal([]string{types.EncodeHex(more[len(more)-1])}, s.window(id))
+
+	_, err := s.msgServer.SetRootRetention(s.ctx, &types.MsgSetRootRetention{Owner: s.owner, Id: util.CreateMockHexAddress("missing", 9), Retention: 8})
+	s.Require().ErrorIs(err, types.ErrIsmNotFound)
+}
+
+func (s *KeeperTestSuite) TestGenesisRejectsInconsistentWindow() {
+	id := s.createIsm()
+	roots := syntheticRoots(3)
+	s.attest(id, roots...)
+	gs, err := s.keeper.ExportGenesis(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NoError(gs.Validate())
+
+	mutate := func(f func(gs *types.GenesisState)) error {
+		bz, err := s.cdc.MarshalJSON(gs)
+		s.Require().NoError(err)
+		var c types.GenesisState
+		s.Require().NoError(s.cdc.UnmarshalJSON(bz, &c))
+		f(&c)
+		return c.Validate()
+	}
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots[0].Roots = gs.Roots[0].Roots[1:] }), "a root missing from the window")
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots[0].Roots[0] = gs.Roots[0].Roots[1] }), "a root listed twice")
+	s.Require().Error(mutate(func(gs *types.GenesisState) {
+		r := gs.Roots[0].Roots
+		r[1], r[2] = r[2], r[1]
+	}), "the newest root out of place")
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Roots = nil }), "an attested ism with no roots")
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Isms[0].RootRetention = types.MaxRootRetention + 1 }))
+	s.Require().Error(mutate(func(gs *types.GenesisState) { gs.Isms[0].RootRetention = 2 }), "more roots than the retention")
 }
 
 // Every handler checks its message itself, whether or not ValidateBasic ran first,

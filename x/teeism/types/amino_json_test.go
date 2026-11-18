@@ -25,6 +25,7 @@ func TestAminoJSONSigning(t *testing.T) {
 	for name, msg := range map[string]gogoproto.Message{
 		"MsgSetEnclaveIdentities": &types.MsgSetEnclaveIdentities{Owner: owner, Id: ismID, Identities: []*types.EnclaveIdentity{identityFor(1), identityFor(2)}},
 		"MsgUpdateOwner":          &types.MsgUpdateOwner{Owner: owner, Id: ismID, NewOwner: owner},
+		"MsgSetRootRetention":     &types.MsgSetRootRetention{Owner: owner, Id: ismID, Retention: 64},
 		"MsgSetVerifierOverrides": &types.MsgSetVerifierOverrides{Owner: owner, Id: ismID, Overrides: &types.VerifierOverrides{
 			TrustedRootCerts: [][]byte{{0x30, 0x01}},
 		}},

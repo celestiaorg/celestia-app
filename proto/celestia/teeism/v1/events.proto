@@ -106,3 +106,21 @@ message EventSetVerifierOverrides {
   // the overrides now, unset if cleared
   VerifierOverrides overrides = 4;
 }
+
+// EventSetRootRetention is emitted when an owner changes how many attested
+// roots an ism keeps.
+message EventSetRootRetention {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner who made the change
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // retention before
+  uint32 previous_retention = 3;
+  // retention now
+  uint32 retention = 4;
+}

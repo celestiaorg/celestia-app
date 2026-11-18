@@ -18,22 +18,28 @@ func (k *Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error 
 		}
 	}
 
+	// Each entry lists the ism's window oldest first, so the last root is number
+	// root_seq - 1 (GenesisState.Validate checks the window is complete).
 	for _, entry := range gs.Roots {
 		ismId := entry.Id
-		exists, err := k.isms.Has(ctx, ismId.GetInternalId())
+		ism, err := k.isms.Get(ctx, ismId.GetInternalId())
 		if err != nil {
-			return err
-		}
-		if !exists {
 			return errorsmod.Wrapf(types.ErrIsmNotFound, "roots defined for unknown ism %s", ismId.String())
 		}
+		if uint64(len(entry.Roots)) > ism.RootSeq {
+			return errorsmod.Wrapf(types.ErrInvalidTrustedState, "ism %s lists %d roots but has attested %d", ismId.String(), len(entry.Roots), ism.RootSeq)
+		}
 
-		for _, root := range entry.Roots {
+		first := ism.RootSeq - uint64(len(entry.Roots))
+		for i, root := range entry.Roots {
 			raw, err := types.DecodeHex(root)
 			if err != nil {
 				return fmt.Errorf("invalid tree root %q: %w", root, err)
 			}
 			if err := k.roots.Set(ctx, collections.Join(ismId.GetInternalId(), raw)); err != nil {
+				return err
+			}
+			if err := k.rootOrder.Set(ctx, collections.Join(ismId.GetInternalId(), first+uint64(i)), raw); err != nil {
 				return err
 			}
 		}
@@ -54,10 +60,11 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 
 	genesisRoots := make([]types.GenesisRoots, 0, len(isms))
 	for _, ism := range isms {
+		// In attestation order, oldest first, as InitGenesis numbers them.
 		var roots []string
-		rng := collections.NewPrefixedPairRange[uint64, []byte](ism.Id.GetInternalId())
-		if err := k.roots.Walk(ctx, rng, func(key collections.Pair[uint64, []byte]) (bool, error) {
-			roots = append(roots, types.EncodeHex(key.K2()))
+		rng := collections.NewPrefixedPairRange[uint64, uint64](ism.Id.GetInternalId())
+		if err := k.rootOrder.Walk(ctx, rng, func(_ collections.Pair[uint64, uint64], root []byte) (bool, error) {
+			roots = append(roots, types.EncodeHex(root))
 			return false, nil
 		}); err != nil {
 			return nil, errorsmod.Wrapf(err, "collecting roots for ism %s", ism.Id.String())
@@ -66,7 +73,6 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 			continue
 		}
 
-		sort.Strings(roots)
 		genesisRoots = append(genesisRoots, types.GenesisRoots{
 			Id:    ism.Id,
 			Roots: roots,

@@ -4,6 +4,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -147,4 +148,45 @@ func readCertificate(path string) ([]byte, error) {
 		return block.Bytes, nil
 	}
 	return raw, nil
+}
+
+// NewSetRootRetentionCmd creates and returns the cmd that sets how many attested
+// roots an ism keeps.
+func NewSetRootRetentionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-root-retention [ism-id] [retention]",
+		Short: "Set how many attested roots a TEE ism keeps (owner only)",
+		Long: strings.TrimSpace(fmt.Sprintf(`Set how many of the most recently attested origin tree roots a TEE ism keeps
+accepting for delivery, 1 to %d. An ism keeps %d until its owner sets one.
+
+A message is delivered with a proof against one of these roots. Lowering the
+retention prunes the oldest roots at once; a message whose proof was built
+against a pruned root is re-proved against a root the ism holds. Every change
+emits EventSetRootRetention.`, types.MaxRootRetention, types.DefaultRootRetention)),
+		Example: fmt.Sprintf("%s tx %s set-root-retention 0x...2b 64 --from owner", version.AppName, types.ModuleName),
+		Args:    cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			ismId, err := util.DecodeHexAddress(args[0])
+			if err != nil {
+				return err
+			}
+			retention, err := strconv.ParseUint(args[1], 10, 32)
+			if err != nil {
+				return fmt.Errorf("retention: %w", err)
+			}
+			msg := types.MsgSetRootRetention{
+				Owner:     clientCtx.GetFromAddress().String(),
+				Id:        ismId,
+				Retention: uint32(retention),
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
 }
