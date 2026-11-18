@@ -4,10 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -86,22 +90,53 @@ func TestGetAppRestartsWhenBinaryDiffers(t *testing.T) {
 	require.Equal(t, uint64(2), m.activeVersion.AppVersion)
 	require.True(t, oldAppd.IsStopped(), "the old binary must be stopped")
 	require.True(t, newAppd.IsRunning(), "the new binary must be started")
-	// Wait for the signal trap before cleanup interrupts the new shell, or its
-	// background sleep can survive and keep the test's output pipes open.
 	require.Eventually(t, func() bool { return readFile(t, newLogPath) == "started\n" }, 5*time.Second, 10*time.Millisecond)
 }
 
 // mockAppdScript returns a shell script that appends "started" to logPath
 // once it is up and "interrupted" when it receives the interrupt sent by
 // Appd.Stop, then exits cleanly. It stays alive on a background sleep that is
-// killed and reaped on exit so no orphan outlives the test.
+// killed and reaped on exit so no orphan outlives the test. The trap is set
+// before the sleep starts: an interrupt that lands between the two would
+// otherwise kill the shell and leave the sleep holding the test's output
+// pipes open. The trap sends SIGKILL because a just-forked child can lose a
+// catchable signal before it execs sleep, and the trap would then wait for
+// the full sleep.
 func mockAppdScript(logPath string) string {
 	return strings.Join([]string{
+		"trap 'kill -KILL $! 2>/dev/null; wait $! 2>/dev/null; echo interrupted >> " + logPath + "; exit 0' INT TERM",
 		"sleep 30 &",
-		"trap 'kill $! 2>/dev/null; wait $! 2>/dev/null; echo interrupted >> " + logPath + "; exit 0' INT TERM",
 		"echo started >> " + logPath,
 		"wait",
 	}, "\n")
+}
+
+// TestMockAppdScriptLeavesNoProcessOnInterrupt verifies that the mock binary
+// leaves no process behind when Appd.Stop interrupts it, wherever the
+// interrupt lands in the script. Appd hands the child the test binary's
+// stdout and stderr, so a surviving background sleep keeps them open after
+// the tests pass and go test fails the package with "Test I/O incomplete".
+// The test injects the interrupt before each line in turn and then checks
+// that the script's process group is empty.
+func TestMockAppdScriptLeavesNoProcessOnInterrupt(t *testing.T) {
+	lines := strings.Split(mockAppdScript(filepath.Join(t.TempDir(), "lifecycle.log")), "\n")
+	for i := range lines {
+		script := strings.Join(slices.Concat(lines[:i], []string{"kill -INT $$"}, lines[i:]), "\n")
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script)
+		// Same process group setup as Appd.Start.
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		require.NoError(t, cmd.Start())
+		pgid := cmd.Process.Pid
+		_ = cmd.Wait()
+		cancel()
+
+		err := syscall.Kill(-pgid, 0)
+		if err == nil {
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		}
+		require.ErrorIs(t, err, syscall.ESRCH, "a process outlived the script interrupted before line %d (%q)", i, lines[i])
+	}
 }
 
 // TestGetAppFailsForUnsupportedAppVersion verifies that an app version older

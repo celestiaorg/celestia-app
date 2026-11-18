@@ -25,6 +25,7 @@ jobs:
           bash scripts/test_race_recipe_test.sh
           bash scripts/test_cover_test.sh
           bash scripts/hardfork/recovery_test.sh
+          bash scripts/hardfork/export_test.sh
           bash scripts/e2e_dockerfile_test.sh
           bash scripts/check_test_results_test.sh
           bash scripts/check_build_info_test.sh

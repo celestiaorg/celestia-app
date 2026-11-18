@@ -141,13 +141,15 @@ jobs:
           - test: TestCortoLoad
             extra-image: true
           # Export and restart from the export: core state, then IBC/ICA and
-          # Hyperlane with the same chain-id, and IBC with a new chain-id
-          # recovered by governance.
+          # Hyperlane with the same chain-id, IBC with a new chain-id
+          # recovered by governance, and IBC through a planned upgrade.
           - test: TestExportRestart
           - test: TestExportRestartNewChainID
           - test: TestIBCExportRestart
             entrypoint: TestIBCTestSuite
           - test: TestIBCExportRestartNewChainID
+            entrypoint: TestIBCTestSuite
+          - test: TestIBCPlannedUpgradeRestart
             entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportRestart
             entrypoint: TestHyperlaneTestSuite

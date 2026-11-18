@@ -16,6 +16,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestOptionsRejects(t *testing.T) {
 	options := func(field, want string) genesis.CheckError {
 		return genesis.CheckError{Step: "options", Field: field, Want: want}
 	}
-	chainIDWant := "at most 50 bytes and not mocha-4"
+	chainIDWant := "at most 20 bytes and not mocha-4"
 	utc3 := time.FixedZone("UTC+3", 3*3600)
 	editMint := func(fn func(gs *minttypes.GenesisState)) func(t *testing.T, g *genutiltypes.AppGenesis) {
 		return func(t *testing.T, g *genutiltypes.AppGenesis) {
@@ -45,11 +46,20 @@ func TestOptionsRejects(t *testing.T) {
 
 	authzGrant, err := codectypes.NewAnyWithValue(authz.NewGenericAuthorization("/cosmos.bank.v1beta1.MsgSend"))
 	require.NoError(t, err)
-	grant := func(expiration time.Time) func(t *testing.T, g *genutiltypes.AppGenesis) {
+	notAuthz, err := codectypes.NewAnyWithValue(&banktypes.MsgSend{})
+	require.NoError(t, err)
+	grant := func(expiration time.Time, fns ...func(a *authz.GrantAuthorization)) func(t *testing.T, g *genutiltypes.AppGenesis) {
 		addr := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()
 		return editModule(f, authz.ModuleName, func(gs *authz.GenesisState) {
-			gs.Authorization = append(gs.Authorization, authz.GrantAuthorization{Granter: addr, Grantee: addr, Authorization: authzGrant, Expiration: &expiration})
+			a := authz.GrantAuthorization{Granter: addr, Grantee: addr, Authorization: authzGrant, Expiration: &expiration}
+			for _, fn := range fns {
+				fn(&a)
+			}
+			gs.Authorization = append(gs.Authorization, a)
 		})
+	}
+	authzRecord := func(field, want string) *genesis.CheckError {
+		return &genesis.CheckError{Step: "records", Module: "authz", Field: field, Want: want}
 	}
 
 	testCases := []struct {
@@ -100,6 +110,30 @@ func TestOptionsRejects(t *testing.T) {
 		{
 			name: "authz grant expiring after G accepted",
 			edit: grant(exportTime.Add(time.Hour + time.Nanosecond)),
+		},
+		{
+			name: "authz grant without an expiration accepted",
+			edit: grant(exportTime, func(a *authz.GrantAuthorization) { a.Expiration = nil }),
+		},
+		{
+			name: "authz grant with a null authorization",
+			edit: grant(exportTime.Add(2*time.Hour), func(a *authz.GrantAuthorization) { a.Authorization = nil }),
+			want: authzRecord("authorization[0].authorization", "an authorization"),
+		},
+		{
+			name: "authz grant with a message instead of an authorization",
+			edit: grant(exportTime.Add(2*time.Hour), func(a *authz.GrantAuthorization) { a.Authorization = notAuthz }),
+			want: authzRecord("", ""),
+		},
+		{
+			name: "authz grant with an invalid granter",
+			edit: grant(exportTime.Add(2*time.Hour), func(a *authz.GrantAuthorization) { a.Granter = "celestia1invalid" }),
+			want: authzRecord("authorization[0].granter", "a valid address"),
+		},
+		{
+			name: "expired authz grant with an invalid grantee",
+			edit: grant(exportTime, func(a *authz.GrantAuthorization) { a.Grantee = "celestia1invalid" }),
+			want: authzRecord("authorization[0].grantee", "a valid address"),
 		},
 		{
 			name: "initial height below E+1",
@@ -156,8 +190,32 @@ func TestOptionsRejects(t *testing.T) {
 			want: new(options("initial-height", fmt.Sprintf("<= %d", int64(math.MaxInt64-1_000_000)))),
 		},
 		{
-			name: "long chain-id",
-			opts: func(o *genesis.Options) { o.ChainID = strings.Repeat("a", 51) },
+			name: "chain-id of 20 bytes accepted",
+			opts: func(o *genesis.Options) {
+				o.ChainID = strings.Repeat("a", 20)
+				o.InitialHeight = 2
+			},
+		},
+		{
+			name: "chain-id of 21 bytes",
+			opts: func(o *genesis.Options) { o.ChainID = strings.Repeat("a", 21) },
+			want: new(options("chain-id", chainIDWant)),
+		},
+		{
+			name: "multibyte chain-id of 20 bytes accepted",
+			opts: func(o *genesis.Options) {
+				o.ChainID = strings.Repeat("\u00e9", 10)
+				o.InitialHeight = 2
+			},
+		},
+		{
+			name: "multibyte character crossing 20 bytes",
+			opts: func(o *genesis.Options) { o.ChainID = strings.Repeat("a", 19) + "\u00e9" },
+			want: new(options("chain-id", chainIDWant)),
+		},
+		{
+			name: "export's own chain-id of 21 bytes",
+			edit: func(_ *testing.T, g *genutiltypes.AppGenesis) { g.ChainID = strings.Repeat("a", 21) },
 			want: new(options("chain-id", chainIDWant)),
 		},
 		{
@@ -170,9 +228,9 @@ func TestOptionsRejects(t *testing.T) {
 			want: new(options("chain-id", "valid UTF-8")),
 		},
 		{
-			name: "invalid UTF-8 chain-id that encodes longer than 50 bytes",
+			name: "invalid UTF-8 chain-id that encodes longer than 20 bytes",
 			opts: func(o *genesis.Options) {
-				o.ChainID = strings.Repeat("\xff", 17)
+				o.ChainID = strings.Repeat("\xff", 7)
 				o.InitialHeight = 2
 			},
 			want: new(options("chain-id", "valid UTF-8")),
