@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+<title id="title">Fibre blob lifecycle</title>
+<desc id="desc">The publisher funds escrow, encodes and uploads a blob, collects validator signatures, and submits settlement to Celestia. A reader later requests shards and reconstructs the payload.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#334155"/></marker></defs>
+<rect width="1440" height="960" rx="16" fill="white"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<text x="720" y="44" text-anchor="middle" font-size="28" font-weight="bold">Fibre blob lifecycle</text>
+<rect x="80" y="75" width="200" height="55" rx="8" fill="#f1f5f9" stroke="#94a3b8"/><text x="180" y="110" text-anchor="middle" font-size="23">Publisher</text><path d="M180,130 V920" stroke="#cbd5e1" stroke-dasharray="5 6"/>
+<rect x="450" y="75" width="200" height="55" rx="8" fill="#f1f5f9" stroke="#94a3b8"/><text x="550" y="110" text-anchor="middle" font-size="23">Celestia app</text><path d="M550,130 V920" stroke="#cbd5e1" stroke-dasharray="5 6"/>
+<rect x="850" y="75" width="200" height="55" rx="8" fill="#f1f5f9" stroke="#94a3b8"/><text x="950" y="110" text-anchor="middle" font-size="23">Fibre servers</text><path d="M950,130 V920" stroke="#cbd5e1" stroke-dasharray="5 6"/>
+<rect x="1160" y="75" width="200" height="55" rx="8" fill="#f1f5f9" stroke="#94a3b8"/><text x="1260" y="110" text-anchor="middle" font-size="23">Reader</text><path d="M1260,130 V920" stroke="#cbd5e1" stroke-dasharray="5 6"/>
+<path d="M180,175 H550" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="365" y="159" text-anchor="middle" font-size="19">Deposit funds into escrow</text>
+<path d="M180,235 H265 V259 H180" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="200" y="227" text-anchor="start" font-size="19">Encode blob and sign promise</text>
+<path d="M180,311 H950" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="565" y="295" text-anchor="middle" font-size="19">Upload assigned rows, proofs, RLC vector, and promise</text>
+<path d="M950,379 H550" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="750" y="363" text-anchor="middle" font-size="19">Validate promise and reserve local budget</text>
+<path d="M950,439 H1035 V463 H950" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="970" y="431" text-anchor="start" font-size="19">Verify assigned rows and store shard</text>
+<path d="M950,515 H180" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="8 5" marker-end="url(#arrow)"/><text x="565" y="499" text-anchor="middle" font-size="19">Validator signatures</text>
+<path d="M180,583 H550" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="365" y="567" text-anchor="middle" font-size="19">Submit PayForFibre + signatures</text>
+<path d="M550,643 H635 V667 H550" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="570" y="635" text-anchor="start" font-size="19">Validate, settle, and include metadata</text>
+<path d="M1260,719 H950" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="1105" y="703" text-anchor="middle" font-size="19">Request shards by BlobID</text>
+<path d="M950,787 H1260" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="8 5" marker-end="url(#arrow)"/><text x="1105" y="771" text-anchor="middle" font-size="19">Stored rows, proofs, and RLC vector</text>
+<path d="M1260,847 H1345 V871 H1260" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/><text x="965" y="839" text-anchor="start" font-size="19">Verify rows and reconstruct payload</text>
+</g></svg>
