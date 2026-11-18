@@ -73,7 +73,7 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
     rm -rf "$SCRATCH"
     ```
 
-14. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. Post the SHA-256 in the validator channels, not only next to the file.
+14. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. The peers are required: `recovery.sh new-chain` moves each node's address book aside, so without `--peers` or seeds a node may find no peer on the new chain. Post the SHA-256 in the validator channels, not only next to the file.
 15. Tell relayer operators what to do; see [IBC](#ibc) and [Hyperlane](#hyperlane).
 16. Ask every validator to run the dry run (steps 6-8 of [export.md](export.md#steps)). Continue when every report contains the genesis line and no `error:` line.
 17. Before G, confirm that validators ready to start hold more than 2/3 of `total_power` in the report. They run `recovery.sh new-chain` before G, and their nodes wait for G.
@@ -220,8 +220,10 @@ A planned restart moves IBC clients to a new revision of the chain-id, for examp
 - `genesis from-export`, its checks and the export at the last height before an upgrade ship from app v12. They work only on a chain already on v12; there is no v11 backport.
 - If validators with 1/3 or more of voting power can't take part, the new chain does not produce blocks. There is no tool to replace the validator set.
 - The dry start runs only InitChain. State that imports but fails in the first BeginBlock or EndBlock is not caught.
-- The import resets the staking unbonding ID counter to 1 and loses the unbonding-type and reverse ID indexes, as measured on a mainnet export. Queued unbondings still pay out. A fix in the cosmos-sdk fork is tracked.
+- The import resets the staking unbonding ID counter to 1 and loses the unbonding-type and reverse ID indexes, as measured on a mainnet export. Queued unbondings still pay out. Fixed in the cosmos-sdk fork (celestiaorg/cosmos-sdk#199); celestia-app gets it with the next fork bump.
 - The new chain drops a pending signal upgrade, the signals and any x/upgrade plan. An upgrade that was pending waits a full new delay after validators signal again.
+- The genesis carries no x/upgrade completed-upgrade markers: `celestia-appd query upgrade applied <name>` finds nothing for an old upgrade, and a plan with the name of an old upgrade can be scheduled again. Celestia's app version upgrades go through x/signal.
+- The genesis carries no staking historical info; it builds up again from the first block. So the new chain can't verify fibre certificates for old heights; see item 5 of [After the restart](#after-the-restart).
 - The first block after the restart sends the fee collector balance to the community pool, because distribution has no previous commit to pay. Supply does not change; only the recipients do.
 
 More than 2/3 of voting power reproduce the export SHA-256, so a tampered export is outside this procedure. The genesis tool does not check these malformed inputs, which an honest export does not produce. Each one stops InitChain:

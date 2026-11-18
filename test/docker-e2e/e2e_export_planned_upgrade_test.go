@@ -163,8 +163,7 @@ func (s *IBCTestSuite) TestIBCPlannedUpgradeRestart() {
 }
 
 // fastGov shortens Celestia's governance so a proposal passes within the
-// test. ImmediateProposals does not fit: its 1 day expedited voting period is
-// longer than its voting period, which genesis validate rejects.
+// test.
 func fastGov(cdc codec.Codec) genesis.Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		var gs govv1.GenesisState
