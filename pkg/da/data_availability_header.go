@@ -2,6 +2,7 @@ package da
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -25,6 +26,10 @@ var (
 	maxExtendedSquareWidth = appconsts.SquareSizeUpperBound * 2
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
+
+// rootSize is the size of an NMT root: a minimum namespace, a maximum
+// namespace and a SHA-256 digest.
+const rootSize = 2*sharev4.NamespaceSize + sha256.Size
 
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the
 // erasure coded version of the data in Block.Data. The original Block.Data is
@@ -254,6 +259,19 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 			len(dah.RowRoots),
 			len(dah.ColumnRoots),
 		)
+	}
+	if !squarev4.IsPowerOfTwo(len(dah.RowRoots)) {
+		return fmt.Errorf("number of row and column roots %d must be a power of two", len(dah.RowRoots))
+	}
+	for i, root := range dah.RowRoots {
+		if len(root) != rootSize {
+			return fmt.Errorf("row root %d is %d bytes; it must be %d bytes", i, len(root), rootSize)
+		}
+	}
+	for i, root := range dah.ColumnRoots {
+		if len(root) != rootSize {
+			return fmt.Errorf("column root %d is %d bytes; it must be %d bytes", i, len(root), rootSize)
+		}
 	}
 	if err := types.ValidateHash(dah.Hash()); err != nil {
 		return fmt.Errorf("wrong hash: %v", err)

@@ -28,6 +28,12 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
+	// The square builder regroups txs by kind (normal, then blob, then
+	// pay-for-fibre). If the txs are not already in that order, the share range
+	// of txIndex in the square would belong to a different tx, so reject them.
+	if err := validateTxOrder(classifiedTxs); err != nil {
+		return ShareProof{}, err
+	}
 	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, classifiedTxs...)
 	if err != nil {
 		return ShareProof{}, err
@@ -51,6 +57,32 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	return NewShareInclusionProof(dataSquare, namespace, shareRange)
 }
 
+// validateTxOrder returns an error unless all normal txs come before all blob
+// txs, and all blob txs come before all pay-for-fibre txs. It classifies txs
+// the same way the square builder does.
+func validateTxOrder(txs []square.ClassifiedTx) error {
+	seenBlobTx, seenFibreTx := false, false
+	for i, tx := range txs {
+		ns := getTxNamespace(tx)
+		switch {
+		case ns.Equals(share.PayForFibreNamespace):
+			seenFibreTx = true
+		case ns.Equals(share.PayForBlobNamespace):
+			if seenFibreTx {
+				return fmt.Errorf("blob tx at index %d is after a pay-for-fibre tx", i)
+			}
+			seenBlobTx = true
+		default:
+			if seenBlobTx || seenFibreTx {
+				return fmt.Errorf("normal tx at index %d is after a blob or pay-for-fibre tx", i)
+			}
+		}
+	}
+	return nil
+}
+
+// getTxNamespace returns the namespace of the compact shares that hold tx. It
+// uses the same blob tx check as the square builder.
 func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
 	if tx.FibreTx != nil {
 		return share.PayForFibreNamespace
