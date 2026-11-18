@@ -18,16 +18,13 @@ func (app *App) FastRecheckStats() (hits, misses uint64, reasons map[string]uint
 // its GasUsed is exact when this is zero.
 func (app *App) FastRecheckLastDelta() uint64 { return app.fastRecheck.lastDelta }
 
-// FastRecheckVerifyStats returns the shadow-verified hits and mismatches so far.
-func (app *App) FastRecheckVerifyStats() (verified, mismatches uint64) {
-	v := app.fastRecheck.verify
-	if v == nil {
-		return 0, 0
-	}
-	return v.totalVerified + v.verified, v.totalMismatches + v.mismatches
+// FastRecheckShadowStats returns the shadow-checked hits and mismatches so far.
+func (app *App) FastRecheckShadowStats() (hits, mismatches uint64) {
+	s := app.fastRecheck.shadow
+	return s.totalHits + s.hits, s.totalMismatches + s.mismatches
 }
 
-// FastRecheckTamperGas shifts every record's GasUsed, so shadow verify must report it.
+// FastRecheckTamperGas shifts every record's GasUsed, so shadow mode must report it.
 func (app *App) FastRecheckTamperGas(delta int64) {
 	for _, r := range app.fastRecheck.records {
 		r.gasUsed = uint64(int64(r.gasUsed) + delta)

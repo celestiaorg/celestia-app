@@ -51,7 +51,9 @@ type eqPoolTx struct {
 }
 
 type eqEnv struct {
-	t         *testing.T
+	t *testing.T
+	// shadow makes the second app a shadow app: its responses must equal stock's.
+	shadow    bool
 	rng       *rand.Rand
 	full      *app.App
 	fast      *app.App
@@ -70,19 +72,19 @@ type eqEnv struct {
 	missReasons                        map[string]uint64
 }
 
-// newEqApp builds an app from genesis, with fast recheck (and shadow verify) if set.
-func newEqApp(fast, verify bool, cparams *cmtproto.ConsensusParams, genesis app.GenesisState) *app.App {
-	opts := simtestutil.AppOptionsMap{app.FlagFastRecheck: fast, app.FlagFastRecheckShadowVerify: verify}
+// newEqApp builds an app from genesis, with fast recheck or shadow mode if set.
+func newEqApp(fast, shadow bool, cparams *cmtproto.ConsensusParams, genesis app.GenesisState) *app.App {
+	opts := simtestutil.AppOptionsMap{app.FlagFastRecheck: fast, app.FlagFastRecheckShadowVerify: shadow}
 	a := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0, opts, baseapp.SetChainID(testutil.ChainID))
 	return testutil.InitialiseTestAppWithGenesis(a, cparams, genesis)
 }
 
-func newEqEnv(t *testing.T, seed int64, nAccounts int, verify bool) *eqEnv {
+func newEqEnv(t *testing.T, seed int64, nAccounts int, shadow bool) *eqEnv {
 	accounts := testfactory.GenerateAccounts(nAccounts)
 	cparams := app.DefaultConsensusParams()
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
 	full := newEqApp(false, false, cparams, genesis)
-	fast := newEqApp(true, verify, cparams, genesis)
+	fast := newEqApp(!shadow, shadow, cparams, genesis)
 	for _, a := range []*app.App{full, fast} {
 		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
 			Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash(),
@@ -94,7 +96,7 @@ func newEqEnv(t *testing.T, seed int64, nAccounts int, verify bool) *eqEnv {
 	require.Equal(t, full.LastCommitID().Hash, fast.LastCommitID().Hash)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	e := &eqEnv{
-		t: t, rng: rand.New(rand.NewSource(seed)), full: full, fast: fast, kr: kr, enc: enc,
+		t: t, shadow: shadow, rng: rand.New(rand.NewSource(seed)), full: full, fast: fast, kr: kr, enc: enc,
 		names: accounts, pool: map[int][]eqPoolTx{}, gasSeen: map[string]int64{},
 		blockTime:   testutil.GenesisTime.Add(time.Hour),
 		missReasons: map[string]uint64{},
@@ -329,6 +331,9 @@ func (e *eqEnv) addNewTxs(n int) {
 			// value depending on cache history, so two stock apps differ too.
 			continue
 		}
+		if e.shadow {
+			require.Equal(e.t, rA, rB, "shadow changed a new CheckTx response")
+		}
 		require.Equal(e.t, rA.Code, rB.Code, "new CheckTx code diverged: %s | %s", rA.Log, rB.Log)
 		require.Equal(e.t, rA.GasUsed, rB.GasUsed, "new CheckTx gas diverged")
 		if rA.Code != abci.CodeTypeOK {
@@ -454,6 +459,13 @@ func (e *eqEnv) recheck() {
 			rA := e.checkTx(e.full, ptx.raw, abci.CheckTxType_Recheck)
 			rB := e.checkTx(e.fast, ptx.raw, abci.CheckTxType_Recheck)
 			hitsAfter, _, _ := e.fast.FastRecheckStats()
+			if e.shadow {
+				require.Equal(e.t, rA, rB, "shadow changed a recheck response (kind %s)", ptx.kind)
+				if rA.Code == abci.CodeTypeOK {
+					keep = append(keep, ptx)
+				}
+				continue
+			}
 			require.Equal(e.t, rA.Code, rB.Code, "recheck code diverged (kind %s, fast hit %v): full=%q fast=%q",
 				ptx.kind, hitsAfter > hitsBefore, rA.Log, rB.Log)
 			// Every response field must match except GasUsed (bounded below),
@@ -527,8 +539,27 @@ func requireSameStore(t *testing.T, round int, name string, a, b storetypes.KVSt
 }
 
 func TestFastRecheckEquivalence(t *testing.T) {
-	seeds := []int64{1, 2, 3}
-	rounds := 40
+	seeds, rounds := eqSeeds()
+	for _, seed := range seeds {
+		t.Run(fmt.Sprintf("seed=%d", seed), func(t *testing.T) {
+			e := newEqEnv(t, seed, 16, false)
+			defer e.full.Close()
+			defer e.fast.Close()
+			e.runEq(rounds)
+			total := 0
+			for _, p := range e.pool {
+				total += len(p)
+			}
+			t.Logf("seed %d: fast hits=%d misses=%d reasons=%v exactGas=%d boundedGas=%d maxGasPerByte=%.1f pool=%d",
+				seed, e.hits, e.misses, e.missReasons, e.exactGas, e.boundedGas, e.maxGasPerByte, total)
+			require.Positive(t, e.hits, "the fast path never fired")
+		})
+	}
+}
+
+// eqSeeds returns seeds 1-3 (EQ_SEEDS=n: 100..100+n-1) and the round count.
+func eqSeeds() ([]int64, int) {
+	seeds, rounds := []int64{1, 2, 3}, 40
 	if n, err := strconv.Atoi(os.Getenv("EQ_SEEDS")); err == nil && n > 0 {
 		seeds = seeds[:0]
 		for i := range n {
@@ -538,61 +569,60 @@ func TestFastRecheckEquivalence(t *testing.T) {
 	if testing.Short() {
 		seeds, rounds = seeds[:1], 15
 	}
-	for _, seed := range seeds {
-		t.Run(fmt.Sprintf("seed=%d", seed), func(t *testing.T) {
-			// Even seeds also shadow-verify every fast hit.
-			e := newEqEnv(t, seed, 16, seed%2 == 0)
-			defer e.full.Close()
-			defer e.fast.Close()
-			for round := range rounds {
-				e.addNewTxs(10 + e.rng.Intn(40))
-				e.requireSameCheckState(round)
-				txs := e.buildBlock(round)
-				e.commit(txs)
-				e.removeIncluded(txs)
-				e.recheck()
-				e.requireSameCheckState(round)
-			}
-			total := 0
-			for _, p := range e.pool {
-				total += len(p)
-			}
-			verified, mismatches := e.fast.FastRecheckVerifyStats()
-			t.Logf("seed %d: fast hits=%d misses=%d reasons=%v exactGas=%d boundedGas=%d maxGasPerByte=%.1f pool=%d verified=%d",
-				seed, e.hits, e.misses, e.missReasons, e.exactGas, e.boundedGas, e.maxGasPerByte, total, verified)
-			require.Positive(t, e.hits, "the fast path never fired")
-			require.Zero(t, mismatches, "shadow verify reported mismatches")
-		})
-	}
+	return seeds, rounds
 }
 
-// TestFastRecheckVerifyDetects checks that shadow verify is not vacuous: with
-// every record's GasUsed shifted by one, verified hits must mismatch.
-func TestFastRecheckVerifyDetects(t *testing.T) {
-	e := newEqEnv(t, 7, 8, true)
-	defer e.full.Close()
-	defer e.fast.Close()
-	for round := range 3 {
-		e.addNewTxs(20)
+// runEq drives e for rounds rounds, checking checkState after each step.
+func (e *eqEnv) runEq(rounds int) {
+	for round := range rounds {
+		e.addNewTxs(10 + e.rng.Intn(40))
+		e.requireSameCheckState(round)
 		txs := e.buildBlock(round)
 		e.commit(txs)
 		e.removeIncluded(txs)
 		e.recheck()
+		e.requireSameCheckState(round)
 	}
-	v0, m0 := e.fast.FastRecheckVerifyStats()
-	require.Positive(t, v0)
+}
+
+// TestFastRecheckShadowEquivalence checks that shadow mode is observe-only: a
+// stock app and a shadow app return byte-identical responses and checkState.
+func TestFastRecheckShadowEquivalence(t *testing.T) {
+	seeds, rounds := eqSeeds()
+	for _, seed := range seeds {
+		t.Run(fmt.Sprintf("seed=%d", seed), func(t *testing.T) {
+			e := newEqEnv(t, seed, 16, true)
+			defer e.full.Close()
+			defer e.fast.Close()
+			e.runEq(rounds)
+			hits, mismatches := e.fast.FastRecheckShadowStats()
+			t.Logf("seed %d: shadow hits=%d mismatches=%d", seed, hits, mismatches)
+			require.Positive(t, hits, "the shadow fast path never hit")
+			require.Zero(t, mismatches)
+		})
+	}
+}
+
+// TestFastRecheckShadowDetects checks that shadow mode is not vacuous: with
+// every record's GasUsed shifted by one, hits mismatch, and stock still decides.
+func TestFastRecheckShadowDetects(t *testing.T) {
+	e := newEqEnv(t, 7, 8, true)
+	defer e.full.Close()
+	defer e.fast.Close()
+	e.runEq(3)
+	h0, m0 := e.fast.FastRecheckShadowStats()
+	require.Positive(t, h0)
 	require.Zero(t, m0)
 	e.addNewTxs(20)
 	e.fast.FastRecheckTamperGas(1)
-	e.commit(nil)
-	for _, p := range e.pool {
-		for _, ptx := range p {
-			e.checkTx(e.fast, ptx.raw, abci.CheckTxType_Recheck)
-		}
-	}
-	v1, m1 := e.fast.FastRecheckVerifyStats()
-	require.Greater(t, v1, v0)
-	require.Positive(t, m1, "shadow verify missed a tampered GasUsed")
+	txs := e.buildBlock(3)
+	e.commit(txs)
+	e.removeIncluded(txs)
+	e.recheck() // responses and checkState still equal stock's
+	e.requireSameCheckState(3)
+	h1, m1 := e.fast.FastRecheckShadowStats()
+	require.Greater(t, h1, h0)
+	require.Positive(t, m1, "shadow mode missed a tampered GasUsed")
 }
 
 // TestFastRecheckForcedBump checks that an epoch bump sends every recheck down

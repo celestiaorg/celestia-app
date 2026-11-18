@@ -613,8 +613,8 @@ func newApp(
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
 	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
-	if cast.ToBool(appOpts.Get(FlagFastRecheck)) {
-		app.fastRecheck = newFastRecheck(app, 2*maxTxs+1024, cast.ToBool(appOpts.Get(FlagFastRecheckShadowVerify)))
+	if shadow := cast.ToBool(appOpts.Get(FlagFastRecheckShadowVerify)); shadow || cast.ToBool(appOpts.Get(FlagFastRecheck)) {
+		app.fastRecheck = newFastRecheck(app, 2*maxTxs+1024, shadow)
 		app.SetAnteHandler(app.wrapAnte(app.AnteHandler()))
 		app.fastRecheck.registerListener()
 	}

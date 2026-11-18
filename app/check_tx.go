@@ -21,18 +21,25 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
+	if f := app.fastRecheck; f != nil && req.Type == abci.CheckTxType_Recheck {
+		if f.shadow != nil {
+			return f.shadowRecheck(req)
+		}
+		if res, ok := f.recheck(req.Tx); ok {
+			return res, nil
+		}
+	}
+	return app.checkTx(req)
+}
+
+// checkTx is CheckTx's stock path, under app.checkStateMu.
+func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
 	maxTxSize := appconsts.MaxTxSize
 	if len(tx) > maxTxSize {
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
-	}
-
-	if req.Type == abci.CheckTxType_Recheck && app.fastRecheck != nil {
-		if res, ok := app.fastRecheck.recheck(tx); ok {
-			return res, nil
-		}
 	}
 
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes

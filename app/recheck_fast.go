@@ -45,8 +45,8 @@ import (
 const (
 	// FlagFastRecheck turns on fast recheck: app.toml `[fast-recheck] enable = true`.
 	FlagFastRecheck = "fast-recheck.enable"
-	// FlagFastRecheckShadowVerify also runs the full ante on every fast hit and
-	// logs any difference (diagnostic): `[fast-recheck] shadow-verify = true`.
+	// FlagFastRecheckShadowVerify keeps the stock recheck authoritative and only
+	// compares the fast path's answer with it (overrides enable): `shadow-verify = true`.
 	FlagFastRecheckShadowVerify = "fast-recheck.shadow-verify"
 )
 
@@ -87,7 +87,7 @@ type fastRecheck struct {
 	env     fibrekeeper.PromiseCheckEnv
 	escrows map[string]escrowMemo
 
-	verify *fastVerify // nil unless shadow verify is on
+	shadow *fastShadow // nil unless shadow-verify is on
 
 	// forceBumpEvery drops every record every n commits (tests only).
 	forceBumpEvery uint64
@@ -144,7 +144,7 @@ type fastPre struct {
 	trace  *anteTrace
 }
 
-func newFastRecheck(app *App, maxRecs int, verify bool) *fastRecheck {
+func newFastRecheck(app *App, maxRecs int, shadow bool) *fastRecheck {
 	fcAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
 	f := &fastRecheck{
 		app:      app,
@@ -159,8 +159,8 @@ func newFastRecheck(app *App, maxRecs int, verify bool) *fastRecheck {
 		watched:  map[string]uint64{},
 		stats:    fastRecheckStats{missReasons: map[string]uint64{}, recordRejects: map[string]uint64{}},
 	}
-	if verify {
-		f.verify = &fastVerify{}
+	if shadow {
+		f.shadow = &fastShadow{}
 	}
 	return f
 }
@@ -227,6 +227,9 @@ func (f *fastRecheck) eligible(sdkTx sdk.Tx) (pre *fastPre) {
 // peek reads the per-signer state the coming ante pass of sdkTx will see and
 // starts tracing it. It returns nil if the tx cannot be recorded.
 func (f *fastRecheck) peek(sdkTx sdk.Tx) *fastPre {
+	if f.shadow != nil && f.shadow.predictedHit {
+		return nil // production skips the ante on a hit, so the pass is not recorded
+	}
 	pre := f.eligible(sdkTx)
 	if pre == nil {
 		return nil
@@ -328,14 +331,7 @@ var blobTxSuffix = []byte("\x1a\x04" + blobtx.ProtoBlobTxTypeID)
 // recheck answers the recheck of tx from its record if the fast path applies.
 // Blob txs are recorded under their inner sdk tx.
 func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
-	key := tx
-	if bytes.HasSuffix(tx, blobTxSuffix) {
-		btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
-		if isBlob && err == nil {
-			key = btx.Tx
-		}
-	}
-	rec := f.records[string(key)]
+	key, rec := f.lookup(tx)
 	if rec == nil {
 		return f.miss("norecord")
 	}
@@ -347,6 +343,18 @@ func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
 		return f.miss("nostate")
 	}
 	return f.try(ctx, key, rec)
+}
+
+// lookup returns tx's record and the key it is stored under (a blob tx's inner tx).
+func (f *fastRecheck) lookup(tx []byte) ([]byte, *fastRecord) {
+	key := tx
+	if bytes.HasSuffix(tx, blobTxSuffix) {
+		btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
+		if isBlob && err == nil {
+			key = btx.Tx
+		}
+	}
+	return key, f.records[string(key)]
 }
 
 // try replays rec, raw's record, into ctx's state if nothing it depends on changed.
@@ -418,9 +426,6 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 			return f.miss("promise")
 		}
 	}
-	if f.verify != nil {
-		f.shadowVerify(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), raw, rec, pbEnc, fbEnc, d)
-	}
 
 	// The ante's writes: the fee moves from the payer to the fee collector
 	// (both stay positive, so their denom index entries are unchanged) and the
@@ -465,7 +470,7 @@ func (f *fastRecheck) sweep() {
 }
 
 func (f *fastRecheck) logStats() {
-	f.verifyReport()
+	f.shadow.report(f.app)
 	if f.stats.hits+f.stats.misses == 0 && f.stats.bumps == 0 {
 		return
 	}

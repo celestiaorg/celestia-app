@@ -304,7 +304,8 @@ var AppConfigTemplate = serverconfig.DefaultConfigTemplate + `
 # Enable replays a mempool tx's recorded ante writes on recheck when nothing they read changed.
 enable = false
 
-# ShadowVerify also runs the full ante on every replay and logs any difference (diagnostic; as slow as a full recheck).
+# ShadowVerify keeps the stock recheck authoritative and only compares the replay with it, logging any
+# difference (observe only; overrides enable).
 shadow-verify = false
 `
 
