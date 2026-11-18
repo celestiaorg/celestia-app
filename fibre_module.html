@@ -215,7 +215,7 @@
     M-&gt;&gt;M: Delete replay records older than retention window
 </code></pre>
 <h2 id="state"><a class="header" href="#state">State</a></h2>
-<p>The module store key is <code>fibre</code>. Module params are stored under the raw key <code>params</code>. The other state objects use byte prefixes from <code>x/fibre/types/keys.go</code>: escrow accounts use <code>0x02</code>, withdrawals-by-signer use <code>0x03</code>, withdrawals-by-available-time use <code>0x04</code>, processed payments use <code>0x09</code>, and the legacy processed-payment indexes from before v12 use <code>0x05</code> (by hash) and <code>0x06</code> (by processed time). The promise freshness floor is stored under <code>0x07</code> and the genesis height under <code>0x08</code>.</p>
+<p>The module store key is <code>fibre</code>. Module params are stored under the raw key <code>params</code>. The other state objects use byte prefixes from <code>x/fibre/types/keys.go</code>: escrow accounts use <code>0x02</code>, withdrawals-by-signer use <code>0x03</code>, withdrawals-by-available-time use <code>0x04</code>, processed payments use <code>0x09</code>, and the legacy processed-payment indexes from before v12 use <code>0x05</code> (by hash) and <code>0x06</code> (by processed time). The promise freshness floor is stored under <code>0x07</code>, the genesis height under <code>0x08</code>, and the creation time of the last pruned processed payment under <code>0x0A</code>.</p>
 <h3 id="escrowaccount"><a class="header" href="#escrowaccount">EscrowAccount</a></h3>
 <p>An escrow account is keyed by the escrow signer address with <code>0x02 || signer</code>, where <code>signer</code> is the canonical bech32 string of the address (<code>sdk.AccAddress.String()</code>); a message signer given in the uppercase bech32 form resolves to the same account. <code>balance</code> is the total amount held in the module account for that signer and <code>available_balance</code> is the amount that has not been reserved by pending withdrawal requests.</p>
 <pre><code class="language-proto">message EscrowAccount {
@@ -369,7 +369,7 @@ certificates this rule accepts.</p>
 <h2 id="automatic-state-transitions"><a class="header" href="#automatic-state-transitions">Automatic State Transitions</a></h2>
 <p><code>BeginBlocker</code> first advances the persisted freshness floor to <code>max(previous_floor, block_time - withdrawal_delay)</code>, then runs <code>processAvailableWithdrawals</code> and <code>pruneProcessedPayments</code>.</p>
 <p><code>processAvailableWithdrawals</code> iterates the withdrawals-by-available-time index in time order, stops when it reaches a future <code>available_timestamp</code>, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total <code>balance</code> covers the withdrawal, sends coins from the <code>fibre</code> module account to the signer account, and only after a successful send subtracts the withdrawal amount from total <code>balance</code>, stores the escrow account, deletes the withdrawal from both indexes, and emits <code>EventWithdrawFromEscrowExecuted</code>. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.</p>
-<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()</code>, deletes processed payments whose <code>creation_timestamp</code> is at or before the cutoff, oldest first and at most 2000 per block (signers choose creation times, so records settled over many blocks can expire together), and emits <code>EventProcessedPaymentPruned</code> for each. It also prunes the legacy indexes by <code>processed_at</code> with the same cutoff, sharing the per-block bound.</p>
+<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()</code>, deletes processed payments whose <code>creation_timestamp</code> is at or before the cutoff, oldest first and at most 2000 per block (signers choose creation times, so records settled over many blocks can expire together), and emits <code>EventProcessedPaymentPruned</code> for each. It starts at the creation time of the last pruned record (<code>0x0A</code>, not exported to genesis), so it does not step over the tombstones of earlier prunes in the underlying LSM store; a cutoff before that time prunes nothing. It also prunes the legacy indexes by <code>processed_at</code> with the same cutoff, sharing the per-block bound.</p>
 <h2 id="events"><a class="header" href="#events">Events</a></h2>
 <pre><code class="language-proto">message EventDepositToEscrow {
   string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
@@ -399,6 +399,8 @@ message EventPaymentPromiseTimeout {
   string processor = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
   string escrow_signer = 2 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
   bytes payment_promise_hash = 3;
+  // creation_timestamp is the promise's creation_timestamp, needed to query IsPaymentProcessed.
+  google.protobuf.Timestamp creation_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
 message EventUpdateFibreParams {
@@ -409,6 +411,8 @@ message EventUpdateFibreParams {
 message EventProcessedPaymentPruned {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // creation_timestamp is the promise's creation_timestamp, zero for payments processed before v12.
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 </code></pre>
 <p><code>EventPayForFibre.signer</code> is the escrow signer derived from the payment promise public key, not necessarily the transaction signer. <code>EventPaymentPromiseTimeout.processor</code> is the transaction signer that submitted the timeout, while <code>escrow_signer</code> is derived from the payment promise public key.</p>
