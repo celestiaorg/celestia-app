@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"math"
 	"strconv"
 	"strings"
@@ -517,9 +518,144 @@ func FuzzCountICAPacketMsgs(f *testing.F) {
 	f.Add([]byte{0x0A, 0x00, 0x7B, 0x08, 0x01, 0x7C})
 	f.Add([]byte(`{"messages":0,"messages":[{"@type":1,"@type":"/celestia.zkism.v1.MsgSubmitMessages"}]} trailing`))
 
+	// Payloads valid under both encodings with different counts, so the
+	// packet count is wrong if it drops either encoding.
+	f.Add(jsonTxWalkingAsOneProtoEntry(3, "/celestia.zkism.v1.MsgSubmitMessages"))
+	f.Add(jsonTxWithProtoEntries(2))
+	honest := func(enc string) []byte {
+		msgs := []proto.Message{
+			&zkismtypes.MsgSubmitMessages{}, &banktypes.MsgSend{}, &zkismtypes.MsgUpdateVerifyingKeys{},
+			&hyperlanetypes.MsgProcessMessage{Metadata: ismMetadataHex(1)},
+		}
+		payload, err := icatypes.SerializeCosmosTx(cdc, msgs, enc)
+		require.NoError(f, err)
+		return payload
+	}
+	honestProto, honestJSON := honest(icatypes.EncodingProtobuf), honest(icatypes.EncodingProto3JSON)
+	f.Add(honestProto)
+	f.Add(honestJSON)
+	f.Add(protoTxBehindEmptyJSON(honestProto))
+	zkProto, err := icatypes.SerializeCosmosTx(cdc, []proto.Message{&zkismtypes.MsgSubmitMessages{}, &zkismtypes.MsgSubmitMessages{}}, icatypes.EncodingProtobuf)
+	require.NoError(f, err)
+	f.Add(protoTxBehindEmptyJSON(zkProto))
+	// Truncated tags and lengths: a tag with its continuation bit set and no
+	// following byte, a length past the end, and a ten-byte varint tag cut short.
+	f.Add([]byte{0x80})
+	f.Add([]byte{0x0A, 0x05, 0x01})
+	f.Add(append(append([]byte{}, honestProto...), 0x0A, 0x7F))
+	f.Add(bytes.Repeat([]byte{0xFF}, 9))
+	f.Add(append(append([]byte{}, honestProto...), bytes.Repeat([]byte{0x80}, 9)...))
+
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		requireNoUndercount(t, cdc, payload)
+		requirePacketNoUndercount(t, cdc, payload)
 	})
+}
+
+// requirePacketNoUndercount checks the counts the block limits read for an ICA
+// packet, which combine both encodings, against what the host would dispatch
+// under each. An encoding the host rejects dispatches nothing, so it sets no
+// lower bound. A payload neither counter accepts must count over every limit.
+func requirePacketNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
+	t.Helper()
+	packet := icaPacketWithPayload(payload).(*channeltypes.MsgRecvPacket).Packet
+	msgs := countICAPacketMsgs(packet)
+	zk := countICAPacketZKProofMsgs(packet)
+	ism := countICAPacketISMSignatures(packet)
+
+	if countProtoMsgs(payload) < 0 && countJSONMsgs(payload) < 0 {
+		require.Equal(t, appconsts.MaxSDKMessages, msgs, "a payload neither counter accepts must fail closed")
+		require.Greater(t, zk, appconsts.MaxZKProofMessages, "a payload neither counter accepts must fail closed")
+		require.Greater(t, ism, appconsts.MaxISMSignatures, "a payload neither counter accepts must fail closed")
+	}
+
+	for _, enc := range icaEncodings {
+		dispatched, err := icatypes.DeserializeCosmosTx(cdc, payload, enc)
+		if err != nil {
+			continue // the host dispatches nothing under this encoding
+		}
+		require.GreaterOrEqual(t, msgs, len(dispatched),
+			"packet counted %d but the host would dispatch %d under %s", msgs, len(dispatched), enc)
+		proofs, process := 0, false
+		for _, msg := range dispatched {
+			if isZKProofTypeURL(sdk.MsgTypeURL(msg)) {
+				proofs++
+			}
+			if _, ok := msg.(*hyperlanetypes.MsgProcessMessage); ok {
+				process = true
+			}
+		}
+		// A count past the limit rejects the tx, so it cannot undercount.
+		if zk <= appconsts.MaxZKProofMessages {
+			require.GreaterOrEqual(t, zk, proofs,
+				"packet counted %d proof msgs but the host would dispatch %d under %s", zk, proofs, enc)
+		}
+		if ism <= appconsts.MaxISMSignatures {
+			require.False(t, process,
+				"packet counted %d signatures but the host would dispatch a MsgProcessMessage under %s", ism, enc)
+		}
+	}
+}
+
+// jsonTxWalkingAsOneProtoEntry returns a proto3json CosmosTx of n messages of
+// typeURL, each with a signer field, whose bytes also walk as a proto3 stream
+// with one message entry. It uses the layout of the "json that walks as proto"
+// payload in TestCountICAPacketMsgsNeverUndercounts: "\n " is a field 1 tag of
+// length 32, and the "*t" in each element is a field 5 tag of length 116 that
+// strides one 117-byte element plus its comma.
+func jsonTxWalkingAsOneProtoEntry(n int, typeURL string) []byte {
+	head := `{"signer":"AAAAAAAA*t` // 13 bytes of `{"messages":[` and 19 of this fill the first entry
+	tail := `","@type":"` + typeURL + `"}`
+	element := head + strings.Repeat("A", 117-len(head)-len(tail)) + tail
+	if len(element) != 117 {
+		panic("type URL too long for the element: " + typeURL)
+	}
+	out := []byte("\n {\"messages\":[")
+	for i := range n {
+		if i > 0 {
+			out = append(out, ',')
+		}
+		out = append(out, element...)
+	}
+	return append(out, "]}                  "...)
+}
+
+// protoTxBehindEmptyJSON returns protoTx behind an empty JSON object. The JSON
+// decoder reads "{}" and ignores the bytes after it, so it dispatches nothing.
+// The proto decoder reads "{" as a field 15 group start, "}" as a fixed32 field
+// inside it that covers four spaces, and "|" as the group end, then decodes
+// protoTx.
+func protoTxBehindEmptyJSON(protoTx []byte) []byte {
+	return append([]byte("{}    |"), protoTx...)
+}
+
+// TestICAPacketPolyglotSeeds checks that the polyglot fuzz seeds count
+// differently under each encoding, so dropping either encoding from the packet
+// count undercounts them.
+func TestICAPacketPolyglotSeeds(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+
+	jsonHeavy := jsonTxWalkingAsOneProtoEntry(3, "/celestia.zkism.v1.MsgSubmitMessages")
+	require.Equal(t, 1, countProtoMsgs(jsonHeavy))
+	dispatched, err := icatypes.DeserializeCosmosTx(cdc, jsonHeavy, icatypes.EncodingProto3JSON)
+	require.NoError(t, err)
+	require.Len(t, dispatched, 3)
+
+	zkProto, err := icatypes.SerializeCosmosTx(cdc, []proto.Message{&zkismtypes.MsgSubmitMessages{}, &zkismtypes.MsgSubmitMessages{}}, icatypes.EncodingProtobuf)
+	require.NoError(t, err)
+	protoHeavy := protoTxBehindEmptyJSON(zkProto)
+	require.Equal(t, 0, countJSONMsgs(protoHeavy))
+	require.Equal(t, 0, countJSONWeighted(protoHeavy, zkProofTypeURLWeight, appconsts.MaxZKProofMessages+1))
+	dispatched, err = icatypes.DeserializeCosmosTx(cdc, protoHeavy, icatypes.EncodingProtobuf)
+	require.NoError(t, err)
+	require.Len(t, dispatched, 2)
+	dispatched, err = icatypes.DeserializeCosmosTx(cdc, protoHeavy, icatypes.EncodingProto3JSON)
+	require.NoError(t, err)
+	require.Empty(t, dispatched)
+
+	for _, payload := range [][]byte{jsonHeavy, protoHeavy} {
+		requirePacketNoUndercount(t, cdc, payload)
+	}
 }
 
 // requireNoUndercount fails if either counter reports fewer messages than the

@@ -111,11 +111,12 @@ func (app *App) querySequenceFromCheckState(signer []byte) (*abci.ResponseQueryS
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()
 
-	checkTxCtx, ok := app.CheckState()
-	if !ok {
+	// BaseApp's lock: FinalizeBlock writes the same IAVL tree from another ABCI connection.
+	var sequence uint64
+	if !app.ReadCheckState(func(ctx sdk.Context) { sequence = app.accountSequence(ctx, signer) }) {
 		return &abci.ResponseQuerySequence{}, errors.New("checkState not set")
 	}
-	return &abci.ResponseQuerySequence{Sequence: app.accountSequence(checkTxCtx, signer)}, nil
+	return &abci.ResponseQuerySequence{Sequence: sequence}, nil
 }
 
 // accountSequence returns the signer's sequence in ctx, or 0 for an unknown

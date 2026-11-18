@@ -6,6 +6,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
@@ -111,7 +112,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Decode the first candidates in parallel; the walk below reuses each entry's result and
 		// decodes past them only when some are invalid, which CheckTx makes rare.
 		head := payForFibreTxs[:min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates)]
-		forEachParallel(len(head), func(i int) { fsb.decodeFibreTx(logger, dec, &head[i]) })()
+		parallel.ForEach(len(head), func(i int) { fsb.decodeFibreTx(logger, dec, &head[i]) })()
 		for i := range payForFibreTxs {
 			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
 				break
