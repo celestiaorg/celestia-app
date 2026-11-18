@@ -327,7 +327,13 @@ var blobTxSuffix = []byte("\x1a\x04" + blobtx.ProtoBlobTxTypeID)
 
 // recheck answers the recheck of tx from its record if the fast path applies.
 // Blob txs are recorded under their inner sdk tx.
-func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
+func (f *fastRecheck) recheck(tx []byte) (res *abci.ResponseCheckTx, ok bool) {
+	// A panic in the checks (before any write) falls back to the full ante, which recovers.
+	defer func() {
+		if recover() != nil {
+			res, ok = f.miss("panic")
+		}
+	}()
 	key := tx
 	if bytes.HasSuffix(tx, blobTxSuffix) {
 		btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -342,8 +348,8 @@ func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
 	// Under BaseApp's lock, so Simulate never sees a half-applied replay.
 	unlock := f.app.LockCheckState()
 	defer unlock()
-	ctx, ok := f.app.CheckState()
-	if !ok {
+	ctx, hasState := f.app.CheckState()
+	if !hasState {
 		return f.miss("nostate")
 	}
 	return f.try(ctx, key, rec)
@@ -415,7 +421,7 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 		}
 	}
 	if f.verify != nil {
-		f.shadowVerify(ctx, raw, rec, pbEnc, fbEnc, d)
+		f.shadowVerify(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), raw, rec, pbEnc, fbEnc, d)
 	}
 
 	// The ante's writes: the fee moves from the payer to the fee collector
