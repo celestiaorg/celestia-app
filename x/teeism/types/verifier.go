@@ -3,9 +3,13 @@ package types
 import (
 	"bytes"
 	"crypto/subtle"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-tdx-guest/abi"
+	"github.com/google/go-tdx-guest/pcs"
 	pb "github.com/google/go-tdx-guest/proto/tdx"
 	"github.com/google/go-tdx-guest/verify"
 )
@@ -233,6 +237,10 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	}); err != nil {
 		return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
 	}
+	// The TCB info's signature was checked above, over these bytes.
+	if err := checkTdxModuleStatus(collateral.TcbInfo, body.GetTeeTcbSvn()); err != nil {
+		return nil, nil, err
+	}
 
 	if err := checkTdLaunch(body.GetTdAttributes(), mrServiceTd); err != nil {
 		return nil, nil, err
@@ -272,9 +280,58 @@ func checkTdLaunch(attrs, mrServiceTd []byte) error {
 	return nil
 }
 
+// checkTdxModuleStatus requires the TDX module the TD runs on to be UpToDate.
+//
+// For a module of major version 1 or later (TEE_TCB_SVN[1] > 0, which Phala's
+// hosts run), go-tdx-guest matches the platform's TCB level without the
+// module's two bytes and grades the module only by its own TCB level, which it
+// ignores for v4 quotes and checks only for OutOfDate on v5. So a TD on a module
+// Intel marks OutOfDate or Revoked would pass on an UpToDate platform. Intel's
+// verification library, and Automata's port of it on EVM, fold the module's
+// status into the quote's; this holds it to the same UpToDate this module
+// requires of the platform.
+func checkTdxModuleStatus(tcbInfoJSON, teeTcbSvn []byte) error {
+	if len(teeTcbSvn) != 16 {
+		return ErrInvalidQuote.Wrapf("tee_tcb_svn must be 16 bytes, got %d", len(teeTcbSvn))
+	}
+	major, isvsvn := teeTcbSvn[1], teeTcbSvn[0]
+	if major == 0 {
+		// The default module: its SVNs are part of the platform TCB level.
+		return nil
+	}
+	var info pcs.TdxTcbInfo
+	if err := json.Unmarshal(tcbInfoJSON, &info); err != nil {
+		return ErrInvalidCollateral.Wrapf("tcb_info: %s", err)
+	}
+	id := fmt.Sprintf("TDX_%02X", major)
+	for _, module := range info.TcbInfo.TdxModuleIdentities {
+		if !strings.EqualFold(module.ID, id) {
+			continue
+		}
+		// The highest level the module's SVN reaches; Intel lists them
+		// descending, but the order is not relied on.
+		var best *pcs.TcbLevel
+		for i := range module.TcbLevels {
+			level := &module.TcbLevels[i]
+			if uint32(isvsvn) >= uint32(level.Tcb.Isvsvn) && (best == nil || level.Tcb.Isvsvn > best.Tcb.Isvsvn) {
+				best = level
+			}
+		}
+		if best == nil {
+			return ErrInvalidQuote.Wrapf("tdx module %s svn %d is below every tcb level Intel lists", id, isvsvn)
+		}
+		if best.TcbStatus != pcs.TcbComponentStatusUpToDate {
+			return ErrInvalidQuote.Wrapf("tdx module %s svn %d is %s, not UpToDate", id, isvsvn, best.TcbStatus)
+		}
+		return nil
+	}
+	return ErrInvalidQuote.Wrapf("tcb info has no tdx module identity %s", id)
+}
+
 // tdReport is the part of a TD quote body the checks above read, which v4
 // (*pb.TDQuoteBody) and v5 (*pb.TDQuoteBodyV5) bodies both provide.
 type tdReport interface {
+	GetTeeTcbSvn() []byte
 	GetTdAttributes() []byte
 	GetMrTd() []byte
 	GetRtmrs() [][]byte
