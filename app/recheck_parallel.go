@@ -445,12 +445,12 @@ func mergeFeeCollector(exec *baseapp.RecheckExecutor, ps []*parallelTx, groups [
 		if delta < 0 {
 			return nil, fmt.Errorf("tx %d: negative fee collector gas delta", i)
 		}
-		// A failed tx may have credited the fee before failing: if the delta could push it out
-		// of gas earlier, its sequential failure could differ. Its GasUsed is left uncorrected.
-		if r.GasUsed+delta > r.GasWanted {
+		// Sequentially, the delta could push a failed tx (GasUsed left uncorrected) out of gas
+		// earlier, or a fast hit, whose headroom saw its branch's balance, past its limit.
+		if delta > 0 && r.GasUsed+delta > r.GasWanted {
 			return nil, fmt.Errorf("tx %d: fee collector gas delta %d exceeds its gas limit", i, delta)
 		}
-		if passed {
+		if passed && !p.fastHit { // a fast hit reports its record's GasUsed, as sequentially
 			r.GasUsed += delta
 		}
 	}

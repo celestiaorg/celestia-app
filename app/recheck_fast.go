@@ -275,8 +275,16 @@ func (f *fastRecheck) record(raw []byte, pre *fastPre, res *abci.ResponseCheckTx
 		return
 	}
 	var rec *fastRecord
-	f.app.ReadCheckState(func(ctx sdk.Context) { rec = f.build(ctx.MultiStore(), pre, res) })
+	if !f.full(raw) {
+		f.app.ReadCheckState(func(ctx sdk.Context) { rec = f.build(ctx.MultiStore(), pre, res) })
+	}
 	f.keep(raw, pre, res, rec)
+}
+
+// full reports whether the record budget has no room for a new record of raw.
+func (f *fastRecheck) full(raw []byte) bool {
+	_, exists := f.records[string(raw)]
+	return !exists && (len(f.records) >= f.maxRecs || f.bytes+len(raw) > f.maxBytes)
 }
 
 // passed reports whether res is a recordable pass of pre's tx.
@@ -331,12 +339,11 @@ func (f *fastRecheck) keep(raw []byte, pre *fastPre, res *abci.ResponseCheckTx, 
 		}
 		return
 	}
-	old, exists := f.records[string(raw)]
-	if !exists && (len(f.records) >= f.maxRecs || f.bytes+len(raw) > f.maxBytes) {
+	if f.full(raw) {
 		return
 	}
 	rec.deps = f.internDeps(pre.trace.deps)
-	if old == nil {
+	if _, exists := f.records[string(raw)]; !exists {
 		f.bytes += len(raw)
 	}
 	f.records[string(raw)] = rec

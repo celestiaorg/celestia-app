@@ -119,10 +119,10 @@ func (app *App) recheckPayForFibre(req *abci.RequestCheckTx, p *parallelTx) (*ab
 		sdkTx, cached = app.recheckTxs.get(req.Tx)
 	}
 	refill := false
-	if !cached && app.fastRecheck != nil {
+	if !cached && (app.fastRecheck != nil || p != nil) {
 		// With fast recheck, decode so the pass is recorded again and the decode kept.
 		if dec, err := app.decodeTx(req.Tx, p); err == nil {
-			sdkTx, refill = dec, true
+			sdkTx, refill = dec, app.fastRecheck != nil
 		}
 	}
 	res, err := app.checkDecoded(req, sdkTx, p)
