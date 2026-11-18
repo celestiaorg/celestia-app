@@ -319,7 +319,7 @@ func checkTdxModuleStatus(tcbInfoJSON, teeTcbSvn []byte) error {
 		var best *pcs.TcbLevel
 		for i := range module.TcbLevels {
 			level := &module.TcbLevels[i]
-			if uint32(isvsvn) >= uint32(level.Tcb.Isvsvn) && (best == nil || level.Tcb.Isvsvn > best.Tcb.Isvsvn) {
+			if uint32(isvsvn) >= level.Tcb.Isvsvn && (best == nil || level.Tcb.Isvsvn > best.Tcb.Isvsvn) {
 				best = level
 			}
 		}
