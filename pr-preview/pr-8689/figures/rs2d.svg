@@ -1,0 +1,102 @@
+<svg viewBox="-96 -96 384 384" style="background-color:white" xmlns="http://www.w3.org/2000/svg">
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="96"  width="32" height="32"/>
+
+    <rect fill="#ffffff" stroke="#808080" x="128" y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="0"   width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="32"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="64"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="96"  width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="96"  width="32" height="32"/>
+
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="0"   y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="32"  y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="64"  y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="96"  y="224" width="32" height="32"/>
+
+    <rect fill="#ffffff" stroke="#808080" x="128" y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="128" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="160" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="192" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="128" y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="160" y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="192" y="224" width="32" height="32"/>
+    <rect fill="#ffffff" stroke="#808080" x="224" y="224" width="32" height="32"/>
+
+    <rect fill="none" stroke="#000000" stroke-width="2" x="0" y="0" width="128" height="128"/>
+    <rect fill="none" stroke="#000000" stroke-width="2" x="128" y="0" width="128" height="128"/>
+    <rect fill="none" stroke="#000000" stroke-width="2" x="0" y="128" width="128" height="128"/>
+    <rect fill="none" stroke="#000000" stroke-width="2" x="128" y="128" width="128" height="128"/>
+
+    <text text-anchor="middle" font-size="14" x="-12" y="20">r<tspan font-size="10" baseline-shift = "sub">1</tspan></text>
+    <text text-anchor="middle" font-size="14" x="-12" y="116">r<tspan font-size="10" baseline-shift = "sub">k</tspan></text>
+    <text text-anchor="middle" font-size="14" x="-12" y="244">r<tspan font-size="10" baseline-shift = "sub">2k</tspan></text>
+
+    <text text-anchor="middle" font-size="14" x="16" y="-10">c<tspan font-size="10" baseline-shift = "sub">1</tspan></text>
+    <text text-anchor="middle" font-size="14" x="112" y="-10">c<tspan font-size="10" baseline-shift = "sub">k</tspan></text>
+    <text text-anchor="middle" font-size="14" x="240" y="-10">c<tspan font-size="10" baseline-shift = "sub">2k</tspan></text>
+
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="0"   width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="32"  width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="64"  width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="96"  width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="128" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="160" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="192" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="-64" y="224" width="32" height="32"/>
+    <text text-anchor="middle" font-size="24" stroke="#000000" x="-48" y="128" style="writing-mode: tb;">row roots</text>
+
+    <rect fill="#B0B0B0" stroke="#808080" x="0"   y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="32"  y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="64"  y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="96"  y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="128" y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="160" y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="192" y="-64" width="32" height="32"/>
+    <rect fill="#B0B0B0" stroke="#808080" x="224" y="-64" width="32" height="32"/>
+    <text text-anchor="middle" font-size="24" stroke="#000000" x="128" y="-40">col roots</text>
+</svg>
