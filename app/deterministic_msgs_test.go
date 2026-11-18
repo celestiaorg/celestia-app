@@ -389,8 +389,23 @@ func TestValidateDeterministicMsgsCost(t *testing.T) {
 		{"many tiny forwards in a proposal", proposal(tiny), false},
 		{"many tiny forwards", repeated(tiny), false},
 	}
+	// shortCases is the subset that runs in short mode: one accepted and one rejected worst-case forward.
+	shortCases := map[string]bool{
+		"max-size forwards at depth limit with distinct keys": true,
+		"max-size forwards with repeated next keys":           true,
+	}
+	found := 0
+	for _, tc := range testCases {
+		if shortCases[tc.name] {
+			found++
+		}
+	}
+	require.Equal(t, len(shortCases), found, "every short-mode case must name a test case")
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() && !shortCases[tc.name] {
+				t.Skip("skipping in short mode; the go-test unit job runs every case")
+			}
 			var packets []*channeltypes.MsgRecvPacket
 			for _, msg := range tc.msgs {
 				if p, ok := msg.(*govv1.MsgSubmitProposal); ok {
