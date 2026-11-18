@@ -111,7 +111,10 @@ fanout() {
     # A server left by an interrupted run is stopped first. The new one serves
     # only the file's directory and stops after 10 minutes even if this script
     # is interrupted; each node checks the hash of what it got.
-    "${SSH[@]}" "root@$srcpub" "pkill -f 'http.server 8099'; sleep 1; cd $(dirname "$file") && (nohup timeout 600 python3 -m http.server 8099 --bind $srcip >/dev/null 2>&1 &); for i in \$(seq 10); do curl -sf -o /dev/null http://$srcip:8099/$(basename "$file") && exit 0; sleep 1; done; exit 1" ||
+    # pkill runs in its own ssh command: the bracket keeps the pattern from
+    # matching that command's shell, but not a shell that also starts the server.
+    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'; sleep 1" || true
+    "${SSH[@]}" "root@$srcpub" "cd $(dirname "$file") && (nohup timeout 600 python3 -m http.server 8099 --bind $srcip >/dev/null 2>&1 &); for i in \$(seq 10); do curl -sf -o /dev/null http://$srcip:8099/$(basename "$file") && exit 0; sleep 1; done; exit 1" ||
         die "file server on validator $src did not start"
     local failed=0
     for ip in $IPS; do
@@ -119,7 +122,7 @@ fanout() {
         echo "== $ip: $file" >&2
         "${SSH[@]}" "root@$ip" "curl -sf -o $file http://$srcip:8099/$(basename "$file") && echo '$sum  $file' | sha256sum -c --quiet -" || failed=1
     done
-    "${SSH[@]}" "root@$srcpub" "pkill -f 'http.server 8099'" || true
+    "${SSH[@]}" "root@$srcpub" "pkill -f 'http[.]server 8099'" || true
     [ "$failed" -eq 0 ] || die "fanout failed on some nodes"
 }
 
