@@ -278,7 +278,7 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 	ms.SetProcessedPayment(ctx, processedPayment)
 
 	// Emit event
-	event := types.NewEventPaymentPromiseTimeout(msg.Signer, escrowSigner, promiseHash)
+	event := types.NewEventPaymentPromiseTimeout(msg.Signer, escrowSigner, promiseHash, msg.PaymentPromise.CreationTimestamp)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}

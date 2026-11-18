@@ -69,9 +69,9 @@ The module emits typed events (the event type is the proto message name, e.g. `c
 | `EventWithdrawFromEscrowRequest`  | `signer`, `amount`, `requested_at`, `available_at` | withdrawal request               |
 | `EventWithdrawFromEscrowExecuted` | `signer`, `amount`                                 | withdrawal payout (BeginBlocker) |
 | `EventPayForFibre`                | `signer`, `namespace`, `commitment`, `validator_count` | PFF settlement               |
-| `EventPaymentPromiseTimeout`      | `processor`, `escrow_signer`, `payment_promise_hash` | timeout settlement             |
+| `EventPaymentPromiseTimeout`      | `processor`, `escrow_signer`, `payment_promise_hash`, `creation_timestamp` | timeout settlement |
 | `EventUpdateFibreParams`          | `signer`, `params`                                 | parameter update                 |
-| `EventProcessedPaymentPruned`     | `payment_promise_hash`, `processed_at`             | retention pruning (BeginBlocker) |
+| `EventProcessedPaymentPruned`     | `payment_promise_hash`, `processed_at`, `creation_timestamp` | retention pruning (BeginBlocker) |
 
 ## Parameters
 

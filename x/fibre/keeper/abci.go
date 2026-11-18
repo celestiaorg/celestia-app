@@ -185,7 +185,7 @@ func (k Keeper) pruneLegacyProcessedPayments(ctx sdk.Context, cutoffTime time.Ti
 }
 
 func (k Keeper) emitProcessedPaymentPruned(ctx sdk.Context, payment types.ProcessedPayment) {
-	event := types.NewEventProcessedPaymentPruned(payment.PaymentPromiseHash, payment.ProcessedAt)
+	event := types.NewEventProcessedPaymentPruned(payment.PaymentPromiseHash, payment.ProcessedAt, payment.CreationTimestamp)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		// Log error but continue - event emission failure shouldn't stop processing
 		k.Logger(ctx).Error("failed to emit processed payment pruned event", "error", err, "hash", payment.PaymentPromiseHash)

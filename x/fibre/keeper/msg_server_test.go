@@ -684,6 +684,10 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		suite.Equal(promiseHash, processedPayment.PaymentPromiseHash)
 		suite.True(paymentPromise.CreationTimestamp.Equal(processedPayment.CreationTimestamp))
 
+		event, err := sdk.TypedEventToEvent(types.NewEventPaymentPromiseTimeout(processor, signer, promiseHash, paymentPromise.CreationTimestamp))
+		suite.Require().NoError(err)
+		suite.Contains(suite.ctx.EventManager().Events(), event)
+
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
