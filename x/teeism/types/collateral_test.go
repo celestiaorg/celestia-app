@@ -68,3 +68,37 @@ func TestCheckCollateralFreshness(t *testing.T) {
 	err = types.CheckCollateralFreshness(old, block, 0)
 	require.ErrorIs(t, err, types.ErrInvalidCollateral)
 }
+
+// The real fixture's root CA CRL is Intel's current one, issued 2026-02-26 and
+// valid for a year; IssuedAt leaves it out, and the ism holds it to its own
+// no-going-back rule.
+func TestRootCaCrlIssuedAt(t *testing.T) {
+	_, _, collateral, _ := loadRealQuote(t)
+	issued, err := collateral.RootCaCrlIssuedAt()
+	require.NoError(t, err)
+	require.Equal(t, time.Date(2026, 2, 26, 13, 4, 0, 0, time.UTC), issued.UTC())
+
+	bad := *collateral
+	bad.RootCaCrl = []byte{1, 2, 3}
+	_, err = bad.RootCaCrlIssuedAt()
+	require.ErrorIs(t, err, types.ErrInvalidCollateral)
+}
+
+func TestCheckRootCaCrlRegression(t *testing.T) {
+	issued := time.Date(2026, 2, 26, 13, 4, 0, 0, time.UTC)
+	day := uint64(24 * 60 * 60)
+
+	require.NoError(t, types.CheckRootCaCrlRegression(issued, 0), "first attestation")
+	require.NoError(t, types.CheckRootCaCrlRegression(issued, uint64(issued.Unix())), "the same crl again")
+	require.NoError(t, types.CheckRootCaCrlRegression(issued, uint64(issued.Unix())+day/2), "within the regression slack")
+
+	// Intel revokes an intermediate CA in June with a new CRL; once an ism has
+	// accepted it, February's is refused, though Intel signed it and it is valid
+	// until 2027.
+	june := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	err := types.CheckRootCaCrlRegression(issued, uint64(june.Unix()))
+	require.ErrorIs(t, err, types.ErrInvalidCollateral)
+	require.Contains(t, err.Error(), "older than the one this ism last accepted")
+
+	require.Error(t, types.CheckRootCaCrlRegression(time.Unix(-1, 0), 0))
+}

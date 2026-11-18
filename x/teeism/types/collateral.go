@@ -178,6 +178,37 @@ func (c *Collateral) IssuedAt() (time.Time, error) {
 	return oldest, nil
 }
 
+// RootCaCrlIssuedAt is when the root CA CRL was issued (its thisUpdate). Intel
+// reissues it about once a year, so it is left out of IssuedAt's age bound; an
+// ism instead refuses one older than the newest it has accepted
+// (CheckRootCaCrlRegression).
+//
+// Read without checking the signature, like IssuedAt: verification checks it
+// over these bytes.
+func (c *Collateral) RootCaCrlIssuedAt() (time.Time, error) {
+	crl, err := x509.ParseRevocationList(c.RootCaCrl)
+	if err != nil {
+		return time.Time{}, ErrInvalidCollateral.Wrapf("root_ca_crl: %s", err)
+	}
+	return crl.ThisUpdate, nil
+}
+
+// CheckRootCaCrlRegression refuses a root CA CRL issued more than
+// MaxCollateralRegressionSecs before the newest one the ism has accepted
+// (newest, in unix seconds; zero before the first attestation). Both CRLs carry
+// Intel's signature and are inside their year of validity, so only this tells
+// the one from before a revocation from the one after it.
+func CheckRootCaCrlRegression(issued time.Time, newest uint64) error {
+	if issued.Unix() < 0 {
+		return ErrInvalidCollateral.Wrap("root ca crl issue time precedes 1970")
+	}
+	if uint64(issued.Unix())+MaxCollateralRegressionSecs < newest {
+		return ErrInvalidCollateral.Wrapf("root ca crl issued at %s is older than the one this ism last accepted (%s); fetch the current root ca crl",
+			issued.UTC().Format(time.RFC3339), time.Unix(int64(newest), 0).UTC().Format(time.RFC3339))
+	}
+	return nil
+}
+
 // signedIssueDate reads the issueDate of the signed object under key.
 func signedIssueDate(body []byte, key string) (time.Time, error) {
 	var doc map[string]json.RawMessage

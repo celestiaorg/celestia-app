@@ -47,6 +47,8 @@ type AttestationResult struct {
 	Measurements *Measurements
 	// When the collateral the quote was verified against was issued.
 	CollateralIssuedAt time.Time
+	// When the root CA CRL it was verified against was issued.
+	RootCaCrlIssuedAt time.Time
 }
 
 // VerifyAttestation checks a quote and everything it must say before its payload
@@ -93,6 +95,10 @@ func VerifyAttestation(
 	// Checked against the age bound by VerifyQuoteWith already; the ism compares
 	// it with the newest it has accepted.
 	result.CollateralIssuedAt, err = collateral.IssuedAt()
+	if err != nil {
+		return nil, err
+	}
+	result.RootCaCrlIssuedAt, err = collateral.RootCaCrlIssuedAt()
 	if err != nil {
 		return nil, err
 	}

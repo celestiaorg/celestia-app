@@ -123,6 +123,12 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	if err := types.CheckCollateralFreshness(result.CollateralIssuedAt, sdkCtx.BlockTime(), ism.CollateralIssuedAt); err != nil {
 		return nil, err
 	}
+	// The root CA CRL likewise, though it is valid for a year: once an honest
+	// attestation brings the one that revokes an intermediate CA, the one from
+	// before is refused.
+	if err := types.CheckRootCaCrlRegression(result.RootCaCrlIssuedAt, ism.RootCaCrlIssuedAt); err != nil {
+		return nil, err
+	}
 
 	if !bytes.Equal(update.MerkleTreeAddress[:], ism.MerkleTreeAddress) {
 		return nil, errorsmod.Wrapf(types.ErrInvalidMerkleTreeAddress, "expected %x, got %x",
@@ -150,6 +156,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	ism.TreeCount = update.TreeCount
 	if issued := uint64(result.CollateralIssuedAt.Unix()); issued > ism.CollateralIssuedAt {
 		ism.CollateralIssuedAt = issued
+	}
+	if issued := uint64(result.RootCaCrlIssuedAt.Unix()); issued > ism.RootCaCrlIssuedAt {
+		ism.RootCaCrlIssuedAt = issued
 	}
 	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
 		return nil, err

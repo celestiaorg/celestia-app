@@ -85,6 +85,12 @@ message InterchainSecurityModule {
   // how many distinct roots this ism has attested, which numbers each one; the
   // newest root is number root_seq - 1.
   uint64 root_seq = 12;
+  // when the newest root CA CRL an attestation of this ism verified against was
+  // issued (its thisUpdate), unix seconds. A later attestation may not bring
+  // one more than MaxCollateralRegressionSecs older, so once Intel revokes an
+  // intermediate CA the CRL from before it is refused. Zero before the first
+  // attestation.
+  uint64 root_ca_crl_issued_at = 13;
 }
 
 // VerifierOverrides lets the owner update what Intel can change over time and
