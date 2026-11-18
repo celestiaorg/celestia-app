@@ -21,7 +21,7 @@ The module is available starting from app version 10.
 
 - **Escrow accounts** — one per depositor, tracking `balance` (total funds held by the module) and `available_balance` (funds not locked by pending withdrawal requests).
 - **Withdrawals** — pending withdrawal requests, indexed both by signer and by the time they become available.
-- **Processed payments** — the hash and processing time of every settled promise, kept to reject replays. Records are pruned once they leave the retention window (`withdrawal_delay + 10min` clock skew), after which the promise itself can no longer validate.
+- **Processed payments** — the hash, processing time and promise creation time (zero before v12) of every settled promise, kept to reject replays. Records are pruned once they leave the retention window (`withdrawal_delay + 10min` clock skew), after which the promise itself can no longer validate.
 - **Promise freshness floor** — a single timestamp that only moves forward; promises created before it are rejected, so a governance increase of `withdrawal_delay` can never resurrect an already-pruned promise.
 
 Every block, the `BeginBlocker` advances the freshness floor, pays out withdrawal requests whose delay has elapsed, and prunes processed payments outside the retention window.

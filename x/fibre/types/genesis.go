@@ -122,8 +122,9 @@ func validateGenesisWithdrawals(withdrawals []Withdrawal, escrowDenoms map[strin
 	return nil
 }
 
-// validateGenesisProcessedPayments rejects empty or duplicate hashes and
-// missing timestamps.
+// validateGenesisProcessedPayments rejects empty or duplicate hashes, missing
+// processed times and creation times the chain could not have accepted. A zero
+// creation time marks a payment processed before v12.
 func validateGenesisProcessedPayments(payments []ProcessedPayment) error {
 	hashMap := make(map[string]bool)
 	for _, payment := range payments {
@@ -137,6 +138,10 @@ func validateGenesisProcessedPayments(payments []ProcessedPayment) error {
 		hashMap[hashStr] = true
 
 		if payment.ProcessedAt.IsZero() {
+			return ErrInvalidTimestamp
+		}
+		// A promise is accepted at most MaxPromiseClockSkew before its creation time.
+		if payment.CreationTimestamp.After(payment.ProcessedAt.Add(MaxPromiseClockSkew)) {
 			return ErrInvalidTimestamp
 		}
 	}
