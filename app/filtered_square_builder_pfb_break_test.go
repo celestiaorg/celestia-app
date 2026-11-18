@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"sync/atomic"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -28,10 +29,10 @@ func TestFillStopsPFBDecodesAtCap(t *testing.T) {
 		txs[i] = newBlobTx(t, txConfig)
 	}
 
-	var calls int
+	var calls atomic.Int64
 	kept := newTestBlobFill(t, countingTxConfig{txConfig, &calls}, txConfig, txs)
 	require.Equal(t, txs[:appconsts.MaxPFBMessages], kept)
-	require.Equal(t, appconsts.MaxPFBMessages, calls)
+	require.EqualValues(t, appconsts.MaxPFBMessages, calls.Load())
 }
 
 // TestValidateBlobTxKeepsOnlySinglePFB pins the premise of the blob loop break: every blob tx

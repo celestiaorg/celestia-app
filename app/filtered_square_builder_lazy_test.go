@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"sync/atomic"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -87,13 +88,13 @@ func TestFirstMsgIsPayForFibre(t *testing.T) {
 // countingTxConfig counts the txs its decoder is asked to decode.
 type countingTxConfig struct {
 	client.TxConfig
-	calls *int
+	calls *atomic.Int64
 }
 
 func (c countingTxConfig) TxDecoder() sdk.TxDecoder {
 	dec := c.TxConfig.TxDecoder()
 	return func(bz []byte) (sdk.Tx, error) {
-		*c.calls++
+		c.calls.Add(1)
 		return dec(bz)
 	}
 }
@@ -107,14 +108,14 @@ func TestFillStopsSDKDecodesAtCap(t *testing.T) {
 		txs[i] = newNormalTx(t, txConfig)
 	}
 
-	var calls int
+	var calls atomic.Int64
 	normal, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, txs)
 	require.Equal(t, txs, normal)
-	require.Zero(t, calls)
+	require.Zero(t, calls.Load())
 
 	kept := newTestFill(t, countingTxConfig{txConfig, &calls}, txs)
 	require.Equal(t, txs[:appconsts.MaxSDKMessages], kept)
-	require.Equal(t, appconsts.MaxSDKMessages, calls)
+	require.EqualValues(t, appconsts.MaxSDKMessages, calls.Load())
 }
 
 // TestFillDropsLazySDKTxs pins that the SDK loop drops what separateTxsDecoded drops on a full decode.

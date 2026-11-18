@@ -32,9 +32,9 @@ type FilteredSquareBuilder struct {
 	// keptBlobTxs is index aligned with the list Fill returned: the decoded
 	// blob tx at each position, or nil where the tx is not a blob tx.
 	keptBlobTxs []*tx.BlobTx
-	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
-	// preverifyPFF warms the signature cache. Both are optional.
-	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
+	// decodePFF derives a pay-for-fibre tx's view from its decoded message once
+	// for the whole Fill; preverifyPFF warms the signature cache. Both are optional.
+	decodePFF    func([]byte, *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
 }
 
@@ -111,6 +111,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// not recorded, so the fill still performs and decides each check itself.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
+		// Decode the first candidates in parallel; the walk below reuses each entry's result and
+		// decodes past them only when some are invalid, which CheckTx makes rare.
+		head := payForFibreTxs[:min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates)]
+		forEachParallel(len(head), func(i int) { fsb.decodeFibreTx(logger, dec, &head[i]) })()
 		for i := range payForFibreTxs {
 			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
 				break
@@ -394,8 +398,8 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 		logger.Debug("dropping pay-for-fibre tx that fails message validation", "tx", lazyTxHash(e.raw), "err", err)
 		return false
 	}
-	if fsb.decodePFF != nil {
-		e.decoded = fsb.decodePFF(e.raw)
+	if msg := fibretypes.PayForFibreMsg(e.sdkTx); fsb.decodePFF != nil && msg != nil {
+		e.decoded = fsb.decodePFF(e.raw, msg)
 	}
 	e.valid = true
 	return true
