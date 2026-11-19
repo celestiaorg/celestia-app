@@ -830,11 +830,11 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 }
 
 // CountSDKMessages returns how many messages msgs execute, counting the
-// messages that MsgExec and ICA packets dispatch. Unlike the per-block budget
-// count, it reads no state, so the ante handler charges the same gas for it in
-// every phase.
+// messages that MsgExec and ICA packets dispatch. It is the per-block budget
+// count, which reads no state, so the ante handler charges the same gas for it
+// in every phase.
 func (app *App) CountSDKMessages(msgs []sdk.Msg) int {
-	return countSDKMessageGasWeight(msgs)
+	return countExecutableMsgs(msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.
@@ -944,7 +944,7 @@ func (app *App) getMinGasPrice() (float64, error) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, app.Query)
+	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, rejectProofQueries(app.Query))
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {

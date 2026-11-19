@@ -6,6 +6,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
@@ -25,16 +26,15 @@ type FilteredSquareBuilder struct {
 	handler   sdk.AnteHandler
 	msgRouter baseapp.MessageRouter
 	txConfig  client.TxConfig
-	chanKeep  channelKeeper
 	builder   *square.Builder
 	// validateBlobTx, when set, drops blob txs it returns an error for.
 	validateBlobTx func(*tx.BlobTx) (bool, error)
 	// keptBlobTxs is index aligned with the list Fill returned: the decoded
 	// blob tx at each position, or nil where the tx is not a blob tx.
 	keptBlobTxs []*tx.BlobTx
-	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
-	// preverifyPFF warms the signature cache. Both are optional.
-	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
+	// decodePFF derives a pay-for-fibre tx's view from its decoded message once
+	// for the whole Fill; preverifyPFF warms the signature cache. Both are optional.
+	decodePFF    func([]byte, *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
 }
 
@@ -42,7 +42,6 @@ func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
 	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
-	chanKeep channelKeeper,
 	maxSquareSize,
 	subtreeRootThreshold int,
 ) (*FilteredSquareBuilder, error) {
@@ -54,7 +53,6 @@ func NewFilteredSquareBuilder(
 		handler:   handler,
 		msgRouter: msgRouter,
 		txConfig:  txConfig,
-		chanKeep:  chanKeep,
 		builder:   builder,
 	}, nil
 }
@@ -111,6 +109,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// not recorded, so the fill still performs and decides each check itself.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates))
+		// Decode the first candidates in parallel; the walk below reuses each entry's result and
+		// decodes past them only when some are invalid, which CheckTx makes rare.
+		head := payForFibreTxs[:min(len(payForFibreTxs), appconsts.MaxPayForFibreCandidates)]
+		parallel.ForEach(len(head), func(i int) { fsb.decodeFibreTx(logger, dec, &head[i]) })()
 		for i := range payForFibreTxs {
 			if len(decoded) >= appconsts.MaxPayForFibreCandidates {
 				break
@@ -154,17 +156,17 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
-		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		execMsgCount := countExecutableMsgs(sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
 			continue
 		}
-		zkProofCount := countZKProofMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		zkProofCount := countZKProofMsgs(sdkTx.GetMsgs())
 		if zkProofMsgCount+zkProofCount > appconsts.MaxZKProofMessages {
 			logger.Debug("skipping tx because the max ZK proof message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
-		txISMSigCount := countISMSignatures(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		txISMSigCount := countISMSignatures(sdkTx.GetMsgs())
 		if ismSigCount+txISMSigCount > appconsts.MaxISMSignatures {
 			logger.Debug("skipping tx because the max ISM signature count was reached", "tx", lazyTxHash(tx))
 			continue
@@ -394,8 +396,8 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 		logger.Debug("dropping pay-for-fibre tx that fails message validation", "tx", lazyTxHash(e.raw), "err", err)
 		return false
 	}
-	if fsb.decodePFF != nil {
-		e.decoded = fsb.decodePFF(e.raw)
+	if msg := fibretypes.PayForFibreMsg(e.sdkTx); fsb.decodePFF != nil && msg != nil {
+		e.decoded = fsb.decodePFF(e.raw, msg)
 	}
 	e.valid = true
 	return true

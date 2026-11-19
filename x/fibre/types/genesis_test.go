@@ -180,3 +180,24 @@ func TestGenesisStateValidateEscrowInvariants(t *testing.T) {
 		})
 	}
 }
+
+func TestGenesisStateValidateProcessedPaymentCreation(t *testing.T) {
+	processedAt := time.Unix(1_000_000, 0).UTC()
+	tests := []struct {
+		name     string
+		creation time.Time
+		wantErr  error
+	}{
+		{"before v12, no creation time", time.Time{}, nil},
+		{"created before processing", processedAt.Add(-time.Minute), nil},
+		{"created at the clock skew limit", processedAt.Add(MaxPromiseClockSkew), nil},
+		{"created past the clock skew limit", processedAt.Add(MaxPromiseClockSkew + time.Nanosecond), ErrInvalidTimestamp},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gs := DefaultGenesis()
+			gs.ProcessedPayments = []ProcessedPayment{{PaymentPromiseHash: []byte("hash"), ProcessedAt: processedAt, CreationTimestamp: tt.creation}}
+			require.ErrorIs(t, gs.Validate(), tt.wantErr)
+		})
+	}
+}

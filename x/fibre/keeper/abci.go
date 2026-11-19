@@ -1,6 +1,10 @@
 package keeper
 
 import (
+	"bytes"
+	"time"
+
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -124,47 +128,66 @@ func (k Keeper) processAvailableWithdrawals(ctx sdk.Context) error {
 	return nil
 }
 
-// pruneProcessedPayments removes processed payments that are outside
-// the retention window to prevent unbounded state growth.
+// maxProcessedPaymentPrunesPerBlock bounds pruning per block, since records settled over many
+// blocks can expire together. It must exceed the settlements a block can hold
+// (MaxPayForFibreMessages + MaxSDKMessages) so a backlog drains; keeping a record longer is safe.
+const maxProcessedPaymentPrunesPerBlock = 2000
+
+// pruneProcessedPayments removes processed payments outside the retention window,
+// measured from creation: a promise is only accepted while creation_timestamp >
+// block_time - WithdrawalDelay, after the cutoff, so a pruned record is never needed.
 func (k Keeper) pruneProcessedPayments(ctx sdk.Context) error {
-	currentTime := ctx.BlockTime()
-	params := k.GetParams(ctx)
+	cutoffTime := ctx.BlockTime().Add(-k.GetParams(ctx).PaymentPromiseRetentionWindow())
 
-	// Calculate the cutoff time: anything processed before this should be pruned
-	cutoffTime := currentTime.Add(-params.PaymentPromiseRetentionWindow())
-
-	// Iterate over processed payments by time, starting from earliest
-	iterator := k.GetProcessedPaymentsByTimeIterator(ctx, cutoffTime)
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		// Parse key to extract processed_at timestamp and payment promise hash
-		processedAt, paymentPromiseHash, err := k.ParseProcessedPaymentsByTimeKey(iterator.Key())
-		if err != nil {
-			// Log error but continue pruning other processed payments
-			k.Logger(ctx).Error("failed to parse processed-payments-by-time key", "error", err)
-			continue
+	store := ctx.KVStore(k.storeKey)
+	// Start at the last pruned creation time to skip the LSM tombstones of earlier prunes; the
+	// freshness floor keeps every later settlement above it.
+	start, end := types.ProcessedPaymentsKeyPrefix, storetypes.PrefixEndBytes(types.ProcessedPaymentsPrefix(cutoffTime))
+	if prunedThrough := store.Get(types.ProcessedPaymentsPrunedThroughKey); prunedThrough != nil {
+		start = append(bytes.Clone(types.ProcessedPaymentsKeyPrefix), prunedThrough...)
+	}
+	pruned := 0
+	if bytes.Compare(start, end) < 0 {
+		iterator := store.Iterator(start, end)
+		var last types.ProcessedPayment
+		for ; iterator.Valid() && pruned < maxProcessedPaymentPrunesPerBlock; iterator.Next() {
+			k.cdc.MustUnmarshal(iterator.Value(), &last)
+			store.Delete(iterator.Key())
+			k.emitProcessedPaymentPruned(ctx, last)
+			pruned++
 		}
-
-		// Stop if we've reached payments within the retention window
-		if processedAt.After(cutoffTime) {
-			break
-		}
-
-		// Get full processed payment from value
-		var processedPayment types.ProcessedPayment
-		k.cdc.MustUnmarshal(iterator.Value(), &processedPayment)
-
-		// Delete the processed payment from both indexes
-		k.DeleteProcessedPayment(ctx, processedPayment)
-
-		// Emit event for pruned processed payment
-		event := types.NewEventProcessedPaymentPruned(paymentPromiseHash, processedAt)
-		if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
-			// Log error but continue - event emission failure shouldn't stop processing
-			k.Logger(ctx).Error("failed to emit processed payment pruned event", "error", err, "hash", paymentPromiseHash)
+		iterator.Close()
+		if pruned > 0 {
+			store.Set(types.ProcessedPaymentsPrunedThroughKey, sdk.FormatTimeBytes(last.CreationTimestamp))
 		}
 	}
 
+	k.pruneLegacyProcessedPayments(ctx, cutoffTime, maxProcessedPaymentPrunesPerBlock-pruned)
 	return nil
+}
+
+// pruneLegacyProcessedPayments prunes the pre-v12 indexes by processed time.
+func (k Keeper) pruneLegacyProcessedPayments(ctx sdk.Context, cutoffTime time.Time, budget int) {
+	if budget <= 0 {
+		return
+	}
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(types.LegacyProcessedPaymentsByTimeKeyPrefix, storetypes.PrefixEndBytes(types.LegacyProcessedPaymentsByTimePrefix(cutoffTime)))
+	defer iterator.Close()
+
+	for ; iterator.Valid() && budget > 0; iterator.Next() {
+		budget--
+		var processedPayment types.ProcessedPayment
+		k.cdc.MustUnmarshal(iterator.Value(), &processedPayment)
+		k.deleteLegacyProcessedPayment(ctx, processedPayment)
+		k.emitProcessedPaymentPruned(ctx, processedPayment)
+	}
+}
+
+func (k Keeper) emitProcessedPaymentPruned(ctx sdk.Context, payment types.ProcessedPayment) {
+	event := types.NewEventProcessedPaymentPruned(payment.PaymentPromiseHash, payment.ProcessedAt, payment.CreationTimestamp)
+	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
+		// Log error but continue - event emission failure shouldn't stop processing
+		k.Logger(ctx).Error("failed to emit processed payment pruned event", "error", err, "hash", payment.PaymentPromiseHash)
+	}
 }

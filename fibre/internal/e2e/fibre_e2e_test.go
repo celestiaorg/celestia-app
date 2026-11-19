@@ -446,7 +446,7 @@ func (s *FibreE2ETestSuite) Test07DuplicatePayment() {
 
 	hash, err := signed.Hash()
 	require.NoError(t, err)
-	processed, err := fibretypes.NewQueryClient(s.cctx.GRPCClient).IsPaymentProcessed(ctx, &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: hash})
+	processed, err := fibretypes.NewQueryClient(s.cctx.GRPCClient).IsPaymentProcessed(ctx, &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: hash, CreationTimestamp: &signed.CreationTimestamp})
 	require.NoError(t, err)
 	require.True(t, processed.Found, "subscription confirmation must cover committed application state")
 

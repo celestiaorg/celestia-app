@@ -239,11 +239,10 @@ func fuzzCountTxMsgs(t *testing.T, config encoding.Config, script, payload []byt
 		wantZK += z
 	}
 
-	ck := fakeChannelKeeper{encoding: enc}
-	if got := countExecutableMsgs(sdk.Context{}, ck, msgs); got <= appconsts.MaxSDKMessages {
+	if got := countExecutableMsgs(msgs); got <= appconsts.MaxSDKMessages {
 		require.GreaterOrEqual(t, got, wantMsgs, "message count undercounts execution")
 	}
-	if got := countZKProofMsgs(sdk.Context{}, ck, msgs); got <= appconsts.MaxZKProofMessages {
+	if got := countZKProofMsgs(msgs); got <= appconsts.MaxZKProofMessages {
 		require.GreaterOrEqual(t, got, wantZK, "ZK proof count undercounts execution")
 	}
 	return wantMsgs

@@ -24,4 +24,7 @@ message GenesisState {
 message ProcessedPayment {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // creation_timestamp is the promise's creation_timestamp. It is zero for
+  // payments processed before v12, which carry no creation time.
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }

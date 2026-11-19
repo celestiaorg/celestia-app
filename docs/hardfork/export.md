@@ -107,7 +107,7 @@ HASH=<CHECK_APP_HASH>
    bash recovery.sh new-chain --home "$HOME_DIR" --genesis new-genesis.json --genesis-sha256 "$GENESIS_SHA" --chain-id "$CHAIN_ID" --expect-version "$VERSION" --setup docker --container "$CONTAINER" --dry-run
    ```
 
-   If your systemd unit is not called `celestia-appd` (or `cosmovisor`), add `--service <unit>`. If the announcement lists peers, add `--peers <id@host:port,...>`.
+   If your systemd unit is not called `celestia-appd` (or `cosmovisor`), add `--service <unit>`. Add `--peers <id@host:port,...>` with the peers from the announcement unless `persistent_peers` or `seeds` in `config/config.toml` already lists nodes of the new chain: the script moves `addrbook.json` aside with the old data, so a node that finds peers only through its address book has none on the new chain.
 
 8. Send the output to the protocol team. A good run contains the following line, where I is the initial height of the new chain, and no `error:` line:
 
@@ -140,6 +140,7 @@ Full nodes, including RPC nodes of relayers, do steps 1, 3, 6 to 8, 10 and 11. T
 
 - Run the same command again with the same flags. A re-run moves the old data that is left and finishes the run.
 - Once the data is moved, a re-run prints `data already replaced, old data in <backup>`. It keeps the new chain data and only starts and checks the node. This is safe after the node has started on the new chain.
+- The node has no peers after the genesis time (`curl -s localhost:26657/net_info` shows `n_peers` 0): run the same command again with `--peers` from the announcement. The re-run keeps the new chain data and sets `persistent_peers`.
 - `the node did not reach height <I+1>`: the new chain has not started yet. Do not run `new-chain` again for this. Check that the node runs and tell the protocol team. Later, check the node with `bash recovery.sh verify --chain-id "$CHAIN_ID" --check-height <I+1>`.
 
 ## Messages

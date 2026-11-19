@@ -80,6 +80,10 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 		gs.Params.Threshold = "0.000001"
 		vp := time.Second * 10 // Extended from 4s to 10s to reduce flakiness
 		gs.Params.VotingPeriod = &vp
+		// The expedited voting period must be shorter than the voting period,
+		// or the gov params fail validation, e.g. in genesis from-export.
+		evp := time.Second * 5
+		gs.Params.ExpeditedVotingPeriod = &evp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state
 	}

@@ -1,9 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -32,8 +34,8 @@ type pffFill struct {
 	reject       map[string]bool
 	router       baseapp.MessageRouter
 	anteCalls    int
-	sdkDecodes   int
-	pffDecodes   int
+	sdkDecodes   atomic.Int64
+	pffDecodes   atomic.Int64
 	preverified  [][]byte
 	preverifyRan bool
 }
@@ -47,11 +49,11 @@ func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 		}
 		return ctx, nil
 	}
-	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
-	fsb.decodePFF = func(raw []byte) *fibretypes.DecodedPayForFibre {
-		p.pffDecodes++
-		return fibrekeeper.DecodePayForFibre(raw)
+	fsb.decodePFF = func(raw []byte, msg *fibretypes.MsgPayForFibre) *fibretypes.DecodedPayForFibre {
+		p.pffDecodes.Add(1)
+		return fibrekeeper.DerivePayForFibre(raw, msg)
 	}
 	if p.preverify {
 		fsb.preverifyPFF = func(_ sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
@@ -81,7 +83,7 @@ func TestFillStopsPFFDecodesAtCap(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	txs := newPFFs(t, txConfig, 2*appconsts.MaxPayForFibreCandidates)
 
-	_, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(int)}, txs)
+	_, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(atomic.Int64)}, txs)
 	require.Len(t, entries, len(txs))
 	for i, e := range entries {
 		require.Equal(t, txs[i], e.raw)
@@ -90,13 +92,13 @@ func TestFillStopsPFFDecodesAtCap(t *testing.T) {
 
 	lazy := &pffFill{txConfig: txConfig}
 	require.Equal(t, txs[:appconsts.MaxPayForFibreMessages], lazy.run(t, txs))
-	require.Equal(t, appconsts.MaxPayForFibreMessages, lazy.sdkDecodes)
-	require.Equal(t, appconsts.MaxPayForFibreMessages, lazy.pffDecodes)
+	require.EqualValues(t, appconsts.MaxPayForFibreMessages, lazy.sdkDecodes.Load())
+	require.EqualValues(t, appconsts.MaxPayForFibreMessages, lazy.pffDecodes.Load())
 
 	warm := &pffFill{txConfig: txConfig, preverify: true}
 	require.Equal(t, txs[:appconsts.MaxPayForFibreMessages], warm.run(t, txs))
-	require.Equal(t, appconsts.MaxPayForFibreCandidates, warm.sdkDecodes)
-	require.Equal(t, appconsts.MaxPayForFibreCandidates, warm.pffDecodes)
+	require.EqualValues(t, appconsts.MaxPayForFibreCandidates, warm.sdkDecodes.Load())
+	require.EqualValues(t, appconsts.MaxPayForFibreCandidates, warm.pffDecodes.Load())
 }
 
 // TestFillKeepsValidPFFsBehindRejectedOnes pins the fix: PayForFibre txs that fail ante past the
@@ -178,4 +180,23 @@ func TestFillSkipsSettledPromiseCopies(t *testing.T) {
 	fill := &pffFill{txConfig: txConfig, preverify: true, router: settleOnceRouter{}}
 	require.Equal(t, [][]byte{copies[0], other}, fill.run(t, append(copies, other)))
 	require.Equal(t, 2, fill.anteCalls)
+}
+
+// TestDerivedPFFViewMatchesParsedView pins that the view PrepareProposal and ProcessProposal derive
+// from the SDK-decoded message equals the one DecodePayForFibre parses from the raw bytes.
+func TestDerivedPFFViewMatchesParsedView(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	msg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
+	msg.ValidatorSignatures = [][]byte{bytes.Repeat([]byte{1}, 64), {}, bytes.Repeat([]byte{2}, 64)}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	raw, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+
+	sdkTx, err := txConfig.TxDecoder()(raw)
+	require.NoError(t, err)
+	derived := fibrekeeper.DerivePayForFibre(raw, fibretypes.PayForFibreMsg(sdkTx))
+	require.True(t, derived.CertKeyed)
+	require.True(t, derived.PromiseKeyed())
+	require.Equal(t, fibrekeeper.DecodePayForFibre(raw), derived)
 }

@@ -155,14 +155,16 @@ func (f *pffServerFixture) freshTx(t *testing.T, payer int, blobSize uint32, non
 	return f.m.signedTxBy(t, msg, payer)
 }
 
-// requireDecodeConsistent checks DecodePayForFibre and DerivePayForFibre
-// against the parser and against keys derived independently of decode.go,
-// and that re-encoding the decoded message keys it identically.
+// requireDecodeConsistent checks DecodePayForFibre, its certificate-free variant
+// and DerivePayForFibre against the parser and against keys derived independently
+// of decode.go, and that re-encoding the decoded message keys it identically.
 func requireDecodeConsistent(t *testing.T, raw []byte) *types.DecodedPayForFibre {
 	parsed, isPFF, err := types.ParsePayForFibreTx(raw)
 	d := keeper.DecodePayForFibre(raw)
+	lite := keeper.DecodePayForFibreWithoutCertificates(raw)
 	if !isPFF || err != nil {
 		require.Nil(t, d, "decoded a tx the parser rejects")
+		require.Nil(t, lite, "decoded without certificates a tx the parser rejects")
 		return nil
 	}
 	require.NotNil(t, d, "the parser accepts a tx decode rejects")
@@ -188,6 +190,13 @@ func requireDecodeConsistent(t *testing.T, raw []byte) *types.DecodedPayForFibre
 		require.Equal(t, signBytes, d.PromiseSignBytes)
 		require.Equal(t, sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature), d.PromiseKey)
 	}
+
+	// FinalizeBlock's decode differs only in leaving the certificate unkeyed.
+	require.NotNil(t, lite)
+	require.False(t, lite.CertKeyed)
+	require.Zero(t, lite.CertKey)
+	lite.CertKey, lite.CertKeyed = d.CertKey, d.CertKeyed
+	require.Equal(t, d, lite)
 
 	derived := keeper.DerivePayForFibre(raw, parsed)
 	require.Equal(t, d.CertKey, derived.CertKey)
@@ -363,13 +372,13 @@ func fuzzPayForFibreMsgServer(t *testing.T, script []byte) int {
 		require.Equal(t, wantSettle, err == nil, "settlement verdict: %v", err)
 		if err != nil {
 			*fx.ledger = saved
-			require.False(t, s.keeper.IsPaymentProcessedByHash(s.ctx, hash) && !settled[string(hash)])
+			require.False(t, s.keeper.IsPaymentPromiseProcessed(s.ctx, &msg.PaymentPromise) && !settled[string(hash)])
 			continue
 		}
 		write()
 		accepted++
 		settled[string(hash)] = true
-		require.True(t, s.keeper.IsPaymentProcessedByHash(s.ctx, hash))
+		require.True(t, s.keeper.IsPaymentPromiseProcessed(s.ctx, &msg.PaymentPromise))
 		after, _ := s.keeper.GetEscrowAccount(s.ctx, payer)
 		require.True(t, before.Balance.Amount.Sub(charge).Equal(after.Balance.Amount), "escrow charged the wrong amount")
 		require.True(t, fx.ledger.balances[authtypes.FeeCollectorName].Sub(feeBefore).Equal(charge))

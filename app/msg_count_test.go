@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"math"
 	"strconv"
 	"strings"
@@ -25,17 +26,6 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
 )
-
-// fakeChannelKeeper reports the encoding an ICA channel negotiated. An empty
-// encoding means the channel does not exist.
-type fakeChannelKeeper struct{ encoding string }
-
-func (f fakeChannelKeeper) GetAppVersion(sdk.Context, string, string) (string, bool) {
-	if f.encoding == "" {
-		return "", false
-	}
-	return string(icatypes.ModuleCdc.MustMarshalJSON(&icatypes.Metadata{Encoding: f.encoding})), true
-}
 
 func TestCountExecutableMsgs(t *testing.T) {
 	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
@@ -88,10 +78,8 @@ func TestCountExecutableMsgs(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name string
-		msgs []sdk.Msg
-		// encoding the ICA channel negotiated; empty means no such channel.
-		encoding string
+		name     string
+		msgs     []sdk.Msg
 		expected int
 	}{
 		{
@@ -137,24 +125,20 @@ func TestCountExecutableMsgs(t *testing.T) {
 		{
 			name:     "proto3 ICA packet counts its payload messages plus the packet",
 			msgs:     []sdk.Msg{icaRecvPacket(50, icatypes.EncodingProtobuf)},
-			encoding: icatypes.EncodingProtobuf,
 			expected: 51,
 		},
 		{
 			name:     "proto3json ICA packet counts its payload messages plus the packet",
 			msgs:     []sdk.Msg{icaRecvPacket(50, icatypes.EncodingProto3JSON)},
-			encoding: icatypes.EncodingProto3JSON,
 			expected: 51,
 		},
 		{
 			name:     "empty ICA payload counts only the packet",
 			msgs:     []sdk.Msg{icaRecvPacket(0, icatypes.EncodingProtobuf)},
-			encoding: icatypes.EncodingProtobuf,
 			expected: 1,
 		},
 		{
 			name:     "packet to another port counts as one",
-			encoding: icatypes.EncodingProtobuf,
 			msgs:     []sdk.Msg{recvPacket("transfer", icaPayload(50, icatypes.EncodingProtobuf))},
 			expected: 1,
 		},
@@ -162,13 +146,11 @@ func TestCountExecutableMsgs(t *testing.T) {
 			// Malformed packet data fails the same decode the host uses, so the
 			// host dispatches nothing and this is safe to count as just the packet.
 			name:     "malformed ICA packet data counts as one",
-			encoding: icatypes.EncodingProtobuf,
 			msgs:     []sdk.Msg{recvPacket(icatypes.HostPortID, []byte("not json"))},
 			expected: 1,
 		},
 		{
-			name:     "non executable ICA packet type counts as one",
-			encoding: icatypes.EncodingProtobuf,
+			name: "non executable ICA packet type counts as one",
 			msgs: []sdk.Msg{func() sdk.Msg {
 				data := icatypes.InterchainAccountPacketData{Type: icatypes.UNSPECIFIED, Data: icaPayload(50, icatypes.EncodingProtobuf)}
 				return recvPacket(icatypes.HostPortID, data.GetBytes())
@@ -178,30 +160,17 @@ func TestCountExecutableMsgs(t *testing.T) {
 		{
 			name:     "ICA packet inside a MsgExec counts its payload messages",
 			msgs:     []sdk.Msg{msgExecWith(icaRecvPacket(50, icatypes.EncodingProtobuf))},
-			encoding: icatypes.EncodingProtobuf,
 			expected: 52,
 		},
 		{
-			// An oversized identifier would panic the store, whose keys are
-			// length bounded, before ValidateBasic ever rejects the packet.
-			name:     "ICA packet with an oversized channel id counts as over the limit",
+			// Counting reads no state, so the channel id is never used as a key.
+			name:     "ICA packet with an oversized channel id counts its payload messages",
 			msgs:     []sdk.Msg{recvPacket(icatypes.HostPortID, icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: icaPayload(1, icatypes.EncodingProtobuf)}.GetBytes(), strings.Repeat("c", 200_000))},
-			encoding: icatypes.EncodingProtobuf,
-			expected: 1 + appconsts.MaxSDKMessages,
+			expected: 2,
 		},
 		{
-			// Without the channel the encoding is unknown, so the payload cannot
-			// be counted and must not be counted as free.
-			name:     "ICA packet on an unknown channel counts as over the limit",
-			msgs:     []sdk.Msg{icaRecvPacket(50, icatypes.EncodingProtobuf)},
-			expected: 1 + appconsts.MaxSDKMessages,
-		},
-		{
-			// The payload is proto3json but the channel negotiated proto3, so the
-			// proto3 counter cannot read it and it fails closed.
-			name:     "ICA payload not matching the channel encoding counts as over the limit",
-			msgs:     []sdk.Msg{icaRecvPacket(50, icatypes.EncodingProto3JSON)},
-			encoding: icatypes.EncodingProtobuf,
+			name:     "ICA payload that decodes under neither encoding counts as over the limit",
+			msgs:     []sdk.Msg{icaPacketWithPayload([]byte{0xff})},
 			expected: 1 + appconsts.MaxSDKMessages,
 		},
 		{
@@ -216,8 +185,7 @@ func TestCountExecutableMsgs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ck := fakeChannelKeeper{encoding: tc.encoding}
-			require.Equal(t, tc.expected, countExecutableMsgs(sdk.Context{}, ck, tc.msgs))
+			require.Equal(t, tc.expected, countExecutableMsgs(tc.msgs))
 		})
 	}
 }
@@ -233,6 +201,11 @@ func icaPacket(t *testing.T, cdc codec.Codec, msgs []proto.Message, enc string) 
 	t.Helper()
 	payload, err := icatypes.SerializeCosmosTx(cdc, msgs, enc)
 	require.NoError(t, err)
+	return icaPacketWithPayload(payload)
+}
+
+// icaPacketWithPayload wraps a CosmosTx payload in an ICA host packet.
+func icaPacketWithPayload(payload []byte) sdk.Msg {
 	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
 	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
 	return channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
@@ -246,30 +219,29 @@ func TestCountZKProofMsgs(t *testing.T) {
 	icaPacket := func(msgs []proto.Message, enc string) sdk.Msg { return icaPacket(t, cdc, msgs, enc) }
 
 	tests := []struct {
-		name     string
-		msgs     []sdk.Msg
-		encoding string
-		want     int
+		name string
+		msgs []sdk.Msg
+		want int
 	}{
 		{name: "direct", msgs: []sdk.Msg{update(), &banktypes.MsgSend{}, submit()}, want: 2},
 		{name: "authz", msgs: []sdk.Msg{execWith(update(), &banktypes.MsgSend{}, submit())}, want: 2},
-		{name: "protobuf ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
-		{name: "JSON ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
+		{name: "protobuf ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, want: 2},
+		{name: "JSON ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, want: 2},
 		{name: "direct (updateKeys)", msgs: []sdk.Msg{updateKeys(), &banktypes.MsgSend{}, submit()}, want: 2},
 		{name: "authz (updateKeys)", msgs: []sdk.Msg{execWith(updateKeys(), &banktypes.MsgSend{}, submit())}, want: 2},
-		{name: "protobuf ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
-		{name: "JSON ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
-		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
-		{name: "ICA authz fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
-		{name: "ICA gov proposal fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
-		{name: "ICA gov proposal fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
-		{name: "ICA recv packet fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
-		{name: "ICA recv packet fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
+		{name: "protobuf ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, want: 2},
+		{name: "JSON ICA (updateKeys)", msgs: []sdk.Msg{icaPacket([]proto.Message{updateKeys(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, want: 2},
+		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA authz fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProto3JSON)}, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA gov proposal fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProtobuf)}, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA gov proposal fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProto3JSON)}, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA recv packet fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProtobuf)}, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA recv packet fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProto3JSON)}, want: appconsts.MaxZKProofMessages + 1},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: tc.encoding}, tc.msgs))
+			require.Equal(t, tc.want, countZKProofMsgs(tc.msgs))
 		})
 	}
 
@@ -281,10 +253,10 @@ func TestCountZKProofMsgs(t *testing.T) {
 			for i := range msgs {
 				msgs[i] = &zkismtypes.MsgCreateInterchainSecurityModule{}
 			}
-			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
-			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
+			require.Equal(t, count, countZKProofMsgs(msgs))
+			require.Equal(t, count, countZKProofMsgs([]sdk.Msg{execWith(msgs...)}))
 			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
-				require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
+				require.Equal(t, count, countZKProofMsgs([]sdk.Msg{icaPacket(msgs, enc)}))
 			}
 		})
 	}
@@ -297,10 +269,10 @@ func TestCountZKProofMsgs(t *testing.T) {
 			for i := range msgs {
 				msgs[i] = &zkismtypes.MsgUpdateVerifyingKeys{}
 			}
-			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, msgs))
-			require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(msgs...)}))
+			require.Equal(t, count, countZKProofMsgs(msgs))
+			require.Equal(t, count, countZKProofMsgs([]sdk.Msg{execWith(msgs...)}))
 			for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
-				require.Equal(t, count, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{icaPacket(msgs, enc)}))
+				require.Equal(t, count, countZKProofMsgs([]sdk.Msg{icaPacket(msgs, enc)}))
 			}
 		})
 	}
@@ -319,41 +291,40 @@ func TestCountISMSignatures(t *testing.T) {
 	over := appconsts.MaxISMSignatures + 1
 
 	tests := []struct {
-		name     string
-		msgs     []sdk.Msg
-		encoding string
-		want     int
+		name string
+		msgs []sdk.Msg
+		want int
 	}{
 		{name: "direct", msgs: []sdk.Msg{process(3), &banktypes.MsgSend{}, process(4)}, want: 7},
 		{name: "unrelated messages weigh nothing", msgs: []sdk.Msg{&banktypes.MsgSend{}, &zkismtypes.MsgSubmitMessages{}}, want: 0},
 		{name: "authz", msgs: []sdk.Msg{execWith(process(3), &banktypes.MsgSend{}, process(4))}, want: 7},
 		{name: "authz skips nested exec", msgs: []sdk.Msg{execWith(execWith(process(5)), process(2))}, want: 2},
-		{name: "ICA without process message", msgs: []sdk.Msg{icaPacket([]proto.Message{&banktypes.MsgSend{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 0},
-		{name: "ICA process message fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&hyperlanetypes.MsgProcessMessage{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: over},
-		{name: "ICA process message fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&hyperlanetypes.MsgProcessMessage{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: over},
-		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(&banktypes.MsgSend{}).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: over},
-		{name: "ICA gov proposal fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: over},
-		{name: "ICA unknown channel fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&banktypes.MsgSend{}}, icatypes.EncodingProtobuf)}, encoding: "", want: over},
+		{name: "ICA without process message", msgs: []sdk.Msg{icaPacket([]proto.Message{&banktypes.MsgSend{}}, icatypes.EncodingProtobuf)}, want: 0},
+		{name: "ICA process message fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&hyperlanetypes.MsgProcessMessage{}}, icatypes.EncodingProtobuf)}, want: over},
+		{name: "ICA process message fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&hyperlanetypes.MsgProcessMessage{}}, icatypes.EncodingProto3JSON)}, want: over},
+		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(&banktypes.MsgSend{}).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, want: over},
+		{name: "ICA gov proposal fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProto3JSON)}, want: over},
+		{name: "ICA payload that decodes under neither encoding fails closed", msgs: []sdk.Msg{icaPacketWithPayload([]byte{0xff})}, want: over},
 		{name: "stops counting past the budget", msgs: []sdk.Msg{process(appconsts.MaxISMSignatures), process(1), process(1)}, want: over},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, countISMSignatures(sdk.Context{}, fakeChannelKeeper{encoding: tc.encoding}, tc.msgs))
+			require.Equal(t, tc.want, countISMSignatures(tc.msgs))
 		})
 	}
 
 	// Check the block boundary through every dispatch path that can carry metadata.
 	for _, count := range []int{appconsts.MaxISMSignatures, appconsts.MaxISMSignatures + 1} {
 		t.Run("boundary "+strconv.Itoa(count), func(t *testing.T) {
-			require.Equal(t, count, countISMSignatures(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{process(count)}))
-			require.Equal(t, count, countISMSignatures(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(process(count))}))
+			require.Equal(t, count, countISMSignatures([]sdk.Msg{process(count)}))
+			require.Equal(t, count, countISMSignatures([]sdk.Msg{execWith(process(count))}))
 			split := make([]sdk.Msg, count)
 			for i := range split {
 				split[i] = process(1)
 			}
-			require.Equal(t, count, countISMSignatures(sdk.Context{}, fakeChannelKeeper{}, split))
-			require.Equal(t, count, countISMSignatures(sdk.Context{}, fakeChannelKeeper{}, []sdk.Msg{execWith(split...)}))
+			require.Equal(t, count, countISMSignatures(split))
+			require.Equal(t, count, countISMSignatures([]sdk.Msg{execWith(split...)}))
 		})
 	}
 }
@@ -401,32 +372,128 @@ func TestCountICAPacketMsgsNeverUndercounts(t *testing.T) {
 	require.Equal(t, 1, countProtoMsgs(crafted), "crafted payload must walk as a single proto message")
 
 	payloads := map[string][]byte{
-		"proto3":                     protoPayload,
-		"proto3json":                 jsonPayload,
-		"trailing byte":              append(append([]byte{}, jsonPayload...), 'X'),
-		"leading whitespace":         append([]byte{'\n', ' '}, jsonPayload...),
-		"duplicate key, number":      append([]byte(`{"messages":0,`), jsonPayload[1:]...),
-		"unknown sibling field":      append([]byte(`{"bogus":1,`), jsonPayload[1:]...),
-		"null messages":              []byte(`{"messages":null}`),
-		"empty":                      {},
-		"garbage":                    []byte("not a payload at all"),
-		"proto with group tag":       {0x0B, 0x0A, 0x00, 0x0C},
-		"proto truncated field":      {0x0A, 0x7F},
-		"json that walks as proto":   crafted,
-		"zk proof proto3":            zkProtoPayload,
-		"zk proof proto3json":        zkJSONPayload,
-		"zk proof, duplicate @type":  []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend","@type":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
-		"zk proof, case-folded key":  []byte(`{"messages":[{"@TYPE":"/cosmos.bank.v1beta1.MsgSend","@type":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
-		"zk proof, case-folded msgs": []byte(`{"messages":[{"@type":"/celestia.zkism.v1.MsgSubmitMessages"}],"Messages":[]}`),
-		"ism proto3":                 ismProtoPayload,
-		"ism proto3json":             ismJSONPayload,
-		"ism, duplicate @type":       []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend","@type":"/hyperlane.core.v1.MsgProcessMessage"}]}`),
+		"proto3":                            protoPayload,
+		"proto3json":                        jsonPayload,
+		"trailing byte":                     append(append([]byte{}, jsonPayload...), 'X'),
+		"leading whitespace":                append([]byte{'\n', ' '}, jsonPayload...),
+		"duplicate key, number":             append([]byte(`{"messages":0,`), jsonPayload[1:]...),
+		"unknown sibling field":             append([]byte(`{"bogus":1,`), jsonPayload[1:]...),
+		"null messages":                     []byte(`{"messages":null}`),
+		"empty":                             {},
+		"garbage":                           []byte("not a payload at all"),
+		"proto with group tag":              {0x0B, 0x0A, 0x00, 0x0C},
+		"proto truncated field":             {0x0A, 0x7F},
+		"json that walks as proto":          crafted,
+		"zk proof proto3":                   zkProtoPayload,
+		"zk proof proto3json":               zkJSONPayload,
+		"zk proof, duplicate @type":         []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend","@type":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
+		"zk proof, case-folded key":         []byte(`{"messages":[{"@TYPE":"/cosmos.bank.v1beta1.MsgSend","@type":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
+		"zk proof, case-folded msgs":        []byte(`{"messages":[{"@type":"/celestia.zkism.v1.MsgSubmitMessages"}],"Messages":[]}`),
+		"ism proto3":                        ismProtoPayload,
+		"ism proto3json":                    ismJSONPayload,
+		"ism, duplicate @type":              []byte(`{"messages":[{"@type":"/cosmos.bank.v1beta1.MsgSend","@type":"/hyperlane.core.v1.MsgProcessMessage"}]}`),
+		"proto with unknown group":          append(append([]byte{}, protoPayload...), 0x7B, 0x08, 0x01, 0x7C),
+		"proto, wide field number":          append(append([]byte{}, protoPayload...), 0x8A, 0x80, 0x80, 0x80, 0x80, 0x20, 0x00),
+		"json with a null entry":            []byte(`{"messages":[null]}`),
+		"zk proof, case-folded @TYPE last":  []byte(`{"messages":[{"@type":"/celestia.zkism.v1.MsgSubmitMessages","@TYPE":"/cosmos.bank.v1beta1.MsgSend"}]}`),
+		"zk proof, case-folded @Type first": []byte(`{"messages":[{"@Type":"/cosmos.bank.v1beta1.MsgSend","@type":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
+		"zk proof, only case-folded @TYPE":  []byte(`{"messages":[{"@TYPE":"/celestia.zkism.v1.MsgSubmitMessages"}]}`),
+		"ism, case-folded @TYPE last":       []byte(`{"messages":[{"@type":"/hyperlane.core.v1.MsgProcessMessage","@TYPE":"/cosmos.bank.v1beta1.MsgSend"}]}`),
+		"json, proto entries":               jsonTxWithProtoEntries(5),
+		"json, no proto entries":            jsonTxWithNoProtoEntries(3, "/cosmos.bank.v1beta1.MsgSend"),
 	}
 
 	for name, payload := range payloads {
 		t.Run(name, func(t *testing.T) {
 			requireNoUndercount(t, cdc, payload)
 		})
+	}
+}
+
+// jsonTxWithNoProtoEntries returns a proto3json CosmosTx of n messages of
+// typeURL whose bytes also walk as a proto3 stream with no message entries.
+// Every JSON token sits inside a proto field other than a message entry: a
+// short token follows a '\t' (field 1, fixed64), and a long string token is
+// covered by its own opening quote ('"' is a field 4 length prefix).
+func jsonTxWithNoProtoEntries(n int, typeURL string) []byte {
+	q := func(s string) string { return `"` + s + `"` }
+	tokens := []string{"{", q("messages"), ":", "["}
+	for i := range n {
+		if i > 0 {
+			tokens = append(tokens, ",")
+		}
+		tokens = append(tokens, "{", q("@type"), ":", q(typeURL), "}")
+	}
+	tokens = append(tokens, "]", "}")
+
+	var out []byte
+	next := 0 // offset of the next proto tag
+	pad := func() {
+		for len(out) < next {
+			out = append(out, ' ')
+		}
+	}
+	for _, tok := range tokens {
+		pad()
+		if len(tok) <= 8 {
+			out = append(out, '\t')
+			next = len(out) + 8
+			out = append(out, tok...)
+			continue
+		}
+		if tok[0] != '"' || int(tok[1]) < len(tok)-2 {
+			panic("token does not fit a proto field: " + tok)
+		}
+		start := len(out)
+		out = append(out, tok...)
+		next = start + 2 + int(tok[1])
+	}
+	pad()
+	return out
+}
+
+// jsonTxWithProtoEntries returns a proto3json CosmosTx with no messages whose
+// bytes also walk as a proto3 stream with n message entries: each "\n " is JSON
+// whitespace and a field 1 tag of length 32, followed by 32 spaces. " {" is a
+// field 4 varint, and the quote before "messages" is a field 4 length prefix
+// of 109 ('m') that the trailing spaces fill.
+func jsonTxWithProtoEntries(n int) []byte {
+	out := []byte(strings.Repeat("\n "+strings.Repeat(" ", 32), n))
+	out = append(out, ` {"messages":[]}`...)
+	return append(out, strings.Repeat(" ", 97)...)
+}
+
+// TestCountICAPacketIsEncodingIndependent checks that an ICA packet counts the
+// same whatever encoding its channel has when the count runs. The channel can
+// change encoding before the packet executes, so the count must cover both.
+func TestCountICAPacketIsEncodingIndependent(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+
+	jsonHeavy := jsonTxWithNoProtoEntries(700, "/cosmos.bank.v1beta1.MsgSend")
+	require.LessOrEqual(t, countProtoMsgs(jsonHeavy), 0)
+	require.Equal(t, 700, countJSONMsgs(jsonHeavy))
+	protoHeavy := jsonTxWithProtoEntries(300)
+	require.Equal(t, 300, countProtoMsgs(protoHeavy))
+	require.Equal(t, 0, countJSONMsgs(protoHeavy))
+	for _, payload := range [][]byte{jsonHeavy, protoHeavy} {
+		requireNoUndercount(t, cdc, payload)
+	}
+
+	zkPayload := jsonTxWithNoProtoEntries(appconsts.MaxZKProofMessages+1, "/celestia.zkism.v1.MsgSubmitMessages")
+	ismPayload := jsonTxWithNoProtoEntries(1, "/hyperlane.core.v1.MsgProcessMessage")
+
+	require.Equal(t, 701, countExecutableMsgs([]sdk.Msg{icaPacketWithPayload(jsonHeavy)}))
+	require.Equal(t, 301, countExecutableMsgs([]sdk.Msg{icaPacketWithPayload(protoHeavy)}))
+	require.Greater(t, countZKProofMsgs([]sdk.Msg{icaPacketWithPayload(zkPayload)}), appconsts.MaxZKProofMessages)
+	require.Greater(t, countISMSignatures([]sdk.Msg{icaPacketWithPayload(ismPayload)}), appconsts.MaxISMSignatures)
+
+	// Honest payloads keep their exact count under either encoding.
+	for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
+		sends := make([]proto.Message, 40)
+		for i := range sends {
+			sends[i] = &banktypes.MsgSend{}
+		}
+		require.Equal(t, 41, countExecutableMsgs([]sdk.Msg{icaPacket(t, cdc, sends, enc)}), enc)
 	}
 }
 
@@ -446,10 +513,149 @@ func FuzzCountICAPacketMsgs(f *testing.F) {
 	f.Add([]byte("\n {\"messages\":[{\"fromAddress\":\"AAA*t" + strings.Repeat("A", 55) + "\",\"@type\":\"/cosmos.bank.v1beta1.MsgSend\"}]}" + strings.Repeat(" ", 18)))
 	f.Add([]byte(`{"messages":[{"@type":"/celestia.zkism.v1.MsgUpdateInterchainSecurityModule"}]}`))
 	f.Add([]byte(`{"messages":[{"@type":"/hyperlane.core.v1.MsgProcessMessage","metadata":"0x"}]}`))
+	f.Add(jsonTxWithProtoEntries(2))
+	f.Add(jsonTxWithNoProtoEntries(2, "/celestia.zkism.v1.MsgSubmitMessages"))
+	f.Add([]byte{0x0A, 0x00, 0x7B, 0x08, 0x01, 0x7C})
+	f.Add([]byte(`{"messages":0,"messages":[{"@type":1,"@type":"/celestia.zkism.v1.MsgSubmitMessages"}]} trailing`))
+
+	// Payloads valid under both encodings with different counts, so the
+	// packet count is wrong if it drops either encoding.
+	f.Add(jsonTxWalkingAsOneProtoEntry(3, "/celestia.zkism.v1.MsgSubmitMessages"))
+	f.Add(jsonTxWithProtoEntries(2))
+	honest := func(enc string) []byte {
+		msgs := []proto.Message{
+			&zkismtypes.MsgSubmitMessages{}, &banktypes.MsgSend{}, &zkismtypes.MsgUpdateVerifyingKeys{},
+			&hyperlanetypes.MsgProcessMessage{Metadata: ismMetadataHex(1)},
+		}
+		payload, err := icatypes.SerializeCosmosTx(cdc, msgs, enc)
+		require.NoError(f, err)
+		return payload
+	}
+	honestProto, honestJSON := honest(icatypes.EncodingProtobuf), honest(icatypes.EncodingProto3JSON)
+	f.Add(honestProto)
+	f.Add(honestJSON)
+	f.Add(protoTxBehindEmptyJSON(honestProto))
+	zkProto, err := icatypes.SerializeCosmosTx(cdc, []proto.Message{&zkismtypes.MsgSubmitMessages{}, &zkismtypes.MsgSubmitMessages{}}, icatypes.EncodingProtobuf)
+	require.NoError(f, err)
+	f.Add(protoTxBehindEmptyJSON(zkProto))
+	// Truncated tags and lengths: a tag with its continuation bit set and no
+	// following byte, a length past the end, and a ten-byte varint tag cut short.
+	f.Add([]byte{0x80})
+	f.Add([]byte{0x0A, 0x05, 0x01})
+	f.Add(append(append([]byte{}, honestProto...), 0x0A, 0x7F))
+	f.Add(bytes.Repeat([]byte{0xFF}, 9))
+	f.Add(append(append([]byte{}, honestProto...), bytes.Repeat([]byte{0x80}, 9)...))
 
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		requireNoUndercount(t, cdc, payload)
+		requirePacketNoUndercount(t, cdc, payload)
 	})
+}
+
+// requirePacketNoUndercount checks the counts the block limits read for an ICA
+// packet, which combine both encodings, against what the host would dispatch
+// under each. An encoding the host rejects dispatches nothing, so it sets no
+// lower bound. A payload neither counter accepts must count over every limit.
+func requirePacketNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
+	t.Helper()
+	packet := icaPacketWithPayload(payload).(*channeltypes.MsgRecvPacket).Packet
+	msgs := countICAPacketMsgs(packet)
+	zk := countICAPacketZKProofMsgs(packet)
+	ism := countICAPacketISMSignatures(packet)
+
+	if countProtoMsgs(payload) < 0 && countJSONMsgs(payload) < 0 {
+		require.Equal(t, appconsts.MaxSDKMessages, msgs, "a payload neither counter accepts must fail closed")
+		require.Greater(t, zk, appconsts.MaxZKProofMessages, "a payload neither counter accepts must fail closed")
+		require.Greater(t, ism, appconsts.MaxISMSignatures, "a payload neither counter accepts must fail closed")
+	}
+
+	for _, enc := range icaEncodings {
+		dispatched, err := icatypes.DeserializeCosmosTx(cdc, payload, enc)
+		if err != nil {
+			continue // the host dispatches nothing under this encoding
+		}
+		require.GreaterOrEqual(t, msgs, len(dispatched),
+			"packet counted %d but the host would dispatch %d under %s", msgs, len(dispatched), enc)
+		proofs, process := 0, false
+		for _, msg := range dispatched {
+			if isZKProofTypeURL(sdk.MsgTypeURL(msg)) {
+				proofs++
+			}
+			if _, ok := msg.(*hyperlanetypes.MsgProcessMessage); ok {
+				process = true
+			}
+		}
+		// A count past the limit rejects the tx, so it cannot undercount.
+		if zk <= appconsts.MaxZKProofMessages {
+			require.GreaterOrEqual(t, zk, proofs,
+				"packet counted %d proof msgs but the host would dispatch %d under %s", zk, proofs, enc)
+		}
+		if ism <= appconsts.MaxISMSignatures {
+			require.False(t, process,
+				"packet counted %d signatures but the host would dispatch a MsgProcessMessage under %s", ism, enc)
+		}
+	}
+}
+
+// jsonTxWalkingAsOneProtoEntry returns a proto3json CosmosTx of n messages of
+// typeURL, each with a signer field, whose bytes also walk as a proto3 stream
+// with one message entry. It uses the layout of the "json that walks as proto"
+// payload in TestCountICAPacketMsgsNeverUndercounts: "\n " is a field 1 tag of
+// length 32, and the "*t" in each element is a field 5 tag of length 116 that
+// strides one 117-byte element plus its comma.
+func jsonTxWalkingAsOneProtoEntry(n int, typeURL string) []byte {
+	head := `{"signer":"AAAAAAAA*t` // 13 bytes of `{"messages":[` and 19 of this fill the first entry
+	tail := `","@type":"` + typeURL + `"}`
+	element := head + strings.Repeat("A", 117-len(head)-len(tail)) + tail
+	if len(element) != 117 {
+		panic("type URL too long for the element: " + typeURL)
+	}
+	out := []byte("\n {\"messages\":[")
+	for i := range n {
+		if i > 0 {
+			out = append(out, ',')
+		}
+		out = append(out, element...)
+	}
+	return append(out, "]}                  "...)
+}
+
+// protoTxBehindEmptyJSON returns protoTx behind an empty JSON object. The JSON
+// decoder reads "{}" and ignores the bytes after it, so it dispatches nothing.
+// The proto decoder reads "{" as a field 15 group start, "}" as a fixed32 field
+// inside it that covers four spaces, and "|" as the group end, then decodes
+// protoTx.
+func protoTxBehindEmptyJSON(protoTx []byte) []byte {
+	return append([]byte("{}    |"), protoTx...)
+}
+
+// TestICAPacketPolyglotSeeds checks that the polyglot fuzz seeds count
+// differently under each encoding, so dropping either encoding from the packet
+// count undercounts them.
+func TestICAPacketPolyglotSeeds(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+
+	jsonHeavy := jsonTxWalkingAsOneProtoEntry(3, "/celestia.zkism.v1.MsgSubmitMessages")
+	require.Equal(t, 1, countProtoMsgs(jsonHeavy))
+	dispatched, err := icatypes.DeserializeCosmosTx(cdc, jsonHeavy, icatypes.EncodingProto3JSON)
+	require.NoError(t, err)
+	require.Len(t, dispatched, 3)
+
+	zkProto, err := icatypes.SerializeCosmosTx(cdc, []proto.Message{&zkismtypes.MsgSubmitMessages{}, &zkismtypes.MsgSubmitMessages{}}, icatypes.EncodingProtobuf)
+	require.NoError(t, err)
+	protoHeavy := protoTxBehindEmptyJSON(zkProto)
+	require.Equal(t, 0, countJSONMsgs(protoHeavy))
+	require.Equal(t, 0, countJSONWeighted(protoHeavy, zkProofTypeURLWeight, appconsts.MaxZKProofMessages+1))
+	dispatched, err = icatypes.DeserializeCosmosTx(cdc, protoHeavy, icatypes.EncodingProtobuf)
+	require.NoError(t, err)
+	require.Len(t, dispatched, 2)
+	dispatched, err = icatypes.DeserializeCosmosTx(cdc, protoHeavy, icatypes.EncodingProto3JSON)
+	require.NoError(t, err)
+	require.Empty(t, dispatched)
+
+	for _, payload := range [][]byte{jsonHeavy, protoHeavy} {
+		requirePacketNoUndercount(t, cdc, payload)
+	}
 }
 
 // requireNoUndercount fails if either counter reports fewer messages than the
@@ -467,10 +673,10 @@ func requireNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
 		if err != nil {
 			continue // the host dispatches nothing under this encoding
 		}
+		// The packet count takes the larger of both counters, so a counter
+		// that rejects a payload the host decodes would drop that encoding.
 		counted := count(payload)
-		if counted < 0 {
-			continue // countICAPacketMsgs fails closed on this
-		}
+		require.GreaterOrEqual(t, counted, 0, "counter rejects a payload the host decodes under %s", enc)
 		require.GreaterOrEqual(t, counted, len(dispatched),
 			"counted %d but the host would dispatch %d under %s", counted, len(dispatched), enc)
 	}
@@ -491,7 +697,8 @@ func requireNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
 			continue
 		}
 		counted := count(payload)
-		if counted < 0 || counted > appconsts.MaxZKProofMessages {
+		require.GreaterOrEqual(t, counted, 0, "ZK counter rejects a payload the host decodes under %s", enc)
+		if counted > appconsts.MaxZKProofMessages {
 			continue // countICAPacketZKProofMsgs fails closed on this
 		}
 		proofs := 0
@@ -517,7 +724,8 @@ func requireNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
 			continue
 		}
 		counted := count(payload)
-		if counted < 0 || counted > appconsts.MaxISMSignatures {
+		require.GreaterOrEqual(t, counted, 0, "ISM counter rejects a payload the host decodes under %s", enc)
+		if counted > appconsts.MaxISMSignatures {
 			continue // countICAPacketISMSignatures fails closed on this
 		}
 		for _, msg := range dispatched {
@@ -528,37 +736,18 @@ func requireNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
 	}
 }
 
-// TestCountExecutableMsgsBoundsChannelReads checks that counting stops once the
-// limit is passed. Without that, a transaction packed with ICA packets forces a
-// channel read per packet before the count is ever compared against the limit,
-// all of it before the ante handler charges any gas.
-func TestCountExecutableMsgsBoundsChannelReads(t *testing.T) {
+// TestCountExecutableMsgsStopsPastTheLimit checks that counting stops once the
+// limit is passed rather than walking every packet in the tx, all of it before
+// the ante handler charges any gas.
+func TestCountExecutableMsgsStopsPastTheLimit(t *testing.T) {
 	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
 	payload, err := icatypes.SerializeCosmosTx(cdc, nil, icatypes.EncodingProtobuf)
 	require.NoError(t, err)
-	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
-	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
-
 	msgs := make([]sdk.Msg, 50_000)
 	for i := range msgs {
-		msgs[i] = channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
+		msgs[i] = icaPacketWithPayload(payload)
 	}
-
-	ck := &countingChannelKeeper{encoding: icatypes.EncodingProtobuf}
-	require.Greater(t, countExecutableMsgs(sdk.Context{}, ck, msgs), appconsts.MaxSDKMessages)
-	require.LessOrEqual(t, ck.reads, appconsts.MaxSDKMessages+1,
-		"counting read %d channels for %d packets", ck.reads, len(msgs))
-}
-
-// countingChannelKeeper records how many channel reads a count pass makes.
-type countingChannelKeeper struct {
-	encoding string
-	reads    int
-}
-
-func (k *countingChannelKeeper) GetAppVersion(sdk.Context, string, string) (string, bool) {
-	k.reads++
-	return string(icatypes.ModuleCdc.MustMarshalJSON(&icatypes.Metadata{Encoding: k.encoding})), true
+	require.Equal(t, appconsts.MaxSDKMessages+1, countExecutableMsgs(msgs))
 }
 
 func TestFitsSDKGas(t *testing.T) {
@@ -589,55 +778,4 @@ func TestTxGasLimit(t *testing.T) {
 	require.Zero(t, txGasLimit(noFee))
 
 	require.Zero(t, txGasLimit(nonProtoTx{}))
-}
-
-// TestCountSDKMessageGasWeight checks that the gas weight of an ICA packet does
-// not depend on the channel's encoding. A channel upgrade earlier in a block can
-// change that encoding between ProcessProposal and FinalizeBlock, and the ante
-// handler must charge the same gas in both.
-func TestCountSDKMessageGasWeight(t *testing.T) {
-	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
-	sends := []proto.Message{&banktypes.MsgSend{}, &banktypes.MsgSend{}}
-
-	for _, enc := range []string{icatypes.EncodingProtobuf, icatypes.EncodingProto3JSON} {
-		packet := icaPacket(t, cdc, sends, enc)
-		want := countExecutableMsgs(sdk.Context{}, fakeChannelKeeper{encoding: enc}, []sdk.Msg{packet})
-		require.Equal(t, 3, want)
-		require.Equal(t, want, countSDKMessageGasWeight([]sdk.Msg{packet}), enc)
-	}
-
-	t.Run("undecodable payload weighs only the packet", func(t *testing.T) {
-		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: []byte{0xff}}
-		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
-		msg := channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
-		require.Equal(t, 1, countSDKMessageGasWeight([]sdk.Msg{msg}))
-	})
-
-	t.Run("payload that parses under both encodings counts the larger", func(t *testing.T) {
-		// Valid proto3json whose bytes also walk as a proto3 stream with a
-		// single entry: "\n " is JSON whitespace and a field 1 tag of length 32,
-		// and each "*t" is a field 5 tag of length 116, which skips to the next
-		// "*t" because each element is 117 bytes long.
-		element := `{"fromAddress":"AAA*t` + strings.Repeat("A", 55) + `","@type":"/cosmos.bank.v1beta1.MsgSend"}`
-		require.Len(t, element, 117)
-		payload := []byte("\n {\"messages\":[")
-		for i := range 700 {
-			if i > 0 {
-				payload = append(payload, ',')
-			}
-			payload = append(payload, element...)
-		}
-		payload = append(payload, []byte("]}                  ")...)
-		require.Equal(t, 1, countProtoMsgs(payload))
-		require.Equal(t, 700, countJSONMsgs(payload))
-
-		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
-		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
-		require.Equal(t, 700, countICAPacketMsgsAnyEncoding(packet))
-	})
-
-	t.Run("MsgExec counts its inner messages", func(t *testing.T) {
-		exec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}, &banktypes.MsgSend{}})
-		require.Equal(t, 3, countSDKMessageGasWeight([]sdk.Msg{&exec}))
-	})
 }
