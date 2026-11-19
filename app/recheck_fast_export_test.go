@@ -11,6 +11,9 @@ const FastRecheckGasPerByte = fastRecheckGasPerByte
 // FastRecheckStats returns the fast path's hits, misses and miss reasons since the last Commit.
 func (app *App) FastRecheckStats() (hits, misses uint64, reasons map[string]uint64) {
 	f := app.fastRecheck
+	if f == nil {
+		return 0, 0, nil
+	}
 	return f.stats.hits, f.stats.misses, maps.Clone(f.stats.missReasons)
 }
 
