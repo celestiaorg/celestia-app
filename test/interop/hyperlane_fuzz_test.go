@@ -169,6 +169,27 @@ func FuzzHyperlaneMultisigISM(f *testing.F) {
 	})
 }
 
+// TestHyperlaneFuzzFixtureAcceptsValidMessages checks that valid messages
+// reach the warp handler and succeed. The fuzz targets accept any rejected
+// message, so if valid messages stopped succeeding, after a hyperlane-cosmos
+// upgrade for example, they would pass while checking nothing.
+func TestHyperlaneFuzzFixtureAcceptsValidMessages(t *testing.T) {
+	fx := newHyperlaneFuzzFixture(t)
+	for _, recipient := range []int{toFundedCollateral, toSynthetic, toMultisigSynthetic} {
+		in := hyperlaneFuzzInput{
+			version: coretypes.MESSAGE_VERSION, nonce: 1, origin: hyperlaneFuzzRemoteDomain,
+			sender: hyperlaneFuzzRouter(), destination: hyperlaneFuzzLocalDomain,
+			recipient: recipient, body: hyperlaneFuzzPayload(hyperlaneFuzzReceiver(), big.NewInt(1)),
+		}
+		var signed []byte
+		if recipient == toMultisigSynthetic {
+			signed = fx.sign(t, fx.message(in), []int{0, 1})
+		}
+		res := fx.run(t, fx.newCase(in, signed, signed))
+		require.Empty(t, res.Err, "message to recipient %d", recipient)
+	}
+}
+
 func hyperlaneFuzzSetup(t *testing.T) *hyperlaneFuzzFixture {
 	if hyperlaneFixture == nil {
 		hyperlaneFixture = newHyperlaneFuzzFixture(t)
@@ -441,7 +462,7 @@ func (fx *hyperlaneFuzzFixture) run(t *testing.T, c hyperlaneFuzzCase) hyperlane
 	res.GasUsed = ctx.GasMeter().GasConsumed()
 	res.State = fx.state(t, ctx)
 	if res.Err == "" {
-		fx.requireAccepted(t, c, res.State)
+		fx.requireAccepted(t, ctx, c, res.State)
 		_, replayErr := fx.deliver(ctx, c.msg)
 		require.Contains(t, replayErr, "already received", "a replayed message must be rejected")
 	} else {
@@ -463,8 +484,8 @@ func (fx *hyperlaneFuzzFixture) deliver(ctx sdk.Context, msg sdk.Msg) ([]abci.Ev
 // requireAccepted checks a message that succeeded: it came from the enrolled
 // router to a token on this mailbox, carried the metadata the validators
 // signed when its token needs it, and moved the payload amount of that token
-// only.
-func (fx *hyperlaneFuzzFixture) requireAccepted(t *testing.T, c hyperlaneFuzzCase, got hyperlaneFuzzState) {
+// only, to the payload recipient.
+func (fx *hyperlaneFuzzFixture) requireAccepted(t *testing.T, ctx sdk.Context, c hyperlaneFuzzCase, got hyperlaneFuzzState) {
 	t.Helper()
 	in := c.in
 	if in.recipient == toMultisigSynthetic {
@@ -484,6 +505,7 @@ func (fx *hyperlaneFuzzFixture) requireAccepted(t *testing.T, c hyperlaneFuzzCas
 	add := func(a string) string { v, _ := math.NewIntFromString(a); return v.Add(amount).String() }
 
 	want := fx.base
+	denom := params.BondDenom
 	switch in.recipient {
 	case toFundedCollateral:
 		want.FundedCollateral = sub(want.FundedCollateral)
@@ -493,8 +515,15 @@ func (fx *hyperlaneFuzzFixture) requireAccepted(t *testing.T, c hyperlaneFuzzCas
 		want.WarpModuleUtia = sub(want.WarpModuleUtia)
 	case toSynthetic:
 		want.SyntheticSupply = add(want.SyntheticSupply)
+		denom = fx.syntheticDenoms[0]
 	case toMultisigSynthetic:
 		want.MultisigSyntheticSupply = add(want.MultisigSyntheticSupply)
+		denom = fx.syntheticDenoms[1]
 	}
 	require.Equal(t, want, got)
+
+	recipient := payload.GetCosmosAccount()
+	before := fx.app.BankKeeper.GetBalance(fx.ctx, recipient, denom).Amount
+	after := fx.app.BankKeeper.GetBalance(ctx, recipient, denom).Amount
+	require.Equal(t, amount.String(), after.Sub(before).String(), "the payload recipient must receive the payload amount")
 }
