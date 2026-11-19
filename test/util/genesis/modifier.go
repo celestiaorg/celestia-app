@@ -20,6 +20,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
@@ -197,11 +198,12 @@ func StripMintGenesisFields() Modifier {
 	}
 }
 
-// StripForkGenesisFields removes the distribution and ibc channel genesis
-// fields added by the cosmos-sdk and ibc-go forks, which binaries for app
-// versions below 11 reject as unknown.
+// StripForkGenesisFields removes the staking, distribution and ibc channel
+// genesis fields added by the cosmos-sdk and ibc-go forks, which binaries for
+// app versions below 11 reject as unknown.
 func StripForkGenesisFields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		stripFields(state, stakingtypes.ModuleName, nil, "last_unbonding_id", "unbonding_ids")
 		stripFields(state, distrtypes.ModuleName, nil, "user_outstanding_rewards")
 		stripFields(state, ibcexported.ModuleName, []string{"channel_genesis"},
 			"upgrades", "counterparty_upgrades", "error_receipts", "pruning_sequence_starts", "recv_start_sequences")
