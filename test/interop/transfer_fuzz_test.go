@@ -190,6 +190,11 @@ func (fx *transferFuzzFixture) run(t *testing.T, in transferFuzzInput) transferF
 		fwd, err := ibctesting.ParsePacketFromEvents(ctx.EventManager().ABCIEvents())
 		require.NoError(t, err, "async ack without a forwarded packet")
 		err = fx.finishForward(t, ctx, fwd, in)
+		// Only fuzzed raw ack bytes may be rejected. A valid ack or a timeout
+		// must complete the forward.
+		if in.outcome() != forwardAckedRaw {
+			require.NoError(t, err, "forward outcome %d", in.outcome())
+		}
 		res.ForwardErr = err != nil
 		if written, parseErr := ibctesting.ParseAckFromEvents(ctx.EventManager().ABCIEvents()); err == nil && parseErr == nil {
 			res.WrittenAck = written
