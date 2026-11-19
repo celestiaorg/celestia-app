@@ -195,7 +195,7 @@ func (fx *transferFuzzFixture) run(t *testing.T, in transferFuzzInput) transferF
 			res.WrittenAck = written
 		}
 	}
-	res.Events = withoutErrorText(ctx.EventManager().ABCIEvents())
+	res.Events = ctx.EventManager().ABCIEvents()
 	res.InFlight = fx.app.PacketForwardKeeper.ExportGenesis(ctx).InFlightPackets
 	res.GasUsed = ctx.GasMeter().GasConsumed()
 	if ack == nil && !res.ForwardErr {
@@ -223,21 +223,6 @@ func requireForwardDone(t *testing.T, in transferFuzzInput, res transferFuzzResu
 		require.NoError(t, channeltypes.SubModuleCdc.UnmarshalJSON(res.WrittenAck, &a))
 		requireDeterministicAck(t, a)
 	}
-}
-
-// withoutErrorText blanks the values of "error" event attributes. They hold
-// Go error text, which is diagnostic and not part of consensus, and ibc-go
-// transfer formats an amount there with %d, which prints a pointer
-// (transfer/types/packet.go). Every other attribute must match.
-func withoutErrorText(events []abci.Event) []abci.Event {
-	for _, e := range events {
-		for i := range e.Attributes {
-			if e.Attributes[i].Key == "error" {
-				e.Attributes[i].Value = ""
-			}
-		}
-	}
-	return events
 }
 
 func (fx *transferFuzzFixture) finishForward(t *testing.T, ctx sdk.Context, fwd channeltypes.Packet, in transferFuzzInput) (err error) {
