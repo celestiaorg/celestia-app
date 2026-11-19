@@ -87,7 +87,12 @@ func objectPutOptions(options *s3.Options) {
 	options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 }
 
-func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
+func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (*types.BlobShard, error) {
+	return b.getShard(ctx, b.objectKey(commitment, promiseHash), nil)
+}
+
+// getShard reads the shard stored at key, or in byte range rng of it when set.
+func (b *objectBackend) getShard(ctx context.Context, key string, rng *string) (_ *types.BlobShard, err error) {
 	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
 	defer cancel()
 	done := b.metrics.observeBackendGet(ctx, storageBackendObject)
@@ -98,7 +103,8 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 
 	output, err := b.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(b.namespace.Bucket),
-		Key:    aws.String(b.objectKey(commitment, promiseHash)),
+		Key:    aws.String(key),
+		Range:  rng,
 	})
 	if isObjectNotFound(err) {
 		return nil, ErrStoreNotFound
@@ -221,13 +227,11 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 }
 
 func (b *objectBackend) objectKey(commitment Commitment, promiseHash []byte) string {
-	return path.Join(
-		b.namespace.Prefix,
-		b.namespace.ChainID,
-		b.namespace.ValidatorAddress,
-		shardsSubdir,
-		commitment.String()+"-"+hex.EncodeToString(promiseHash),
-	)
+	return b.key(shardsSubdir, commitment.String()+"-"+hex.EncodeToString(promiseHash))
+}
+
+func (b *objectBackend) key(subdir, name string) string {
+	return path.Join(b.namespace.Prefix, b.namespace.ChainID, b.namespace.ValidatorAddress, subdir, name)
 }
 
 func isObjectNotFound(err error) bool {
