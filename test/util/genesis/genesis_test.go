@@ -11,6 +11,7 @@ import (
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	coretypes "github.com/cometbft/cometbft/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	"github.com/stretchr/testify/require"
 )
@@ -74,6 +75,14 @@ func TestExportBytesV11Fields(t *testing.T) {
 		_, hasUserRewards := distrState["user_outstanding_rewards"]
 		require.Equal(t, tc.wantV11Fields, hasUserRewards, "app version %d", tc.appVersion)
 		require.Contains(t, distrState, "fee_pool", "app version %d", tc.appVersion)
+
+		var stakingState map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(appState[stakingtypes.ModuleName], &stakingState))
+		for _, field := range []string{"last_unbonding_id", "unbonding_ids"} {
+			_, has := stakingState[field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, staking field %s", tc.appVersion, field)
+		}
+		require.Contains(t, stakingState, "params", "app version %d", tc.appVersion)
 
 		var ibcState struct {
 			ChannelGenesis map[string]json.RawMessage `json:"channel_genesis"`

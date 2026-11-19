@@ -456,13 +456,13 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.8
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.9
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk-archive#705, which closes a data race between
 	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
 	// does not have this fix.
-	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.6
+	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.7
 	// Pin to the celestia fork's x/evidence to ignore equivocation evidence
 	// for a deleted validator instead of returning an error from FinalizeBlock.
 	// See celestiaorg/cosmos-sdk-archive#749.
@@ -474,7 +474,7 @@ replace (
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc0
 	// Pin to the celestia fork of cosmos-db for a configurable pebble block cache.
 	github.com/cosmos/cosmos-db => github.com/celestiaorg/cosmos-db v1.1.3-celestia.1
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.5
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.6
 	// Pin to the celestia fork of packet-forward-middleware for deterministic and
 	// bounded memo handling. See celestiaorg/ibc-apps#3.
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 => github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-celestia
