@@ -21,6 +21,19 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
+	if f := app.fastRecheck; f != nil && req.Type == abci.CheckTxType_Recheck {
+		if f.shadow != nil {
+			return f.shadowRecheck(req)
+		}
+		if res, ok := f.recheck(req.Tx); ok {
+			return res, nil
+		}
+	}
+	return app.checkTx(req)
+}
+
+// checkTx is CheckTx's stock path, under app.checkStateMu.
+func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -94,19 +107,34 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 // recheckPayForFibre rechecks a PayForFibre on the decode cached at admission.
 func (app *App) recheckPayForFibre(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	sdkTx, ok := app.recheckTxs.get(req.Tx)
-	if !ok {
-		return app.BaseApp.CheckTx(req)
+	sdkTx, cached := app.recheckTxs.get(req.Tx)
+	if !cached {
+		if app.fastRecheck == nil {
+			return app.BaseApp.CheckTx(req)
+		}
+		// With fast recheck, decode so the pass is recorded again and the decode kept.
+		var err error
+		if sdkTx, err = app.checkTxDecoder()(req.Tx); err != nil {
+			return app.BaseApp.CheckTx(req)
+		}
 	}
 	res, err := app.checkDecoded(req, sdkTx)
 	if err != nil || res.Code != abci.CodeTypeOK {
 		app.recheckTxs.drop(req.Tx)
+	} else if !cached {
+		app.recheckTxs.add(req.Tx, sdkTx)
 	}
 	return res, err
 }
 
-// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx.
-func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
+// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx, and
+// records an eligible passed tx for fast recheck.
+func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (res *abci.ResponseCheckTx, err error) {
+	if f := app.fastRecheck; f != nil {
+		if pre := f.peek(sdkTx); pre != nil {
+			defer func() { f.record(req.Tx, pre, res, err) }()
+		}
+	}
 	defer app.txHandoff.lend(req.Tx, sdkTx)()
 	return app.BaseApp.CheckTx(req)
 }

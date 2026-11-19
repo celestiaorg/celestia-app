@@ -393,8 +393,65 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	if promise.ChainId != ctx.ChainID() {
 		return time.Time{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
 	}
+	env, err := k.PromiseCheckEnv(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	escrow := func(signer string) (types.EscrowAccount, bool) { return k.GetEscrowAccount(ctx, signer) }
+	return k.validatePromiseWithEnv(ctx, promise, isTimeout, env, nil, escrow)
+}
 
+// PromiseCheckEnv is the block-level state the stateful promise check reads:
+// it is the same for every promise checked against one state.
+type PromiseCheckEnv struct {
+	Params types.Params
+	Floor  time.Time
+}
+
+// PromiseCheckEnv loads the block-level inputs of the stateful promise check.
+func (k Keeper) PromiseCheckEnv(ctx sdk.Context) (PromiseCheckEnv, error) {
+	// Params before floor: on a metered context the charged gas depends on the order.
 	params := k.GetParams(ctx)
+	floor, err := k.GetPromiseFreshnessFloor(ctx)
+	if err != nil {
+		return PromiseCheckEnv{}, err
+	}
+	return PromiseCheckEnv{Params: params, Floor: floor}, nil
+}
+
+// PromiseCheckCache carries per-promise values a caller may reuse across
+// checks of the same promise: its hash, signer address and required payment.
+type PromiseCheckCache struct {
+	Hash     []byte
+	Signer   string
+	Required sdk.Coin
+}
+
+// NewPromiseCheckCache derives the per-promise values of promise.
+func NewPromiseCheckCache(promise *types.PaymentPromise) (PromiseCheckCache, error) {
+	hash, err := promiseHash(promise)
+	if err != nil {
+		return PromiseCheckCache{}, err
+	}
+	return PromiseCheckCache{
+		Hash:     hash,
+		Signer:   sdk.AccAddress(promise.SignerPublicKey.Address()).String(),
+		Required: types.PaymentAmount(promise.BlobSize),
+	}, nil
+}
+
+// ValidatePaymentPromiseStatefulCached is ValidatePaymentPromiseStateful with env (loaded
+// from ctx's state), the promise's cache and an escrow lookup supplied by the caller.
+func (k Keeper) ValidatePaymentPromiseStatefulCached(ctx sdk.Context, promise *types.PaymentPromise, env PromiseCheckEnv, cache *PromiseCheckCache, escrow func(signer string) (types.EscrowAccount, bool)) (time.Time, error) {
+	if promise.ChainId != ctx.ChainID() {
+		return time.Time{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
+	}
+	return k.validatePromiseWithEnv(ctx, promise, false, env, cache, escrow)
+}
+
+// validatePromiseWithEnv runs the stateful promise check; a nil cache derives its values from promise.
+func (k Keeper) validatePromiseWithEnv(ctx sdk.Context, promise *types.PaymentPromise, isTimeout bool, env PromiseCheckEnv, cache *PromiseCheckCache, escrow func(signer string) (types.EscrowAccount, bool)) (time.Time, error) {
+	params := env.Params
 	currentTime := ctx.BlockTime()
 	creationTime := promise.CreationTimestamp
 
@@ -409,10 +466,7 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	// its record gone, nothing stops it from settling a second time. The floor only ever
 	// moves forward, so a larger withdrawal_delay can no longer reopen that gap (#7606).
 	minAllowedTime := currentTime.Add(-params.WithdrawalDelay)
-	floor, err := k.GetPromiseFreshnessFloor(ctx)
-	if err != nil {
-		return time.Time{}, err
-	}
+	floor := env.Floor
 	if floor.After(minAllowedTime) {
 		minAllowedTime = floor
 	}
@@ -452,20 +506,35 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	}
 
 	// Check if payment promise has already been processed
-	if isAlreadyProcessed := k.IsPaymentPromiseProcessed(ctx, promise); isAlreadyProcessed {
+	var isAlreadyProcessed bool
+	if cache != nil {
+		isAlreadyProcessed = k.IsPaymentProcessedByHash(ctx, cache.Hash)
+	} else {
+		isAlreadyProcessed = k.IsPaymentPromiseProcessed(ctx, promise)
+	}
+	if isAlreadyProcessed {
 		return time.Time{}, fmt.Errorf("payment promise has already been processed")
 	}
 
 	// Check escrow account exists
-	signerAddr := sdk.AccAddress(promise.SignerPublicKey.Address())
-	signerAddrStr := signerAddr.String()
-	escrowAccount, found := k.GetEscrowAccount(ctx, signerAddrStr)
+	var signerAddrStr string
+	if cache != nil {
+		signerAddrStr = cache.Signer
+	} else {
+		signerAddrStr = sdk.AccAddress(promise.SignerPublicKey.Address()).String()
+	}
+	escrowAccount, found := escrow(signerAddrStr)
 	if !found {
 		return time.Time{}, fmt.Errorf("escrow account not found for signer %v", signerAddrStr)
 	}
 
 	// Check sufficient balance (includes funds locked in pending withdrawals)
-	requiredAmount := types.PaymentAmount(promise.BlobSize)
+	var requiredAmount sdk.Coin
+	if cache != nil {
+		requiredAmount = cache.Required
+	} else {
+		requiredAmount = types.PaymentAmount(promise.BlobSize)
+	}
 
 	hasSufficientBalance := escrowAccount.Balance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {

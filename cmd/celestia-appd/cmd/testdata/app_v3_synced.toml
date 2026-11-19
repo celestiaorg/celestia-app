@@ -305,3 +305,12 @@ stop-node-on-err = true
 # Note, this configuration only applies to SDK built-in app-side mempool
 # implementations.
 max-txs = -1
+
+[fast-recheck]
+
+# Enable replays a mempool tx's recorded ante writes on recheck when nothing they read changed.
+enable = false
+
+# ShadowVerify keeps the stock recheck authoritative and only compares the replay with it, logging any
+# difference (observe only; overrides enable).
+shadow-verify = false
