@@ -8,7 +8,6 @@ import (
 	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v11/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -16,6 +15,12 @@ import (
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
 )
+
+// FibreKeeper is what the fibre decorators need from the fibre keeper.
+type FibreKeeper interface {
+	fibreante.FibreKeeper
+	fibreante.FibrePromiseKeeper
+}
 
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
@@ -28,7 +33,7 @@ func NewAnteHandler(
 	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
-	fibreKeeper *fibrekeeper.Keeper,
+	fibreKeeper FibreKeeper,
 	sigCache *sigcache.Cache,
 	sdkMessageCounter SDKMessageCounter,
 	pendingNextSequence PendingNextSequenceFn,
