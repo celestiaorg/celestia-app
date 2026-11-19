@@ -20,7 +20,16 @@ import (
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
+	app.checkStateDirty = true
+	return app.checkTx(req, app.checkDecoded)
+}
 
+// checkFunc runs BaseApp's check of req, decoded as sdkTx (nil: BaseApp decodes it), on check
+// state or on a parallel recheck worker's branch of it.
+type checkFunc func(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error)
+
+// checkTx is CheckTx with run in place of BaseApp's CheckTx, under app.checkStateMu.
+func (app *App) checkTx(req *abci.RequestCheckTx, run checkFunc) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -32,7 +41,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
 	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
 	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
-		return app.recheckPayForFibre(req)
+		return app.recheckPayForFibre(req, run)
 	}
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -44,7 +53,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	if isBlob {
-		return app.handleBlobCheckTx(req, btx)
+		return app.handleBlobCheckTx(req, btx, run)
 	}
 
 	sdkTx, err := app.checkTxDecoder()(tx)
@@ -85,7 +94,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	res, err := app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx, run)
 	if isPFF && req.Type == abci.CheckTxType_New && err == nil && res.Code == abci.CodeTypeOK {
 		app.recheckTxs.add(tx, sdkTx)
 	}
@@ -93,25 +102,27 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 // recheckPayForFibre rechecks a PayForFibre on the decode cached at admission.
-func (app *App) recheckPayForFibre(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+func (app *App) recheckPayForFibre(req *abci.RequestCheckTx, run checkFunc) (*abci.ResponseCheckTx, error) {
 	sdkTx, ok := app.recheckTxs.get(req.Tx)
 	if !ok {
-		return app.BaseApp.CheckTx(req)
+		return run(req, nil)
 	}
-	res, err := app.checkDecoded(req, sdkTx)
+	res, err := run(req, sdkTx)
 	if err != nil || res.Code != abci.CodeTypeOK {
 		app.recheckTxs.drop(req.Tx)
 	}
 	return res, err
 }
 
-// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx.
+// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx (nil: BaseApp decodes it).
 func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
-	defer app.txHandoff.lend(req.Tx, sdkTx)()
+	if sdkTx != nil {
+		defer app.txHandoff.lend(req.Tx, sdkTx)()
+	}
 	return app.BaseApp.CheckTx(req)
 }
 
-func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {
+func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx, run checkFunc) (*abci.ResponseCheckTx, error) {
 	baseReq := &abci.RequestCheckTx{Tx: btx.Tx, Type: req.GetType()}
 
 	// Decode before ValidateBlobTx, which decodes without a recover.
@@ -132,7 +143,7 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
-	res, err := app.forwardCheckTx(baseReq, sdkTx)
+	res, err := app.forwardCheckTx(baseReq, sdkTx, run)
 	if err != nil || res.Code != abci.CodeTypeOK {
 		return res, err
 	}
@@ -146,8 +157,8 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 	return res, nil
 }
 
-func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
-	res, err := app.checkDecoded(req, sdkTx)
+func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx, run checkFunc) (*abci.ResponseCheckTx, error) {
+	res, err := run(req, sdkTx)
 	if err != nil {
 		return res, err
 	}

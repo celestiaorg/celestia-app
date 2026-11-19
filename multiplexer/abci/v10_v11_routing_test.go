@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -37,10 +38,11 @@ func (s *v10UpgradeServer) Commit(context.Context, *abci.RequestCommit) (*abci.R
 	return &abci.ResponseCommit{}, nil
 }
 
-func TestV10BlocksUseEmbeddedAppUntilV11UpgradeCommits(t *testing.T) {
+// newV10Multiplexer returns a Multiplexer serving app version 10 from embedded, an
+// in-memory ABCI server, and later versions from native.
+func newV10Multiplexer(t *testing.T, embedded abci.ABCIServer, native servertypes.Application) *Multiplexer {
 	listener := bufconn.Listen(1 << 20)
 	server := grpc.NewServer()
-	embedded := &v10UpgradeServer{}
 	abci.RegisterABCIServer(server, embedded)
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(server.Stop)
@@ -52,11 +54,16 @@ func TestV10BlocksUseEmbeddedAppUntilV11UpgradeCommits(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, conn.Close()) })
 
 	v10 := Version{AppVersion: 10, ABCIVersion: ABCIClientVersion2, Appd: &appd.Appd{}}
-	native := &fakeApp{}
-	m := &Multiplexer{
+	return &Multiplexer{
 		logger: log.NewNopLogger(), versions: Versions{v10}, conn: conn,
 		activeVersion: v10, started: true, appVersion: 10, nextAppVersion: 10, nativeApp: native,
 	}
+}
+
+func TestV10BlocksUseEmbeddedAppUntilV11UpgradeCommits(t *testing.T) {
+	embedded := &v10UpgradeServer{}
+	native := &fakeApp{}
+	m := newV10Multiplexer(t, embedded, native)
 	resp, err := m.FinalizeBlock(t.Context(), &abci.RequestFinalizeBlock{Height: 100})
 	require.NoError(t, err)
 	require.Equal(t, []byte("embedded-v10"), resp.AppHash)

@@ -238,6 +238,11 @@ type App struct {
 	// checkStateMu guards checkState for CheckTx, Commit and the QuerySequence
 	// fallback. Simulate is guarded by the SDK fork's BaseApp.Simulate RLock.
 	checkStateMu *sync.RWMutex
+	// checkStateDirty is set by CheckTx and RecheckTxs and cleared by Commit: once checkState was
+	// written, a parallel recheck can no longer read the committed stores in its place. Guarded by checkStateMu.
+	checkStateDirty bool
+	// beforeRecheckMerge, set by tests, makes a parallel recheck fall back if it returns an error.
+	beforeRecheckMerge func() error
 	// pendingSequencer is the in-process CAT mempool; unset when out of process.
 	pendingSequencer *atomic.Pointer[mempool.PendingSequencer]
 	// committedCtx reads the last committed state; Commit replaces it.
@@ -1062,6 +1067,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	defer app.checkStateMu.Unlock()
 	app.recheckTxs.sweep()
 	res, err := app.BaseApp.Commit()
+	app.checkStateDirty = err != nil // a failed Commit may leave checkState as it was
 	app.storeCommittedContext()
 	return res, err
 }
