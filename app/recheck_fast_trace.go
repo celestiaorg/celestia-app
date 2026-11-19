@@ -254,6 +254,11 @@ type depSet struct {
 	lastKey   string
 }
 
+// stale reports whether a block wrote one of rec's dependencies after it was recorded.
+func (f *fastRecheck) stale(rec *fastRecord) bool {
+	return f.lastBlockWrite(rec.deps) > rec.recordedAt
+}
+
 // lastBlockWrite returns the latest commit counter at which a block wrote one
 // of ds's keys, computed once per commit.
 func (f *fastRecheck) lastBlockWrite(ds *depSet) uint64 {
