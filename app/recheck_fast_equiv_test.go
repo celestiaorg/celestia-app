@@ -620,6 +620,7 @@ func TestFastRecheckEquivalence(t *testing.T) {
 			e := newEqEnv(t, seed, 16, false)
 			defer e.full.Close()
 			defer e.fast.Close()
+			e.enableBatch(false) // per-tx rounds keep the gas bound; batch rounds compare state
 			e.runEq(rounds)
 			total := 0
 			for _, p := range e.pool {
@@ -708,6 +709,7 @@ func TestFastRecheckForcedBump(t *testing.T) {
 	defer e.full.Close()
 	defer e.fast.Close()
 	e.fast.SetFastRecheckForceBump(3)
+	e.enableBatch(false)
 	var allMiss int
 	for round := range 12 {
 		e.addNewTxs(20)
