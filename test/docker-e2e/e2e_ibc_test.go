@@ -221,7 +221,12 @@ func (s *IBCTestSuite) TestIBC() {
 
 	t.Run("new_connection_and_channel", func(t *testing.T) {
 		t.Logf("Creating new connection and channel after upgrade")
+		// The running relayer signs with the same chain-b key as the hermes CLI, so stop it
+		// and let its in-flight acks commit before the CLI reads the account sequence.
+		s.Require().NoError(s.hermes.Stop(ctx), "failed to stop hermes relayer")
+		s.Require().NoError(wait.ForBlocks(ctx, 2, s.chainB), "failed to wait for chain-b blocks")
 		_, channel = s.establishIBCConnection(ctx)
+		s.Require().NoError(s.hermes.Start(ctx), "failed to restart hermes relayer")
 	})
 
 	t.Run("new_channel_transfers_celestia_to_simapp", func(t *testing.T) {
