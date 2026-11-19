@@ -501,7 +501,12 @@ func (fx *hyperlaneFuzzFixture) requireAccepted(t *testing.T, ctx sdk.Context, c
 	payload, err := warptypes.ParseWarpPayload(in.body)
 	require.NoError(t, err)
 	amount := math.NewIntFromBigInt(payload.Amount())
-	sub := func(a string) string { v, _ := math.NewIntFromString(a); return v.Sub(amount).String() }
+	sub := func(a string) string {
+		v, _ := math.NewIntFromString(a)
+		v = v.Sub(amount)
+		require.False(t, v.IsNegative(), "released more utia than the token holds")
+		return v.String()
+	}
 	add := func(a string) string { v, _ := math.NewIntFromString(a); return v.Add(amount).String() }
 
 	want := fx.base
