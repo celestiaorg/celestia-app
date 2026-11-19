@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	curveN = dcrsecp.S256().N
-	curveP = dcrsecp.S256().P
+	curveN = dcrsecp.Params().N
+	curveP = dcrsecp.Params().P
 )
 
 // vector is one verification input; accept, when set, is decred's expected verdict.

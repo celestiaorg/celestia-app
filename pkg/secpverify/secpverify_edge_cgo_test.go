@@ -134,7 +134,7 @@ func TestVerifyNilKeyMatchesDecred(t *testing.T) {
 
 type ecPoint struct{ x, y *big.Int }
 
-func dcrG() ecPoint { c := dcrsecp.S256().Params(); return ecPoint{c.Gx, c.Gy} }
+func dcrG() ecPoint { c := dcrsecp.Params(); return ecPoint{c.Gx, c.Gy} }
 
 func ecPointFrom(compressed []byte) ecPoint {
 	R, ok := liftX(new(big.Int).SetBytes(compressed[1:]), compressed[0] == 0x03)
