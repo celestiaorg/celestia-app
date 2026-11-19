@@ -20,7 +20,11 @@ import (
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
+	return app.checkTxLocked(req)
+}
 
+// checkTxLocked is CheckTx under app.checkStateMu.
+func (app *App) checkTxLocked(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	if f := app.fastRecheck; f != nil && req.Type == abci.CheckTxType_Recheck {
 		if f.shadow != nil {
 			return f.shadowRecheck(req)

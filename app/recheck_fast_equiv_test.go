@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -39,9 +40,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The equivalence test drives a full-recheck app and a fast-recheck app through the same
-// blocks and mempool traffic; after every recheck both must agree on every verdict and
-// hold byte-identical checkState.
+// The equivalence test drives a full-recheck app and a second app through the same blocks and
+// mempool traffic; after every recheck both agree on every verdict and hold byte-identical
+// checkState. With batch set, the second app rechecks some rounds with RecheckTxs.
 
 type eqPoolTx struct {
 	raw     []byte
@@ -66,25 +67,33 @@ type eqEnv struct {
 	pool      map[int][]eqPoolTx
 	gasSeen   map[string]int64
 	inWindow  bool
+	// batch rechecks the fast app with RecheckTxs in about half the rounds; exact (no fast
+	// recheck) in every round, also requiring equal GasUsed, signer fields and events.
+	batch, exact bool
 
 	hits, misses, exactGas, boundedGas int
 	maxGasPerByte                      float64
 	missReasons                        map[string]uint64
 }
 
-// newEqApp builds an app from genesis, with fast recheck or shadow mode if set.
-func newEqApp(fast, shadow bool, cparams *cmtproto.ConsensusParams, genesis app.GenesisState) *app.App {
-	opts := simtestutil.AppOptionsMap{app.FlagFastRecheck: fast, app.FlagFastRecheckShadowVerify: shadow}
+// newEqApp builds an app from genesis with opts.
+func newEqApp(opts simtestutil.AppOptionsMap, cparams *cmtproto.ConsensusParams, genesis app.GenesisState) *app.App {
 	a := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0, opts, baseapp.SetChainID(testutil.ChainID))
 	return testutil.InitialiseTestAppWithGenesis(a, cparams, genesis)
 }
 
 func newEqEnv(t *testing.T, seed int64, nAccounts int, shadow bool) *eqEnv {
+	return newEqEnvWith(t, seed, nAccounts, simtestutil.AppOptionsMap{app.FlagFastRecheck: !shadow, app.FlagFastRecheckShadowVerify: shadow})
+}
+
+// newEqEnvWith compares a stock app with one built with opts (held in e.fast).
+func newEqEnvWith(t *testing.T, seed int64, nAccounts int, opts simtestutil.AppOptionsMap) *eqEnv {
 	accounts := testfactory.GenerateAccounts(nAccounts)
 	cparams := app.DefaultConsensusParams()
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
-	full := newEqApp(false, false, cparams, genesis)
-	fast := newEqApp(!shadow, shadow, cparams, genesis)
+	full := newEqApp(simtestutil.AppOptionsMap{}, cparams, genesis)
+	fast := newEqApp(opts, cparams, genesis)
+	shadow, _ := opts[app.FlagFastRecheckShadowVerify].(bool)
 	for _, a := range []*app.App{full, fast} {
 		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
 			Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash(),
@@ -142,6 +151,11 @@ func newEqEnv(t *testing.T, seed int64, nAccounts int, shadow bool) *eqEnv {
 	})
 	e.commit(nil)
 	return e
+}
+
+// enableBatch rechecks e.fast with RecheckTxs (see eqEnv.batch).
+func (e *eqEnv) enableBatch(exact bool) {
+	e.batch, e.exact = true, exact
 }
 
 // both applies a direct state write to both apps' committed stores, as if the
@@ -451,6 +465,10 @@ func (e *eqEnv) removeIncluded(txs [][]byte) {
 }
 
 func (e *eqEnv) recheck() {
+	if e.batch && (e.exact || e.rng.Intn(2) == 0) {
+		e.recheckBatch()
+		return
+	}
 	order := e.rng.Perm(len(e.names))
 	for _, i := range order {
 		var keep []eqPoolTx
@@ -501,6 +519,63 @@ func (e *eqEnv) recheck() {
 		}
 		e.pool[i] = keep
 	}
+	e.addStats()
+}
+
+// recheckBatch rechecks the pool per tx on the full app and with RecheckTxs (sometimes
+// split in two calls) on the other, then compares every response.
+func (e *eqEnv) recheckBatch() {
+	var txs [][]byte
+	var ptxs []eqPoolTx
+	var owner []int
+	for _, i := range e.rng.Perm(len(e.names)) {
+		for _, ptx := range e.pool[i] {
+			txs, ptxs, owner = append(txs, ptx.raw), append(ptxs, ptx), append(owner, i)
+		}
+	}
+	got := make([]*abci.ResponseCheckTx, 0, len(txs))
+	split := 0
+	if e.rng.Intn(4) == 0 {
+		split = len(txs) / 2
+	}
+	for _, part := range [][][]byte{txs[:split], txs[split:]} {
+		rsp, err := e.fast.RecheckTxs(context.Background(), &abci.RequestRecheckTxs{Txs: part})
+		require.NoError(e.t, err)
+		require.Len(e.t, rsp.Responses, len(part))
+		got = append(got, rsp.Responses...)
+	}
+	keep := map[int][]eqPoolTx{}
+	for k, raw := range txs {
+		rA, rB := e.checkTx(e.full, raw, abci.CheckTxType_Recheck), got[k]
+		require.NotNil(e.t, rB, "tx %d: no batch response", k)
+		if e.shadow {
+			require.Equal(e.t, rA, rB, "shadow changed a batch recheck response")
+		}
+		require.Equal(e.t, rA.Code, rB.Code, "tx %d recheck code diverged: full=%q batch=%q", k, rA.Log, rB.Log)
+		require.Equal(e.t, rA.Codespace, rB.Codespace)
+		require.Equal(e.t, rA.GasWanted, rB.GasWanted)
+		require.Equal(e.t, rA.Priority, rB.Priority)
+		require.Equal(e.t, len(rA.Data), len(rB.Data))
+		require.Equal(e.t, rA.Info, rB.Info)
+		require.Equal(e.t, rA.Log, rB.Log)
+		if e.exact {
+			if rA.Code == abci.CodeTypeOK {
+				require.Equal(e.t, rA.GasUsed, rB.GasUsed, "tx %d GasUsed", k)
+			}
+			require.Equal(e.t, rA.Address, rB.Address)
+			require.Equal(e.t, rA.Sequence, rB.Sequence)
+			require.Equal(e.t, rA.Events, rB.Events)
+		}
+		if rA.Code == abci.CodeTypeOK {
+			keep[owner[k]] = append(keep[owner[k]], ptxs[k])
+		}
+	}
+	e.pool = keep
+	e.addStats()
+}
+
+// addStats adds the fast app's fast recheck counts since the last Commit.
+func (e *eqEnv) addStats() {
 	hits, misses, reasons := e.fast.FastRecheckStats()
 	e.hits += int(hits)
 	e.misses += int(misses)
@@ -545,6 +620,7 @@ func TestFastRecheckEquivalence(t *testing.T) {
 			e := newEqEnv(t, seed, 16, false)
 			defer e.full.Close()
 			defer e.fast.Close()
+			e.enableBatch(false) // per-tx rounds keep the gas bound; batch rounds compare state
 			e.runEq(rounds)
 			total := 0
 			for _, p := range e.pool {
@@ -594,6 +670,7 @@ func TestFastRecheckShadowEquivalence(t *testing.T) {
 			e := newEqEnv(t, seed, 16, true)
 			defer e.full.Close()
 			defer e.fast.Close()
+			e.enableBatch(true) // RecheckTxs must also return stock's exact responses
 			e.runEq(rounds)
 			hits, mismatches := e.fast.FastRecheckShadowStats()
 			t.Logf("seed %d: shadow hits=%d mismatches=%d", seed, hits, mismatches)
@@ -632,6 +709,7 @@ func TestFastRecheckForcedBump(t *testing.T) {
 	defer e.full.Close()
 	defer e.fast.Close()
 	e.fast.SetFastRecheckForceBump(3)
+	e.enableBatch(false)
 	var allMiss int
 	for round := range 12 {
 		e.addNewTxs(20)
