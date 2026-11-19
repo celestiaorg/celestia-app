@@ -37,7 +37,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 		replayed
 		escrowDrained
 		timeoutHeight
-		neverAdmitted
+		plainSender
 		numAccounts
 	)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -92,7 +92,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 		pff(replayed, now), pff(replayed, now), // one promise in two envelopes
 		pff(escrowDrained, now),
 		pff(timeoutHeight, now, user.SetTimeoutHeight(uint64(lite.LastBlockHeight()+3))),
-		pff(neverAdmitted, now),
+		pff(plainSender, now),
 	}
 	staleTx, replayTx := pending[1], pending[5]
 	settledOriginal := pending[4]
@@ -115,17 +115,18 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 	}
 	require.False(t, lite.RecheckTxCached(pending[len(pending)-1]))
 
-	// Only admitted PayForFibres are kept: not a rejected one, nor another type.
+	// Only admitted txs are kept, of any type: not a rejected one.
 	rejected := pff(control, now, user.SetFee(1))
-	plain := sendTx(neverAdmitted, 1)
+	plain := sendTx(plainSender, 1)
 	for _, raw := range [][]byte{rejected, plain} {
 		resLite, err := lite.CheckTx(&abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		resRef, err := ref.CheckTx(&abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		require.Equal(t, resRef, resLite)
-		require.False(t, lite.RecheckTxCached(raw))
 	}
+	require.False(t, lite.RecheckTxCached(rejected))
+	require.True(t, lite.RecheckTxCached(plain))
 	require.NotEqual(t, abci.CodeTypeOK, code(rejected))
 
 	recheckAll := func(phase string) {
@@ -133,6 +134,8 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 			req := &abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_Recheck}
 			resLite, errLite := lite.CheckTx(req)
 			resRef, errRef := ref.BaseApp.CheckTx(req)
+			// A recheck that misses the cache runs the wrapper, which also sets the signer.
+			resLite.Address, resLite.Sequence = nil, 0
 			require.Equal(t, errRef, errLite, "%s: tx %d", phase, i)
 			require.Equal(t, resRef, resLite, "%s: tx %d", phase, i)
 		}
@@ -141,6 +144,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 
 	both(func(a *app.App) { commitAt(t, a, now.Add(time.Second)) })
 	recheckAll("unchanged state")
+	require.True(t, lite.RecheckTxCached(pending[len(pending)-1]), "a passing recheck miss is kept")
 
 	// A block settles one envelope of the replayed promise and bumps staleSeq;
 	// feeDrained spends its balance and escrowDrained's escrow is emptied.
