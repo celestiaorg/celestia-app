@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sync"
 	"sync/atomic"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -39,8 +40,9 @@ func (h *txHandoff) decoder(base sdk.TxDecoder) sdk.TxDecoder {
 }
 
 // recheckTxCache keeps the decode of each admitted PayForFibre tx, keyed by its
-// raw bytes, for the rechecks of those bytes. Callers hold checkStateMu.
+// raw bytes, for the rechecks of those bytes. Parallel recheck workers share it.
 type recheckTxCache struct {
+	mu         sync.Mutex
 	entries    map[string]*recheckTxEntry
 	maxEntries int
 	// maxBytes bounds the raw bytes kept (each held twice, as key and decode),
@@ -70,6 +72,8 @@ func newRecheckTxCache(maxEntries int) *recheckTxCache {
 
 // add records tx, the decode of raw, once raw passed CheckTx.
 func (c *recheckTxCache) add(raw []byte, tx sdk.Tx) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if e, ok := c.entries[string(raw)]; ok {
 		e.used = c.commits
 		return
@@ -81,6 +85,8 @@ func (c *recheckTxCache) add(raw []byte, tx sdk.Tx) {
 }
 
 func (c *recheckTxCache) get(raw []byte) (sdk.Tx, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	e, ok := c.entries[string(raw)]
 	if !ok {
 		return nil, false
@@ -91,6 +97,8 @@ func (c *recheckTxCache) get(raw []byte) (sdk.Tx, bool) {
 
 // drop removes raw's entry; a failed recheck evicts the tx from the mempool.
 func (c *recheckTxCache) drop(raw []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if _, ok := c.entries[string(raw)]; ok {
 		delete(c.entries, string(raw))
 		c.bytes -= len(raw)
@@ -99,6 +107,8 @@ func (c *recheckTxCache) drop(raw []byte) {
 
 // sweep runs at Commit and drops the entries no CheckTx used since the last one.
 func (c *recheckTxCache) sweep() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for k, e := range c.entries {
 		if e.used < c.commits {
 			delete(c.entries, k)

@@ -251,6 +251,22 @@ func (m *Multiplexer) QuerySequence(ctx context.Context, req *abci.RequestQueryS
 	return app.QuerySequence(ctx, req)
 }
 
+var _ abci.RecheckTxsApplication = (*Multiplexer)(nil)
+
+// RecheckTxs forwards a batch recheck to the native app. An embedded app runs out of
+// process and cannot take one, so core then rechecks one tx at a time.
+func (m *Multiplexer) RecheckTxs(ctx context.Context, req *abci.RequestRecheckTxs) (*abci.ResponseRecheckTxs, error) {
+	app, err := m.getApp()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+	}
+	b, ok := app.(abci.RecheckTxsApplication)
+	if !ok {
+		return nil, abci.ErrRecheckTxsUnsupported
+	}
+	return b.RecheckTxs(ctx, req)
+}
+
 // previousAppInfoTimeout bounds the Info call to the previous app in Commit,
 // so a dead embedded app whose connection is still open cannot block Commit.
 var previousAppInfoTimeout = 5 * time.Second
