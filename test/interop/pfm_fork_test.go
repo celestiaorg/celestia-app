@@ -15,7 +15,7 @@ import (
 
 // pfmFixedErrorAck is the error acknowledgement that celestia-app commits for
 // every packet-forward-middleware error.
-const pfmFixedErrorAck = `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
+const pfmFixedErrorAck = `{"error":"packet-forward-middleware error: forward failed"}`
 
 // TestForwardedMemoIsNextAsSent verifies that Celestia forwards the "next"
 // memo with the bytes the sender chose. Upstream packet-forward-middleware

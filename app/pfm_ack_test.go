@@ -32,7 +32,7 @@ func TestPFMErrorAckIsFixed(t *testing.T) {
 	}
 
 	// The pinned bytes are part of consensus: ibc-go commits their hash.
-	want := `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
+	want := `{"error":"packet-forward-middleware error: forward failed"}`
 	for name, memo := range memos {
 		t.Run(name, func(t *testing.T) {
 			data, err := json.Marshal(ibctransfertypes.FungibleTokenPacketData{
