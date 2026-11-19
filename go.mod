@@ -21,13 +21,13 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/aws/aws-sdk-go-v2 v1.47.8
-	github.com/aws/aws-sdk-go-v2/config v1.33.16
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.16
+	github.com/aws/aws-sdk-go-v2 v1.48.0
+	github.com/aws/aws-sdk-go-v2/config v1.33.18
+	github.com/aws/aws-sdk-go-v2/credentials v1.21.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.5.5
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.344.2
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.9
-	github.com/aws/smithy-go v1.28.8
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
+	github.com/aws/smithy-go v1.28.9
 	github.com/bcp-innovations/hyperlane-cosmos v1.2.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
@@ -60,7 +60,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3
 	github.com/grafana/otel-profiling-go v0.7.0
-	github.com/grafana/pyroscope-go v1.4.3
+	github.com/grafana/pyroscope-go v1.5.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.7.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -87,12 +87,12 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	go.opentelemetry.io/proto/otlp v1.11.1
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.59.0
 	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
-	golang.org/x/term v0.47.0
+	golang.org/x/term v0.48.0
 	google.golang.org/api v0.311.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e
@@ -153,19 +153,19 @@ require (
 	github.com/ashanbrown/forbidigo/v2 v2.3.0 // indirect
 	github.com/ashanbrown/makezero/v2 v2.1.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.26 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.8 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.11 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.11 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.24 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.12.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.39.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.51.9 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.27 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.12 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.12 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.13.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.39.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.52.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -286,7 +286,7 @@ require (
 	github.com/gostaticanalysis/comment v1.5.0 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.2.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.2 // indirect
-	github.com/grafana/pyroscope-go/godeltaprof v0.1.11 // indirect
+	github.com/grafana/pyroscope-go/godeltaprof v0.1.12 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
@@ -441,9 +441,9 @@ require (
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/exp/typeparams v0.0.0-20251125195548-87e1e737ad39 // indirect
 	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	golang.org/x/tools v0.51.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	google.golang.org/genproto v0.0.0-20261012220534-4341edf3f941 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
@@ -471,7 +471,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.4
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc0
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc1
 	// Pin to the celestia fork of cosmos-db for a configurable pebble block cache.
 	github.com/cosmos/cosmos-db => github.com/celestiaorg/cosmos-db v1.1.3-celestia.1
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.6
