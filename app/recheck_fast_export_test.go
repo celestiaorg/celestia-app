@@ -48,5 +48,8 @@ func (app *App) KVStoreKeyNames() []string {
 // SetRecheckForceParallel makes RecheckTxs run in parallel even when the fast path predicts few misses.
 func (app *App) SetRecheckForceParallel() { app.recheckForceParallel = true }
 
+// SetRecheckFailParallel runs fn after each parallel pass's workers and checks, failing the pass if fn errs.
+func (app *App) SetRecheckFailParallel(fn func() error) { app.recheckFailParallel = fn }
+
 // ParallelRechecks is the number of RecheckTxs batches merged from parallel branches.
 func (app *App) ParallelRechecks() uint64 { return app.parallelRechecks }

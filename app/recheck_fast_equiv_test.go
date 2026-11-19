@@ -559,7 +559,7 @@ func (e *eqEnv) recheckBatch() {
 		require.Equal(e.t, rA.GasWanted, rB.GasWanted)
 		require.Equal(e.t, rA.Priority, rB.Priority)
 		// A failure's GasUsed (and an out-of-gas log) may count the fee collector at its branch value.
-		if !(rA.Codespace == sdkerrors.RootCodespace && rA.Code == sdkerrors.ErrOutOfGas.ABCICode()) {
+		if rA.Codespace != sdkerrors.RootCodespace || rA.Code != sdkerrors.ErrOutOfGas.ABCICode() {
 			require.Equal(e.t, rA.Log, rB.Log)
 		}
 		if e.exact {

@@ -232,6 +232,8 @@ type App struct {
 	recheckWorkers int
 	// recheckForceParallel skips the fast-hit prediction that picks a sequential recheck (tests).
 	recheckForceParallel bool
+	// recheckFailParallel, if set, can fail a parallel pass just before its merge (tests).
+	recheckFailParallel func() error
 	// parallelRechecks counts the RecheckTxs batches merged from parallel branches.
 	parallelRechecks uint64
 	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their

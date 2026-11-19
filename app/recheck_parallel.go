@@ -218,6 +218,11 @@ func (app *App) runParallel(ps []*parallelTx, groups [][]int, workers int) ([]*a
 	if err != nil {
 		return nil, err
 	}
+	if app.recheckFailParallel != nil {
+		if err := app.recheckFailParallel(); err != nil {
+			return nil, err
+		}
+	}
 	exec.Merge(merged)
 	resps := make([]*abci.ResponseCheckTx, len(ps))
 	for i, p := range ps {
@@ -400,7 +405,20 @@ func mergeFeeCollector(exec *baseapp.RecheckExecutor, ps []*parallelTx, groups [
 	if len(bases) == 0 {
 		return nil, nil
 	}
+	seq, err := correctFeeCollectorGas(ps, groups, bases, gasCfg)
+	if err != nil {
+		return nil, err
+	}
+	merged, err := mergedFeeCollectorBalances(adds[bankKey], bases, seq)
+	if err != nil {
+		return nil, err
+	}
+	return map[storetypes.StoreKey]map[string][]byte{bankKey: merged}, nil
+}
 
+// correctFeeCollectorGas walks ps in order, applying each passing tx's fee to the sequential
+// and per-group fee collector balances, and returns the sequential balances.
+func correctFeeCollectorGas(ps []*parallelTx, groups [][]int, bases map[string]math.Int, gasCfg storetypes.GasConfig) (map[string]math.Int, error) {
 	groupOf := make([]int, len(ps))
 	for gi, g := range groups {
 		for _, i := range g {
@@ -454,10 +472,14 @@ func mergeFeeCollector(exec *baseapp.RecheckExecutor, ps []*parallelTx, groups [
 			r.GasUsed += delta
 		}
 	}
+	return seq, nil
+}
 
-	// Cross-check: base plus every group's credits must equal base plus the passing txs' fees.
+// mergedFeeCollectorBalances sums the groups' final balances per denom, cross-checked
+// against base plus the passing txs' fees (seq), and encodes them.
+func mergedFeeCollectorBalances(adds map[string]baseapp.AdditiveWrite, bases, seq map[string]math.Int) (map[string][]byte, error) {
 	merged := make(map[string][]byte)
-	for key, aw := range adds[bankKey] {
+	for key, aw := range adds {
 		denom := key[len(feeCollectorBalancePrefix):]
 		base := bases[denom]
 		total := base
@@ -481,5 +503,5 @@ func mergeFeeCollector(exec *baseapp.RecheckExecutor, ps []*parallelTx, groups [
 		}
 		merged[key] = b
 	}
-	return map[storetypes.StoreKey]map[string][]byte{bankKey: merged}, nil
+	return merged, nil
 }
