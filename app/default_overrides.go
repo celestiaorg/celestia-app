@@ -293,6 +293,18 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	return cfg
 }
 
+// AppConfigTemplate is the SDK's app.toml template plus the app's own settings.
+var AppConfigTemplate = serverconfig.DefaultConfigTemplate + `
+###############################################################################
+###                           Fast Recheck                                  ###
+###############################################################################
+
+[fast-recheck]
+
+# Enable replays a mempool tx's recorded ante writes on recheck when every value they read is unchanged.
+enable = false
+`
+
 func DefaultAppConfig() *serverconfig.Config {
 	cfg := serverconfig.DefaultConfig()
 	cfg.API.Enable = false

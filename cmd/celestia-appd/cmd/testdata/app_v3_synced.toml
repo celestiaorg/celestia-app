@@ -305,3 +305,8 @@ stop-node-on-err = true
 # Note, this configuration only applies to SDK built-in app-side mempool
 # implementations.
 max-txs = -1
+
+[fast-recheck]
+
+# Enable replays a mempool tx's recorded ante writes on recheck when every value they read is unchanged.
+enable = false

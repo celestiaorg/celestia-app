@@ -226,6 +226,8 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
+	// fastRecheck replays eligible rechecks from records; nil unless FlagFastRecheck is set.
+	fastRecheck *fastRecheck
 	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
 	// rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
@@ -610,6 +612,10 @@ func newApp(
 	app.SetPrepareProposal(app.PrepareProposalHandler)
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
+	if cast.ToBool(appOpts.Get(FlagFastRecheck)) {
+		// A record outlives its tx by up to one Commit: room for two mempools.
+		app.fastRecheck = newFastRecheck(app, 2*maxTxs)
+	}
 	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -811,7 +817,11 @@ func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 // newAnteHandler returns the ante handler that validates transactions,
 // including in PrepareProposal and ProcessProposal.
 func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
-	return ante.NewAnteHandler(
+	var fibreKeeper ante.FibreKeeper = app.FibreKeeper
+	if app.fastRecheck != nil {
+		fibreKeeper = untracedPromises{Keeper: app.FibreKeeper, f: app.fastRecheck}
+	}
+	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
@@ -822,11 +832,15 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
-		app.FibreKeeper,
+		fibreKeeper,
 		app.sigCache,
 		app.CountSDKMessages,
 		app.pendingNextSequence,
 	)
+	if app.fastRecheck != nil {
+		return app.wrapAnte(handler)
+	}
+	return handler
 }
 
 // CountSDKMessages returns how many messages msgs execute, counting the
@@ -1061,6 +1075,9 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 	app.recheckTxs.sweep()
+	if app.fastRecheck != nil {
+		app.fastRecheck.commit()
+	}
 	res, err := app.BaseApp.Commit()
 	app.storeCommittedContext()
 	return res, err
