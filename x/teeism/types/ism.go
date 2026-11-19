@@ -1,0 +1,219 @@
+package types
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"fmt"
+)
+
+// The byte formats in this file are not ours to choose independently: the enclave
+// encodes them in Rust and this module decodes them in Go, so a single byte of
+// drift rejects every attestation the bridge submits. They are pinned by golden
+// tests against vectors produced by the Rust encoder.
+
+const (
+	// IsmStateBytes is the exact length of an encoded ISM state.
+	//
+	// Only the first 32 bytes have a meaning imposed from outside: Hyperlane
+	// treats them as the origin state root. Everything past the root is ours to
+	// define, which is where the light client commitment and the enclave
+	// identity digest live.
+	IsmStateBytes = 116
+
+	// MinStateBytes is the minimum size of a trusted ism state.
+	MinStateBytes = 32
+	// MaxStateBytes is the maximum size of a trusted ism state (2 KiB).
+	MaxStateBytes = 2048
+
+	offOriginDomain   = 32
+	offHeight         = 36
+	offTimestamp      = 44
+	offLcStoreCommit  = 52
+	offIdentityDigest = 84
+
+	// AttestedUpdateBytes is the exact length of an attested update: two states,
+	// a 32-byte tree address, an 8-byte timestamp, a 32-byte tree root and a
+	// 4-byte leaf count. Nothing in it grows with traffic.
+	AttestedUpdateBytes = 2*IsmStateBytes + 32 + 8 + 32 + 4
+)
+
+// IsmState is the trusted state an ISM carries between attestations.
+//
+// All integer fields are big-endian.
+type IsmState struct {
+	// StateRoot is the origin app hash (Celestia) or execution state root (EVM).
+	StateRoot [32]byte
+	// OriginDomain is the Hyperlane domain of the origin chain. Fixed at ISM
+	// creation and carried unchanged forever, which is what stops an attestation
+	// for one origin being replayed into an ISM built for another.
+	OriginDomain uint32
+	// Height is the origin block height, or execution block number.
+	Height uint64
+	// Timestamp is the origin head time in seconds, non-decreasing across the
+	// state chain.
+	Timestamp uint64
+	// LcStoreCommit is a sha256 commitment to the light client store the enclave
+	// was handed. The destination chain is the light client's authenticated
+	// database, which is what lets the enclave stay stateless.
+	LcStoreCommit [32]byte
+	// IdentityDigest names which enclave may advance this ISM.
+	IdentityDigest [32]byte
+}
+
+// EncodeIsmState serializes a state to its canonical 116-byte form.
+func EncodeIsmState(s *IsmState) []byte {
+	out := make([]byte, IsmStateBytes)
+	copy(out[:offOriginDomain], s.StateRoot[:])
+	binary.BigEndian.PutUint32(out[offOriginDomain:offHeight], s.OriginDomain)
+	binary.BigEndian.PutUint64(out[offHeight:offTimestamp], s.Height)
+	binary.BigEndian.PutUint64(out[offTimestamp:offLcStoreCommit], s.Timestamp)
+	copy(out[offLcStoreCommit:offIdentityDigest], s.LcStoreCommit[:])
+	copy(out[offIdentityDigest:], s.IdentityDigest[:])
+	return out
+}
+
+// DecodeIsmState parses a canonical state, rejecting any other length.
+func DecodeIsmState(b []byte) (*IsmState, error) {
+	if len(b) != IsmStateBytes {
+		return nil, fmt.Errorf("ism state must be %d bytes, got %d", IsmStateBytes, len(b))
+	}
+	s := &IsmState{
+		OriginDomain: binary.BigEndian.Uint32(b[offOriginDomain:offHeight]),
+		Height:       binary.BigEndian.Uint64(b[offHeight:offTimestamp]),
+		Timestamp:    binary.BigEndian.Uint64(b[offTimestamp:offLcStoreCommit]),
+	}
+	copy(s.StateRoot[:], b[:offOriginDomain])
+	copy(s.LcStoreCommit[:], b[offLcStoreCommit:offIdentityDigest])
+	copy(s.IdentityDigest[:], b[offIdentityDigest:])
+	return s, nil
+}
+
+// VerifyTransition enforces the rules every attested transition must satisfy.
+//
+// These are deliberately checked on-chain rather than taken on the enclave's
+// word. The enclave checks them too, but an ISM that trusts its enclave to be
+// correct as well as honest has no defence against an enclave bug.
+func VerifyTransition(prev, next *IsmState) error {
+	if prev.OriginDomain != next.OriginDomain {
+		return ErrInvalidTransition.Wrapf("origin domain changed from %d to %d; an ism is pinned to one origin for life",
+			prev.OriginDomain, next.OriginDomain)
+	}
+	if next.Height <= prev.Height {
+		return ErrInvalidTransition.Wrapf("height did not advance: %d to %d", prev.Height, next.Height)
+	}
+	if next.Timestamp < prev.Timestamp {
+		return ErrInvalidTransition.Wrapf("timestamp moved backwards: %d to %d", prev.Timestamp, next.Timestamp)
+	}
+	if next.StateRoot == prev.StateRoot {
+		return ErrInvalidTransition.Wrap("state root unchanged")
+	}
+	if next.IdentityDigest != prev.IdentityDigest {
+		return ErrInvalidTransition.Wrap("enclave identity changed")
+	}
+	return nil
+}
+
+// EmptyBatchMinIntervalSecs is how far an attestation that brings no new leaves must move the
+// origin's verified clock. Such an attestation keeps a quiet route's trusted height close to
+// its origin's head, so the next proof starts from recent state. The interval bounds how often
+// anyone, using the public enclave, can advance the ISM with nothing in it, which would
+// otherwise let them keep invalidating the relayer's attestations in flight. The relayer sends
+// one a day.
+const EmptyBatchMinIntervalSecs = 30 * 60
+
+// VerifyBatchCadence refuses an attestation whose tree root is the one the ISM already holds
+// unless it advances the origin's clock by at least EmptyBatchMinIntervalSecs. An attestation
+// that brings a new root is never held back.
+func VerifyBatchCadence(prev, next *IsmState, rootChanged bool) error {
+	if rootChanged {
+		return nil
+	}
+	if next.Timestamp < prev.Timestamp+EmptyBatchMinIntervalSecs {
+		return ErrInvalidTransition.Wrapf("an attestation with no new leaves must advance the origin clock by at least %ds, this one advances it by %ds",
+			EmptyBatchMinIntervalSecs, next.Timestamp-prev.Timestamp)
+	}
+	return nil
+}
+
+// AttestedUpdate is the single payload an enclave hashes into a quote's
+// report_data.
+//
+// One attestation covers the state transition and the origin tree it vouches
+// for. Messages are not named: each one proves itself at delivery with a merkle
+// branch against an attested TreeRoot, so an origin block of any size is one
+// attestation and nothing here grows with traffic.
+type AttestedUpdate struct {
+	PrevState *IsmState
+	NewState  *IsmState
+	// MerkleTreeAddress is the origin merkle tree hook, left-padded to 32 bytes
+	// for EVM addresses.
+	MerkleTreeAddress [32]byte
+	// AttestedAt is the newest chain time the enclave actually verified.
+	//
+	// Not the same thing as NewState.Timestamp. An optimistic rollup's confirmed
+	// head is old by design, because that lag is the fraud proof window, so
+	// bounding the submitter's clock against it would reject every honest proof.
+	AttestedAt uint64
+	// TreeRoot is the hook's incremental merkle root at NewState, which the
+	// enclave proved out of the hook's storage under NewState's root.
+	TreeRoot [32]byte
+	// TreeCount is the hook's leaf count at TreeRoot.
+	TreeCount uint32
+}
+
+// EncodeAttestedUpdate serializes an update to the form the enclave hashed.
+func EncodeAttestedUpdate(u *AttestedUpdate) []byte {
+	out := make([]byte, 0, AttestedUpdateBytes)
+	out = append(out, EncodeIsmState(u.PrevState)...)
+	out = append(out, EncodeIsmState(u.NewState)...)
+	out = append(out, u.MerkleTreeAddress[:]...)
+	out = binary.BigEndian.AppendUint64(out, u.AttestedAt)
+	out = append(out, u.TreeRoot[:]...)
+	out = binary.BigEndian.AppendUint32(out, u.TreeCount)
+	return out
+}
+
+// DecodeAttestedUpdate parses an attested update, rejecting any other length so
+// that exactly one encoding maps to any given update.
+func DecodeAttestedUpdate(b []byte) (*AttestedUpdate, error) {
+	if len(b) != AttestedUpdateBytes {
+		return nil, fmt.Errorf("attested update must be %d bytes, got %d", AttestedUpdateBytes, len(b))
+	}
+	prev, err := DecodeIsmState(b[:IsmStateBytes])
+	if err != nil {
+		return nil, fmt.Errorf("prev state: %w", err)
+	}
+	next, err := DecodeIsmState(b[IsmStateBytes : 2*IsmStateBytes])
+	if err != nil {
+		return nil, fmt.Errorf("new state: %w", err)
+	}
+
+	u := &AttestedUpdate{PrevState: prev, NewState: next}
+	o := 2 * IsmStateBytes
+	copy(u.MerkleTreeAddress[:], b[o:o+32])
+	o += 32
+	u.AttestedAt = binary.BigEndian.Uint64(b[o : o+8])
+	o += 8
+	copy(u.TreeRoot[:], b[o:o+32])
+	o += 32
+	u.TreeCount = binary.BigEndian.Uint32(b[o : o+4])
+	return u, nil
+}
+
+// HashAttestedUpdate is the value the enclave places in the first 32 bytes of
+// the quote's report_data.
+func HashAttestedUpdate(u *AttestedUpdate) [32]byte {
+	return sha256.Sum256(EncodeAttestedUpdate(u))
+}
+
+// StateRootOf returns the first 32 bytes of a raw state blob.
+func StateRootOf(state []byte) ([]byte, error) {
+	if len(state) < MinStateBytes {
+		return nil, ErrInvalidTrustedState.Wrapf("state must be at least %d bytes, got %d", MinStateBytes, len(state))
+	}
+	return state[:32], nil
+}
+
+// EqualState reports whether two raw state blobs are identical.
+func EqualState(a, b []byte) bool { return bytes.Equal(a, b) }

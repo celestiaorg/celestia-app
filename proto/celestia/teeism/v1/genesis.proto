@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+import "celestia/teeism/v1/types.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+// GenesisState defines the teeism module's genesis state.
+message GenesisState {
+  // list of tee isms.
+  repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
+  // the attested origin tree roots of each tee ism.
+  repeated GenesisRoots roots = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisRoots contains the origin merkle tree roots in a tee ism's retention
+// window, which a message's delivery proof may be checked against.
+message GenesisRoots {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // attested tree roots in the order they were attested, oldest first
+  // (hex-encoded). The last is number root_seq - 1 of the ism.
+  repeated string roots = 2;
+}

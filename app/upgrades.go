@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	blobkeeper "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -92,6 +95,52 @@ func (app App) RegisterUpgradeHandlers() {
 			return versionMap, nil
 		},
 	)
+
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic(err)
+	}
+
+	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
+		app.SetStoreLoader(teeismStoreLoader(upgradeInfo.Height))
+	}
+}
+
+// teeismStoreLoader adds the teeism store at the v12 upgrade height. The
+// multiplexer serves app version 11 and below with embedded releases, so this
+// binary first opens a database at that height, with the plan the v11 release
+// wrote. A database that already has the store, such as one this binary wrote
+// from genesis, loads as is.
+func teeismStoreLoader(upgradeHeight int64) baseapp.StoreLoader {
+	return func(ms storetypes.CommitMultiStore) error {
+		version := ms.LastCommitID().Version
+		if upgradeHeight != version+1 || hasStore(ms, version, teeismtypes.StoreKey) {
+			return baseapp.DefaultStoreLoader(ms)
+		}
+		return ms.LoadLatestVersionAndUpgrade(&storetypes.StoreUpgrades{
+			Added: []string{teeismtypes.StoreKey},
+		})
+	}
+}
+
+// hasStore reports whether the commit at version includes the named store.
+func hasStore(ms storetypes.CommitMultiStore, version int64, name string) bool {
+	rs, ok := ms.(interface {
+		GetCommitInfo(int64) (*storetypes.CommitInfo, error)
+	})
+	if !ok {
+		return false
+	}
+	info, err := rs.GetCommitInfo(version)
+	if err != nil {
+		return false
+	}
+	for _, store := range info.StoreInfos {
+		if store.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // rescaleForBlockInterval sets the parameters whose meaning depends on the

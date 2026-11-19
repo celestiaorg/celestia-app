@@ -159,6 +159,8 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v25.1.24+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-tdx-guest v0.3.2-0.20261003001058-b0a2dd8100a0 // indirect
+	github.com/google/logger v1.1.1 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3 // indirect
 	github.com/google/s2a-go v0.1.11 // indirect

@@ -7,6 +7,7 @@ import (
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	teeismtypes "github.com/celestiaorg/celestia-app/v11/x/teeism/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -72,10 +73,18 @@ func countZKProofMsgs(msgs []sdk.Msg) int {
 	return count
 }
 
+// TeeAttestationWeight is what a TDX attestation counts toward
+// MaxZKProofMessages. Verifying one (certificate chain, CRLs, TCB status,
+// several P-256 checks) measured 1.4 ms against 0.8 ms for a groth16 proof on
+// the same core (x/teeism BenchmarkVerifyQuote, x/zkism BenchmarkGroth16VerifyProof).
+const TeeAttestationWeight = 2
+
 func zkProofMsgWeight(msg sdk.Msg) int {
 	switch msg := msg.(type) {
 	case *zkismtypes.MsgCreateInterchainSecurityModule, *zkismtypes.MsgUpdateInterchainSecurityModule, *zkismtypes.MsgSubmitMessages, *zkismtypes.MsgUpdateVerifyingKeys:
 		return 1
+	case *teeismtypes.MsgSubmitAttestation:
+		return TeeAttestationWeight
 	case *authz.MsgExec:
 		return execWeight(msg, zkProofMsgWeight)
 	case *channeltypes.MsgRecvPacket:
@@ -233,6 +242,9 @@ func countICAPacketWeighted(packet channeltypes.Packet, weigh func(typeURL strin
 func zkProofTypeURLWeight(typeURL string) int {
 	if isZKProofTypeURL(typeURL) {
 		return 1
+	}
+	if typeURL == sdk.MsgTypeURL(&teeismtypes.MsgSubmitAttestation{}) {
+		return TeeAttestationWeight
 	}
 	return 0
 }

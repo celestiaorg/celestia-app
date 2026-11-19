@@ -20,6 +20,7 @@ ARG CELESTIA_VERSION_V7="v7.0.3-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
 ARG CELESTIA_VERSION_V9="v9.0.8"
 ARG CELESTIA_VERSION_V10="v10.5.0"
+ARG CELESTIA_VERSION_V11="v11.0.0-mocha"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -44,6 +45,9 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V9} AS base-v9
 
 # Stage 1h: this base image contains already released v10 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V10} AS base-v10
+
+# Stage 1i: this base image contains already released v11 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V11} AS base-v11
 
 # xx cross-compiles the cgo build for the target platform without emulation.
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx:1.10.0@sha256:40fe21f44bb8cddf1eb1226db190d0a984118f62ee02a91b77d99448d28264a6 AS xx
@@ -87,7 +91,7 @@ ARG TARGETARCH
 RUN test -n "$TARGETOS" || (echo "TARGETOS is required but not set" && exit 1)
 RUN test -n "$TARGETARCH" || (echo "TARGETARCH is required but not set" && exit 1)
 
-# Compress the v3-v10 binaries from their base images for embedding. Bind
+# Compress the v3-v11 binaries from their base images for embedding. Bind
 # mounts read them without copying each binary into a layer of its own, which
 # kept every uncompressed binary on disk for the rest of the build.
 RUN --mount=type=bind,from=base-v3,source=/bin/celestia-appd,target=/tmp/celestia-appd-v3 \
@@ -98,7 +102,8 @@ RUN --mount=type=bind,from=base-v3,source=/bin/celestia-appd,target=/tmp/celesti
     --mount=type=bind,from=base-v8,source=/bin/celestia-appd,target=/tmp/celestia-appd-v8 \
     --mount=type=bind,from=base-v9,source=/bin/celestia-appd,target=/tmp/celestia-appd-v9 \
     --mount=type=bind,from=base-v10,source=/bin/celestia-appd,target=/tmp/celestia-appd-v10 \
-    for v in 3 4 5 6 7 8 9 10; do \
+    --mount=type=bind,from=base-v11,source=/bin/celestia-appd,target=/tmp/celestia-appd-v11 \
+    for v in 3 4 5 6 7 8 9 10 11; do \
         tar -cvzf "internal/embedding/celestia-app_${TARGETOS}_v${v}_${TARGETARCH}.tar.gz" "/tmp/celestia-appd-v${v}" || exit 1; \
     done
 
