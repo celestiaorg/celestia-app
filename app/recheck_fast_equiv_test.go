@@ -41,10 +41,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The equivalence test drives a full-recheck app and a fast-recheck app through the same
-// blocks and mempool traffic; after every recheck both must agree on every verdict and
-// hold byte-identical checkState. With batch set, the fast app (or, in
-// TestRecheckTxsMatchesSequential, a stock app) rechecks some rounds with RecheckTxs.
+// The equivalence test drives a full-recheck app and a second app through the same blocks and
+// mempool traffic; after every recheck both agree on every verdict and hold byte-identical
+// checkState. With batch set, the second app rechecks some rounds with RecheckTxs.
 
 type eqPoolTx struct {
 	raw     []byte
@@ -558,6 +557,8 @@ func (e *eqEnv) recheckBatch() {
 		require.Equal(e.t, rA.Codespace, rB.Codespace)
 		require.Equal(e.t, rA.GasWanted, rB.GasWanted)
 		require.Equal(e.t, rA.Priority, rB.Priority)
+		require.Equal(e.t, len(rA.Data), len(rB.Data))
+		require.Equal(e.t, rA.Info, rB.Info)
 		// A failure's GasUsed (and an out-of-gas log) may count the fee collector at its branch value.
 		if rA.Codespace != sdkerrors.RootCodespace || rA.Code != sdkerrors.ErrOutOfGas.ABCICode() {
 			require.Equal(e.t, rA.Log, rB.Log)
