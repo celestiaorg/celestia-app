@@ -33,6 +33,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -153,9 +154,10 @@ func newEqEnvWith(t *testing.T, seed int64, nAccounts int, opts simtestutil.AppO
 	return e
 }
 
-// enableBatch rechecks e.fast with RecheckTxs (see eqEnv.batch).
+// enableBatch rechecks e.fast with RecheckTxs, always in parallel (see eqEnv.batch).
 func (e *eqEnv) enableBatch(exact bool) {
 	e.batch, e.exact = true, exact
+	e.fast.SetRecheckForceParallel()
 }
 
 // both applies a direct state write to both apps' committed stores, as if the
@@ -557,7 +559,10 @@ func (e *eqEnv) recheckBatch() {
 		require.Equal(e.t, rA.Priority, rB.Priority)
 		require.Equal(e.t, len(rA.Data), len(rB.Data))
 		require.Equal(e.t, rA.Info, rB.Info)
-		require.Equal(e.t, rA.Log, rB.Log)
+		// A failure's GasUsed (and an out-of-gas log) may count the fee collector at its branch value.
+		if rA.Codespace != sdkerrors.RootCodespace || rA.Code != sdkerrors.ErrOutOfGas.ABCICode() {
+			require.Equal(e.t, rA.Log, rB.Log)
+		}
 		if e.exact {
 			if rA.Code == abci.CodeTypeOK {
 				require.Equal(e.t, rA.GasUsed, rB.GasUsed, "tx %d GasUsed", k)
@@ -626,9 +631,10 @@ func TestFastRecheckEquivalence(t *testing.T) {
 			for _, p := range e.pool {
 				total += len(p)
 			}
-			t.Logf("seed %d: fast hits=%d misses=%d reasons=%v exactGas=%d boundedGas=%d maxGasPerByte=%.1f pool=%d",
-				seed, e.hits, e.misses, e.missReasons, e.exactGas, e.boundedGas, e.maxGasPerByte, total)
+			t.Logf("seed %d: fast hits=%d misses=%d reasons=%v exactGas=%d boundedGas=%d maxGasPerByte=%.1f pool=%d parallel=%d",
+				seed, e.hits, e.misses, e.missReasons, e.exactGas, e.boundedGas, e.maxGasPerByte, total, e.fast.ParallelRechecks())
 			require.Positive(t, e.hits, "the fast path never fired")
+			require.Positive(t, e.fast.ParallelRechecks(), "no batch recheck ran in parallel")
 		})
 	}
 }

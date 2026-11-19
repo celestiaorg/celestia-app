@@ -20,24 +20,24 @@ import (
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
-	return app.checkTxLocked(req)
+	return app.checkTxLocked(req, nil)
 }
 
-// checkTxLocked is CheckTx under app.checkStateMu.
-func (app *App) checkTxLocked(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+// checkTxLocked is CheckTx under app.checkStateMu, on p's parallel worker branch if p.
+func (app *App) checkTxLocked(req *abci.RequestCheckTx, p *parallelTx) (*abci.ResponseCheckTx, error) {
 	if f := app.fastRecheck; f != nil && req.Type == abci.CheckTxType_Recheck {
 		if f.shadow != nil {
-			return f.shadowRecheck(req)
+			return f.shadowRecheck(req) // never on a worker: shadow mode rechecks sequentially
 		}
-		if res, ok := f.recheck(req.Tx); ok {
+		if res, ok := f.recheck(req.Tx, p); ok {
 			return res, nil
 		}
 	}
-	return app.checkTx(req)
+	return app.checkTx(req, p)
 }
 
-// checkTx is CheckTx's stock path, under app.checkStateMu.
-func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+// checkTx is CheckTx's stock path, under app.checkStateMu, on p's worker branch if p.
+func (app *App) checkTx(req *abci.RequestCheckTx, p *parallelTx) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -49,7 +49,7 @@ func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
 	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
 	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
-		return app.recheckPayForFibre(req)
+		return app.recheckPayForFibre(req, p)
 	}
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -61,10 +61,10 @@ func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	if isBlob {
-		return app.handleBlobCheckTx(req, btx)
+		return app.handleBlobCheckTx(req, btx, p)
 	}
 
-	sdkTx, err := app.checkTxDecoder()(tx)
+	sdkTx, err := app.decodeTx(tx, p)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
@@ -102,7 +102,7 @@ func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	res, err := app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx, p)
 	if isPFF && req.Type == abci.CheckTxType_New && err == nil && res.Code == abci.CodeTypeOK {
 		app.recheckTxs.add(tx, sdkTx)
 	}
@@ -110,30 +110,46 @@ func (app *App) checkTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 // recheckPayForFibre rechecks a PayForFibre on the decode cached at admission.
-func (app *App) recheckPayForFibre(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	sdkTx, cached := app.recheckTxs.get(req.Tx)
-	if !cached {
-		if app.fastRecheck == nil {
-			return app.BaseApp.CheckTx(req)
-		}
+func (app *App) recheckPayForFibre(req *abci.RequestCheckTx, p *parallelTx) (*abci.ResponseCheckTx, error) {
+	var sdkTx sdk.Tx
+	cached := false
+	if p != nil {
+		sdkTx, cached = p.cached, p.cached != nil
+	} else {
+		sdkTx, cached = app.recheckTxs.get(req.Tx)
+	}
+	refill := false
+	if !cached && (app.fastRecheck != nil || p != nil) {
 		// With fast recheck, decode so the pass is recorded again and the decode kept.
-		var err error
-		if sdkTx, err = app.checkTxDecoder()(req.Tx); err != nil {
-			return app.BaseApp.CheckTx(req)
+		if dec, err := app.decodeTx(req.Tx, p); err == nil {
+			sdkTx, refill = dec, app.fastRecheck != nil
 		}
 	}
-	res, err := app.checkDecoded(req, sdkTx)
-	if err != nil || res.Code != abci.CodeTypeOK {
-		app.recheckTxs.drop(req.Tx)
-	} else if !cached {
+	res, err := app.checkDecoded(req, sdkTx, p)
+	switch {
+	case err != nil || res.Code != abci.CodeTypeOK:
+		if p != nil {
+			p.drop = true
+		} else {
+			app.recheckTxs.drop(req.Tx)
+		}
+	case refill && p != nil:
+		p.refill = sdkTx
+	case refill:
 		app.recheckTxs.add(req.Tx, sdkTx)
 	}
 	return res, err
 }
 
-// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx, and
-// records an eligible passed tx for fast recheck.
-func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (res *abci.ResponseCheckTx, err error) {
+// checkDecoded runs BaseApp's CheckTx (on p's branch, if p) with sdkTx, the
+// decode of req.Tx or nil, and records an eligible passed tx for fast recheck.
+func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx, p *parallelTx) (res *abci.ResponseCheckTx, err error) {
+	if p != nil {
+		return app.recheckOnBranch(req.Tx, sdkTx, p), nil
+	}
+	if sdkTx == nil {
+		return app.BaseApp.CheckTx(req)
+	}
 	if f := app.fastRecheck; f != nil {
 		if pre := f.peek(sdkTx); pre != nil {
 			defer func() { f.record(req.Tx, pre, res, err) }()
@@ -143,11 +159,11 @@ func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (res *abci.
 	return app.BaseApp.CheckTx(req)
 }
 
-func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {
+func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx, p *parallelTx) (*abci.ResponseCheckTx, error) {
 	baseReq := &abci.RequestCheckTx{Tx: btx.Tx, Type: req.GetType()}
 
 	// Decode before ValidateBlobTx, which decodes without a recover.
-	sdkTx, err := app.checkTxDecoder()(baseReq.Tx)
+	sdkTx, err := app.decodeTx(baseReq.Tx, p)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
@@ -164,7 +180,7 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
-	res, err := app.forwardCheckTx(baseReq, sdkTx)
+	res, err := app.forwardCheckTx(baseReq, sdkTx, p)
 	if err != nil || res.Code != abci.CodeTypeOK {
 		return res, err
 	}
@@ -178,8 +194,8 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 	return res, nil
 }
 
-func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
-	res, err := app.checkDecoded(req, sdkTx)
+func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx, p *parallelTx) (*abci.ResponseCheckTx, error) {
+	res, err := app.checkDecoded(req, sdkTx, p)
 	if err != nil {
 		return res, err
 	}

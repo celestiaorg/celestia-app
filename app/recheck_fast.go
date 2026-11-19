@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
@@ -60,7 +61,8 @@ const fastRecheckGasSlack = 1_000
 
 // fastRecheck answers an eligible tx's recheck by replaying its last passed ante's writes
 // when every ante input is re-read here or unchanged: no block wrote a traced read, and a
-// block write outside fastRecheckBumps' allowlist drops every record. Callers hold App.checkStateMu.
+// block write outside fastRecheckBumps' allowlist drops every record. Callers hold App.checkStateMu;
+// a parallel recheck's workers only call recheck, eligible, readSigner and build.
 type fastRecheck struct {
 	app *App
 
@@ -74,7 +76,8 @@ type fastRecheck struct {
 	authKey, bankKey storetypes.StoreKey
 	fcBalKey         []byte
 
-	// trace is set while CheckTx runs the full ante of an eligible tx (wrapAnte).
+	// trace is set while CheckTx runs the full ante of an eligible tx (wrapAnte);
+	// a worker branch passes it in the tx's context instead.
 	trace   *anteTrace
 	depsets map[string]*depSet
 	// watched maps each dependency key to the last commit counter at which a
@@ -82,7 +85,8 @@ type fastRecheck struct {
 	watched map[string]uint64
 
 	// Block-level promise inputs and escrow accounts, memoized until Commit
-	// (escrows nil): CheckTx never writes the fibre store.
+	// (escrows nil): CheckTx never writes the fibre store. Guarded by mu.
+	mu      sync.Mutex
 	envOK   bool
 	env     fibrekeeper.PromiseCheckEnv
 	escrows map[string]escrowMemo
@@ -145,16 +149,15 @@ type fastPre struct {
 }
 
 func newFastRecheck(app *App, maxRecs int, shadow bool) *fastRecheck {
-	fcAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
 	f := &fastRecheck{
 		app:      app,
 		records:  make(map[string]*fastRecord),
 		maxRecs:  maxRecs,
 		maxBytes: maxRecs * recheckTxBytesPerEntry,
-		fcAddr:   fcAddr,
+		fcAddr:   feeCollectorAddr,
 		authKey:  app.keys[authtypes.StoreKey],
 		bankKey:  app.keys[banktypes.StoreKey],
-		fcBalKey: balanceKey(fcAddr, appconsts.BondDenom),
+		fcBalKey: balanceKey(feeCollectorAddr, appconsts.BondDenom),
 		depsets:  map[string]*depSet{},
 		watched:  map[string]uint64{},
 		stats:    fastRecheckStats{missReasons: map[string]uint64{}, recordRejects: map[string]uint64{}},
@@ -367,9 +370,18 @@ func (f *fastRecheck) lookup(tx []byte) ([]byte, *fastRecord) {
 	return key, f.records[string(key)]
 }
 
-// recheck answers the recheck of tx from its record if the fast path applies.
-// Blob txs are recorded under their inner sdk tx.
-func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
+// recheck answers the recheck of tx from its record if the fast path applies,
+// on p's worker branch if p (which looked the record up).
+func (f *fastRecheck) recheck(tx []byte, p *parallelTx) (*abci.ResponseCheckTx, bool) {
+	if p != nil {
+		if p.fastRec == nil {
+			p.fastMiss = "norecord"
+			return nil, false
+		}
+		res, reason := f.try(p.w.Context(), nil, p.fastRec, p)
+		p.fastHit, p.fastMiss = res != nil, reason
+		return res, p.fastHit
+	}
 	key, rec := f.lookup(tx)
 	if rec == nil {
 		return f.miss("norecord")
@@ -384,9 +396,9 @@ func (f *fastRecheck) recheck(tx []byte) (*abci.ResponseCheckTx, bool) {
 	return f.trySeq(ctx, key, rec)
 }
 
-// trySeq is try, counting its outcome.
+// trySeq is try off the parallel workers, counting its outcome.
 func (f *fastRecheck) trySeq(ctx sdk.Context, key []byte, rec *fastRecord) (*abci.ResponseCheckTx, bool) {
-	res, reason := f.try(ctx, key, rec)
+	res, reason := f.try(ctx, key, rec, nil)
 	if res == nil {
 		return f.miss(reason)
 	}
@@ -399,8 +411,8 @@ func (f *fastRecheck) trySeq(ctx sdk.Context, key []byte, rec *fastRecord) (*abc
 }
 
 // try replays rec, raw's record, into ctx's state if nothing it depends on changed,
-// or returns why not.
-func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.ResponseCheckTx, string) {
+// or returns why not. p is the worker running it, if any.
+func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord, p *parallelTx) (*abci.ResponseCheckTx, string) {
 	rec.used = f.commits
 	if f.stale(rec) {
 		k := rec.deps.lastKey
@@ -476,7 +488,9 @@ func (f *fastRecheck) try(ctx sdk.Context, raw []byte, rec *fastRecord) (*abci.R
 	bankKV.Set(rec.balKey, pbEnc)
 	authKV.Set(rec.accKey, rec.accAfter)
 
-	f.lastDelta = d
+	if p == nil {
+		f.lastDelta = d
+	}
 	// Signer fields stay unset, as on the PayForFibre path: CAT ignores them on recheck.
 	return &abci.ResponseCheckTx{
 		Code:      abci.CodeTypeOK,
@@ -658,6 +672,8 @@ type escrowMemo struct {
 // promiseEnv returns the fibre params and freshness floor of ctx's state,
 // loaded once per Commit.
 func (f *fastRecheck) promiseEnv(ctx sdk.Context) (fibrekeeper.PromiseCheckEnv, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.escrows == nil {
 		env, err := f.app.FibreKeeper.PromiseCheckEnv(ctx)
 		f.env, f.envOK = env, err == nil
@@ -669,11 +685,16 @@ func (f *fastRecheck) promiseEnv(ctx sdk.Context) (fibrekeeper.PromiseCheckEnv, 
 // escrow memoizes escrow lookups for the current state (CheckTx never writes
 // the fibre store). promiseEnv resets the memo.
 func (f *fastRecheck) escrow(ctx sdk.Context, signer string) (fibretypes.EscrowAccount, bool) {
-	if m, ok := f.escrows[signer]; ok {
+	f.mu.Lock()
+	m, ok := f.escrows[signer]
+	f.mu.Unlock()
+	if ok {
 		return m.acc, m.found
 	}
 	acc, found := f.app.FibreKeeper.GetEscrowAccount(ctx, signer)
+	f.mu.Lock()
 	f.escrows[signer] = escrowMemo{acc, found}
+	f.mu.Unlock()
 	return acc, found
 }
 
