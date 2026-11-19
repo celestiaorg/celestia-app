@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -140,13 +141,14 @@ $ celestia-appd query fibre withdrawals celestia1...
 // CmdQueryIsPaymentProcessed implements the is-payment-processed query command.
 func CmdQueryIsPaymentProcessed() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "is-payment-processed [payment-promise-hash]",
-		Args:  cobra.ExactArgs(1),
+		Use:   "is-payment-processed [payment-promise-hash] [creation-timestamp]",
+		Args:  cobra.ExactArgs(2),
 		Short: "Query whether a payment promise has been processed",
-		Long: `Query whether a payment promise has been processed by its hash.
+		Long: `Query whether a payment promise has been processed by its hash and its
+creation_timestamp (RFC 3339 with nanoseconds).
 
 Example:
-$ celestia-appd query fibre is-payment-processed 0x1234...
+$ celestia-appd query fibre is-payment-processed 0x1234... 2026-11-17T10:00:00.123456789Z
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -160,9 +162,14 @@ $ celestia-appd query fibre is-payment-processed 0x1234...
 			if err != nil {
 				return fmt.Errorf("invalid hex payment-promise-hash: %w", err)
 			}
+			creationTimestamp, err := time.Parse(time.RFC3339Nano, args[1])
+			if err != nil {
+				return fmt.Errorf("invalid creation-timestamp: %w", err)
+			}
 
 			res, err := queryClient.IsPaymentProcessed(context.Background(), &types.QueryIsPaymentProcessedRequest{
-				PromiseHash: promiseHash,
+				PromiseHash:       promiseHash,
+				CreationTimestamp: &creationTimestamp,
 			})
 			if err != nil {
 				return err

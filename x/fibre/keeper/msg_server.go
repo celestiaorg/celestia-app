@@ -176,6 +176,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	processedPayment := types.ProcessedPayment{
 		PaymentPromiseHash: promiseHash,
 		ProcessedAt:        ctx.BlockTime(),
+		CreationTimestamp:  msg.PaymentPromise.CreationTimestamp,
 	}
 	ms.SetProcessedPayment(ctx, processedPayment)
 
@@ -272,11 +273,12 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 	processedPayment := types.ProcessedPayment{
 		PaymentPromiseHash: promiseHash,
 		ProcessedAt:        ctx.BlockTime(),
+		CreationTimestamp:  msg.PaymentPromise.CreationTimestamp,
 	}
 	ms.SetProcessedPayment(ctx, processedPayment)
 
 	// Emit event
-	event := types.NewEventPaymentPromiseTimeout(msg.Signer, escrowSigner, promiseHash)
+	event := types.NewEventPaymentPromiseTimeout(msg.Signer, escrowSigner, promiseHash, msg.PaymentPromise.CreationTimestamp)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}

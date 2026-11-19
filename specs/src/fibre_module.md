@@ -88,7 +88,7 @@ sequenceDiagram
 
 ## State
 
-The module store key is `fibre`. Module params are stored under the raw key `params`. The other state objects use byte prefixes from `x/fibre/types/keys.go`: escrow accounts use `0x02`, withdrawals-by-signer use `0x03`, withdrawals-by-available-time use `0x04`, processed-payments-by-hash use `0x05`, and processed-payments-by-time use `0x06`. The promise freshness floor is stored under `0x07`.
+The module store key is `fibre`. Module params are stored under the raw key `params`. The other state objects use byte prefixes from `x/fibre/types/keys.go`: escrow accounts use `0x02`, withdrawals-by-signer use `0x03`, withdrawals-by-available-time use `0x04`, processed payments use `0x09`, and the legacy processed-payment indexes from before v12 use `0x05` (by hash) and `0x06` (by processed time). The promise freshness floor is stored under `0x07`, the genesis height under `0x08`, and the creation time of the last pruned processed payment under `0x0A`.
 
 ### EscrowAccount
 
@@ -121,16 +121,19 @@ message Withdrawal {
 
 ### ProcessedPayment
 
-Processed payments are stored for replay protection and pruning. The hash index key is `0x05 || payment_promise_hash` and the time index key is `0x06 || sdk.FormatTimeBytes(processed_at) || "/" || payment_promise_hash`.
+Processed payments are stored for replay protection and pruning under one key, `0x09 || sdk.FormatTimeBytes(creation_timestamp) || payment_promise_hash`. The hash commits to the promise's nanosecond creation time, so a promise maps to exactly one key, and settled promises are recent, so inserts and pruning stay at the edges of the IAVL tree.
+
+Payments processed before v12 have no recorded creation time and stay in the legacy indexes, `0x05 || payment_promise_hash` and `0x06 || sdk.FormatTimeBytes(processed_at) || "/" || payment_promise_hash`. Duplicate checks and queries also look up the legacy hash index, and BeginBlock prunes the legacy indexes by `processed_at` as before.
 
 ```proto
 message ProcessedPayment {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
-`MsgPayForFibre` and `MsgPaymentPromiseTimeout` both compute the internal payment-promise hash and store a `ProcessedPayment` at the current block time. BeginBlock prunes processed payments whose `processed_at` is outside the processed-payment retention window (`Params.PaymentPromiseRetentionWindow()`).
+`MsgPayForFibre` and `MsgPaymentPromiseTimeout` both compute the internal payment-promise hash and store a `ProcessedPayment` at the current block time with the promise's `creation_timestamp`. BeginBlock prunes processed payments whose `creation_timestamp` is outside the processed-payment retention window (`Params.PaymentPromiseRetentionWindow()`). A promise is only accepted while `creation_timestamp > block_time - withdrawal_delay`, so a pruned record can never be needed again.
 
 ### GenesisState
 
@@ -146,7 +149,7 @@ message GenesisState {
 }
 ```
 
-Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`. `InitGenesis` also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.
+Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash, nonzero `processed_at` and a `creation_timestamp` no later than `processed_at + 10m`. A zero `creation_timestamp` marks a payment processed before v12; `InitGenesis` stores those in the legacy indexes. `InitGenesis` also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.
 
 ## PaymentPromise
 
@@ -328,7 +331,7 @@ The destination is independent of which validators signed the PaymentPromise. Th
 
 `processAvailableWithdrawals` iterates the withdrawals-by-available-time index in time order, stops when it reaches a future `available_timestamp`, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total `balance` covers the withdrawal, sends coins from the `fibre` module account to the signer account, and only after a successful send subtracts the withdrawal amount from total `balance`, stores the escrow account, deletes the withdrawal from both indexes, and emits `EventWithdrawFromEscrowExecuted`. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.
 
-`pruneProcessedPayments` computes `cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()`, iterates the processed-payments-by-time index in time order, stops when `processed_at` is after the cutoff, deletes each pruned processed payment from both indexes, and emits `EventProcessedPaymentPruned`.
+`pruneProcessedPayments` computes `cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()`, deletes processed payments whose `creation_timestamp` is at or before the cutoff, oldest first and at most 2000 per block (signers choose creation times, so records settled over many blocks can expire together), and emits `EventProcessedPaymentPruned` for each. It starts at the creation time of the last pruned record (`0x0A`, not exported to genesis), so it does not step over the tombstones of earlier prunes in the underlying LSM store; a cutoff before that time prunes nothing. It also prunes the legacy indexes by `processed_at` with the same cutoff, sharing the per-block bound.
 
 ## Events
 
@@ -361,6 +364,8 @@ message EventPaymentPromiseTimeout {
   string processor = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   string escrow_signer = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   bytes payment_promise_hash = 3;
+  // creation_timestamp is the promise's creation_timestamp, needed to query IsPaymentProcessed.
+  google.protobuf.Timestamp creation_timestamp = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
 message EventUpdateFibreParams {
@@ -371,6 +376,8 @@ message EventUpdateFibreParams {
 message EventProcessedPaymentPruned {
   bytes payment_promise_hash = 1;
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  // creation_timestamp is the promise's creation_timestamp, zero for payments processed before v12.
+  google.protobuf.Timestamp creation_timestamp = 3 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 ```
 
@@ -401,7 +408,7 @@ service Query {
 }
 ```
 
-`Params` returns the current params. `EscrowAccount` returns an escrow account and a `found` bool. `Withdrawals` returns withdrawals for a signer; the protobuf request and response contain pagination fields, but the current query handler ignores pagination and returns all matching withdrawals with an empty pagination response. `IsPaymentProcessed` returns `processed_at` and `found`. `ValidatePaymentPromise` first performs stateful validation. With `fibre-promise-cache` enabled (the app default), it additionally verifies the signature and reserves the payment amount in a validator-local, in-memory cache keyed by promise hash. Reservations account for other pending promises against available escrow, and repeat reservations are idempotent. This cache is not consensus state and is not used by message handlers or proposal execution. With the cache disabled, the query performs only stateful validation; callers must still do stateless validation. An invalid promise returns a gRPC error rather than `is_valid = false`; local budget rejection returns `ResourceExhausted`.
+`Params` returns the current params. `EscrowAccount` returns an escrow account and a `found` bool. `Withdrawals` returns withdrawals for a signer; the protobuf request and response contain pagination fields, but the current query handler ignores pagination and returns all matching withdrawals with an empty pagination response. `IsPaymentProcessed` takes the promise hash and its `creation_timestamp` (required, since processed payments are keyed by it) and returns `processed_at` and `found`. `ValidatePaymentPromise` first performs stateful validation. With `fibre-promise-cache` enabled (the app default), it additionally verifies the signature and reserves the payment amount in a validator-local, in-memory cache keyed by promise hash. Reservations account for other pending promises against available escrow, and repeat reservations are idempotent. This cache is not consensus state and is not used by message handlers or proposal execution. With the cache disabled, the query performs only stateful validation; callers must still do stateless validation. An invalid promise returns a gRPC error rather than `is_valid = false`; local budget rejection returns `ResourceExhausted`.
 
 ```proto
 message QueryValidatePaymentPromiseResponse {
@@ -464,7 +471,7 @@ The query CLI exposes:
 celestia-appd query fibre params
 celestia-appd query fibre escrow-account [signer]
 celestia-appd query fibre withdrawals [signer]
-celestia-appd query fibre is-payment-processed [payment-promise-hash]
+celestia-appd query fibre is-payment-processed [payment-promise-hash] [creation-timestamp]
 ```
 
 There is currently no CLI command wrapping the `ValidatePaymentPromise` gRPC query.

@@ -108,7 +108,7 @@ The result is the tool and whether bridges must stay paused.
 
 ## Choose the tool
 
-The times are estimates, not measured; the drills will measure them. In every tool the slow part is getting validators with more than 2/3 of voting power to act.
+The times are estimates. The [drills](drills.md) on a test network with four validators played by one person measured the technical part only: 3 minutes from halt to blocks for a rollback, 2 minutes for a patched binary once the fix was built, and 45 minutes for a new chain, most of it waiting for the genesis time. In every tool the slow part is getting validators with more than 2/3 of voting power to act.
 
 | Tool | Use when | Do not use when | Halt to blocks (estimate) |
 | --- | --- | --- | --- |

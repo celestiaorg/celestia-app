@@ -73,7 +73,7 @@ A new chain repairs nothing by itself: the genesis tool copies the state at E as
     rm -rf "$SCRATCH"
     ```
 
-14. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. Post the SHA-256 in the validator channels, not only next to the file.
+14. Publish the genesis URL, its SHA-256 from `genesis.json.sha256`, the chain-id, I, G, the release, persistent peers and the export SHA-256. The peers are required: `recovery.sh new-chain` moves each node's address book aside, so without `--peers` or seeds a node may find no peer on the new chain. Post the SHA-256 in the validator channels, not only next to the file.
 15. Tell relayer operators what to do; see [IBC](#ibc) and [Hyperlane](#hyperlane).
 16. Ask every validator to run the dry run (steps 6-8 of [export.md](export.md#steps)). Continue when every report contains the genesis line and no `error:` line.
 17. Before G, confirm that validators ready to start hold more than 2/3 of `total_power` in the report. They run `recovery.sh new-chain` before G, and their nodes wait for G.
@@ -124,20 +124,20 @@ With the same chain-id, the IBC clients of Celestia on other chains continue. `M
 
 1. Relayer operators stop Hermes before G. The Celestia RPC node of a relayer moves with `recovery.sh new-chain`, which keeps `data/tx_index.db`. Hermes needs it to relay packets sent before the halt.
 2. List the clients to update. On Celestia, `celestia-appd query ibc connection connections` shows each connection's `counterparty.client_id`. The counterparty chain is the `chain_id` in `celestia-appd query ibc client state <client_id>`.
-3. Once the new chain produces blocks, update every client. `--restart-height` and `--archive-address` only route fetches: Hermes reads light blocks at or below C from the archive and higher ones from the live RPC. It needs the full light block at the trusted height T plus one. If T is C, block C+1 is in the height gap and the update fails, so pass an older T. On the counterparty (HOST_CHAIN, HOST_RPC), read the client's latest height and its stored consensus heights; follow `pagination.next_key` to see them all:
+3. Once the new chain produces blocks, update every client. `--restart-height` and `--archive-address` only route fetches: Hermes reads light blocks at or below C from the archive and higher ones from the live RPC. It needs the full light block at the trusted height T plus one, which includes the validators of T+2. The archive serves nothing above C, so the update fails when T is C or C-1; pass T at or below C-2. On the counterparty (HOST_CHAIN, HOST_RPC), read the client's latest height and its stored consensus heights; follow `pagination.next_key` to see them all:
 
    ```sh
    <counterpartyd> query ibc client state "$CLIENT" --node "$HOST_RPC" -o json
    <counterpartyd> query ibc client consensus-state-heights "$CLIENT" --node "$HOST_RPC" --limit 1000 -o json
    ```
 
-   Pick T, the newest stored height below C whose consensus state is still within the trusting period. Do not assume C-1 is stored. Then update the client to I:
+   Pick T, the newest stored height at or below C-2 whose consensus state is still within the trusting period. Do not assume C-2 is stored. Then update the client to I:
 
    ```sh
    hermes update client --host-chain "$HOST_CHAIN" --client "$CLIENT" --trusted-height "$T" --height "$I" --restart-height "$C" --archive-address "$ARCHIVE_RPC"
    ```
 
-   If no stored height below C is usable, stock Hermes v1.13.1 can't update the client; see [Open questions](#open-questions). Changing only `--height` does not help, and an update through C recreates the problem.
+   If no stored height at or below C-2 is usable, stock Hermes v1.13.1 can't update the client; see [Open questions](#open-questions). Changing only `--height` does not help, and an update to C-1 or C recreates the problem.
 
 4. Check on each counterparty that `query ibc client status <client-id>` prints `Active` and that the client's latest height is at least I. Then start Hermes. A packet sent before the halt is delivered once. Transfers whose timeout passed during the halt time out, as after a rollback.
 
@@ -220,8 +220,10 @@ A planned restart moves IBC clients to a new revision of the chain-id, for examp
 - `genesis from-export`, its checks and the export at the last height before an upgrade ship from app v12. They work only on a chain already on v12; there is no v11 backport.
 - If validators with 1/3 or more of voting power can't take part, the new chain does not produce blocks. There is no tool to replace the validator set.
 - The dry start runs only InitChain. State that imports but fails in the first BeginBlock or EndBlock is not caught.
-- The import resets the staking unbonding ID counter to 1 and loses the unbonding-type and reverse ID indexes, as measured on a mainnet export. Queued unbondings still pay out. A fix in the cosmos-sdk fork is tracked.
+- The import resets the staking unbonding ID counter to 1 and loses the unbonding-type and reverse ID indexes, as measured on a mainnet export. Queued unbondings still pay out. Fixed in the cosmos-sdk fork (celestiaorg/cosmos-sdk#199); celestia-app gets it with the next fork bump.
 - The new chain drops a pending signal upgrade, the signals and any x/upgrade plan. An upgrade that was pending waits a full new delay after validators signal again.
+- The genesis carries no x/upgrade completed-upgrade markers: `celestia-appd query upgrade applied <name>` finds nothing for an old upgrade, and a plan with the name of an old upgrade can be scheduled again. Celestia's app version upgrades go through x/signal.
+- The genesis carries no staking historical info; it builds up again from the first block. So the new chain can't verify fibre certificates for old heights; see item 5 of [After the restart](#after-the-restart).
 - The first block after the restart sends the fee collector balance to the community pool, because distribution has no previous commit to pay. Supply does not change; only the recipients do.
 
 More than 2/3 of voting power reproduce the export SHA-256, so a tampered export is outside this procedure. The genesis tool does not check these malformed inputs, which an honest export does not produce. Each one stops InitChain:
@@ -241,7 +243,7 @@ An account number so large that the import runs for an impractically long time i
 
 ## Open questions
 
-- An IBC client whose only usable trusted height is C (no stored consensus height below C within the trusting period): not tested. Options are a patched Hermes that builds the header from the archive's validators at C+1, or governance recovery once the client expires; ibc-go v8 rejects `MsgRecoverClient` while the client is Active. The e2e tests cover only a client below E; a client at C is a follow-up case.
+- An IBC client whose only usable trusted height is C-1 or C (no stored consensus height at or below C-2 within the trusting period): not tested. Options are a patched Hermes that does not fetch the validators above C, or governance recovery once the client expires; ibc-go v8 rejects `MsgRecoverClient` while the client is Active. The e2e tests cover a client at C-1 and a client below E.
 - Hyperlane relayer after an export below the tip: the fresh-database procedure above is checked only with a noop ISM and no Hyperlane validators.
 - Celestia to EVM messages dispatched at or below E but not delivered before the halt are never seen by a fresh relayer database: their events are in old blocks. They are valid on the new chain. Options, none checked: find them in the old database and deliver them separately, run a relayer once against an archive up to E, or let the old relayer drain during the halt (it also delivers messages above E).
 - Hyperlane validators that see a reused nonce likely detect a reorg and stop, and then need a database reset. Not checked.

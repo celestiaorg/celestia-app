@@ -316,6 +316,10 @@ talis down
 talis down --workers 20
 ```
 
+## Recovery drills
+
+`hardfork-drill.sh` runs the recovery and export scripts across the validators of an experiment for the drills in [docs/hardfork/drills.md](../../docs/hardfork/drills.md).
+
 ## Running Talis inside of a DigitalOcean droplet
 
 Create a new droplet:

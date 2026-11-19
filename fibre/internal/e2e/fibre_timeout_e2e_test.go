@@ -125,7 +125,7 @@ func (s *FibreTimeoutTestSuite) TestTimeoutSettlement() {
 
 	hash, err := signed.Hash()
 	require.NoError(t, err)
-	waitForPaymentProcessed(t, s.cctx, hash)
+	waitForPaymentProcessed(t, s.cctx, signed.CreationTimestamp, hash)
 
 	uploadSize := uint32(fibre.DefaultBlobConfigV0().UploadSize(len(data)))
 	wantDebit := fibretypes.PaymentAmount(uploadSize)

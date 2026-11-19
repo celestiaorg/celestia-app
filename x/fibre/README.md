@@ -21,7 +21,7 @@ The module is available starting from app version 10.
 
 - **Escrow accounts** — one per depositor, tracking `balance` (total funds held by the module) and `available_balance` (funds not locked by pending withdrawal requests).
 - **Withdrawals** — pending withdrawal requests, indexed both by signer and by the time they become available.
-- **Processed payments** — the hash and processing time of every settled promise, kept to reject replays. Records are pruned once they leave the retention window (`withdrawal_delay + 10min` clock skew), after which the promise itself can no longer validate.
+- **Processed payments** — the hash, processing time and promise creation time (zero before v12) of every settled promise, kept to reject replays. Records are keyed by the promise's creation time and pruned once that leaves the retention window (`withdrawal_delay + 10min` clock skew), after which the promise itself can no longer validate.
 - **Promise freshness floor** — a single timestamp that only moves forward; promises created before it are rejected, so a governance increase of `withdrawal_delay` can never resurrect an already-pruned promise.
 
 Every block, the `BeginBlocker` advances the freshness floor, pays out withdrawal requests whose delay has elapsed, and prunes processed payments outside the retention window.
@@ -69,9 +69,9 @@ The module emits typed events (the event type is the proto message name, e.g. `c
 | `EventWithdrawFromEscrowRequest`  | `signer`, `amount`, `requested_at`, `available_at` | withdrawal request               |
 | `EventWithdrawFromEscrowExecuted` | `signer`, `amount`                                 | withdrawal payout (BeginBlocker) |
 | `EventPayForFibre`                | `signer`, `namespace`, `commitment`, `validator_count` | PFF settlement               |
-| `EventPaymentPromiseTimeout`      | `processor`, `escrow_signer`, `payment_promise_hash` | timeout settlement             |
+| `EventPaymentPromiseTimeout`      | `processor`, `escrow_signer`, `payment_promise_hash`, `creation_timestamp` | timeout settlement |
 | `EventUpdateFibreParams`          | `signer`, `params`                                 | parameter update                 |
-| `EventProcessedPaymentPruned`     | `payment_promise_hash`, `processed_at`             | retention pruning (BeginBlocker) |
+| `EventProcessedPaymentPruned`     | `payment_promise_hash`, `processed_at`, `creation_timestamp` | retention pruning (BeginBlocker) |
 
 ## Parameters
 
@@ -105,7 +105,7 @@ Inspect state:
 celestia-appd query fibre params
 celestia-appd query fibre escrow-account <account-address>
 celestia-appd query fibre withdrawals <account-address>
-celestia-appd query fibre is-payment-processed <payment-promise-hash>
+celestia-appd query fibre is-payment-processed <payment-promise-hash> <creation-timestamp>
 ```
 
 `tx fibre pay-for-fibre` and `tx fibre payment-promise-timeout` also exist, taking the promise as JSON; they are normally invoked by fibre infrastructure rather than by hand.

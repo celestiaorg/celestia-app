@@ -69,15 +69,14 @@ func (k Keeper) IsPaymentProcessed(c context.Context, req *types.QueryIsPaymentP
 	if len(req.PromiseHash) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "payment promise hash cannot be empty")
 	}
+	if req.CreationTimestamp == nil {
+		return nil, status.Error(codes.InvalidArgument, "payment promise creation timestamp is required")
+	}
 
 	ctx := sdk.UnwrapSDKContext(c)
-
-	// Delegate to keeper method
-	found := k.IsPaymentProcessedByHash(ctx, req.PromiseHash)
-
+	processedPayment, found := k.GetProcessedPayment(ctx, *req.CreationTimestamp, req.PromiseHash)
 	var processedAt *time.Time
 	if found {
-		processedPayment, _ := k.GetProcessedPayment(ctx, req.PromiseHash)
 		processedAt = &processedPayment.ProcessedAt
 	}
 

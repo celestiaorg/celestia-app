@@ -34,7 +34,7 @@ func (f *fakeStateReader) GetEscrowAccount(_ sdk.Context, signer string) (types.
 	}, true
 }
 
-func (f *fakeStateReader) IsPaymentProcessedByHash(_ sdk.Context, hash []byte) bool {
+func (f *fakeStateReader) IsPromiseProcessed(_ sdk.Context, _ time.Time, hash []byte) bool {
 	return f.processed[hex.EncodeToString(hash)]
 }
 
