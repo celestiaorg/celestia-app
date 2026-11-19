@@ -245,9 +245,10 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 	for i := range promises {
 		promises[i], _ = packedTestPromise(t)
 	}
-	// Stagger prune times by whole minutes (the prune index is minute-precision)
-	// so members expire in separate passes.
-	pruneAts := []time.Time{time.Unix(60, 0), time.Unix(120, 0), time.Unix(180, 0)}
+	// Stagger prune times by a whole minute (the prune index is minute-precision)
+	// so members expire in separate passes, within maxPackedPruneSpread so they
+	// still share one object.
+	pruneAts := []time.Time{time.Unix(60, 0), time.Unix(60, 0), time.Unix(120, 0)}
 	var wg sync.WaitGroup
 	for i, promise := range promises {
 		wg.Go(func() {
@@ -259,7 +260,7 @@ func TestPackedObjectRetainedUntilLastShardExpires(t *testing.T) {
 	require.Equal(t, 1, objects)
 
 	// Prune the first two members; the object must remain for the third.
-	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(190, 0))
+	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(120, 0))
 	require.NoError(t, err)
 	require.Equal(t, 2, pruned)
 	_, deletes, objects := fake.count()
@@ -426,6 +427,70 @@ func TestPackedMissingObjectIsRepaired(t *testing.T) {
 	require.Equal(t, 1, pruned)
 	_, _, objects := fake.count()
 	require.Zero(t, objects)
+}
+
+// TestPackedMissingPlainShardIsRepaired stores a shard in its own object (a
+// failed packed PUT falls back to that), deletes the object out of band, and
+// retries with packing still on. The retry must write the shard again rather
+// than trust its plain marker, or the server would sign for a missing shard.
+func TestPackedMissingPlainShardIsRepaired(t *testing.T) {
+	store, fake := newPackedStore(t, 2)
+	shard := packedTestShard(2)
+	promise, hash := packedTestPromise(t)
+	store.shards.packed.object.client = &failPackedPuts{fakeS3: fake}
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	store.shards.packed.object.client = fake
+
+	fake.mu.Lock()
+	clear(fake.objects)
+	fake.mu.Unlock()
+	has, err := store.Has(t.Context(), promise.Commitment, hash)
+	require.NoError(t, err)
+	require.False(t, has)
+
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	has, err = store.Has(t.Context(), promise.Commitment, hash)
+	require.NoError(t, err)
+	require.True(t, has)
+	got, err := store.Get(t.Context(), promise.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
+}
+
+// TestPackedBatchBoundsPruneSpread verifies a shard whose prune time is more
+// than maxPackedPruneSpread from the pending batch's starts a new object, so a
+// late member cannot keep early members' bytes in the bucket after their
+// occupancy is released.
+func TestPackedBatchBoundsPruneSpread(t *testing.T) {
+	store, fake := newPackedStore(t, 2)
+	shard := packedTestShard(2)
+	early, _ := packedTestPromise(t)
+	late, lateHash := packedTestPromise(t)
+	pruneAts := map[*PaymentPromise]time.Time{
+		early: time.Unix(60, 0),
+		late:  time.Unix(60, 0).Add(maxPackedPruneSpread + time.Minute),
+	}
+	var wg sync.WaitGroup
+	for promise, pruneAt := range pruneAts {
+		wg.Go(func() {
+			require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
+		})
+	}
+	wg.Wait()
+	puts, _, objects := fake.count()
+	require.Equal(t, 2, puts, "shards pruned far apart are not packed together")
+	require.Equal(t, 2, objects)
+
+	// Pruning the early shard deletes its object right away.
+	pruned, _, err := store.PruneBefore(t.Context(), time.Unix(120, 0))
+	require.NoError(t, err)
+	require.Equal(t, 1, pruned)
+	_, deletes, objects := fake.count()
+	require.Equal(t, 1, deletes)
+	require.Equal(t, 1, objects)
+	has, err := store.Has(t.Context(), late.Commitment, lateHash)
+	require.NoError(t, err)
+	require.True(t, has)
 }
 
 func packedMarkerID(t *testing.T, store *Store, commitment Commitment, hash []byte) [packIDSize]byte {

@@ -40,6 +40,12 @@ const (
 	// that never fills uploads after this long. It is an internal constant, not
 	// a knob, so packing stays a single setting.
 	packedFlushDelay = 250 * time.Millisecond
+	// maxPackedPruneSpread bounds how far apart the prune times of the shards
+	// in one packed object may be. Each member's occupancy is released at its
+	// own prune, but the object stays until its last member's, so this bounds
+	// how long released bytes stay in the bucket: a late member cannot pin the
+	// bytes of early ones and let the bucket outgrow the storage budget.
+	maxPackedPruneSpread = pruneInterval
 )
 
 var (
@@ -47,6 +53,10 @@ var (
 	// errPackedPut marks a failed packed PUT. Store.Put then stores each member
 	// on its own, so one bad batch never fails the other uploads in it.
 	errPackedPut = errors.New("putting packed object")
+	// errUnpackedShard marks a shard that already has a non-packed marker.
+	// Store.Put then writes it through the plain path, as it did before
+	// packing, which restores a payload that has gone missing.
+	errUnpackedShard = errors.New("shard has a non-packed marker")
 )
 
 // packedBackend batches several shards into one S3 PUT to stay under object
@@ -74,6 +84,8 @@ type packedBackend struct {
 	gen    uint64 // identifies the current batch so a stale timer never fires
 	closed bool
 	wg     sync.WaitGroup
+	// minPruneAt and maxPruneAt span the prune times of the queued shards.
+	minPruneAt, maxPruneAt time.Time
 
 	// deleteMu serializes member-set updates during pruning. It is separate
 	// from mu so a slow object DELETE never blocks uploads.
@@ -120,11 +132,11 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 	if err != nil {
 		return err
 	}
-	// Keep Put idempotent for a shard that is already stored, as the plain path
-	// is, but store it again if its packed object has gone missing (e.g. deleted
-	// by a bucket lifecycle rule); upload then moves it out of the old object's
-	// member set. Concurrent uploads of one shard never get here: the server
-	// serializes them per promise hash and re-checks the store first.
+	// Keep Put idempotent for a shard that is already packed, but store it
+	// again if its packed object has gone missing (e.g. deleted by a bucket
+	// lifecycle rule); upload then moves it out of the old object's member set.
+	// Concurrent uploads of one shard never get here: the server serializes
+	// them per promise hash and re-checks the store first.
 	if stored, err := b.stored(ctx, shardKey(promise.Commitment, promiseHash)); err != nil || stored {
 		return err
 	}
@@ -142,9 +154,15 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 		b.mu.Unlock()
 		return errPackedClosed
 	}
-	// Flush the pending batch first if this shard cannot fit the object cap.
-	if len(b.queue) > 0 && b.size+reader.size > maxPackedObjectBytes {
+	// Flush the pending batch first if this shard cannot fit the object cap or
+	// would spread its prune times too far.
+	if len(b.queue) > 0 && (b.size+reader.size > maxPackedObjectBytes || b.exceedsPruneSpreadLocked(pruneAt)) {
 		b.flushLocked()
+	}
+	if len(b.queue) == 0 {
+		b.minPruneAt, b.maxPruneAt = pruneAt, pruneAt
+	} else {
+		b.minPruneAt, b.maxPruneAt = minTime(b.minPruneAt, pruneAt), maxTime(b.maxPruneAt, pruneAt)
 	}
 	b.queue = append(b.queue, req)
 	b.size += reader.size
@@ -173,9 +191,9 @@ func (b *packedBackend) enqueue(ctx context.Context, promise *PaymentPromise, pr
 	}
 }
 
-// stored reports whether the shard at key is already stored with its payload.
-// Only a packed marker whose object is missing counts as not stored; any other
-// existing marker is left to its own backend, as before packing.
+// stored reports whether the shard at key is already packed in an object that
+// still exists. It returns errUnpackedShard for any other existing marker, so
+// that shard is written through the plain path, which never trusts the marker.
 func (b *packedBackend) stored(ctx context.Context, key []byte) (bool, error) {
 	marker, closer, err := b.db.Get(key)
 	if errors.Is(err, pebbledb.ErrNotFound) {
@@ -187,9 +205,29 @@ func (b *packedBackend) stored(ctx context.Context, key []byte) (bool, error) {
 	marker = slices.Clone(marker)
 	_ = closer.Close()
 	if tag, _, err := decodeShardMarkerBackend(marker); err != nil || tag != packedObjectBackendTag {
-		return true, nil
+		return false, errUnpackedShard
 	}
 	return b.has(ctx, marker)
+}
+
+// exceedsPruneSpreadLocked reports whether adding a shard pruned at pruneAt
+// would spread the batch's prune times beyond maxPackedPruneSpread.
+func (b *packedBackend) exceedsPruneSpreadLocked(pruneAt time.Time) bool {
+	return maxTime(b.maxPruneAt, pruneAt).Sub(minTime(b.minPruneAt, pruneAt)) > maxPackedPruneSpread
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }
 
 // removeQueuedLocked drops a still-queued request, e.g. after its caller's

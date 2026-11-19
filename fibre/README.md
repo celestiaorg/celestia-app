@@ -169,7 +169,9 @@ Raise the setting only when the object store rate-limits uploads.
   object at 8 MiB/s. If it fails, each shard in it is stored in its own object,
   so one slow upload never fails the others in its batch.
 - **Deletion.** A shard's accounted occupancy is released when it is pruned,
-  but the object's bytes stay until its last member is pruned.
+  but the object's bytes stay until its last member is pruned. A batch only
+  packs shards whose prune times are within one minute of each other, so those
+  bytes outlive their occupancy by at most about a minute.
 - **Compatibility.** Packed shards use an on-disk marker (`0x06`) that older
   binaries cannot read. The default never writes it.
 - **Rollback.** Setting `shards_per_object` back to `1` stops new packing.
