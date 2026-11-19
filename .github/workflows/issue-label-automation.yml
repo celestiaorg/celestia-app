@@ -2,27 +2,15 @@ name: issue-label-automation
 on:
   pull_request_target:
     types: [opened]
-  issues:
-    types: [opened]
 jobs:
   automate-labels:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
       pull-requests: write
     env:
       IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
       IS_HUMAN: ${{ !(github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
     steps:
-      # If an issue was unlabeled add `needs:triage`.
-      - name: Maybe label issue with `needs:triage`
-        if: ${{ github.event_name == 'issues' }}
-        uses: andymckay/labeler@master
-        with:
-          add-labels: "needs:triage"
-          ignore-if-labeled: true
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
       # If a PR was created by dependabot or mergify add the `bot` label.
       - name: Maybe label PR with `bot`
         if: env.IS_BOT == 'true'

@@ -126,6 +126,20 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if size > maxPlausibleShardSize {
 		return fmt.Errorf("shard size %d exceeds maximum %d", size, maxPlausibleShardSize)
 	}
+	// With packing enabled, batch a small shard into a shared object instead of
+	// writing one object per shard. enqueue blocks until the shard is durably
+	// stored, so the caller's occupancy reservation matches what is stored. If
+	// the packed PUT fails, store the shard on its own so a batch that failed
+	// (say, because one upload in it was slow) fails no other upload. A shard
+	// that already has a non-packed marker is rewritten on the plain path too.
+	if packed := s.shards.packed; packed != nil && packed.shardsPerObject > 1 && size <= maxPackedShardBytes {
+		switch err := packed.enqueue(ctx, promise, promiseHash, shard, pruneAt); {
+		case errors.Is(err, errPackedPut):
+			s.log.Warn("packed upload failed, storing shard on its own", "commitment", promise.Commitment.String(), "error", err)
+		case !errors.Is(err, errUnpackedShard):
+			return err
+		}
+	}
 	marker := s.shards.marker(size)
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
@@ -139,25 +153,15 @@ func (s *Store) commitAndStore(
 	marker []byte,
 	pruneAt time.Time,
 ) error {
-	promiseProto, err := promise.ToProto()
+	ppData, err := marshalPromise(promise)
 	if err != nil {
-		return fmt.Errorf("converting payment promise to proto: %w", err)
-	}
-	ppData, err := gogoproto.Marshal(promiseProto)
-	if err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
+		return err
 	}
 
 	batch := s.db.NewBatch()
 	defer batch.Close()
-	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting payment promise: %w", err)
-	}
-	if err := batch.Set(shardKey(promise.Commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting shard marker: %w", err)
-	}
-	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting prune index: %w", err)
+	if err := setShardMeta(batch, promise.Commitment, promiseHash, ppData, marker, pruneAt); err != nil {
+		return err
 	}
 
 	// Last safe point to honour cancellation before the durable payload write.
@@ -181,6 +185,33 @@ func (s *Store) commitAndStore(
 	}
 
 	return nil
+}
+
+// setShardMeta adds one shard's promise, marker, and prune index to batch.
+func setShardMeta(batch *pebbledb.Batch, commitment Commitment, promiseHash, ppData, marker []byte, pruneAt time.Time) error {
+	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting payment promise: %w", err)
+	}
+	if err := batch.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting shard marker: %w", err)
+	}
+	if err := batch.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting prune index: %w", err)
+	}
+	return nil
+}
+
+// marshalPromise encodes a payment promise for its Pebble metadata entry.
+func marshalPromise(promise *PaymentPromise) ([]byte, error) {
+	promiseProto, err := promise.ToProto()
+	if err != nil {
+		return nil, fmt.Errorf("converting payment promise to proto: %w", err)
+	}
+	ppData, err := gogoproto.Marshal(promiseProto)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling payment promise: %w", err)
+	}
+	return ppData, nil
 }
 
 // Get returns the first [types.BlobShard] found for the given [Commitment].
@@ -579,6 +610,11 @@ func (s *Store) writeAndRead(value []byte) error {
 // health probe. If the probe is stuck, Close returns an error and the database
 // is closed as soon as the probe returns.
 func (s *Store) Close() error {
+	// Flush any partial packed batch and wait for its upload before the Pebble
+	// database it indexes is closed.
+	if s.shards != nil && s.shards.packed != nil {
+		s.shards.packed.Close()
+	}
 	select {
 	case s.probe <- struct{}{}:
 		return s.db.Close()

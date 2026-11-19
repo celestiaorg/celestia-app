@@ -226,8 +226,8 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
-	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
-	// rechecks, at most one per mempool slot.
+	// recheckTxs keeps the decodes of admitted txs (PayForFibre ~31 KB each) for
+	// their rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool *wrapper.TreePool
@@ -433,7 +433,7 @@ func newApp(
 		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
 		app.IBCKeeper.ChannelKeeper,
 		app.BankKeeper,
-		pfmICS4Wrapper{app.IBCKeeper.ChannelKeeper}, // replaces error text in acks of forwarded packets
+		app.IBCKeeper.ChannelKeeper,
 		govModuleAddr,
 	)
 
@@ -443,14 +443,14 @@ func newApp(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Packet Forwarding Middleware (its error acks carry no error text)
+	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = pfmIBCMiddleware{packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
+	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-	)}
+	)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
