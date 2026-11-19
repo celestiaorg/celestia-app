@@ -479,7 +479,7 @@ replace (
 	// bounded memo handling. See celestiaorg/ibc-apps#3.
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 => github.com/celestiaorg/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.1-celestia
 	github.com/cosmos/ibc-go/modules/capability => github.com/celestiaorg/ibc-go/modules/capability v1.0.2
-	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.3
+	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.8.0-celestia
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
 	// This replace can be removed once celestiaorg/cosmos-sdk is updated to use ledger-cosmos-go v0.16.0.
