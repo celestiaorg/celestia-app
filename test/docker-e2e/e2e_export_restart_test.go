@@ -540,12 +540,22 @@ type hyperlaneExportSetup struct {
 	agent          *hyperlane.Agent
 	rethDomain     uint32
 	celestiaDomain uint32
+	// validator signs Celestia checkpoints when the setup has a validator key.
+	validator *hyperlane.Agent
 }
 
 // setupHyperlaneExport starts the chains and the relayer for an export test.
 // The relayer database is relayerExportDB from the first start, so a restart
 // can keep it.
 func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlaneExportSetup {
+	return s.setupHyperlaneExportWith(ctx, "")
+}
+
+// setupHyperlaneExportWith is setupHyperlaneExport. With a validator key, the
+// EVM mailbox's default ISM is a 1-of-1 messageIdMultisigIsm of that validator,
+// which runs as an agent and has announced its checkpoints before the relayer
+// starts.
+func (s *HyperlaneTestSuite) setupHyperlaneExportWith(ctx context.Context, validatorKey string) *hyperlaneExportSetup {
 	t := s.T()
 	chain, err := dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(ctx)
 	s.Require().NoError(err)
@@ -560,20 +570,35 @@ func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlan
 	da := s.WithBridgeNodeNetwork(ctx, chain)
 	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
 
-	hyp, err := hyperlane.NewDeployer(ctx, hyperlane.Config{
+	hypCfg := hyperlane.Config{
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
 		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
-	}, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
+	}
+	if validatorKey != "" {
+		addr, err := hyperlane.ValidatorAddress(validatorKey)
+		s.Require().NoError(err)
+		hypCfg.DefaultIsm = &hyperlane.IsmCfg{
+			Type:       "messageIdMultisigIsm",
+			Validators: []hyperlane.QuotedHexAddress{hyperlane.QuotedHexAddress(addr.Hex())},
+			Threshold:  1,
+		}
+	}
+	hyp, err := hyperlane.NewDeployer(ctx, hypCfg, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
 	s.Require().NoError(err)
 	s.Require().NoError(hyp.Deploy(ctx))
 
 	cfg, err := hyp.DeployCosmosNoopISM(ctx, cosmos.NewBroadcaster(chain), chain.GetFaucetWallet())
 	s.Require().NoError(err)
-	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	tokenRouter, err := hyp.EVMWarpTokenAddress(ctx)
 	s.Require().NoError(err)
 	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, cfg.TokenID)
+
+	var validator *hyperlane.Agent
+	if validatorKey != "" {
+		validator = s.startHyperlaneValidator(ctx, chain, hyp, validatorKey)
+	}
 
 	s.setRelayerDB(ctx, hyp, relayerExportDB)
 	agent := s.StartRelayerAgent(ctx, hyp)
@@ -587,6 +612,7 @@ func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlan
 		agent:          agent,
 		rethDomain:     s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp),
 		celestiaDomain: s.GetDomainForChain(ctx, HypCelestiaChainName, hyp),
+		validator:      validator,
 	}
 }
 

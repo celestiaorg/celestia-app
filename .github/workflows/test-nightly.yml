@@ -156,7 +156,14 @@ jobs:
           # Export below the last height Hermes or the Hyperlane relayer saw.
           - test: TestIBCExportBelowTip
             entrypoint: TestIBCTestSuite
+          - test: TestICAExportBelowTip
+            entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportBelowTip
+            entrypoint: TestHyperlaneTestSuite
+          # Hyperlane with a validator and a multisig ISM on the EVM chain.
+          - test: TestHyperlaneMultisigExportRestart
+            entrypoint: TestHyperlaneTestSuite
+          - test: TestHyperlaneMultisigExportBelowTip
             entrypoint: TestHyperlaneTestSuite
     steps:
       - name: Checkout code
