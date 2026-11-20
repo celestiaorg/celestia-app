@@ -172,22 +172,42 @@ When E is below the tip, the relayer starts with a fresh database:
 2. Start the relayer on the new chain with an empty database and `index.from` set to I.
 3. Once `hyperlane_contract_sync_stored_events` for `dispatched_messages` on Celestia shows the first messages from the new chain, restart it once.
 
+Validator operators that sign Celestia checkpoints run their own steps; we tell them when too. A validator signs a merkle tree index with its root and message id. No block height is in the signature.
+
+When E is the tip, the validator keeps its database and checkpoints:
+
+1. Point its Celestia endpoints at its own node on the new chain, set `index.from` of the Celestia chain to I, and restart it. It signs the new messages and reports no reorg.
+
+When E is below the tip, the new chain puts its next messages at the merkle tree indices of the lost ones, which the validator has already signed. It then signs a different message at the same index: two conflicting signatures from one validator. Moving or deleting checkpoints does not withdraw a signature that was already published. Decide with the warp route owners before the restart whether that is acceptable. To sign the new chain:
+
+1. Stop the validator and move its database aside.
+2. In its checkpoint storage, move aside the checkpoints from the first lost index on (the merkle tree hook's count at E) and the reorg flag `reorg_flag.json`. Set the latest-index pointer to the last kept index: the validator only ever raises it. In a local storage the pointer is `index.json`; write the number without a newline, or the validator can't parse it.
+3. Start the validator on the new chain with an empty database and `index.from` set to I, before any new message is sent: it signs only messages added after it reads the tree. Keep the affected warp routes paused until `hyperlane_reached_initial_consistency` for Celestia is 1.
+
+This is checked with a `messageIdMultisigIsm` only. A `merkleRootMultisigIsm` also needs every earlier leaf in the relayer's database, which an empty database indexed from I does not have. Not tested.
+
+A validator that announces a new storage location sends a small Celestia transaction. Set `gasMultiplier` of the Celestia chain to 2 in the agent config: the agents estimate gas without the fee, and the default of 1.35 left the announcement out of gas in the e2e tests.
+
 ## Edge cases
 
 ### Export below the tip
 
-Use this only when the state at the tip is wrong. Before the restart, list the IBC packets and Hyperlane messages from heights E+1 to C on an archive with `tx_search`. Tell the counterparty chains and the warp route owners, and pause the affected warp routes.
+Use this only when the state at the tip is wrong. Before the restart, list the IBC packets, including interchain account packets executed on Celestia, and Hyperlane messages from heights E+1 to C on an archive with `tx_search`. Tell the counterparty chains, the interchain account controllers and the warp route owners, and pause the affected warp routes.
 
-The e2e tests `TestIBCExportBelowTip` and `TestHyperlaneExportBelowTip` showed this for traffic in the lost blocks:
+The e2e tests `TestIBCExportBelowTip`, `TestICAExportBelowTip`, `TestHyperlaneExportBelowTip` and `TestHyperlaneMultisigExportBelowTip` showed this for traffic in the lost blocks:
 
 - **Celestia to counterparty, received.** The counterparty keeps the vouchers, but Celestia no longer escrows the tokens: they are unbacked. Recovery: compensation through governance.
 - **Counterparty to Celestia, received and acknowledged.** Lost. The counterparty escrows the tokens and has no commitment left, so the packet can't be relayed again. Celestia never minted the vouchers. Recovery: compensation through governance.
 - **Counterparty to Celestia, received but not acknowledged.** The counterparty still has the commitment. Relaying it again delivers it once.
 - **New Celestia transfers on a reused sequence.** The counterparty's receive is a no-op, and a timeout fails with `failed packet receipt absence verification`. Anyone can relay the old acknowledgement, which deletes the commitment without a refund. The tokens stay in escrow. Recovery: open.
 - **IBC client.** The update from [IBC](#ibc) works the same, and later transfers work both ways.
+- **Interchain account packets executed on Celestia.** Lost, although the controller got an acknowledgement: the account's balance is the one at E, and the controller has no commitment left to relay again. Recovery: a lost bank send can be sent again. Other actions can have effects outside Celestia that survived, for example an IBC transfer that reached its destination although its escrow on Celestia is gone; the controller checks those effects before it repeats anything.
+- **Interchain accounts on an UNORDERED channel.** The channel keeps working; the next packet is received and executed.
+- **Interchain accounts on an ORDERED channel.** Celestia expects the lost sequence again, so the next packet can't be received. Its timeout closes the channel, as in item 2 of [After the restart](rollback-coordination.md#after-the-restart): relay `ChanCloseConfirm` to Celestia, and the controller registers again with the same ordering and gets the same address.
 - **Warp transfer from Celestia.** It stays minted on the EVM chain without collateral on Celestia. The next message reuses its nonce. A relayer with a fresh database delivers it and later messages (see [Hyperlane](#hyperlane)).
+- **Hyperlane validator.** After the reset from [Hyperlane](#hyperlane), it signs the new message at the reused index, a second signature that conflicts with the first, and the message is delivered.
 
-Not shown by the tests: a relayer that keeps its old database (from the relayer code, it skips the reused nonce and can stall), and Hyperlane validators.
+Not shown by the tests: a relayer that keeps its old database (from the relayer code, it skips the reused nonce and can stall).
 
 ### Planned restart
 
@@ -244,6 +264,6 @@ An account number so large that the import runs for an impractically long time i
 ## Open questions
 
 - An IBC client whose only usable trusted height is C-1 or C (no stored consensus height at or below C-2 within the trusting period): not tested. Options are a patched Hermes that does not fetch the validators above C, or governance recovery once the client expires; ibc-go v8 rejects `MsgRecoverClient` while the client is Active. The e2e tests cover a client at C-1 and a client below E.
-- Hyperlane relayer after an export below the tip: the fresh-database procedure above is checked only with a noop ISM and no Hyperlane validators.
+- Hyperlane relayer after an export below the tip: the fresh-database procedure above is checked with a noop ISM and with a `messageIdMultisigIsm` of one validator, not with a `merkleRootMultisigIsm`.
 - Celestia to EVM messages dispatched at or below E but not delivered before the halt are never seen by a fresh relayer database: their events are in old blocks. They are valid on the new chain. Options, none checked: find them in the old database and deliver them separately, run a relayer once against an archive up to E, or let the old relayer drain during the halt (it also delivers messages above E).
-- Hyperlane validators that see a reused nonce likely detect a reorg and stop, and then need a database reset. Not checked.
+- A Hyperlane validator that keeps its database after an export below the tip: from the agent code, it can report a reorg and stop, or wait. Not checked; the steps in [Hyperlane](#hyperlane) reset it instead.
