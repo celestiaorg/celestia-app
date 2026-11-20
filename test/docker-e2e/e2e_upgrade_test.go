@@ -362,16 +362,28 @@ func (s *CelestiaTestSuite) SignalUpgrade(
 		s.Require().NoError(err, "failed to broadcast signal tx")
 		txHashes[i] = resp.TxHash
 	}
+	var lastSignalHeight int64
 	for _, txHash := range txHashes {
 		resp, err := txClient.ConfirmTx(ctx, txHash)
 		s.Require().NoError(err, "failed to confirm signal tx")
 		s.Require().Equal(uint32(0), resp.Code, "signal tx failed with code %d", resp.Code)
+		lastSignalHeight = max(lastSignalHeight, resp.Height)
 	}
-
-	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
 	rpcClient, err := validatorNode.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
+
+	// CometBFT reports a tx as committed before the app commits its block, so
+	// the tally query can still read the state from before the signals.
+	err = wait.ForCondition(ctx, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		info, err := rpcClient.ABCIInfo(callCtx)
+		return err == nil && info.Response.LastBlockHeight >= lastSignalHeight, nil
+	})
+	s.Require().NoError(err, "app did not commit signal height %d", lastSignalHeight)
+
+	s.validateSignalTally(ctx, validatorNode, targetAppVersion)
 
 	beforeUpgrade, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err)
