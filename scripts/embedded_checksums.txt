@@ -30,3 +30,7 @@ feb9560ddc9d55e1975f822153dacfa057954dcee7f6a55fa6b1f694e00959cc  v8.0.8/celesti
 53e5bda2206c2951f111f56a5c9fc6757ed2a1105519075eea9baa624803420f  v10.5.0/celestia-app-standalone_Darwin_x86_64.tar.gz
 1466faac7224df71e886f8182eadd1b0a20694250ae5625d3a7be85dfaa5af81  v10.5.0/celestia-app-standalone_Linux_arm64.tar.gz
 7cd53ee3d88e18337b1e7f74ef1877a69d49f1afc6b560f8211941572337f21f  v10.5.0/celestia-app-standalone_Linux_x86_64.tar.gz
+873fcdee2b827c34d18119139881a805b5fd455a6a73812b288a2e27fb9cd4f0  v11.0.0/celestia-app-standalone_Darwin_arm64.tar.gz
+210a13f18e28d0036cf62771c32fc7e201418878ead9c96a95946f03d87ec1a4  v11.0.0/celestia-app-standalone_Darwin_x86_64.tar.gz
+d7f1170640fbc96bcd4bdb7121e0c2308f92e37dda37ef52b2f18e441e099679  v11.0.0/celestia-app-standalone_Linux_arm64.tar.gz
+9ec4699842dc89e590ffc4c5b5884bc7af5b44af16af230bd612ea75371af5a7  v11.0.0/celestia-app-standalone_Linux_x86_64.tar.gz

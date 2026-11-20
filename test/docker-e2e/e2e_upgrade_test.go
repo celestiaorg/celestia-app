@@ -124,11 +124,12 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			baseAppVersion:   9,
 			targetAppVersion: 10,
 		},
-		// The v11.x branch defines the 10 -> 11 upgrade and this image has no
-		// v11 binary to embed yet, so jump from v10 straight to v12. Replace
-		// with 10 -> 11 and 11 -> 12 once a v11 release is embedded.
 		{
 			baseAppVersion:   10,
+			targetAppVersion: 11,
+		},
+		{
+			baseAppVersion:   11,
 			targetAppVersion: 12,
 		},
 	}

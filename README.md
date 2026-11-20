@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.11. With another Go version installed, the Makefile downloads and uses Go 1.26.11, so the binary matches the release binaries.
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v10.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v11.
 
     ```shell
     make install
