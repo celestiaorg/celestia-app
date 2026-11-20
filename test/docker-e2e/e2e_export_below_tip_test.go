@@ -11,15 +11,24 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
+	"github.com/celestiaorg/tastora/framework/testutil/wallet"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkquery "github.com/cosmos/cosmos-sdk/types/query"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
+	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
@@ -321,6 +330,235 @@ func (s *IBCTestSuite) updateHostedClient(ctx context.Context, hostChain *cosmos
 	})
 }
 
+// TestICAExportBelowTip restarts Celestia, the ICA host, from an export below
+// the last height Hermes relayed. In the dropped blocks two interchain
+// accounts, one on an UNORDERED and one on an ORDERED channel, each execute a
+// bank send that simapp gets an acknowledgement for. After the restart both
+// sends are lost. The UNORDERED channel keeps working. On the ORDERED channel
+// Celestia expects the lost sequence again, so the next packet can't be
+// received; its timeout closes the channel, and the controller registers again
+// and gets the same account.
+func (s *IBCTestSuite) TestICAExportBelowTip() {
+	if testing.Short() {
+		s.T().Skip("skipping ICA export below tip test in short mode")
+	}
+	ctx := context.Background()
+
+	s.setupIBCInfrastructure(appconsts.Version, false)
+	archive := s.addArchiveNode(ctx, s.chainA)
+	s.Require().NoError(s.hermes.Start(ctx), "failed to start hermes")
+	owner, err := wallet.CreateAndFund(ctx, "ica-ordered", sdk.NewCoins(sdk.NewInt64Coin("stake", 10_000_000)), s.chainB)
+	s.Require().NoError(err, "failed to fund the second controller")
+	unordered := s.registerICA(ctx, s.chainB.GetFaucetWallet(), channeltypes.UNORDERED)
+	ordered := s.registerICA(ctx, owner, channeltypes.ORDERED)
+	s.fundICAAccount(ctx, unordered.address)
+	s.fundICAAccount(ctx, ordered.address)
+	s.Require().NoError(s.hermes.StopContainer(ctx), "failed to stop hermes")
+
+	celestiaID := s.chainA.GetChainID()
+	balance := func(a ica) sdkmath.Int { return s.getBalance(ctx, s.chainA, a.address, "utia") }
+	amount := sdkmath.NewInt(1000000)
+
+	// Snapshot at the export height E.
+	unorderedBefore, orderedBefore := balance(unordered), balance(ordered)
+	exportAt, err := s.chainA.Validators[0].Height(ctx)
+	s.Require().NoError(err)
+
+	// Blocks above E: one send per account, executed and acknowledged.
+	n, _ := s.sendICA(ctx, unordered, amount, time.Hour)
+	s.relayICA(ctx, unordered, n.Sequence, unorderedBefore.Sub(amount))
+	m, _ := s.sendICA(ctx, ordered, amount, time.Hour)
+	s.relayICA(ctx, ordered, m.Sequence, orderedBefore.Sub(amount))
+
+	r := &exportRestart{exportAt: exportAt, archive: archive}
+	s.exportAndRestart(ctx, s.chainA, r)
+	s.T().Logf("exported at height %d, new chain starts at %d", r.exportHeight, r.initialHeight)
+	s.celestiaTxClient, err = s.setupTxClient(ctx, s.chainA)
+	s.Require().NoError(err, "failed to set up the tx client on the new chain")
+	// Relaying in the dropped blocks moved simapp's client to the archive's
+	// last height C, so update it as the runbook says: from a stored height
+	// at or below C-2.
+	s.updateClientFromStoredHeight(ctx, s.celestiaClientID(ctx), archive, r.initialHeight)
+	s.requireCelestiaClientActive(ctx)
+
+	s.Require().Equal(unorderedBefore, balance(unordered), "the UNORDERED send was not lost")
+	s.Require().Equal(orderedBefore, balance(ordered), "the ORDERED send was not lost")
+	s.Require().False(s.packetReceived(ctx, s.chainA, icatypes.HostPortID, unordered.hostChannel, n.Sequence), "Celestia has a receipt of the UNORDERED send")
+	s.Require().Equal(m.Sequence, s.nextSequenceRecv(ctx, s.chainA, icatypes.HostPortID, ordered.hostChannel), "Celestia does not expect the ORDERED send again")
+
+	// The next ORDERED packet is m+1, but Celestia expects m.
+	next, sentAt := s.sendICA(ctx, ordered, amount, 2*time.Minute)
+	s.Require().Equal(m.Sequence+1, next.Sequence)
+	timeout := time.Unix(0, int64(next.TimeoutTimestamp))
+	s.Run("ORDERED packet is not received", func() {
+		// The receive must be executed on Celestia before the packet times out.
+		recvCtx, cancel := context.WithDeadline(ctx, timeout.Add(-10*time.Second))
+		defer cancel()
+		prepCtx, cancelPrep := context.WithDeadline(recvCtx, timeout.Add(-30*time.Second))
+		defer cancelPrep()
+		simapp := s.chainB.GetNode()
+		proof, proofHeight := s.ibcProof(prepCtx, simapp, simappChainID, host.PacketCommitmentKey(ordered.port, ordered.channel, next.Sequence), sentAt)
+		s.updateHostedClient(prepCtx, s.chainA, s.simappClientID(ctx), simapp, proofHeight)
+		s.Require().NoError(prepCtx.Err(), "receive was not ready before the timeout")
+		recv := channeltypes.NewMsgRecvPacket(next, proof, proofHeight, s.chainA.GetFaucetWallet().GetFormattedAddress())
+		_, err := s.celestiaTxClient.SubmitTx(recvCtx, []sdk.Msg{recv}, user.SetGasLimit(400000), user.SetFee(10000))
+		s.Require().ErrorContains(err, channeltypes.ErrPacketSequenceOutOfOrder.Error(), "receive was not rejected as out of order before the timeout")
+		s.Require().Equal(m.Sequence, s.nextSequenceRecv(ctx, s.chainA, icatypes.HostPortID, ordered.hostChannel))
+		s.Require().Equal(orderedBefore, balance(ordered), "the ORDERED packet was executed")
+	})
+
+	// The timeout closes the controller end; ChanCloseConfirm closes Celestia's.
+	err = s.WaitForSync(ctx, s.chainA.Validators[0].Client, time.Until(timeout)+2*time.Minute, func(info coretypes.SyncInfo) bool {
+		return info.LatestBlockTime.After(timeout)
+	})
+	s.Require().NoError(err, "Celestia did not pass the timeout")
+	s.hermesTx(ctx, "packet-recv", celestiaID, simappChainID, ordered.port, ordered.channel)
+	s.waitUntil(ctx, time.Minute, "the timeout did not close the ORDERED channel on simapp", func(ctx context.Context) bool {
+		return s.channelState(ctx, s.chainB, ordered.port, ordered.channel) == channeltypes.CLOSED
+	})
+	s.hermesExec(ctx, "tx", "chan-close-confirm", "--dst-chain", celestiaID, "--src-chain", simappChainID,
+		"--dst-connection", s.connection.ConnectionID, "--dst-port", icatypes.HostPortID, "--src-port", ordered.port,
+		"--dst-channel", ordered.hostChannel, "--src-channel", ordered.channel)
+	s.waitUntil(ctx, time.Minute, "the ORDERED channel did not close on Celestia", func(ctx context.Context) bool {
+		return s.channelState(ctx, s.chainA, icatypes.HostPortID, ordered.hostChannel) == channeltypes.CLOSED
+	})
+
+	s.Require().NoError(s.hermes.StartContainer(ctx), "failed to restart hermes")
+	s.Run("UNORDERED channel keeps working", func() {
+		next, _ := s.sendICA(ctx, unordered, amount, time.Hour)
+		s.Require().Equal(n.Sequence+1, next.Sequence)
+		s.waitUntil(ctx, time.Minute, "the next UNORDERED send was not executed", func(context.Context) bool {
+			return balance(unordered).Equal(unorderedBefore.Sub(amount))
+		})
+	})
+	s.Run("ORDERED account registers again", func() {
+		// A reopened channel keeps its ordering.
+		again := s.registerICA(ctx, owner, channeltypes.ORDERED)
+		s.Require().NotEqual(ordered.channel, again.channel)
+		s.Require().Equal(ordered.address, again.address, "the account address changed")
+		s.sendICA(ctx, again, amount, time.Hour)
+		s.waitUntil(ctx, time.Minute, "the send on the new channel was not executed", func(context.Context) bool {
+			return balance(again).Equal(orderedBefore.Sub(amount))
+		})
+	})
+}
+
+// ica is an interchain account on Celestia and its controller on simapp.
+type ica struct {
+	owner       *tastoratypes.Wallet
+	port        string // controller port on simapp
+	channel     string // controller channel on simapp
+	hostChannel string // host channel on Celestia
+	address     string
+}
+
+// registerICA registers an interchain account for owner on a channel with the
+// given ordering and waits until Hermes opens it.
+func (s *IBCTestSuite) registerICA(ctx context.Context, owner *tastoratypes.Wallet, ordering channeltypes.Order) ica {
+	connection := s.connection.CounterpartyID
+	s.broadcastSimapp(ctx, owner, icacontrollertypes.NewMsgRegisterInterchainAccountWithOrdering(connection, owner.GetFormattedAddress(), "", ordering))
+	port, err := icatypes.NewControllerPortID(owner.GetFormattedAddress())
+	s.Require().NoError(err)
+	var open *channeltypes.IdentifiedChannel
+	query := channeltypes.NewQueryClient(s.chainB.GetNode().GrpcConn)
+	s.waitUntil(ctx, 90*time.Second, "ICA channel did not open", func(ctx context.Context) bool {
+		res, err := query.ConnectionChannels(ctx, &channeltypes.QueryConnectionChannelsRequest{Connection: connection})
+		if err != nil {
+			return false
+		}
+		for _, ch := range res.Channels {
+			if ch.PortId == port && ch.State == channeltypes.OPEN {
+				open = ch
+				return true
+			}
+		}
+		return false
+	})
+	s.Require().Equal(ordering, open.Ordering, "ICA channel has another ordering")
+	// Hermes may still be relaying ChanOpenConfirm to Celestia.
+	s.waitUntil(ctx, time.Minute, "ICA channel did not open on Celestia", func(ctx context.Context) bool {
+		return s.channelState(ctx, s.chainA, icatypes.HostPortID, open.Counterparty.ChannelId) == channeltypes.OPEN
+	})
+	// After the handshake the controller channel carries the host's version,
+	// which names the account.
+	metadata, err := icatypes.MetadataFromVersion(open.Version)
+	s.Require().NoError(err)
+	return ica{owner: owner, port: port, channel: open.ChannelId, hostChannel: open.Counterparty.ChannelId, address: metadata.Address}
+}
+
+// sendICA sends amount from the account to the Celestia faucet with a relative
+// timeout. It returns the packet and the simapp height it was sent at.
+func (s *IBCTestSuite) sendICA(ctx context.Context, a ica, amount sdkmath.Int, timeout time.Duration) (channeltypes.Packet, int64) {
+	send, err := codectypes.NewAnyWithValue(&banktypes.MsgSend{FromAddress: a.address, ToAddress: s.chainA.GetFaucetWallet().GetFormattedAddress(), Amount: sdk.NewCoins(sdk.NewCoin("utia", amount))})
+	s.Require().NoError(err)
+	data, err := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec.Marshal(&icatypes.CosmosTx{Messages: []*codectypes.Any{send}})
+	s.Require().NoError(err)
+	packetData := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: data}
+	resp := s.broadcastSimapp(ctx, a.owner, icacontrollertypes.NewMsgSendTx(a.owner.GetFormattedAddress(), s.connection.CounterpartyID, uint64(timeout.Nanoseconds()), packetData))
+	return s.sentPacket(resp), resp.Height
+}
+
+// relayICA relays the account's packets to Celestia and the acknowledgement of
+// seq back with one-shot Hermes commands. It waits until the account holds want.
+func (s *IBCTestSuite) relayICA(ctx context.Context, a ica, seq uint64, want sdkmath.Int) {
+	celestiaID := s.chainA.GetChainID()
+	s.hermesTx(ctx, "packet-recv", celestiaID, simappChainID, a.port, a.channel)
+	s.waitUntil(ctx, time.Minute, "ICA packet was not executed on Celestia", func(ctx context.Context) bool {
+		return s.getBalance(ctx, s.chainA, a.address, "utia").Equal(want)
+	})
+	s.hermesTx(ctx, "packet-ack", simappChainID, celestiaID, icatypes.HostPortID, a.hostChannel)
+	s.waitUntil(ctx, time.Minute, "ICA packet was not acknowledged on simapp", func(ctx context.Context) bool {
+		return !s.packetCommitted(ctx, s.chainB, a.port, a.channel, seq)
+	})
+}
+
+// broadcastSimapp broadcasts msg on simapp signed by signer and requires success.
+func (s *IBCTestSuite) broadcastSimapp(ctx context.Context, signer *tastoratypes.Wallet, msg sdk.Msg) sdk.TxResponse {
+	b := cosmos.NewBroadcaster(s.chainB)
+	b.ConfigureFactoryOptions(func(f sdktx.Factory) sdktx.Factory { return f.WithGas(500000) })
+	resp, err := b.BroadcastMessages(ctx, signer, msg)
+	s.Require().NoError(err, "failed to broadcast on simapp")
+	s.Require().Equal(uint32(0), resp.Code, "simapp tx failed: %s", resp.RawLog)
+	return resp
+}
+
+// sentPacket returns the packet a simapp tx sent, read from its send_packet event.
+func (s *IBCTestSuite) sentPacket(resp sdk.TxResponse) channeltypes.Packet {
+	for _, event := range resp.Events {
+		if event.Type != channeltypes.EventTypeSendPacket {
+			continue
+		}
+		attrs := make(map[string]string)
+		for _, attr := range event.Attributes {
+			attrs[attr.Key] = attr.Value
+		}
+		data, err := hex.DecodeString(attrs[channeltypes.AttributeKeyDataHex])
+		s.Require().NoError(err)
+		seq, err := strconv.ParseUint(attrs[channeltypes.AttributeKeySequence], 10, 64)
+		s.Require().NoError(err)
+		timeout, err := strconv.ParseUint(attrs[channeltypes.AttributeKeyTimeoutTimestamp], 10, 64)
+		s.Require().NoError(err)
+		return channeltypes.NewPacket(data, seq, attrs[channeltypes.AttributeKeySrcPort], attrs[channeltypes.AttributeKeySrcChannel],
+			attrs[channeltypes.AttributeKeyDstPort], attrs[channeltypes.AttributeKeyDstChannel], clienttypes.ZeroHeight(), timeout)
+	}
+	s.Require().FailNow("simapp tx sent no packet")
+	return channeltypes.Packet{}
+}
+
+// nextSequenceRecv returns the next receive sequence of an ORDERED channel.
+func (s *IBCTestSuite) nextSequenceRecv(ctx context.Context, chain *cosmos.Chain, port, channel string) uint64 {
+	res, err := channeltypes.NewQueryClient(chain.GetNode().GrpcConn).NextSequenceReceive(ctx, &channeltypes.QueryNextSequenceReceiveRequest{PortId: port, ChannelId: channel})
+	s.Require().NoError(err, "failed to query the next receive sequence")
+	return res.NextSequenceReceive
+}
+
+// channelState returns the state of a channel.
+func (s *IBCTestSuite) channelState(ctx context.Context, chain *cosmos.Chain, port, channel string) channeltypes.State {
+	res, err := channeltypes.NewQueryClient(chain.GetNode().GrpcConn).Channel(ctx, &channeltypes.QueryChannelRequest{PortId: port, ChannelId: channel})
+	s.Require().NoError(err, "failed to query the channel")
+	return res.Channel.State
+}
+
 // TestHyperlaneExportBelowTip restarts Celestia from an export below the last
 // height the relayer saw. A message sent in the dropped blocks stays delivered
 // on the EVM chain, and the next message reuses its nonce. A relayer with a
@@ -428,4 +666,30 @@ func (s *HyperlaneTestSuite) waitForStoredMessages(ctx context.Context, node *co
 		return false, nil
 	})
 	s.Require().NoError(err, "relayer did not store %d Celestia messages", want)
+}
+
+// updateClientFromStoredHeight updates simapp's client of Celestia across the
+// restart as step 3 of the IBC section of the export runbook says: it trusts
+// the newest stored consensus height at or below C-2, where C is the last
+// height of the archive, and updates to the initial height I.
+func (s *IBCTestSuite) updateClientFromStoredHeight(ctx context.Context, clientID string, archive *cosmos.ChainNode, initialHeight int64) {
+	status, err := archive.Client.Status(ctx)
+	s.Require().NoError(err, "failed to query the archive")
+	c := status.SyncInfo.LatestBlockHeight
+	heights, err := clienttypes.NewQueryClient(s.chainB.GetNode().GrpcConn).ConsensusStateHeights(ctx, &clienttypes.QueryConsensusStateHeightsRequest{
+		ClientId:   clientID,
+		Pagination: &sdkquery.PageRequest{Limit: 1000},
+	})
+	s.Require().NoError(err, "failed to query the consensus heights of client %s", clientID)
+	var trusted int64
+	for _, h := range heights.ConsensusStateHeights {
+		if v := int64(h.RevisionHeight); v <= c-2 && v > trusted {
+			trusted = v
+		}
+	}
+	s.Require().NotZero(trusted, "client %s has no consensus height at or below %d", clientID, c-2)
+	s.hermesExec(ctx, "update", "client", "--host-chain", simappChainID, "--client", clientID,
+		"--trusted-height", strconv.FormatInt(trusted, 10), "--height", strconv.FormatInt(initialHeight, 10),
+		"--restart-height", strconv.FormatInt(c, 10), "--archive-address", "http://"+archive.HostName()+":26657")
+	s.T().Logf("client %s updated to %d trusting %d (C=%d)", clientID, initialHeight, trusted, c)
 }
