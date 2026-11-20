@@ -21,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -329,6 +330,9 @@ func (c *Client) uploadTo(
 		return nil
 	}
 
+	// Marshaled rows hold blob references until gRPC frees them.
+	codec := fibregrpc.NewUploadCodec(blob.retain, blob.release)
+
 	var resp *types.UploadShardResponse
 	for attempt := 0; ; attempt++ {
 		err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
@@ -339,7 +343,7 @@ func (c *Client) uploadTo(
 			defer rpcCancel()
 			var err error
 			rpcStart := time.Now()
-			resp, err = client.UploadShard(rpcCtx, req)
+			resp, err = client.UploadShard(rpcCtx, req, grpc.ForceCodecV2(codec))
 			c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 			return err
 		})
