@@ -243,7 +243,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	forwardingService := s.ConfigureForwardRelayer(ctx, chain, nil)
+	forwardingService := s.StartForwardBackend(ctx)
 
 	// Compute the forwarding address on celestia for recipient on reth1 destination chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
@@ -256,25 +256,27 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	s.Require().NoError(err)
 
 	beforeForwardBalance := s.QueryBankBalance(ctx, chain, forwardAddress, chain.Config.Denom)
+	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
+	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 
 	// Execute the hyperlane erc20 transfer from reth0 to reth1 via celestia x/forwarding
 	amount := sdkmath.NewInt(500)
 	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
 	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
 
+	// The forwarding relayer is not running yet, so the deposit stays at the forwarding
+	// address until the test sees it. A running relayer can move it out between two polls.
 	expForwardBalance := beforeForwardBalance.Add(amount)
 	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
 
-	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
-	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
+	s.StartForwardRelayer(ctx, chain, forwardingService, nil)
 
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 }
 
-// ConfigureForwardRelayer starts the forwarding-relayer backend + relayer. extraEnv is
-// appended to the relayer container's environment (e.g. CUSTOM_IGP_HOOK=<igp>).
-func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain, extraEnv []string) *hyperlane.ForwardRelayer {
+// StartForwardBackend starts the forwarding-relayer backend, which stores forwarding requests.
+func (s *HyperlaneTestSuite) StartForwardBackend(ctx context.Context) *hyperlane.ForwardRelayer {
 	backendCfg := hyperlane.ForwardRelayerConfig{
 		Logger:          s.logger,
 		DockerClient:    s.client,
@@ -292,6 +294,13 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	err = backend.Start(ctx)
 	s.Require().NoError(err)
 
+	return backend
+}
+
+// StartForwardRelayer starts the forwarding relayer, which forwards the balance of each
+// address registered in backend. extraEnv is appended to the relayer container's
+// environment (e.g. CUSTOM_IGP_HOOK=<igp>).
+func (s *HyperlaneTestSuite) StartForwardRelayer(ctx context.Context, chain *cosmos.Chain, backend *hyperlane.ForwardRelayer, extraEnv []string) {
 	amount := sdkmath.NewInt(1000000)
 	sendAmount := sdk.NewCoins(sdk.NewCoin(chain.Config.Denom, amount))
 
@@ -324,8 +333,6 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 
 	err = relayer.Start(ctx)
 	s.Require().NoError(err)
-
-	return backend
 }
 
 // forceRemoveOnCleanup kills the forwarding-relayer container at test end
