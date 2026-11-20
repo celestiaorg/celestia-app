@@ -16,15 +16,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesV11Fields checks that the v11 zkism, mint, distribution and
-// ibc channel genesis fields are only exported for app version 11 and above,
-// since the embedded v10 binary rejects them as unknown.
+// TestExportBytesV11Fields checks that the newer zkism, mint, distribution and
+// ibc channel genesis fields are only exported for app version 12 and above,
+// since the embedded v3-v11 binaries reject them as unknown.
 func TestExportBytesV11Fields(t *testing.T) {
 	tests := []struct {
 		appVersion    uint64
 		wantV11Fields bool
 	}{
 		{appVersion: 10, wantV11Fields: false},
+		// The embedded v11.0.0 binary is built on v10 and rejects these fields too.
+		{appVersion: 11, wantV11Fields: false},
 		{appVersion: appconsts.Version, wantV11Fields: true},
 	}
 

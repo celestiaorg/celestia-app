@@ -78,6 +78,7 @@ CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
 CELESTIA_V9_VERSION := v9.0.8
 CELESTIA_V10_VERSION := v10.5.0
+CELESTIA_V11_VERSION := v11.0.0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -118,11 +119,11 @@ install: download-embedded-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9 10,download-v$(v)-binaries)
+EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9 10 11,download-v$(v)-binaries)
 # v3 release tarballs are named celestia-app_*; later ones are celestia-app-standalone_*.
 EMBEDDED_TARBALL_PREFIX = $(if $(filter 3,$*),celestia-app,celestia-app-standalone)
 
-## download-embedded-binaries: Download the celestia-app v3-v10 binaries for the current platform.
+## download-embedded-binaries: Download the celestia-app v3-v11 binaries for the current platform.
 download-embedded-binaries: $(EMBEDDED_BINARY_TARGETS)
 .PHONY: download-embedded-binaries
 
