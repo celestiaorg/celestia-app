@@ -307,6 +307,14 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				prevCtx = ctx
 				ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1).WithBlockTime(ctx.BlockTime().Add(d))
 			}
+			// committed must always equal the cost of what is pending, rejections included.
+			for s, b := range snapshotCache(k.promiseCache) {
+				sum := math.ZeroInt()
+				for _, p := range b.pending {
+					sum = sum.Add(requiredAmount(p.blobSize))
+				}
+				require.Equal(t, sum.String(), b.committed, "%s committed differs from its pending total", s)
+			}
 		}
 	})
 }
