@@ -11,11 +11,8 @@ import (
 
 type abciQueryFn = func(context.Context, *abci.RequestQuery) (*abci.ResponseQuery, error)
 
-// rejectProofQueries wraps an ABCI query function that serves callers outside
-// the node. It refuses the inclusion proof query paths, which build a data
-// square from caller-supplied bytes. celestia-core calls those paths with
-// stored blocks over its own ABCI connection, which this wrapper does not
-// touch.
+// rejectProofQueries wraps a query function for callers outside the node and
+// refuses the inclusion proof paths, which build a square from request bytes.
 func rejectProofQueries(next abciQueryFn) abciQueryFn {
 	return func(ctx context.Context, req *abci.RequestQuery) (*abci.ResponseQuery, error) {
 		if proof.IsProofQueryPath(req.Path) {
