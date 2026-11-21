@@ -645,7 +645,9 @@ func prefixUpperBound(prefix []byte) []byte {
 	for i := range slices.Backward(upper) {
 		upper[i]++
 		if upper[i] != 0 {
-			return upper
+			// Drop the bytes that overflowed. Keeping them would also include
+			// keys outside the requested prefix (for example, 0x02 for 0x01ff).
+			return upper[:i+1]
 		}
 	}
 	// all 0xff bytes - return nil to indicate no upper bound
