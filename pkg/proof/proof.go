@@ -96,8 +96,8 @@ func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
 
 // NewShareInclusionProof takes an ODS, extends it, then
 // returns an NMT inclusion proof for a set of shares
-// belonging to the same namespace to the data root.
-// Expects the share range to be pre-validated.
+// belonging to the same namespace to the data root. It returns an error if the
+// share range is empty or outside the original data square.
 func NewShareInclusionProof(
 	dataSquare square.Square,
 	namespace share.Namespace,
@@ -112,16 +112,23 @@ func NewShareInclusionProof(
 
 // NewShareInclusionProofFromEDS takes an extended data square,
 // and returns an NMT inclusion proof for a set of shares
-// belonging to the same namespace to the data root.
-// Expects the share range to be pre-validated.
+// belonging to the same namespace to the data root. It returns an error if the
+// share range is empty or outside the original data square.
 func NewShareInclusionProofFromEDS(
 	eds *rsmt2d.ExtendedDataSquare,
 	namespace share.Namespace,
 	shareRange share.Range,
 ) (ShareProof, error) {
+	if eds == nil {
+		return ShareProof{}, errors.New("nil extended data square")
+	}
 	squareSize, err := square.Size(len(eds.FlattenedODS()))
 	if err != nil {
 		return ShareProof{}, err
+	}
+	if shareRange.Start < 0 || shareRange.End <= shareRange.Start || shareRange.End > squareSize*squareSize {
+		return ShareProof{}, fmt.Errorf("share range [%d, %d) must be non-empty and within the %d shares of the original data square",
+			shareRange.Start, shareRange.End, squareSize*squareSize)
 	}
 	startRow := shareRange.Start / squareSize
 	endRow := (shareRange.End - 1) / squareSize
