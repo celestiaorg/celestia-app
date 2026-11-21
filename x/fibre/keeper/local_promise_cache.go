@@ -1,12 +1,12 @@
 package keeper
 
 import (
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
 
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -23,12 +23,11 @@ const (
 	// memory sweep.
 	promiseCacheMinSweepAt = 64
 	// promiseCacheSweepEvery is how many heights a failing signer waits before a
-	// sweep even if its escrow looks unchanged, e.g. settled and topped back up.
-	promiseCacheSweepEvery = 100
+	// sweep even if no Balance move was seen, e.g. settled and topped up in one block.
+	promiseCacheSweepEvery = 20
+	// maxPendingPerSigner caps a signer's pending reservations.
+	maxPendingPerSigner = 10_000
 )
-
-// maxPendingPerSigner caps a signer's pending reservations; a var so tests can lower it.
-var maxPendingPerSigner = 10_000
 
 // promiseStateReader is the read-only committed chain state a sweep needs to
 // reconcile cached budgets against the chain. The keeper satisfies it.
@@ -52,14 +51,20 @@ type promiseStateReader interface {
 type LocalPromiseCache struct {
 	reader promiseStateReader
 
+	// maxPending caps each signer's pending reservations.
+	maxPending int
+
 	// mu guards only budgets and lastEvict; lock order is mu then a signer's mu,
 	// and mu is never held while blocking on a signer's mu. Per signer, pending
-	// is bounded by maxPendingPerSigner, and idle signers are evicted.
+	// is bounded by maxPending, and idle signers are evicted.
 	mu      sync.Mutex
 	budgets map[string]*signerBudget
 	// lastEvict is when idle entries were last swept; eviction runs lazily on the
 	// query path at most once per promiseCacheEvictInterval.
 	lastEvict time.Time
+
+	// beforeSignerLock is a test hook run between the map lookup and b.mu.Lock; nil in production.
+	beforeSignerLock func()
 }
 
 // signerBudget is the cached budget state for a single escrow account. Its
@@ -67,16 +72,16 @@ type LocalPromiseCache struct {
 type signerBudget struct {
 	mu sync.Mutex
 	// pending holds the reservations not yet dropped by a sweep, keyed by
-	// hex(promiseHash); committed is the sum of their amounts.
+	// string(promiseHash); committed is the sum of their amounts.
 	pending   map[string]pendingPromise
 	committed math.Int
 	// height, available and balance are the escrow at the newest height read.
 	height             int64
 	available, balance math.Int
-	// sweptBal and sweptAvail are the escrow the last sweep reconciled against;
-	// withdrawalDelay is the param it read. Together they gate failure sweeps.
-	sweptBal, sweptAvail math.Int
-	withdrawalDelay      time.Duration
+	// balanceMoved is set when a newer height shows a different Balance and
+	// cleared by a sweep; withdrawalDelay is the param the last sweep read.
+	balanceMoved    bool
+	withdrawalDelay time.Duration
 	// oldestCreation is the earliest creation time in pending.
 	oldestCreation time.Time
 	// sweepAt is the pending count that triggers a memory sweep.
@@ -101,8 +106,9 @@ type pendingPromise struct {
 // NewLocalPromiseCache creates an empty cache backed by the given state reader.
 func NewLocalPromiseCache(reader promiseStateReader) *LocalPromiseCache {
 	return &LocalPromiseCache{
-		reader:  reader,
-		budgets: make(map[string]*signerBudget),
+		reader:     reader,
+		maxPending: maxPendingPerSigner,
+		budgets:    make(map[string]*signerBudget),
 	}
 }
 
@@ -112,8 +118,6 @@ func newSignerBudget() *signerBudget {
 		committed:       math.ZeroInt(),
 		available:       math.ZeroInt(),
 		balance:         math.ZeroInt(),
-		sweptBal:        math.ZeroInt(),
-		sweptAvail:      math.ZeroInt(),
 		withdrawalDelay: types.MaxWithdrawalDelay,
 		sweepAt:         promiseCacheMinSweepAt,
 		lastSweepH:      -1,
@@ -129,7 +133,7 @@ func newSignerBudget() *signerBudget {
 // The gRPC endpoint is adversarial, so signature verification must precede any
 // cache mutation to prevent budget poisoning.
 func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash []byte, blobSize uint32, creationTimestamp time.Time) error {
-	key := hex.EncodeToString(promiseHash)
+	key := string(promiseHash)
 	required := requiredAmount(blobSize)
 
 	// Read the escrow before taking any lock so the store read does not
@@ -147,6 +151,11 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	// Keep the escrow of the newest height seen, so a read from an older height
 	// cannot raise the budget above what a sweep at a newer height freed.
 	if h := ctx.BlockHeight(); h >= b.height {
+		// Settlements always lower Balance, while an AvailableBalance-only move (a
+		// withdrawal request) frees nothing; a new entry has nothing pending to free.
+		if h > b.height && len(b.pending) > 0 && !balance.Equal(b.balance) {
+			b.balanceMoved = true
+		}
 		b.height, b.available, b.balance = h, available, balance
 	}
 
@@ -158,17 +167,17 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	if len(b.pending) >= b.sweepAt {
 		c.sweep(ctx, b)
 	}
-	if b.tryAdmit(key, blobSize, required, creationTimestamp) {
+	if c.tryAdmit(b, key, blobSize, required, creationTimestamp) {
 		return nil
 	}
 
 	// Sweep on failure only if something on-chain could have freed an entry.
-	if b.sweepDue(ctx) && c.sweep(ctx, b) && b.tryAdmit(key, blobSize, required, creationTimestamp) {
+	if b.sweepDue(ctx) && c.sweep(ctx, b) && c.tryAdmit(b, key, blobSize, required, creationTimestamp) {
 		return nil
 	}
 
-	if len(b.pending) >= maxPendingPerSigner {
-		return fmt.Errorf("too many pending promises for signer %s: cap %d reached", signer, maxPendingPerSigner)
+	if len(b.pending) >= c.maxPending {
+		return fmt.Errorf("too many pending promises for signer %s: cap %d reached", signer, c.maxPending)
 	}
 	return fmt.Errorf("insufficient available balance for signer %s: required %s, available %s, committed %s", signer, required, b.available, b.committed)
 }
@@ -189,6 +198,9 @@ func (c *LocalPromiseCache) lockSigner(signer string) *signerBudget {
 		}
 		c.mu.Unlock()
 
+		if c.beforeSignerLock != nil {
+			c.beforeSignerLock()
+		}
 		b.mu.Lock()
 		if !b.evicted {
 			return b
@@ -200,8 +212,8 @@ func (c *LocalPromiseCache) lockSigner(signer string) *signerBudget {
 // tryAdmit reserves the promise if the signer is under its cap and has budget.
 // The budget uses AvailableBalance, not the Balance the chain settles from, so
 // the cache is stricter than the chain. Callers must hold b.mu.
-func (b *signerBudget) tryAdmit(key string, blobSize uint32, required math.Int, creationTimestamp time.Time) bool {
-	if len(b.pending) >= maxPendingPerSigner || b.available.Sub(b.committed).LT(required) {
+func (c *LocalPromiseCache) tryAdmit(b *signerBudget, key string, blobSize uint32, required math.Int, creationTimestamp time.Time) bool {
+	if len(b.pending) >= c.maxPending || b.available.Sub(b.committed).LT(required) {
 		return false
 	}
 	if len(b.pending) == 0 || creationTimestamp.Before(b.oldestCreation) {
@@ -212,11 +224,11 @@ func (b *signerBudget) tryAdmit(key string, blobSize uint32, required math.Int, 
 	return true
 }
 
-// sweepDue reports whether a sweep could free an entry: the escrow changed since
-// the last sweep, the oldest pending promise passed its settleability window, or
+// sweepDue reports whether a sweep could free an entry: Balance moved since the
+// last sweep, the oldest pending promise passed its settleability window, or
 // promiseCacheSweepEvery heights passed, which catches settlements an exact top-up hid.
 func (b *signerBudget) sweepDue(ctx sdk.Context) bool {
-	return !b.balance.Equal(b.sweptBal) || !b.available.Equal(b.sweptAvail) ||
+	return b.balanceMoved ||
 		(len(b.pending) > 0 && !b.oldestCreation.After(ctx.BlockTime().Add(-b.withdrawalDelay))) ||
 		b.height-b.lastSweepH >= promiseCacheSweepEvery
 }
@@ -229,6 +241,9 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, b *signerBudget) bool {
 		return false
 	}
 
+	// Sweep work is bounded by the per-signer cap, not the caller's gas.
+	ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+
 	// A promise stops being settleable on-chain once its creation_timestamp falls
 	// before current_time - WithdrawalDelay; the on-chain freshness floor only
 	// shortens this window, so dropping it here is conservative.
@@ -238,8 +253,7 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, b *signerBudget) bool {
 	committed := math.ZeroInt()
 	var oldest time.Time
 	for key, p := range b.pending {
-		hash, err := hex.DecodeString(key)
-		if err != nil || !p.creationTimestamp.After(staleBefore) || c.reader.IsPromiseProcessed(ctx, p.creationTimestamp, hash) {
+		if !p.creationTimestamp.After(staleBefore) || c.reader.IsPromiseProcessed(ctx, p.creationTimestamp, []byte(key)) {
 			delete(b.pending, key)
 			continue
 		}
@@ -250,7 +264,7 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, b *signerBudget) bool {
 	}
 
 	b.committed, b.oldestCreation = committed, oldest
-	b.sweptBal, b.sweptAvail, b.withdrawalDelay = b.balance, b.available, params.WithdrawalDelay
+	b.balanceMoved, b.withdrawalDelay = false, params.WithdrawalDelay
 	b.sweepAt = max(2*len(b.pending), promiseCacheMinSweepAt)
 	b.lastSweepH = b.height
 	return true

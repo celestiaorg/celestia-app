@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"bytes"
-	"encoding/hex"
 	"maps"
 	"testing"
 	"time"
@@ -27,7 +26,7 @@ const (
 	cacheFuzzOpWidth = 8
 	cacheFuzzSigners = 3
 	cacheFuzzPool    = 8
-	// cacheFuzzCap scales maxPendingPerSigner down so the cap is reachable.
+	// cacheFuzzCap scales the per-signer pending cap down so it is reachable.
 	cacheFuzzCap = 4
 )
 
@@ -149,9 +148,6 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 		promise(1, 1, 5, 0, 0, 0), settle(0), balance(1, 14, 3, 0), advance(1, 0), promise(1, 1, 5, 0, 0, 0)))
 
 	f.Fuzz(func(t *testing.T, ops []byte) {
-		defer func(old int) { maxPendingPerSigner = old }(maxPendingPerSigner)
-		maxPendingPerSigner = cacheFuzzCap
-
 		key := storetypes.NewKVStoreKey(types.StoreKey)
 		tctx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
 		ctx := tctx.Ctx.WithChainID("test-chain").WithBlockHeight(100).WithBlockTime(time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -163,6 +159,7 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 		k.SetParams(ctx, params)
 		reader := &sweepRecorder{k: k}
 		k.promiseCache = NewLocalPromiseCache(reader)
+		k.promiseCache.maxPending = cacheFuzzCap
 
 		signers := make([]string, cacheFuzzSigners)
 		for i, pk := range cacheFuzzKeys {
@@ -175,7 +172,7 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 		validate := func(vctx sdk.Context, p types.PaymentPromise, signer string, forged bool) {
 			hash, err := promiseHash(&p)
 			require.NoError(t, err)
-			hashKey := hex.EncodeToString(hash)
+			hashKey := string(hash)
 			before := snapshotCache(k.promiseCache)
 			reader.sweeps, reader.lastSigner = nil, ""
 			_, err = k.ValidatePaymentPromise(vctx, &types.QueryValidatePaymentPromiseRequest{Promise: p})
@@ -201,7 +198,7 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				newest[signer] = newestEscrow{vctx.BlockHeight(), reader.lastAvailable}
 			}
 			for s, b := range after {
-				require.LessOrEqual(t, len(b.pending), maxPendingPerSigner, "signer %s is over the pending cap", s)
+				require.LessOrEqual(t, len(b.pending), cacheFuzzCap, "signer %s is over the pending cap", s)
 			}
 			if err == nil && !reservedBefore {
 				total := math.ZeroInt()
@@ -229,16 +226,14 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				for h, pp := range b.pending {
 					if _, ok := after[s].pending[h]; !ok {
 						require.True(t, swept[s], "a reservation was dropped without a sweep of its signer")
-						raw, _ := hex.DecodeString(h)
-						require.True(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, raw) || !pp.creationTimestamp.After(staleBefore),
+						require.True(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, []byte(h)) || !pp.creationTimestamp.After(staleBefore),
 							"a sweep dropped a promise that is neither settled nor expired")
 					}
 				}
 			}
 			for s := range swept {
 				for h, pp := range after[s].pending {
-					raw, _ := hex.DecodeString(h)
-					require.False(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, raw), "a sweep kept a settled promise")
+					require.False(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, []byte(h)), "a sweep kept a settled promise")
 					require.True(t, pp.creationTimestamp.After(staleBefore), "a sweep kept an expired promise")
 				}
 			}

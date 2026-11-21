@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -21,7 +20,7 @@ type fakeStateReader struct {
 	available   map[string]math.Int           // signer -> AvailableBalance amount
 	balance     map[string]math.Int           // signer -> Balance amount; defaults to available
 	availableAt map[int64]map[string]math.Int // height -> signer -> AvailableBalance override
-	processed   map[string]int64              // hex(hash) -> height it settled at
+	processed   map[string]int64              // string(hash) -> height it settled at
 
 	escrowGets  atomic.Int64 // counts GetEscrowAccount calls
 	lookups     atomic.Int64 // counts IsPromiseProcessed calls
@@ -56,7 +55,7 @@ func (f *fakeStateReader) IsPromiseProcessed(ctx sdk.Context, _ time.Time, hash 
 	if f.onLookup != nil {
 		f.onLookup(hash)
 	}
-	h, ok := f.processed[hex.EncodeToString(hash)]
+	h, ok := f.processed[string(hash)]
 	return ok && ctx.BlockHeight() >= h
 }
 
@@ -74,7 +73,7 @@ func (f *fakeStateReader) settle(hash []byte, h int64) {
 	if f.processed == nil {
 		f.processed = map[string]int64{}
 	}
-	f.processed[hex.EncodeToString(hash)] = h
+	f.processed[string(hash)] = h
 }
 
 // Payment for a zero-size blob; used to size test balances.
@@ -153,21 +152,25 @@ func TestSweepDropsExpired(t *testing.T) {
 	created := time.Unix(1_000_000, 0).UTC()
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, created))
 
-	// Past the promise's settleability window the failing reservation sweeps,
-	// drops the expired one and takes its budget.
-	ctx := ctxAtHeight(2).WithBlockTime(created.Add(25 * time.Hour))
-	require.NoError(t, c.Reserve(ctx, "a", []byte{0x02}, 0, created.Add(25*time.Hour)))
+	// Before any sweep the expiry gate assumes MaxWithdrawalDelay; past it the
+	// failing reservation sweeps, drops the expired one and takes its budget.
+	now := created.Add(types.MaxWithdrawalDelay)
+	require.NoError(t, c.Reserve(ctxAtHeight(2).WithBlockTime(now), "a", []byte{0x02}, 0, now))
 	require.Len(t, c.budgets["a"].pending, 1)
-	require.Contains(t, c.budgets["a"].pending, hex.EncodeToString([]byte{0x02}))
+	require.Contains(t, c.budgets["a"].pending, string([]byte{0x02}))
 	require.Equal(t, units(1), c.budgets["a"].committed)
 }
 
 // TestFailingSweepsRateLimited verifies that a failing reservation sweeps at
-// most once per height, and only when the escrow changed since the last sweep
-// or the oldest pending promise expired.
+// most once per height, and only after a Balance move seen at a newer height or
+// once the oldest pending promise expired; an AvailableBalance-only move does not.
 func TestFailingSweepsRateLimited(t *testing.T) {
 	const delay = 24 * time.Hour
-	r := &fakeStateReader{available: map[string]math.Int{"a": units(1)}, withdrawalDelay: delay}
+	r := &fakeStateReader{
+		available:       map[string]math.Int{"a": units(1)},
+		balance:         map[string]math.Int{"a": units(3)},
+		withdrawalDelay: delay,
+	}
 	c := NewLocalPromiseCache(r)
 	sweeps := func() int64 { return r.paramsReads.Load() }
 	reserve := func(ctx sdk.Context, h byte) error {
@@ -175,65 +178,93 @@ func TestFailingSweepsRateLimited(t *testing.T) {
 	}
 
 	require.NoError(t, reserve(ctxAtHeight(1), 0x01))
-	// First failure: the escrow was never swept, so it sweeps once.
+	// Nothing moved and nothing expired: no sweep, also at a new height.
 	require.Error(t, reserve(ctxAtHeight(1), 0x02))
+	require.Error(t, reserve(ctxAtHeight(2), 0x03))
+	require.Zero(t, sweeps())
+
+	// AvailableBalance-only move (a withdrawal request): no sweep.
+	r.available["a"] = units(1).AddRaw(1)
+	require.Error(t, reserve(ctxAtHeight(3), 0x04))
+	require.Zero(t, sweeps())
+
+	// Balance moved at a newer height: sweep, once per height.
+	r.balance["a"] = units(2)
+	require.Error(t, reserve(ctxAtHeight(4), 0x05))
 	require.Equal(t, int64(1), sweeps())
 	require.Equal(t, int64(1), r.lookups.Load())
-	// Same height: no second sweep.
-	require.Error(t, reserve(ctxAtHeight(1), 0x03))
+	require.Error(t, reserve(ctxAtHeight(4), 0x06))
+	require.Equal(t, int64(1), sweeps())
+	// Same height, even with the oldest promise expired: still no second sweep.
+	require.Error(t, reserve(ctxAtHeight(4).WithBlockTime(promiseTS.Add(delay)), 0x06))
 	require.Equal(t, int64(1), sweeps())
 
-	// New height, unchanged escrow, nothing expired: no sweep.
-	require.Error(t, reserve(ctxAtHeight(2), 0x04))
+	// The sweep consumed the move: no sweep at the next height.
+	require.Error(t, reserve(ctxAtHeight(5), 0x07))
 	require.Equal(t, int64(1), sweeps())
-
-	// Balance changed (AvailableBalance unchanged): sweep, once per height.
-	r.balance = map[string]math.Int{"a": units(2)}
-	require.Error(t, reserve(ctxAtHeight(3), 0x05))
-	require.Equal(t, int64(2), sweeps())
-	require.Error(t, reserve(ctxAtHeight(3), 0x06))
-	require.Equal(t, int64(2), sweeps())
-
-	// AvailableBalance changed: sweep.
-	r.available["a"] = units(1).AddRaw(1)
-	require.Error(t, reserve(ctxAtHeight(4), 0x07))
-	require.Equal(t, int64(3), sweeps())
-
-	// Unchanged again: no sweep.
-	require.Error(t, reserve(ctxAtHeight(5), 0x08))
-	require.Equal(t, int64(3), sweeps())
 
 	// The oldest pending promise expires: sweep, which frees the budget.
-	require.NoError(t, c.Reserve(ctxAtHeight(6).WithBlockTime(promiseTS.Add(delay)), "a", []byte{0x09}, 0, promiseTS.Add(delay)))
-	require.Equal(t, int64(4), sweeps())
+	require.NoError(t, c.Reserve(ctxAtHeight(6).WithBlockTime(promiseTS.Add(delay)), "a", []byte{0x08}, 0, promiseTS.Add(delay)))
+	require.Equal(t, int64(2), sweeps())
 	require.Equal(t, int64(9), r.escrowGets.Load()) // one escrow read per Reserve
 }
 
-// TestTopUpHiddenSettlementSweepsAfterInterval verifies that a signer whose
-// settlements were hidden by an exact escrow top-up recovers within
+// TestObservedSettlementSweepsDespiteTopUp verifies that a settlement whose
+// Balance dip a read saw sweeps at the next failure, even once topped back up.
+func TestObservedSettlementSweepsDespiteTopUp(t *testing.T) {
+	r := &fakeStateReader{availableAt: map[int64]map[string]math.Int{
+		1: {"a": units(2)},
+		2: {"a": units(0)}, // both promises settled
+		3: {"a": units(2)}, // topped back up
+		4: {"a": units(2)},
+	}}
+	c := NewLocalPromiseCache(r)
+
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(1), 0, promiseTS))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(2), 0, promiseTS))
+	r.settle(hashN(1), 2)
+	r.settle(hashN(2), 2)
+
+	// Replays read the dip at h2 and the top-up at h3; neither sweeps.
+	require.NoError(t, c.Reserve(ctxAtHeight(2), "a", hashN(1), 0, promiseTS))
+	require.NoError(t, c.Reserve(ctxAtHeight(3), "a", hashN(1), 0, promiseTS))
+	require.Zero(t, r.paramsReads.Load())
+
+	// Balance is unchanged since h3, but the dip seen at h2 still makes h4's failure sweep.
+	require.NoError(t, c.Reserve(ctxAtHeight(4), "a", hashN(3), 0, promiseTS))
+	require.Equal(t, int64(1), r.paramsReads.Load())
+	require.Equal(t, units(1), c.budgets["a"].committed)
+}
+
+// TestHiddenSettlementSweepsAfterInterval verifies that a signer whose
+// settlements were hidden by an exact top-up in the same block recovers within
 // promiseCacheSweepEvery heights.
-func TestTopUpHiddenSettlementSweepsAfterInterval(t *testing.T) {
+func TestHiddenSettlementSweepsAfterInterval(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(2)}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(1), 0, promiseTS))
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(2), 0, promiseTS))
-	require.Error(t, c.Reserve(ctxAtHeight(1), "a", hashN(3), 0, promiseTS)) // sweeps, nothing settled
+	b := c.budgets["a"]
+	b.mu.Lock()
+	require.True(t, c.sweep(ctxAtHeight(1), b)) // last sweep at h1, nothing settled
+	b.mu.Unlock()
 
-	// Both settle at height 2 and the signer tops the escrow back to units(2).
+	// Both settle at h2 and the signer tops the escrow back to units(2) in the same block.
 	r.settle(hashN(1), 2)
 	r.settle(hashN(2), 2)
-	require.Error(t, c.Reserve(ctxAtHeight(2), "a", hashN(4), 0, promiseTS))
-	require.Error(t, c.Reserve(ctxAtHeight(promiseCacheSweepEvery), "a", hashN(5), 0, promiseTS))
+	require.Error(t, c.Reserve(ctxAtHeight(2), "a", hashN(3), 0, promiseTS))
+	require.Error(t, c.Reserve(ctxAtHeight(promiseCacheSweepEvery), "a", hashN(4), 0, promiseTS))
+	require.Equal(t, int64(1), r.paramsReads.Load())
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1+promiseCacheSweepEvery), "a", hashN(6), 0, promiseTS))
+	require.NoError(t, c.Reserve(ctxAtHeight(1+promiseCacheSweepEvery), "a", hashN(5), 0, promiseTS))
 	require.Equal(t, units(1), c.budgets["a"].committed)
 }
 
 // TestAvailableDropLowersBudgetWithoutSweep verifies that a withdrawal request
 // lowers the budget at once, with no sweep and no processed lookups.
 func TestAvailableDropLowersBudgetWithoutSweep(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": units(3)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": units(3)}, balance: map[string]math.Int{"a": units(3)}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
@@ -247,7 +278,8 @@ func TestAvailableDropLowersBudgetWithoutSweep(t *testing.T) {
 
 	err := c.Reserve(ctxAtHeight(2), "a", []byte{0x03}, 0, promiseTS)
 	require.ErrorContains(t, err, "insufficient available balance")
-	require.NotContains(t, c.budgets["a"].pending, hex.EncodeToString([]byte{0x03}))
+	require.NotContains(t, c.budgets["a"].pending, string([]byte{0x03}))
+	require.Zero(t, r.paramsReads.Load())
 }
 
 // TestReserveDepositDoesNotResweep verifies that a deposit raises the budget
@@ -281,7 +313,7 @@ func TestStaleHeightReadCannotRaiseBudget(t *testing.T) {
 
 	// R2 at h2: P is still committed, so it fails, sweeps P away and admits Q.
 	require.NoError(t, c.Reserve(ctxAtHeight(2), "a", []byte{0x02}, 0, promiseTS))
-	require.NotContains(t, c.budgets["a"].pending, hex.EncodeToString(p))
+	require.NotContains(t, c.budgets["a"].pending, string(p))
 
 	// R1 at h1 reads two units; the chain has one, already committed to Q.
 	err := c.Reserve(ctxAtHeight(1), "a", []byte{0x03}, 0, promiseTS)
@@ -315,13 +347,14 @@ func TestOldHeightCtxDoesNotSweep(t *testing.T) {
 func TestPendingCapPerSigner(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(1_000_000), "b": units(1)}}
 	c := NewLocalPromiseCache(r)
+	c.maxPending = 100
 
-	for i := range maxPendingPerSigner {
+	for i := range c.maxPending {
 		require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(i), 0, promiseTS))
 	}
-	err := c.Reserve(ctxAtHeight(1), "a", hashN(maxPendingPerSigner), 0, promiseTS)
+	err := c.Reserve(ctxAtHeight(1), "a", hashN(c.maxPending), 0, promiseTS)
 	require.ErrorContains(t, err, "too many pending promises")
-	require.Len(t, c.budgets["a"].pending, maxPendingPerSigner)
+	require.Len(t, c.budgets["a"].pending, c.maxPending)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "b", []byte{0x01}, 0, promiseTS))
 
@@ -329,8 +362,8 @@ func TestPendingCapPerSigner(t *testing.T) {
 	r.settle(hashN(0), 2)
 	r.settle(hashN(1), 2)
 	r.available["a"] = units(1_000_000 - 2)
-	require.NoError(t, c.Reserve(ctxAtHeight(2), "a", hashN(maxPendingPerSigner), 0, promiseTS))
-	require.Len(t, c.budgets["a"].pending, maxPendingPerSigner-1)
+	require.NoError(t, c.Reserve(ctxAtHeight(2), "a", hashN(c.maxPending), 0, promiseTS))
+	require.Len(t, c.budgets["a"].pending, c.maxPending-1)
 }
 
 // TestMemoryTriggerTrimsSettled verifies that a funded signer that never fails
@@ -389,20 +422,29 @@ func TestEvictionRaceKeepsCommitted(t *testing.T) {
 	require.Same(t, a, c.budgets["a"])
 	require.ErrorContains(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0, promiseTS), "insufficient available balance")
 
-	// A Reserve blocked on b.mu while the evictor removes b must retry.
+	// A Reserve that looked b up before the evictor removed it must retry.
 	c.mu.Lock()
 	b := newSignerBudget()
+	b.lastActivity = idle
 	c.budgets["b"] = b
+	c.lastEvict = time.Now() // keep the Reserve's own lazy eviction out of the way
 	c.mu.Unlock()
-	b.mu.Lock()
+	lookedUp, evicted := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	c.beforeSignerLock = func() {
+		once.Do(func() {
+			close(lookedUp)
+			<-evicted
+		})
+	}
 	done := make(chan error, 1)
 	go func() { done <- c.Reserve(ctxAtHeight(1), "b", []byte{0x01}, 0, promiseTS) }()
-	time.Sleep(50 * time.Millisecond) // let it look up b and block on b.mu
+	<-lookedUp
 	c.mu.Lock()
-	b.evicted = true // what evictIdleLocked does after TryLock
-	delete(c.budgets, "b")
+	c.evictIdleLocked()
 	c.mu.Unlock()
-	b.mu.Unlock()
+	require.True(t, b.evicted)
+	close(evicted)
 	require.NoError(t, <-done)
 
 	require.Empty(t, b.pending)
@@ -415,9 +457,10 @@ func TestEvictionRaceKeepsCommitted(t *testing.T) {
 // TestSignerSweepDoesNotBlockOthers verifies that a sweep of one signer does
 // not block another signer's reservation.
 func TestSignerSweepDoesNotBlockOthers(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": units(1), "b": units(1)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": units(1), "b": units(1)}, balance: map[string]math.Int{"a": units(2)}}
 	c := NewLocalPromiseCache(r)
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0xa1}, 0, promiseTS))
+	r.balance["a"] = units(1) // a Balance move makes the next failure sweep
 
 	entered, release := make(chan struct{}), make(chan struct{})
 	r.onLookup = func(hash []byte) {
@@ -428,7 +471,7 @@ func TestSignerSweepDoesNotBlockOthers(t *testing.T) {
 	}
 	// A's failing reservation sweeps and blocks inside the processed lookup.
 	aDone := make(chan error, 1)
-	go func() { aDone <- c.Reserve(ctxAtHeight(1), "a", []byte{0xa2}, 0, promiseTS) }()
+	go func() { aDone <- c.Reserve(ctxAtHeight(2), "a", []byte{0xa2}, 0, promiseTS) }()
 	<-entered
 
 	bDone := make(chan error, 1)
