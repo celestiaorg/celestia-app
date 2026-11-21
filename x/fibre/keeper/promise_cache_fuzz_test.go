@@ -209,10 +209,6 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 					total, newest[signer].available, newest[signer].height)
 			}
 
-			swept := map[string]bool{}
-			for _, s := range reader.sweeps {
-				swept[s] = true
-			}
 			for s, b := range after {
 				for h := range b.pending {
 					if !before.reserved(h) {
@@ -220,6 +216,10 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 						require.Equal(t, signer, s, "reserved under another signer")
 					}
 				}
+			}
+			swept := map[string]bool{}
+			for _, s := range reader.sweeps {
+				swept[s] = true
 			}
 			staleBefore := vctx.BlockTime().Add(-params.WithdrawalDelay)
 			for s, b := range before {

@@ -95,6 +95,15 @@ func headroom(c *LocalPromiseCache, signer string) math.Int {
 
 func hashN(i int) []byte { return []byte(fmt.Sprintf("h%06d", i)) }
 
+// idleSince is a lastActivity old enough for eviction.
+func idleSince() time.Time { return time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour)) }
+
+func evictIdle(c *LocalPromiseCache) {
+	c.mu.Lock()
+	c.evictIdleLocked()
+	c.mu.Unlock()
+}
+
 func TestReserveWithinBudget(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(2)}}
 	c := NewLocalPromiseCache(r)
@@ -149,12 +158,11 @@ func TestSweepDropsExpired(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(1)}, withdrawalDelay: 24 * time.Hour}
 	c := NewLocalPromiseCache(r)
 
-	created := time.Unix(1_000_000, 0).UTC()
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, created))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 
 	// Before any sweep the expiry gate assumes MaxWithdrawalDelay; past it the
 	// failing reservation sweeps, drops the expired one and takes its budget.
-	now := created.Add(types.MaxWithdrawalDelay)
+	now := promiseTS.Add(types.MaxWithdrawalDelay)
 	require.NoError(t, c.Reserve(ctxAtHeight(2).WithBlockTime(now), "a", []byte{0x02}, 0, now))
 	require.Len(t, c.budgets["a"].pending, 1)
 	require.Contains(t, c.budgets["a"].pending, string([]byte{0x02}))
@@ -282,9 +290,9 @@ func TestAvailableDropLowersBudgetWithoutSweep(t *testing.T) {
 	require.Zero(t, r.paramsReads.Load())
 }
 
-// TestReserveDepositDoesNotResweep verifies that a deposit raises the budget
+// TestDepositRaisesBudgetWithoutSweep verifies that a deposit raises the budget
 // with no sweep.
-func TestReserveDepositDoesNotResweep(t *testing.T) {
+func TestDepositRaisesBudgetWithoutSweep(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(1)}}
 	c := NewLocalPromiseCache(r)
 
@@ -392,11 +400,8 @@ func TestEvictIdle(t *testing.T) {
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	b := c.budgets["a"]
 
-	// Backdate activity beyond the eviction threshold.
-	b.lastActivity = time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour))
-	c.mu.Lock()
-	c.evictIdleLocked()
-	c.mu.Unlock()
+	b.lastActivity = idleSince()
+	evictIdle(c)
 
 	require.Empty(t, c.budgets)
 	require.True(t, b.evicted)
@@ -408,16 +413,13 @@ func TestEvictIdle(t *testing.T) {
 func TestEvictionRaceKeepsCommitted(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": units(1), "b": units(1)}}
 	c := NewLocalPromiseCache(r)
-	idle := time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour))
 
 	// A busy entry survives eviction and keeps its committed amount.
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	a := c.budgets["a"]
 	a.mu.Lock()
-	a.lastActivity = idle
-	c.mu.Lock()
-	c.evictIdleLocked()
-	c.mu.Unlock()
+	a.lastActivity = idleSince()
+	evictIdle(c)
 	a.mu.Unlock()
 	require.Same(t, a, c.budgets["a"])
 	require.ErrorContains(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0, promiseTS), "insufficient available balance")
@@ -425,7 +427,7 @@ func TestEvictionRaceKeepsCommitted(t *testing.T) {
 	// A Reserve that looked b up before the evictor removed it must retry.
 	c.mu.Lock()
 	b := newSignerBudget()
-	b.lastActivity = idle
+	b.lastActivity = idleSince()
 	c.budgets["b"] = b
 	c.lastEvict = time.Now() // keep the Reserve's own lazy eviction out of the way
 	c.mu.Unlock()
@@ -440,9 +442,7 @@ func TestEvictionRaceKeepsCommitted(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- c.Reserve(ctxAtHeight(1), "b", []byte{0x01}, 0, promiseTS) }()
 	<-lookedUp
-	c.mu.Lock()
-	c.evictIdleLocked()
-	c.mu.Unlock()
+	evictIdle(c)
 	require.True(t, b.evicted)
 	close(evicted)
 	require.NoError(t, <-done)
@@ -496,14 +496,13 @@ func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 	)
 	r := &fakeStateReader{available: map[string]math.Int{}}
 	c := NewLocalPromiseCache(r)
-	idle := time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour))
 	name := func(i int) string { return fmt.Sprintf("s%02d", i) }
 	for i := range signers {
 		r.available[name(i)] = units(budgetUnits)
 		// Odd signers start as idle entries the evictor races to remove.
 		if i%2 == 1 {
 			b := newSignerBudget()
-			b.lastActivity = idle
+			b.lastActivity = idleSince()
 			c.budgets[name(i)] = b
 		}
 	}
@@ -518,9 +517,7 @@ func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 		defer close(evictorDone)
 		<-start
 		for !stop.Load() {
-			c.mu.Lock()
-			c.evictIdleLocked()
-			c.mu.Unlock()
+			evictIdle(c)
 		}
 	}()
 	for s := range signers {

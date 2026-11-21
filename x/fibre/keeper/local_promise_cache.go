@@ -51,7 +51,7 @@ type promiseStateReader interface {
 type LocalPromiseCache struct {
 	reader promiseStateReader
 
-	// maxPending caps each signer's pending reservations.
+	// maxPending is maxPendingPerSigner; tests lower it.
 	maxPending int
 
 	// mu guards only budgets and lastEvict; lock order is mu then a signer's mu,
@@ -78,8 +78,8 @@ type signerBudget struct {
 	// height, available and balance are the escrow at the newest height read.
 	height             int64
 	available, balance math.Int
-	// balanceMoved is set when a newer height shows a different Balance and
-	// cleared by a sweep; withdrawalDelay is the param the last sweep read.
+	// balanceMoved is set when a newer height shows a different Balance and cleared by
+	// a sweep; withdrawalDelay is the param the last sweep read, MaxWithdrawalDelay before one.
 	balanceMoved    bool
 	withdrawalDelay time.Duration
 	// oldestCreation is the earliest creation time in pending.
