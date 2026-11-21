@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"time"
 
@@ -44,6 +45,7 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -436,6 +438,9 @@ func New(
 		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	))
+	if os.Getenv("CELESTIA_SIG_PREVERIFY") == "1" { // sync-speedup prototype
+		app.SetBatchSigPreverifier(authante.NewBatchSigPreverifier(app.AccountKeeper, encodingConfig.TxConfig.SignModeHandler()))
+	}
 	app.SetPostHandler(posthandler.New())
 
 	app.SetMigrateStoreFn(app.migrateCommitStore)
