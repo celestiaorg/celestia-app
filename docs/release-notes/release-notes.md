@@ -40,6 +40,14 @@ On startup, a v12 binary raises `ttl-num-blocks` below 117 to 117 (was 36) and `
 
 See the [x/zkism README](../../x/zkism/README.md) for details.
 
+### Library Consumers (v12.0.0)
+
+These changes also ship in v10 and v11 patch releases.
+
+- The gRPC `cosmos.base.tendermint.v1beta1.Service/ABCIQuery` method and its REST route refuse the `custom/txInclusionProof` and `custom/shareInclusionProof` query paths with `PermissionDenied`. Use the celestia-core RPC routes `tx` (with `prove=true`), `tx_search` or `prove_shares_v2` to get inclusion proofs.
+- `proof.ShareProof.Validate` and `proof.RowProof.Validate` are stricter. They require one square width across the row proofs, original data square rows only, share ranges that are contiguous across rows and within the row width, and a 28-byte namespace ID. Proofs built by `pkg/proof` still pass. Code that builds proofs by hand may need to change.
+- `da.DataAvailabilityHeader.ValidateBasic` requires every row and column root to be 90 bytes and the number of roots to be a power of two. Headers built from a data square already meet both.
+
 ## v11.0.0
 
 v11 is an emergency release cut from the `v10.x` line (release branch `v11.x`), not from `main`. Its state machine differs from v10 only by the app version and the fix below. Features developed on `main` that were previously planned for v11 ship in [v12](#v1200) instead.
