@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -268,4 +270,25 @@ func TestInitChainMigratesLegacyFibreGenesis(t *testing.T) {
 	otherAddr, err := sdk.AccAddressFromBech32(other)
 	require.NoError(t, err)
 	require.Equal(t, sdk.NewInt64Coin("stake", 70), testApp.BankKeeper.GetBalance(ctx, otherAddr, "stake"))
+}
+
+// TestQueryRejectsPinnedValidatePaymentPromise checks that an ABCI query for
+// ValidatePaymentPromise at a set height is refused before it reaches the keeper.
+func TestQueryRejectsPinnedValidatePaymentPromise(t *testing.T) {
+	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	const path = "/celestia.fibre.v1.Query/ValidatePaymentPromise"
+	const rejected = "query height is not supported"
+	data, err := (&fibretypes.QueryValidatePaymentPromiseRequest{}).Marshal()
+	require.NoError(t, err)
+
+	pinned, err := testApp.Query(context.Background(), &abci.RequestQuery{Path: path, Data: data, Height: testApp.LastBlockHeight()})
+	require.NoError(t, err)
+	require.Equal(t, sdkerrors.ErrInvalidRequest.ABCICode(), pinned.Code)
+	require.Contains(t, pinned.Log, rejected)
+
+	// Without a height the query reaches the keeper, which rejects the empty promise.
+	unpinned, err := testApp.Query(context.Background(), &abci.RequestQuery{Path: path, Data: data})
+	require.NoError(t, err)
+	require.NotZero(t, unpinned.Code)
+	require.NotContains(t, unpinned.Log, rejected)
 }
