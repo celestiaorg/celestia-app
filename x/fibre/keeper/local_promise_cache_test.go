@@ -209,6 +209,27 @@ func TestFailingSweepsRateLimited(t *testing.T) {
 	require.Equal(t, int64(9), r.escrowGets.Load()) // one escrow read per Reserve
 }
 
+// TestTopUpHiddenSettlementSweepsAfterInterval verifies that a signer whose
+// settlements were hidden by an exact escrow top-up recovers within
+// promiseCacheSweepEvery heights.
+func TestTopUpHiddenSettlementSweepsAfterInterval(t *testing.T) {
+	r := &fakeStateReader{available: map[string]math.Int{"a": units(2)}}
+	c := NewLocalPromiseCache(r)
+
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(1), 0, promiseTS))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", hashN(2), 0, promiseTS))
+	require.Error(t, c.Reserve(ctxAtHeight(1), "a", hashN(3), 0, promiseTS)) // sweeps, nothing settled
+
+	// Both settle at height 2 and the signer tops the escrow back to units(2).
+	r.settle(hashN(1), 2)
+	r.settle(hashN(2), 2)
+	require.Error(t, c.Reserve(ctxAtHeight(2), "a", hashN(4), 0, promiseTS))
+	require.Error(t, c.Reserve(ctxAtHeight(promiseCacheSweepEvery), "a", hashN(5), 0, promiseTS))
+
+	require.NoError(t, c.Reserve(ctxAtHeight(1+promiseCacheSweepEvery), "a", hashN(6), 0, promiseTS))
+	require.Equal(t, units(1), c.budgets["a"].committed)
+}
+
 // TestAvailableDropLowersBudgetWithoutSweep verifies that a withdrawal request
 // lowers the budget at once, with no sweep and no processed lookups.
 func TestAvailableDropLowersBudgetWithoutSweep(t *testing.T) {

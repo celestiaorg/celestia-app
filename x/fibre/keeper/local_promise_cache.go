@@ -22,6 +22,9 @@ const (
 	// promiseCacheMinSweepAt is the smallest pending count that triggers a
 	// memory sweep.
 	promiseCacheMinSweepAt = 64
+	// promiseCacheSweepEvery is how many heights a failing signer waits before a
+	// sweep even if its escrow looks unchanged, e.g. settled and topped back up.
+	promiseCacheSweepEvery = 100
 )
 
 // maxPendingPerSigner caps a signer's pending reservations; a var so tests can lower it.
@@ -113,6 +116,7 @@ func newSignerBudget() *signerBudget {
 		sweptAvail:      math.ZeroInt(),
 		withdrawalDelay: types.MaxWithdrawalDelay,
 		sweepAt:         promiseCacheMinSweepAt,
+		lastSweepH:      -1,
 		lastActivity:    time.Now(),
 	}
 }
@@ -209,10 +213,12 @@ func (b *signerBudget) tryAdmit(key string, blobSize uint32, required math.Int, 
 }
 
 // sweepDue reports whether a sweep could free an entry: the escrow changed since
-// the last sweep, or the oldest pending promise has passed its settleability window.
+// the last sweep, the oldest pending promise passed its settleability window, or
+// promiseCacheSweepEvery heights passed, which catches settlements an exact top-up hid.
 func (b *signerBudget) sweepDue(ctx sdk.Context) bool {
 	return !b.balance.Equal(b.sweptBal) || !b.available.Equal(b.sweptAvail) ||
-		(len(b.pending) > 0 && !b.oldestCreation.After(ctx.BlockTime().Add(-b.withdrawalDelay)))
+		(len(b.pending) > 0 && !b.oldestCreation.After(ctx.BlockTime().Add(-b.withdrawalDelay))) ||
+		b.height-b.lastSweepH >= promiseCacheSweepEvery
 }
 
 // sweep drops pending promises that settled on-chain or can no longer settle,

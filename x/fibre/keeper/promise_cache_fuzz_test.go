@@ -224,14 +224,17 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 					}
 				}
 			}
+			staleBefore := vctx.BlockTime().Add(-params.WithdrawalDelay)
 			for s, b := range before {
-				for h := range b.pending {
+				for h, pp := range b.pending {
 					if _, ok := after[s].pending[h]; !ok {
 						require.True(t, swept[s], "a reservation was dropped without a sweep of its signer")
+						raw, _ := hex.DecodeString(h)
+						require.True(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, raw) || !pp.creationTimestamp.After(staleBefore),
+							"a sweep dropped a promise that is neither settled nor expired")
 					}
 				}
 			}
-			staleBefore := vctx.BlockTime().Add(-params.WithdrawalDelay)
 			for s := range swept {
 				for h, pp := range after[s].pending {
 					raw, _ := hex.DecodeString(h)
