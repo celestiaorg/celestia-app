@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
@@ -53,6 +55,16 @@ func overrideP2PConfig(cmd *cobra.Command, logger log.Logger) error {
 			"minimum_mib", minRecvRate/mebibyte,
 		)
 		cfg.P2P.RecvRate = minRecvRate
+	}
+
+	// Configs that predate the duration form hold flush_low_latency = true,
+	// which decodes to 1ns. Map it to the default; 0 stays an explicit opt-out.
+	if cfg.P2P.FlushLowLatency == time.Nanosecond {
+		logger.Info("Overriding legacy P2P FlushLowLatency=true to default",
+			"configured", cfg.P2P.FlushLowLatency,
+			"default", defaultCfg.P2P.FlushLowLatency,
+		)
+		cfg.P2P.FlushLowLatency = defaultCfg.P2P.FlushLowLatency
 	}
 
 	cfg.Consensus.EnableLegacyBlockProp = false

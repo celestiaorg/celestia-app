@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -529,4 +531,59 @@ func TestOverrideMempoolType(t *testing.T) {
 		overrideMempoolType(cfg, log.NewNopLogger())
 		require.Equal(t, tmcfg.MempoolTypeCAT, cfg.Mempool.Type)
 	})
+}
+
+func TestOverrideP2PConfig_FlushLowLatency(t *testing.T) {
+	testCases := []struct {
+		name string
+		// tomlValue replaces the rendered flush_low_latency value in config.toml.
+		tomlValue string
+		bypass    bool
+		loaded    time.Duration
+		expected  time.Duration
+	}{
+		{name: "legacy true maps to default", tomlValue: "true", loaded: time.Nanosecond, expected: 2 * time.Millisecond},
+		{name: "legacy false stays 0", tomlValue: "false", loaded: 0, expected: 0},
+		{name: "explicit 0s stays 0", tomlValue: `"0s"`, loaded: 0, expected: 0},
+		{name: "custom duration preserved", tomlValue: `"7ms"`, loaded: 7 * time.Millisecond, expected: 7 * time.Millisecond},
+		{name: "bypass flag keeps legacy true", tomlValue: "true", bypass: true, loaded: time.Nanosecond, expected: time.Nanosecond},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			configDir := filepath.Join(tempDir, "config")
+			require.NoError(t, os.MkdirAll(configDir, 0o755))
+
+			cfg := app.DefaultConsensusConfig()
+			cfg.SetRoot(tempDir)
+			configPath := filepath.Join(configDir, "config.toml")
+			tmcfg.WriteConfigFile(configPath, cfg)
+
+			raw, err := os.ReadFile(configPath)
+			require.NoError(t, err)
+			rendered := fmt.Sprintf("flush_low_latency = %q", cfg.P2P.FlushLowLatency.String())
+			require.Contains(t, string(raw), rendered)
+			raw = []byte(strings.Replace(string(raw), rendered, "flush_low_latency = "+tc.tomlValue, 1))
+			require.NoError(t, os.WriteFile(configPath, raw, 0o600))
+
+			loadedCfg, err := loadCometBFTConfig(configPath, tempDir)
+			require.NoError(t, err)
+			require.Equal(t, tc.loaded, loadedCfg.P2P.FlushLowLatency)
+
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides")
+			if tc.bypass {
+				require.NoError(t, cmd.Flags().Set(bypassOverridesFlagKey, "true"))
+			}
+			logger := log.NewNopLogger()
+			sctx := server.NewDefaultContext()
+			sctx.Config = loadedCfg
+			sctx.Logger = logger
+			cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
+
+			require.NoError(t, overrideP2PConfig(cmd, logger))
+			require.Equal(t, tc.expected, server.GetServerContextFromCmd(cmd).Config.P2P.FlushLowLatency)
+		})
+	}
 }
