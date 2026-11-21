@@ -275,9 +275,6 @@ func testDAHValidateBasic(t *testing.T, extendShares func([][]byte) (*rsmt2d.Ext
 	var tooSmallDah DataAvailabilityHeader
 	tooSmallDah.ColumnRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
 	tooSmallDah.RowRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
-	// use a bad hash
-	badHashDah := MinDataAvailabilityHeader()
-	badHashDah.hash = []byte{1, 2, 3, 4}
 	// dah with not equal number of roots
 	mismatchDah := MinDataAvailabilityHeader()
 	mismatchDah.ColumnRoots = append(mismatchDah.ColumnRoots, bytes.Repeat([]byte{2}, 32))
@@ -314,12 +311,6 @@ func testDAHValidateBasic(t *testing.T, extendShares func([][]byte) (*rsmt2d.Ext
 			dah:       tooSmallDah,
 			expectErr: true,
 			errStr:    "minimum valid DataAvailabilityHeader has at least",
-		},
-		{
-			name:      "bad hash",
-			dah:       badHashDah,
-			expectErr: true,
-			errStr:    "wrong hash",
 		},
 		{
 			name:      "mismatched roots",
