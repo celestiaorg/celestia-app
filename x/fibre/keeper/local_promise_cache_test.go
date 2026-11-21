@@ -522,15 +522,13 @@ func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 	}()
 	for s := range signers {
 		for i := range perSigner {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				<-start
 				h := []byte{byte(s), byte(i)}
 				if c.Reserve(ctxAtHeight(1+int64(i%3)), name(s), h, 0, promiseTS) == nil {
 					ok[s].Add(1)
 				}
-			}()
+			})
 		}
 	}
 	close(start)
