@@ -108,10 +108,13 @@ func (s *CelestiaTestSuite) TestChaos() {
 		for i, v := range step.Targets {
 			targets[i] = validators[v]
 		}
+		t.Logf("%s: inject", step)
+		s.Require().NoError(faults.inject(ctx, step, targets), "failed to inject %s", step)
+		// Read the height after every target is faulted: the chain can still
+		// commit blocks while the targets are faulted one at a time.
 		before, err := fullNode.Height(ctx)
 		s.Require().NoError(err)
-		t.Logf("%s: inject at height %d", step, before)
-		s.Require().NoError(faults.inject(ctx, step, targets), "failed to inject %s", step)
+		t.Logf("step %d: injected at height %d", step.Index, before)
 		time.Sleep(step.Duration)
 		during, err := fullNode.Height(ctx)
 		s.Require().NoError(err)
@@ -165,7 +168,7 @@ func (s *CelestiaTestSuite) chaosSchedule() (int64, []internal.FaultStep) {
 }
 
 // requireChaosProgress checks that the chain passes height by
-// chaosProgressBlocks and that every healed node catches up to height.
+// chaosProgressBlocks and that every healed node follows it there.
 func (s *CelestiaTestSuite) requireChaosProgress(ctx context.Context, step internal.FaultStep, fullNode *cosmos.ChainNode, targets cosmos.ChainNodes, height int64) {
 	err := internal.WaitFor(ctx, chaosRecoveryTimeout, time.Second, func(ctx context.Context) (bool, error) {
 		h, err := rpcNode{fullNode}.Height(ctx)
@@ -174,7 +177,7 @@ func (s *CelestiaTestSuite) requireChaosProgress(ctx context.Context, step inter
 		}
 		for _, n := range targets {
 			// A healed node can take a moment to answer again.
-			if h, err := (rpcNode{n}).Height(ctx); err != nil || h < height {
+			if h, err := (rpcNode{n}).Height(ctx); err != nil || h < height+chaosProgressBlocks {
 				return false, nil
 			}
 		}
