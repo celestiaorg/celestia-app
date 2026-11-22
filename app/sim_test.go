@@ -77,6 +77,8 @@ func TestAppStateDeterminism(t *testing.T) {
 				seed, run+1, res.height, res.appHash, res.ops, res.finalState)
 			res.ops.requireDelivered(t)
 			require.Positive(t, res.passedProposals, "no MsgUpdateBlobParams proposal passed")
+			// A delivered MsgTryUpgrade does not prove that an upgrade was scheduled.
+			require.True(t, res.upgradePending, "no MsgTryUpgrade scheduled an upgrade")
 
 			if run == 0 {
 				first = res
@@ -94,6 +96,7 @@ type simResult struct {
 	height          int64
 	ops             opCounts
 	passedProposals int
+	upgradePending  bool
 	finalState      string
 }
 
@@ -154,8 +157,9 @@ func runSimulation(t *testing.T, config simtypes.Config, name string) simResult 
 		return false, nil
 	}))
 	res.passedProposals = statuses[govv1.StatusPassed.String()]
+	res.upgradePending = capp.SignalKeeper.IsUpgradePending(ctx)
 	res.finalState = fmt.Sprintf("gov proposals by status: %v; blob params: {%v}; signal upgrade pending: %t",
-		statuses, capp.BlobKeeper.GetParams(ctx), capp.SignalKeeper.IsUpgradePending(ctx))
+		statuses, capp.BlobKeeper.GetParams(ctx), res.upgradePending)
 	return res
 }
 
