@@ -304,7 +304,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		m++
 	}
 
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs)
+	// Core rejects a block with more than MaxBlockTxs txs at decode, so PFFs get what the others leave.
+	maxPFF := max(0, min(appconsts.MaxPayForFibreMessages, coretypes.MaxBlockTxs-n-m))
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, dec, payForFibreTxs, maxPFF)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
@@ -493,12 +495,12 @@ func countMsgPayForFibre(sdkTx sdk.Tx) int {
 }
 
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
-// system blob, validate, append to builder. Returns the raw tx bytes of
-// accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx) [][]byte {
+// system blob, validate, append to builder. Returns the raw tx bytes of at
+// most maxPFF (non-negative) accepted fibre txs.
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec sdk.TxDecoder, payForFibreTxs []decodedFibreTx, maxPFF int) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
-	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
+	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), maxPFF))
 	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
 	settled := make(map[sigcache.Key]struct{})
 	certKeys := &fibretypes.CertKeyHolder{}
@@ -506,7 +508,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 
 	for i := range payForFibreTxs {
 		// Every tx decodeFibreTx accepts weighs exactly one message, so nothing more fits.
-		if pffMessageCount >= appconsts.MaxPayForFibreMessages {
+		if pffMessageCount >= maxPFF {
 			break
 		}
 		entry := &payForFibreTxs[i]

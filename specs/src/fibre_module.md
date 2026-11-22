@@ -301,7 +301,7 @@ message MsgUpdateFibreParams {
 
 The SDK module does not insert commitments or blobs into the data square. Data-square metadata is synthesized during app square construction in the app proposal path; no `fibre` build tag is required.
 
-A valid PayForFibre transaction for square construction is a plain SDK transaction that contains exactly one `MsgPayForFibre` and no other messages. PrepareProposal separates these transactions from normal SDK transactions, drops mixed or multi-PFF transactions, skips transactions after `MaxPayForFibreMessages`, and appends accepted Fibre transactions to the square builder. ProcessProposal rejects a block if a plain SDK transaction contains multiple `MsgPayForFibre` messages, mixes `MsgPayForFibre` with other messages, or causes the block to exceed `MaxPayForFibreMessages`.
+A valid PayForFibre transaction for square construction is a plain SDK transaction that contains exactly one `MsgPayForFibre` and no other messages. PrepareProposal separates these transactions from normal SDK transactions, drops mixed or multi-PFF transactions, skips transactions after `MaxPayForFibreMessages` or once the block would exceed celestia-core's `MaxBlockTxs` (1,000) transactions counting the SDK and blob transactions already kept, and appends accepted Fibre transactions to the square builder. ProcessProposal rejects a block if a plain SDK transaction contains multiple `MsgPayForFibre` messages, mixes `MsgPayForFibre` with other messages, or causes the block to exceed `MaxPayForFibreMessages`.
 
 The current production constant is:
 
