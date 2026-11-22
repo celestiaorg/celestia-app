@@ -54,15 +54,19 @@ func FuzzValidateTransferPacketData(f *testing.F) {
 	} {
 		f.Add([]byte(data))
 	}
+	// Decodable packet data that is over the size limit only because of whitespace.
+	f.Add([]byte(strings.Repeat(" ", maxTransferPacketDataSize) + ics20(``)))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		err := validateTransferPacketData(data)
 		// Determinism: the same input gives the same result.
 		requireSameError(t, err, validateTransferPacketData(data))
-		if len(data) > maxTransferPacketDataSize {
-			require.Error(t, err)
-		}
 		requireDeterministicMsgsAgree(t, data, err)
+		if len(data) > maxTransferPacketDataSize {
+			// The size limit applies before any decoding, so the oracles below do not apply.
+			require.Error(t, err)
+			return
+		}
 
 		var ftpd transfertypes.FungibleTokenPacketData
 		if transfertypes.ModuleCdc.UnmarshalJSON(data, &ftpd) != nil {
@@ -293,19 +297,57 @@ func requireNoRepeatedKeys(t *testing.T, n *jsonNode, s string) {
 	})
 }
 
-// requireNoLoneSurrogate fails if a string in n holds U+FFFD that the JSON text s does not spell, which means
-// the decoder replaced a lone surrogate escape. s must be valid UTF-8.
-func requireNoLoneSurrogate(t *testing.T, n *jsonNode, s string) {
+// requireNoLoneSurrogate fails if the JSON text s escapes a lone surrogate. It reads the escapes in s itself,
+// so it does not depend on how a decoder replaces them.
+func requireNoLoneSurrogate(t *testing.T, s string) {
 	t.Helper()
-	if strings.Contains(s, "\uFFFD") || strings.Contains(strings.ToLower(s), `\ufffd`) {
-		return
-	}
-	n.walk(func(n *jsonNode) {
-		for _, k := range n.keys {
-			require.NotContains(t, k, "\uFFFD", "lone surrogate in %s", s)
+	require.False(t, hasLoneSurrogateEscape(s), "lone surrogate in %s", s)
+}
+
+// hasLoneSurrogateEscape reports whether the JSON text s holds a \u escape of a high surrogate that is not
+// followed by a \u escape of a low surrogate, or of a low surrogate that does not follow a high one.
+func hasLoneSurrogateEscape(s string) bool {
+	escape := func(i int) (rune, bool) {
+		if i+6 > len(s) || s[i] != '\\' || s[i+1] != 'u' {
+			return 0, false
 		}
-		require.NotContains(t, n.str, "\uFFFD", "lone surrogate in %s", s)
-	})
+		var r rune
+		for _, c := range []byte(s[i+2 : i+6]) {
+			switch {
+			case '0' <= c && c <= '9':
+				r = r<<4 | rune(c-'0')
+			case 'a' <= c && c <= 'f':
+				r = r<<4 | rune(c-'a'+10)
+			case 'A' <= c && c <= 'F':
+				r = r<<4 | rune(c-'A'+10)
+			default:
+				return 0, false
+			}
+		}
+		return r, true
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			continue
+		}
+		r, ok := escape(i)
+		if !ok {
+			i++ // skip the escaped character, which may be a backslash
+			continue
+		}
+		switch {
+		case 0xD800 <= r && r <= 0xDBFF:
+			if lo, ok := escape(i + 6); ok && 0xDC00 <= lo && lo <= 0xDFFF {
+				i += 11
+				continue
+			}
+			return true
+		case 0xDC00 <= r && r <= 0xDFFF:
+			return true
+		}
+		i += 5
+	}
+	return false
 }
 
 // requireForwardMemoUnambiguous checks that a memo the filter accepted, if packet-forward-middleware would
@@ -325,7 +367,7 @@ func requireForwardMemoUnambiguous(t *testing.T, memo string) {
 	root := decodeJSONNode(t, memo)
 	require.LessOrEqual(t, root.depth, maxPFMForwardMemoDepth, memo)
 	requireNoRepeatedKeys(t, root, memo)
-	requireNoLoneSurrogate(t, root, memo)
+	requireNoLoneSurrogate(t, memo)
 
 	// encoding/json matches struct fields without case, so a case variant of a field name would compete with it.
 	var fwd *jsonNode
@@ -385,7 +427,7 @@ func requireForwardMemoUnambiguous(t *testing.T, memo string) {
 		inner := decodeJSONNode(t, s)
 		require.LessOrEqual(t, inner.depth, maxPFMForwardMemoDepth, memo)
 		requireNoRepeatedKeys(t, inner, s)
-		requireNoLoneSurrogate(t, inner, s)
+		requireNoLoneSurrogate(t, s)
 	default:
 		require.Failf(t, "next is not null, an object or a string", "%s", memo)
 	}
@@ -680,4 +722,27 @@ func mutateForwardMemo(s *fuzzSource, root *genObject, m int) (packetLevel bool)
 		root.set(s, "forward", genRaw(pick(s, `5`, `"abc"`, `[]`, `true`, `[{"receiver":"x"}]`)))
 	}
 	return true
+}
+
+func TestLoneSurrogateEscape(t *testing.T) {
+	testCases := []struct {
+		s    string
+		want bool
+	}{
+		{`{"a":"x"}`, false},
+		{`{"a":"😀"}`, false},
+		{`{"a":"😀"}`, false},
+		{`{"a":"�"}`, false},
+		{`{"a":"\\ud800"}`, false},
+		{`{"a":"\ud800"}`, true},
+		{`{"a":"\ude00"}`, true},
+		{`{"a":"\ud83dA"}`, true},
+		{`{"a":"\ud83d"}`, true},
+		{`{"a":"�","b":"\ud800"}`, true},
+		{`{"\ud800":"x"}`, true},
+		{`{"a":"\\\ud800"}`, true},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, hasLoneSurrogateEscape(tc.s), tc.s)
+	}
 }
