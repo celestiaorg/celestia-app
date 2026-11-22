@@ -62,6 +62,11 @@ func (s *CelestiaTestSuite) prePullBusybox(ctx context.Context) {
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
 func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.Chain) {
+	s.CreateTxSimOn(ctx, chain, chain.GetNodes()[0])
+}
+
+// CreateTxSimOn is CreateTxSim with txsim sending to the gRPC endpoint of node.
+func (s *CelestiaTestSuite) CreateTxSimOn(ctx context.Context, chain tastoratypes.Chain, node tastoratypes.ChainNode) {
 	t := s.T()
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	s.Require().NoError(err)
@@ -76,7 +81,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
 	}
 
-	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	networkInfo, err := node.GetNetworkInfo(ctx)
 	s.Require().NoError(err, "failed to get network info from chain node")
 	internalHostname := networkInfo.Internal.Hostname
 
