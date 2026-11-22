@@ -393,7 +393,7 @@ MALICIOUS_IMAGE_DIR := build/malicious-image
 build-docker-malicious:
 	@echo "--> Building celestia-app-malicious:$(CELESTIA_TAG)"
 	@mkdir -p $(MALICIOUS_IMAGE_DIR)/docker
-	CGO_ENABLED=0 go build -trimpath -o $(MALICIOUS_IMAGE_DIR)/celestia-appd ./test/cmd/malicious-appd
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o $(MALICIOUS_IMAGE_DIR)/celestia-appd ./test/cmd/malicious-appd
 	@cp docker/entrypoint.sh $(MALICIOUS_IMAGE_DIR)/docker/
 	$(DOCKER) build -t celestia-app-malicious:$(CELESTIA_TAG) -f docker/e2e.Dockerfile $(MALICIOUS_IMAGE_DIR)
 .PHONY: build-docker-malicious
