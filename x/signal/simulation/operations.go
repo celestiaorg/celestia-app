@@ -18,36 +18,27 @@ import (
 )
 
 const (
-	OpWeightMsgSignalVersion      = "op_weight_msg_signal_version"
-	OpWeightMsgTryUpgrade         = "op_weight_msg_try_upgrade"
-	DefaultWeightMsgSignalVersion = 50
-	DefaultWeightMsgTryUpgrade    = 10
+	weightMsgSignalVersion = 50
+	weightMsgTryUpgrade    = 10
 )
 
-// TxFee is the fee every simulated tx pays. GenAndDeliverTx sets the gas
+// txFee is the fee every simulated tx pays. GenAndDeliverTx sets the gas
 // limit to simtestutil.DefaultGenTxGas (10M), so this is a gas price of
 // 0.004 utia (appconsts.DefaultMinGasPrice), above the x/minfee network min
 // gas price.
-var TxFee = sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, simtestutil.DefaultGenTxGas*4/1000))
+var txFee = sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, simtestutil.DefaultGenTxGas*4/1000))
 
 // WeightedOperations returns the x/signal simulation operations.
 func WeightedOperations(
-	appParams simtypes.AppParams,
 	txGen client.TxConfig,
 	ak simulation.AccountKeeper,
 	bk simulation.BankKeeper,
 	k *signal.Keeper,
 	sk *stakingkeeper.Keeper,
 ) simulation.WeightedOperations {
-	var weightSignal, weightTryUpgrade int
-	appParams.GetOrGenerate(OpWeightMsgSignalVersion, &weightSignal, nil,
-		func(_ *rand.Rand) { weightSignal = DefaultWeightMsgSignalVersion })
-	appParams.GetOrGenerate(OpWeightMsgTryUpgrade, &weightTryUpgrade, nil,
-		func(_ *rand.Rand) { weightTryUpgrade = DefaultWeightMsgTryUpgrade })
-
 	return simulation.WeightedOperations{
-		simulation.NewWeightedOperation(weightSignal, SimulateMsgSignalVersion(txGen, ak, bk, k, sk)),
-		simulation.NewWeightedOperation(weightTryUpgrade, SimulateMsgTryUpgrade(txGen, ak, bk, k)),
+		simulation.NewWeightedOperation(weightMsgSignalVersion, SimulateMsgSignalVersion(txGen, ak, bk, k, sk)),
+		simulation.NewWeightedOperation(weightMsgTryUpgrade, SimulateMsgTryUpgrade(txGen, ak, bk, k)),
 	}
 }
 
@@ -142,8 +133,8 @@ func SimulateMsgTryUpgrade(
 	}
 }
 
-// deliver signs msg with simAccount, pays TxFee and delivers it. It returns a
-// no-op if the account cannot pay TxFee.
+// deliver signs msg with simAccount, pays txFee and delivers it. It returns a
+// no-op if the account cannot pay txFee.
 func deliver(
 	r *rand.Rand,
 	app *baseapp.BaseApp,
@@ -155,7 +146,7 @@ func deliver(
 	simAccount simtypes.Account,
 	msg sdk.Msg,
 ) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-	if !bk.SpendableCoins(ctx, simAccount.Address).IsAllGTE(TxFee) {
+	if !bk.SpendableCoins(ctx, simAccount.Address).IsAllGTE(txFee) {
 		return simtypes.NoOpMsg(types.ModuleName, sdk.MsgTypeURL(msg), "insufficient funds"), nil, nil
 	}
 	return simulation.GenAndDeliverTx(simulation.OperationInput{
@@ -167,5 +158,5 @@ func deliver(
 		SimAccount:    simAccount,
 		AccountKeeper: ak,
 		ModuleName:    types.ModuleName,
-	}, TxFee)
+	}, txFee)
 }

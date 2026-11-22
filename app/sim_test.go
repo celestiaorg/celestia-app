@@ -115,7 +115,6 @@ func runSimulation(t *testing.T, config simtypes.Config, name string) simResult 
 		baseapp.SetChainID(config.ChainID), writeSimState)
 
 	simManager := module.NewSimulationManagerFromAppModules(capp.ModuleManager.Modules, nil)
-	appParams := make(simtypes.AppParams)
 	txConfig := capp.GetTxConfig()
 
 	// Only the x/blob and x/signal operations run. The SDK modules' operations
@@ -124,9 +123,8 @@ func runSimulation(t *testing.T, config simtypes.Config, name string) simResult 
 	// SimulateFromSeed stops the run on any delivery error. The SDK modules
 	// still generate the random genesis.
 	ops := simulation.WeightedOperations{}
-	ops = append(ops, blobsim.WeightedOperations(appParams, txConfig, capp.AccountKeeper, capp.BankKeeper, capp.GovKeeper, capp.StakingKeeper)...)
-	ops = append(ops, signalsim.WeightedOperations(appParams, txConfig, capp.AccountKeeper, capp.BankKeeper, &capp.SignalKeeper, capp.StakingKeeper)...)
-	require.NotEmpty(t, ops, "no simulation operations registered")
+	ops = append(ops, blobsim.WeightedOperations(txConfig, capp.AccountKeeper, capp.BankKeeper, capp.GovKeeper, capp.StakingKeeper)...)
+	ops = append(ops, signalsim.WeightedOperations(txConfig, capp.AccountKeeper, capp.BankKeeper, &capp.SignalKeeper, capp.StakingKeeper)...)
 	counts := opCounts{}
 
 	t.Run(name, func(t *testing.T) {

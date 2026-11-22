@@ -25,10 +25,8 @@ import (
 )
 
 const (
-	OpWeightMsgPayForBlobs                   = "op_weight_msg_pay_for_blobs"
-	OpWeightMsgUpdateBlobParamsProposal      = "op_weight_msg_update_blob_params_proposal"
-	DefaultWeightMsgPayForBlobs              = 100
-	DefaultWeightMsgUpdateBlobParamsProposal = 5
+	weightMsgPayForBlobs              = 100
+	weightMsgUpdateBlobParamsProposal = 5
 
 	maxBlobsPerPFB = 4
 	maxBlobSize    = 100_000
@@ -37,30 +35,23 @@ const (
 	maxSimBlockTime = 10_000 * time.Second
 )
 
-// TxFee is the fee every simulated tx pays. GenAndDeliverTx sets the gas
+// txFee is the fee every simulated tx pays. GenAndDeliverTx sets the gas
 // limit to simtestutil.DefaultGenTxGas (10M), so this is a gas price of
 // 0.004 utia (appconsts.DefaultMinGasPrice), above the x/minfee network min
 // gas price.
-var TxFee = sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, simtestutil.DefaultGenTxGas*4/1000))
+var txFee = sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, simtestutil.DefaultGenTxGas*4/1000))
 
 // WeightedOperations returns the x/blob simulation operations.
 func WeightedOperations(
-	appParams simtypes.AppParams,
 	txGen client.TxConfig,
 	ak simulation.AccountKeeper,
 	bk simulation.BankKeeper,
 	gk *govkeeper.Keeper,
 	sk *stakingkeeper.Keeper,
 ) simulation.WeightedOperations {
-	var weightPFB, weightProposal int
-	appParams.GetOrGenerate(OpWeightMsgPayForBlobs, &weightPFB, nil,
-		func(_ *rand.Rand) { weightPFB = DefaultWeightMsgPayForBlobs })
-	appParams.GetOrGenerate(OpWeightMsgUpdateBlobParamsProposal, &weightProposal, nil,
-		func(_ *rand.Rand) { weightProposal = DefaultWeightMsgUpdateBlobParamsProposal })
-
 	return simulation.WeightedOperations{
-		simulation.NewWeightedOperation(weightPFB, SimulateMsgPayForBlobs(txGen, ak, bk)),
-		simulation.NewWeightedOperation(weightProposal, SimulateMsgUpdateBlobParamsProposal(txGen, ak, bk, gk, sk)),
+		simulation.NewWeightedOperation(weightMsgPayForBlobs, SimulateMsgPayForBlobs(txGen, ak, bk)),
+		simulation.NewWeightedOperation(weightMsgUpdateBlobParamsProposal, SimulateMsgUpdateBlobParamsProposal(txGen, ak, bk, gk, sk)),
 	}
 }
 
@@ -218,8 +209,8 @@ func randomNamespace(r *rand.Rand) (share.Namespace, error) {
 	}
 }
 
-// deliver signs msg with simAccount, pays TxFee and delivers it. It returns a
-// no-op if the account cannot pay TxFee plus spent.
+// deliver signs msg with simAccount, pays txFee and delivers it. It returns a
+// no-op if the account cannot pay txFee plus spent.
 func deliver(
 	r *rand.Rand,
 	app *baseapp.BaseApp,
@@ -233,7 +224,7 @@ func deliver(
 	spent sdk.Coins,
 ) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 	spendable := bk.SpendableCoins(ctx, simAccount.Address)
-	if !spendable.IsAllGTE(TxFee.Add(spent...)) {
+	if !spendable.IsAllGTE(txFee.Add(spent...)) {
 		return simtypes.NoOpMsg(types.ModuleName, sdk.MsgTypeURL(msg), "insufficient funds"), nil, nil
 	}
 	return simulation.GenAndDeliverTx(simulation.OperationInput{
@@ -245,5 +236,5 @@ func deliver(
 		SimAccount:    simAccount,
 		AccountKeeper: ak,
 		ModuleName:    types.ModuleName,
-	}, TxFee)
+	}, txFee)
 }
