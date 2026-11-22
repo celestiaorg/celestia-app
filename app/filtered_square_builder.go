@@ -522,25 +522,8 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			}
 		}
 
-		// The system blob comes from the decoded view, or from parsing when there is none. Only txs
-		// with a MsgPayForFibre are routed here and the shape check allows no other message,
-		// so isFibreTx is always true.
-		var (
-			fibreTx   *tx.FibreTx
-			isFibreTx = true
-			err       error
-		)
-		if entry.decoded != nil {
-			fibreTx, err = entry.decoded.FibreTx()
-		} else {
-			fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(rawTx)
-		}
-		if err != nil {
-			logger.Error("synthesizing fibre tx", "tx", lazyTxHash(rawTx), "error", err)
-			continue
-		}
-		if !isFibreTx {
-			logger.Error("expected pay-for-fibre tx", "tx", lazyTxHash(rawTx))
+		fibreTx, ok := synthesizeFibreTx(logger, entry)
+		if !ok {
 			continue
 		}
 
@@ -601,6 +584,31 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 	}
 
 	return fibreTxs
+}
+
+// synthesizeFibreTx builds the system blob from the decoded view, or by parsing when there is none.
+// Only txs with a MsgPayForFibre are routed here and the shape check allows no other message,
+// so isFibreTx is always true.
+func synthesizeFibreTx(logger log.Logger, entry *decodedFibreTx) (*tx.FibreTx, bool) {
+	var (
+		fibreTx   *tx.FibreTx
+		isFibreTx = true
+		err       error
+	)
+	if entry.decoded != nil {
+		fibreTx, err = entry.decoded.FibreTx()
+	} else {
+		fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(entry.raw)
+	}
+	if err != nil {
+		logger.Error("synthesizing fibre tx", "tx", lazyTxHash(entry.raw), "error", err)
+		return nil, false
+	}
+	if !isFibreTx {
+		logger.Error("expected pay-for-fibre tx", "tx", lazyTxHash(entry.raw))
+		return nil, false
+	}
+	return fibreTx, true
 }
 
 // lazyTxHash defers hashing a transaction until a log line is written, so

@@ -276,47 +276,25 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	}
 }
 
-func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	txConfig := encConf.TxConfig
-
-	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
-		return ctx, nil
-	}
-
-	// Create appconsts.MaxPayForFibreMessages+1 pay-for-fibre txs.
-	numPFF := appconsts.MaxPayForFibreMessages + 1
-	pffTxs := make([][]byte, numPFF)
-	for i := range numPFF {
-		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	}
-
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-	require.NoError(t, err)
-
-	db := dbm.NewMemDB()
-	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
-	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
-
-	kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
-	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
-}
-
 // TestFilteredSquareBuilderFillKeepsCoreTxLimit checks that SDK and blob txs are kept and
 // PFFs take what is left of core's MaxBlockTxs, up to MaxPayForFibreMessages.
 func TestFilteredSquareBuilderFillKeepsCoreTxLimit(t *testing.T) {
+	// The PFF budget stays positive only while the SDK and PFB caps leave room under core's limit.
+	require.Less(t, appconsts.MaxSDKMessages+appconsts.MaxPFBMessages, coretypes.MaxBlockTxs)
+
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
-	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
 	pffs := newPFFs(t, txConfig, coretypes.MaxBlockTxs)
 
 	tests := []struct {
 		name         string
 		numSDK, numB int
+		wantPFF      int
 	}{
-		{name: "one MsgSend", numSDK: 1},
-		{name: "full SDK", numSDK: appconsts.MaxSDKMessages},
-		{name: "full PFB", numB: appconsts.MaxPFBMessages},
-		{name: "full SDK and PFB", numSDK: appconsts.MaxSDKMessages, numB: appconsts.MaxPFBMessages},
+		{name: "PFF only", wantPFF: 200},
+		{name: "one MsgSend", numSDK: 1, wantPFF: 200},
+		{name: "full SDK", numSDK: appconsts.MaxSDKMessages, wantPFF: 200},
+		{name: "full PFB", numB: appconsts.MaxPFBMessages, wantPFF: 200},
+		{name: "full SDK and PFB", numSDK: appconsts.MaxSDKMessages, numB: appconsts.MaxPFBMessages, wantPFF: 200},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -330,14 +308,9 @@ func TestFilteredSquareBuilderFillKeepsCoreTxLimit(t *testing.T) {
 			others := len(txs)
 			txs = append(txs, pffs...)
 
-			fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-			require.NoError(t, err)
-			ctx := sdk.NewContext(store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics()), cmtproto.Header{}, false, log.NewNopLogger())
-			kept := fsb.Fill(ctx, txs, math.MaxInt64)
-
-			wantPFF := min(appconsts.MaxPayForFibreMessages, coretypes.MaxBlockTxs-others)
+			kept := (&pffFill{txConfig: txConfig}).run(t, txs)
 			require.LessOrEqual(t, len(kept), coretypes.MaxBlockTxs)
-			require.Len(t, kept, others+wantPFF)
+			require.Len(t, kept, others+tc.wantPFF)
 			require.Equal(t, txs[:others], kept[:others], "every SDK and blob tx is kept")
 		})
 	}
