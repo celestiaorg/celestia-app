@@ -223,7 +223,12 @@ jobs:
       # TestChaos injects delay and loss with tc netem.
       - name: Load the netem kernel module
         if: ${{ matrix.test == 'TestChaos' }}
-        run: sudo modprobe sch_netem
+        run: |
+          sudo modprobe sch_netem || {
+            sudo apt-get -qq update &&
+              sudo apt-get -qq install -y "linux-modules-extra-$(uname -r)" &&
+              sudo modprobe sch_netem
+          }
 
       - name: Run ${{ matrix.test }}
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
