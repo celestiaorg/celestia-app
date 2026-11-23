@@ -7,16 +7,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v11/app"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	recheckFixtureMu    sync.Mutex
-	recheckFixture      *checkTxFixture
+	recheckFixtures     [2]*checkTxFixture // a stock app and a fast recheck app
 	recheckFixtureStart int64
 )
 
@@ -45,9 +47,20 @@ func (fx *checkTxFixture) runCheckTx(t *testing.T, raw []byte, typ abci.CheckTxT
 	return resp
 }
 
+// newRecheckFixtures builds the same fixture on a stock app and on a fast
+// recheck app. Both are deterministic, so they start from the same state.
+func newRecheckFixtures(t *testing.T) [2]*checkTxFixture {
+	stock := newCheckTxFixture(t)
+	fast := newCheckTxFixtureWithOptions(t, simtestutil.AppOptionsMap{app.FlagFastRecheck: true})
+	require.Equal(t, stock.txs, fast.txs)
+	require.Equal(t, stock.app.LastCommitID(), fast.app.LastCommitID())
+	return [2]*checkTxFixture{stock, fast}
+}
+
 // fuzzRecheck admits mutated txs with a new CheckTx, commits an empty block,
 // which resets the check state as after any block, and rechecks every admitted
-// tx as the mempool does.
+// tx as the mempool does. Every step runs on a stock app and a fast recheck
+// app, which must reach the same verdicts.
 func fuzzRecheck(t *testing.T, txIndex, op uint8, offset uint32, value byte, extra []byte) {
 	t.Helper()
 	if len(extra) > appconsts.MaxTxSize {
@@ -55,30 +68,46 @@ func fuzzRecheck(t *testing.T, txIndex, op uint8, offset uint32, value byte, ext
 	}
 	recheckFixtureMu.Lock()
 	defer recheckFixtureMu.Unlock()
-	if recheckFixture == nil || recheckFixture.app.LastBlockHeight()-recheckFixtureStart > recheckFixtureBlocks {
-		if recheckFixture != nil {
-			require.NoError(t, recheckFixture.app.Close())
+	if fx := recheckFixtures[0]; fx == nil || fx.app.LastBlockHeight()-recheckFixtureStart > recheckFixtureBlocks {
+		for _, fx := range recheckFixtures {
+			if fx != nil {
+				require.NoError(t, fx.app.Close())
+			}
 		}
-		recheckFixture = newCheckTxFixture(t)
-		recheckFixtureStart = recheckFixture.app.LastBlockHeight()
+		recheckFixtures = newRecheckFixtures(t)
+		recheckFixtureStart = recheckFixtures[0].app.LastBlockHeight()
 	}
-	fx := recheckFixture
+	stock, fast := recheckFixtures[0], recheckFixtures[1]
+	commit := func() {
+		commitBlockAt(t, stock.app, recheckBlockTime)
+		commitBlockAt(t, fast.app, recheckBlockTime)
+		require.Equal(t, stock.app.LastCommitID(), fast.app.LastCommitID())
+	}
+	// checkTx runs CheckTx on both apps and returns the stock response.
+	checkTx := func(raw []byte, typ abci.CheckTxType) *abci.ResponseCheckTx {
+		want, got := stock.runCheckTx(t, raw, typ), fast.runCheckTx(t, raw, typ)
+		require.Equal(t, want.Code, got.Code, "%s code differs: stock %q, fast %q", typ, want.Log, got.Log)
+		if typ == abci.CheckTxType_Recheck {
+			require.Equal(t, want.GasWanted, got.GasWanted, "recheck gas wanted differs")
+		}
+		return want
+	}
 
 	// Start from committed state so earlier inputs' admissions do not leak in.
-	commitBlockAt(t, fx.app, recheckBlockTime)
+	commit()
 	var admitted [][]byte
-	for _, raw := range mutateProposal(fx.txs, txIndex, op, offset, value, extra) {
+	for _, raw := range mutateProposal(stock.txs, txIndex, op, offset, value, extra) {
 		// The mempool only ever rechecks txs a new CheckTx admitted.
-		if fx.runCheckTx(t, raw, abci.CheckTxType_New).Code == abci.CodeTypeOK {
+		if checkTx(raw, abci.CheckTxType_New).Code == abci.CodeTypeOK {
 			admitted = append(admitted, raw)
 			// A recheck before the next block runs on the same check state.
-			fx.runCheckTx(t, raw, abci.CheckTxType_Recheck)
+			checkTx(raw, abci.CheckTxType_Recheck)
 		}
 	}
 
-	commitBlockAt(t, fx.app, recheckBlockTime)
+	commit()
 	for i, raw := range admitted {
-		resp := fx.runCheckTx(t, raw, abci.CheckTxType_Recheck)
+		resp := checkTx(raw, abci.CheckTxType_Recheck)
 		// Nothing changed the state these txs depend on, so a recheck that
 		// evicts one drops a valid tx from every mempool.
 		require.Equal(t, abci.CodeTypeOK, resp.Code, "recheck evicted admitted tx %d: %s", i, resp.Log)
@@ -103,7 +132,8 @@ func TestRecheckSeeds(t *testing.T) {
 // panic, and after a block that changed nothing they must keep every admitted
 // tx. The recheck path skips blob validation and, for pay-for-fibre txs, the
 // app's CheckTx wrapper, relying on the new CheckTx having checked the same
-// bytes.
+// bytes. A fast recheck app runs beside the stock app and must reach the same
+// verdicts.
 func FuzzRecheckMutatedTxs(f *testing.F) {
 	f.Add(uint8(0), uint8(0), uint32(0), byte(0), []byte{})
 	for op := range uint8(12) {

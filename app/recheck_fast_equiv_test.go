@@ -28,8 +28,6 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	dbm "github.com/cosmos/cosmos-db"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -52,9 +50,16 @@ type eqPoolTx struct {
 	promise *fibretypes.PaymentPromise
 }
 
+// eqRand is the randomness eqEnv draws from: a seeded *rand.Rand, or fuzz input.
+type eqRand interface {
+	Intn(n int) int
+	Perm(n int) []int
+	Read(p []byte) (int, error)
+}
+
 type eqEnv struct {
 	t         *testing.T
-	rng       *rand.Rand
+	rng       eqRand
 	full      *app.App
 	fast      *app.App
 	kr        keyring.Keyring
@@ -68,29 +73,14 @@ type eqEnv struct {
 	inWindow  bool
 
 	hits, misses int
-}
-
-// newEqApp builds an app from genesis, with fast recheck if set.
-func newEqApp(fast bool, cparams *cmtproto.ConsensusParams, genesis app.GenesisState) *app.App {
-	opts := simtestutil.AppOptionsMap{app.FlagFastRecheck: fast}
-	a := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0, opts, baseapp.SetChainID(testutil.ChainID))
-	return testutil.InitialiseTestAppWithGenesis(a, cparams, genesis)
+	ctxReplays   int
 }
 
 func newEqEnv(t *testing.T, seed int64, nAccounts int) *eqEnv {
-	accounts := testfactory.GenerateAccounts(nAccounts)
+	accounts := testfactory.GenerateDeterministicAccounts(nAccounts)
 	cparams := app.DefaultConsensusParams()
-	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
-	full := newEqApp(false, cparams, genesis)
-	fast := newEqApp(true, cparams, genesis)
-	for _, a := range []*app.App{full, fast} {
-		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
-			Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash(),
-		})
-		require.NoError(t, err)
-		_, err = a.Commit()
-		require.NoError(t, err)
-	}
+	full, kr := testutil.SetupDeterministicTestAppWithOptions(simtestutil.AppOptionsMap{app.FlagFastRecheck: false}, cparams, accounts...)
+	fast, _ := testutil.SetupDeterministicTestAppWithOptions(simtestutil.AppOptionsMap{app.FlagFastRecheck: true}, cparams, accounts...)
 	require.Equal(t, full.LastCommitID().Hash, fast.LastCommitID().Hash)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	e := &eqEnv{
@@ -170,6 +160,10 @@ func (e *eqEnv) committedBalance(i int) math.Int {
 
 func (e *eqEnv) commit(txs [][]byte) {
 	e.blockTime = e.blockTime.Add(time.Duration(5+e.rng.Intn(20)) * time.Second)
+	if e.rng.Intn(30) == 0 {
+		// A long gap: promises expire and vesting progresses between rechecks.
+		e.blockTime = e.blockTime.Add(time.Duration(1+e.rng.Intn(48)) * time.Hour)
+	}
 	var hashes [2][]byte
 	for i, a := range []*app.App{e.full, e.fast} {
 		resp, err := a.FinalizeBlock(testutil.WithBlockHash(&abci.RequestFinalizeBlock{
@@ -461,11 +455,17 @@ func (e *eqEnv) removeIncluded(txs [][]byte) {
 	}
 }
 
+// recheck rechecks the pool on both apps. Before each recheck it also checks
+// the record the fast app would replay against a full recheck under moved block
+// times and heights.
 func (e *eqEnv) recheck() {
 	order := e.rng.Perm(len(e.names))
 	for _, i := range order {
 		var keep []eqPoolTx
 		for _, ptx := range e.pool[i] {
+			replayed, unsound := e.fast.FastRecheckGuardedContext(ptx.raw)
+			require.Empty(e.t, unsound, "a replay of a %s tx disagrees with the full recheck", ptx.kind)
+			e.ctxReplays += replayed
 			hitsBefore, _ := e.fast.FastRecheckStats()
 			rA := e.checkTx(e.full, ptx.raw, abci.CheckTxType_Recheck)
 			rB := e.checkTx(e.fast, ptx.raw, abci.CheckTxType_Recheck)
@@ -530,8 +530,9 @@ func TestFastRecheckEquivalence(t *testing.T) {
 			for _, p := range e.pool {
 				total += len(p)
 			}
-			t.Logf("seed %d: fast hits=%d misses=%d pool=%d", seed, e.hits, e.misses, total)
+			t.Logf("seed %d: fast hits=%d misses=%d pool=%d context replays=%d", seed, e.hits, e.misses, total, e.ctxReplays)
 			require.Positive(t, e.hits, "the fast path never fired")
+			require.Positive(t, e.ctxReplays, "no record replayed under a moved context")
 		})
 	}
 }
@@ -551,17 +552,23 @@ func eqSeeds() ([]int64, int) {
 	return seeds, rounds
 }
 
-// runEq drives e for rounds rounds, checking checkState after each step.
+// runEq drives e for rounds rounds.
 func (e *eqEnv) runEq(rounds int) {
 	for round := range rounds {
-		e.addNewTxs(10 + e.rng.Intn(40))
-		e.requireSameCheckState(round)
-		txs := e.buildBlock(round)
-		e.commit(txs)
-		e.removeIncluded(txs)
-		e.recheck()
-		e.requireSameCheckState(round)
+		e.round(round)
 	}
+}
+
+// round admits txs, commits a block, rechecks the pool, and checks checkState
+// after each step.
+func (e *eqEnv) round(round int) {
+	e.addNewTxs(10 + e.rng.Intn(40))
+	e.requireSameCheckState(round)
+	txs := e.buildBlock(round)
+	e.commit(txs)
+	e.removeIncluded(txs)
+	e.recheck()
+	e.requireSameCheckState(round)
 }
 
 // TestFastRecheckAllMiss checks that dropped records send every recheck down
