@@ -30,8 +30,9 @@ func nested(depth int) string {
 	return strings.Repeat(`{"a":`, depth) + `1` + strings.Repeat(`}`, depth)
 }
 
-func TestValidateForwardMemoAllows(t *testing.T) {
-	testCases := []struct {
+// validateForwardMemoAllowCases are memos that validateForwardMemo accepts.
+func validateForwardMemoAllowCases() []struct{ name, memo string } {
+	return []struct {
 		name string
 		memo string
 	}{
@@ -74,15 +75,19 @@ func TestValidateForwardMemoAllows(t *testing.T) {
 		{"same key in sibling objects in next", forwardMemo(`,"next":{"x":{"a":1},"y":{"a":1}}`)},
 		{"keys differ in case inside next", forwardMemo(`,"next":{"a":1,"A":2}`)},
 	}
-	for _, tc := range testCases {
+}
+
+func TestValidateForwardMemoAllows(t *testing.T) {
+	for _, tc := range validateForwardMemoAllowCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, validateForwardMemo(tc.memo))
 		})
 	}
 }
 
-func TestValidateForwardMemoRejects(t *testing.T) {
-	testCases := []struct {
+// validateForwardMemoRejectCases are memos that validateForwardMemo rejects.
+func validateForwardMemoRejectCases() []struct{ name, memo string } {
+	return []struct {
 		name string
 		memo string
 	}{
@@ -162,7 +167,10 @@ func TestValidateForwardMemoRejects(t *testing.T) {
 		{"reversed surrogate pair", `{"forward":{"receiver":"\ude00\ud83d","port":"transfer","channel":"channel-7"}}`},
 		{"lone surrogate in escaped next", forwardMemo(`,"next":"{\"a\":\"\\ud800\"}"`)},
 	}
-	for _, tc := range testCases {
+}
+
+func TestValidateForwardMemoRejects(t *testing.T) {
+	for _, tc := range validateForwardMemoRejectCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Error(t, validateForwardMemo(tc.memo))
 		})
@@ -677,41 +685,6 @@ func TestPFMNextTokenMatchesDecoder(t *testing.T) {
 		pfmRepeatedNextMemo(),
 	} {
 		require.True(t, json.Valid([]byte(s)), s)
-		dec := json.NewDecoder(strings.NewReader(s))
-		dec.UseNumber()
-		var want []json.Token
-		for {
-			tok, err := dec.Token()
-			if err != nil {
-				break
-			}
-			want = append(want, tok)
-		}
-		var got []json.Token
-		for i := 0; ; {
-			tok, end, ok := pfmNextToken(s, i)
-			if !ok {
-				break
-			}
-			switch tok.kind {
-			case '{', '}', '[', ']':
-				got = append(got, json.Delim(tok.kind))
-			case '"':
-				got = append(got, tok.text)
-			case 'n':
-				got = append(got, nil)
-			case 'v':
-				switch tok.text {
-				case "true":
-					got = append(got, true)
-				case "false":
-					got = append(got, false)
-				default:
-					got = append(got, json.Number(tok.text))
-				}
-			}
-			i = end
-		}
-		require.Equal(t, want, got, s)
+		require.Equal(t, decoderTokens(s), pfmTokens(s), s)
 	}
 }
