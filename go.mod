@@ -29,6 +29,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
+	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tendermint/tendermint v0.34.29
 	github.com/tendermint/tm-db v0.6.7
@@ -203,7 +204,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/supranational/blst v0.3.13 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
@@ -253,10 +253,12 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16.0.20261123153549-ebefc0f1ec21
+	// Temporary: celestiaorg/iavl fork with deferred persistence, until a tag is cut.
+	github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261123151647-fb8f3f6d29a5
 	// Replace IBC with celestiaorg fork which includes fixes for security vulnerabilities.
 	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.3.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35.0.20261123163158-ee2dfd74aad8
 )
