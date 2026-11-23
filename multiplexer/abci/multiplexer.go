@@ -81,6 +81,8 @@ type Multiplexer struct {
 	appVersion uint64
 	// nextAppVersion this is updated based on the consensus params every FinalizeBlock.
 	nextAppVersion uint64
+	// deliverTxBatch is app.toml performance.delivertx-batch, read at startup.
+	deliverTxBatch bool
 	// switchInfo is the Info response of the previous app, taken right after it
 	// committed the block that switched the app version. Info returns it until
 	// the new app commits its first block, because before then the new app has
@@ -140,6 +142,10 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	if err := versions.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid versions: %w", err)
 	}
+	deliverTxBatch, err := deliverTxBatchEnabled(svrCtx.Viper)
+	if err != nil {
+		return nil, err
+	}
 
 	mp := &Multiplexer{
 		svrCtx:         svrCtx,
@@ -153,6 +159,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		chainID:        chainID,
 		appVersion:     applicationVersion,
 		nextAppVersion: applicationVersion,
+		deliverTxBatch: deliverTxBatch,
 	}
 
 	return mp, nil
@@ -647,11 +654,7 @@ func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
-		batch, err := deliverTxBatchEnabled(m.svrCtx.Viper)
-		if err != nil {
-			return nil, err
-		}
-		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion, batch), nil
+		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion, m.deliverTxBatch), nil
 	case ABCIClientVersion2:
 		return NewRemoteABCIClientV2(m.conn), nil
 	}
