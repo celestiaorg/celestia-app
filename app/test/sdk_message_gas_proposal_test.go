@@ -16,7 +16,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -48,19 +47,6 @@ func TestProposalChargesGasPerSDKMessage(t *testing.T) {
 	send := func(from sdk.AccAddress) sdk.Msg {
 		return banktypes.NewMsgSend(from, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))
 	}
-	// Six MsgExec with 99 empty MsgSends each weigh MaxSDKMessages.
-	emptyExecs := func(addr sdk.AccAddress) []sdk.Msg {
-		msgs := make([]sdk.Msg, 6)
-		for i := range msgs {
-			inner := make([]sdk.Msg, 99)
-			for j := range inner {
-				inner[j] = &banktypes.MsgSend{}
-			}
-			exec := authz.NewMsgExec(addr, inner)
-			msgs[i] = &exec
-		}
-		return msgs
-	}
 	// An ICA packet with MaxSDKMessages-1 junk entries weighs MaxSDKMessages.
 	junkICAPacket := func(addr sdk.AccAddress) sdk.Msg {
 		entries := make([]*codectypes.Any, appconsts.MaxSDKMessages-1)
@@ -78,7 +64,7 @@ func TestProposalChargesGasPerSDKMessage(t *testing.T) {
 	const underpaidGas = 1_000_000
 
 	s0, addr0 := signer(0)
-	execAttack := createTx(s0, underpaidGas, emptyExecs(addr0)...)
+	execAttack := createTx(s0, underpaidGas, emptyMsgExecs(addr0)...)
 	s1, addr1 := signer(1)
 	icaAttack := createTx(s1, underpaidGas, junkICAPacket(addr1))
 
