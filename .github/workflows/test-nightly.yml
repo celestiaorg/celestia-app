@@ -274,7 +274,11 @@ jobs:
               sudo modprobe sch_netem
           }
 
+      # The byzantine image is built from the checked-out source. With a tag
+      # input the honest image can come from another revision, so the test
+      # would mix app versions. Skip it then.
       - name: Run ${{ matrix.test }}
+        if: ${{ !(matrix.malicious-image && inputs.tag != '') }}
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           # Per-attempt cap; comfortably above a single run of any nightly test.
