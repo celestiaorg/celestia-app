@@ -29,7 +29,7 @@ jobs:
   # pull_request the native path filter already handles this, but the changes
   # job is harmless and keeps the logic consistent.
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     outputs:
       proto: ${{ steps.filter.outputs.proto }}
       protogen: ${{ steps.filter.outputs.protogen }}
@@ -52,7 +52,7 @@ jobs:
   lint:
     needs: changes
     if: needs.changes.outputs.proto == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -66,7 +66,7 @@ jobs:
   break-check:
     needs: changes
     if: needs.changes.outputs.proto == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: bufbuild/buf-setup-action@v1.50.0
@@ -85,7 +85,7 @@ jobs:
   gen-check:
     needs: changes
     if: needs.changes.outputs.protogen == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

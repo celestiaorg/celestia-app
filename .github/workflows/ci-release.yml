@@ -26,6 +26,13 @@ concurrency:
   group: ci-release-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Runners: jobs in this workflow and in test-coverage.yml and protobuf.yml run
+# on the runner named by the TRUSTED_CI_RUNNER repository variable for every
+# event except pull_request, and on ubuntu-latest when it is unset. This sends
+# the merge queue to a paid runner pool with its own concurrency, while PR CI
+# (which can run code from forks) stays on GitHub-hosted runners. Unset the
+# variable to fall back to GitHub-hosted runners. scripts/ci_runner_test.sh
+# enforces this for every job.
 jobs:
   lint:
     uses: ./.github/workflows/lint.yml

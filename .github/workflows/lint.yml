@@ -5,7 +5,7 @@ on:
 jobs:
   golangci-lint:
     name: golangci-lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -33,7 +33,7 @@ jobs:
   gocognit:
     name: gocognit (new code)
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -59,7 +59,7 @@ jobs:
         run: make lint-complexity LINT_BASE="$BASE_SHA"
 
   govulncheck:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -67,7 +67,7 @@ jobs:
       - run: make govulncheck
 
   hadolint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
@@ -97,7 +97,7 @@ jobs:
 
   go-mod-tidy-check:
     name: go-mod-tidy-check
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: ./.github/actions/setup-go
@@ -130,7 +130,7 @@ jobs:
           fi
 
   yamllint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
