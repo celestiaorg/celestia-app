@@ -123,7 +123,8 @@ func fibreThroughputCmd() *cobra.Command {
 			fmt.Printf("Fetch concurrency: %d\n", concurrency)
 
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			txDecoder := encCfg.TxConfig.TxDecoder()
+			// Read committed blocks with QueryTxConfig, so older txs still decode.
+			txDecoder := encCfg.QueryTxConfig.TxDecoder()
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
