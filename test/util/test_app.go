@@ -25,6 +25,7 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -77,7 +78,13 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 // signed tx bytes in every process. Pair it with
 // testfactory.GenerateDeterministicAccounts.
 func SetupDeterministicTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
-	testApp := NewTestApp()
+	return SetupDeterministicTestAppWithOptions(EmptyAppOptions{}, cparams, genAccounts...)
+}
+
+// SetupDeterministicTestAppWithOptions is SetupDeterministicTestAppWithGenesisValSet
+// on an app built with appOpts.
+func SetupDeterministicTestAppWithOptions(appOpts servertypes.AppOptions, cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp := app.New(TestAppLogger, dbm.NewMemDB(), nil, 0, 0, appOpts, baseapp.SetChainID(ChainID))
 	validator := tmtypes.NewValidator(GenesisValidatorPrivateKey().PubKey(), 1)
 	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
 	genesisState, kr := genesisStateWithValidatorSet(testApp, valSet, testnode.FundDeterministicKeyringAccounts, genAccounts...)

@@ -1,17 +1,26 @@
 package app
 
 import (
+	"maps"
+	"slices"
 	"testing"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
+	"cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
 
 func TestAnteTrace(t *testing.T) {
@@ -88,3 +97,105 @@ func TestUtiaFeePayerMalformed(t *testing.T) {
 		require.Nil(t, utiaFeePayer(sdkTx), name)
 	}
 }
+
+// Every way out of the traced multistore that the replay cannot follow must
+// mark the pass unrecordable.
+func TestAnteTraceUntracedAccessFails(t *testing.T) {
+	k := storetypes.NewKVStoreKey("other")
+	base := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
+	base.MountStoreWithDB(k, storetypes.StoreTypeIAVL, nil)
+	require.NoError(t, base.LoadLatestVersion())
+	traced := func() (traceMS, *anteTrace) {
+		tr := newAnteTrace(storetypes.NewKVStoreKey("bank"), []byte("payer"), []byte("fc"))
+		return traceMS{cms: base.CacheMultiStore(), tr: tr}, tr
+	}
+	for name, access := range map[string]func(ms traceMS){
+		"iterator":         func(ms traceMS) { ms.GetKVStore(k).Iterator(nil, nil).Close() },
+		"reverse iterator": func(ms traceMS) { ms.GetKVStore(k).ReverseIterator(nil, nil).Close() },
+		"kv cache wrap":    func(ms traceMS) { ms.GetKVStore(k).CacheWrap() },
+		"kv traced wrap":   func(ms traceMS) { ms.GetKVStore(k).CacheWrapWithTrace(nil, nil) },
+		"nested branch":    func(ms traceMS) { ms.CacheMultiStore() },
+		"cache wrap":       func(ms traceMS) { ms.CacheWrap() },
+		"traced wrap":      func(ms traceMS) { ms.CacheWrapWithTrace(nil, nil) },
+		"versioned branch": func(ms traceMS) {
+			defer func() { _ = recover() }() // a cache multistore has no versions
+			_, _ = ms.CacheMultiStoreWithVersion(1)
+		},
+	} {
+		ms, tr := traced()
+		access(ms)
+		require.True(t, tr.failed, name)
+	}
+	ms, tr := traced()
+	ms.GetStore(k).(storetypes.KVStore).Get([]byte("k"))
+	require.False(t, tr.failed, "GetStore of a KV store is traced")
+	require.Len(t, tr.reads, 1)
+}
+
+// The records stay within their entry and byte budgets, and a Commit drops the
+// records no recheck used since the previous Commit.
+func TestFastRecheckRecordBudget(t *testing.T) {
+	bank, other := storetypes.NewKVStoreKey("bank"), storetypes.NewKVStoreKey("other")
+	payer, fc := []byte("payer"), []byte("fc")
+	fee := math.NewInt(10)
+	f := &fastRecheck{records: map[string]*fastRecord{}, maxRecs: 3, maxBytes: 100, bank: bank, fcKey: fc}
+	record := func(raw string, valueLen int) {
+		tr := newAnteTrace(bank, payer, fc)
+		tr.onRead(bank, payer, encodeBalance(math.NewInt(100)), false)
+		tr.onWrite(bank, payer, encodeBalance(math.NewInt(90)))
+		tr.onRead(bank, fc, encodeBalance(math.NewInt(0)), false)
+		tr.onWrite(bank, fc, encodeBalance(fee))
+		tr.onRead(other, []byte("k"), make([]byte, valueLen), false)
+		f.end([]byte(raw), traceTx{fee: fee}, tr, &abci.ResponseCheckTx{GasWanted: 1, GasUsed: 1}, nil)
+	}
+	total := func() (n int) {
+		for _, r := range f.records {
+			n += r.size
+		}
+		return n
+	}
+	record("a", 10)
+	record("b", 10)
+	require.Len(t, f.records, 2)
+	record("a", 20) // a second pass of a replaces its record
+	require.Len(t, f.records, 2)
+	require.Equal(t, total(), f.bytes)
+	record("c", 80) // over the byte budget
+	require.NotContains(t, f.records, "c")
+	record("c", 10)
+	record("d", 1) // over the entry budget
+	require.Len(t, f.records, 3)
+	require.NotContains(t, f.records, "d")
+	require.Equal(t, total(), f.bytes)
+	record("a", 200) // a replacement that no longer fits drops the old record
+	require.NotContains(t, f.records, "a")
+	require.Equal(t, total(), f.bytes)
+
+	f.commit() // records made before this Commit count as used in its block
+	f.records["b"].used = f.commits
+	f.commit()
+	require.Equal(t, []string{"b"}, slices.Collect(maps.Keys(f.records)))
+	require.Equal(t, total(), f.bytes)
+}
+
+func encodeBalance(v math.Int) []byte {
+	b, err := sdk.IntValue.Encode(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// traceTx is a fee-paying tx, with what fastRecheck.end reads from one.
+type traceTx struct {
+	fee     math.Int
+	timeout uint64
+}
+
+func (traceTx) GetMsgs() []sdk.Msg                    { return nil }
+func (traceTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (traceTx) GetGas() uint64                        { return 0 }
+func (tx traceTx) GetFee() sdk.Coins                  { return sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, tx.fee)) }
+func (traceTx) FeePayer() []byte                      { return nil }
+func (traceTx) FeeGranter() []byte                    { return nil }
+func (tx traceTx) GetTimeoutHeight() uint64           { return tx.timeout }
