@@ -28,12 +28,10 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	// square.Construct and square.TxShareRange reject txs that are not in
-	// square order (normal, then blob, then pay-for-fibre). Without that check
-	// the builder regroups txs by kind, so the share range of txIndex in the
-	// regrouped square would not belong to the caller's tx at txIndex.
-	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-	if err != nil {
+	// The square builder regroups txs by kind (normal, then blob, then
+	// pay-for-fibre). If the txs are not already in that order, the share range
+	// of txIndex in the square would belong to a different tx, so reject them.
+	if err := validateTxOrder(classifiedTxs); err != nil {
 		return ShareProof{}, err
 	}
 
@@ -41,20 +39,55 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 	if err != nil {
 		return ShareProof{}, err
 	}
-	shareRange, err := square.TxShareRange(classifiedTxs, txIndexInt, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+
+	// Build the square once and use it for both the share range and the proof.
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, classifiedTxs...)
+	if err != nil {
+		return ShareProof{}, err
+	}
+	dataSquare, err := builder.Export()
+	if err != nil {
+		return ShareProof{}, err
+	}
+	shareRange, err := builder.FindTxShareRange(txIndexInt)
 	if err != nil {
 		return ShareProof{}, err
 	}
 
-	namespace := getTxNamespace(classifiedTxs[txIndex])
-	return NewShareInclusionProof(dataSquare, namespace, shareRange)
+	return NewShareInclusionProof(dataSquare, getTxNamespace(classifiedTxs[txIndex]), shareRange)
 }
 
+// validateTxOrder returns an error unless all normal txs come before all blob
+// txs, and all blob txs come before all pay-for-fibre txs. It classifies txs
+// the same way the square builder does.
+func validateTxOrder(txs []square.ClassifiedTx) error {
+	seenBlobTx, seenFibreTx := false, false
+	for i, tx := range txs {
+		ns := getTxNamespace(tx)
+		switch {
+		case ns.Equals(share.PayForFibreNamespace):
+			seenFibreTx = true
+		case ns.Equals(share.PayForBlobNamespace):
+			if seenFibreTx {
+				return fmt.Errorf("blob tx at index %d is after a pay-for-fibre tx", i)
+			}
+			seenBlobTx = true
+		default:
+			if seenBlobTx || seenFibreTx {
+				return fmt.Errorf("normal tx at index %d is after a blob or pay-for-fibre tx", i)
+			}
+		}
+	}
+	return nil
+}
+
+// getTxNamespace returns the namespace of the compact shares that hold tx. It
+// uses the same blob tx check as the square builder.
 func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
 	if tx.FibreTx != nil {
 		return share.PayForFibreNamespace
 	}
-	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx.Bytes)
+	_, isBlobTx, _ := blobtx.UnmarshalBlobTxNoCopy(tx.Bytes)
 	if isBlobTx {
 		return share.PayForBlobNamespace
 	}
@@ -63,8 +96,8 @@ func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
 
 // NewShareInclusionProof takes an ODS, extends it, then
 // returns an NMT inclusion proof for a set of shares
-// belonging to the same namespace to the data root.
-// Expects the share range to be pre-validated.
+// belonging to the same namespace to the data root. It returns an error if the
+// share range is empty or outside the original data square.
 func NewShareInclusionProof(
 	dataSquare square.Square,
 	namespace share.Namespace,
@@ -79,16 +112,23 @@ func NewShareInclusionProof(
 
 // NewShareInclusionProofFromEDS takes an extended data square,
 // and returns an NMT inclusion proof for a set of shares
-// belonging to the same namespace to the data root.
-// Expects the share range to be pre-validated.
+// belonging to the same namespace to the data root. It returns an error if the
+// share range is empty or outside the original data square.
 func NewShareInclusionProofFromEDS(
 	eds *rsmt2d.ExtendedDataSquare,
 	namespace share.Namespace,
 	shareRange share.Range,
 ) (ShareProof, error) {
+	if eds == nil {
+		return ShareProof{}, errors.New("nil extended data square")
+	}
 	squareSize, err := square.Size(len(eds.FlattenedODS()))
 	if err != nil {
 		return ShareProof{}, err
+	}
+	if shareRange.Start < 0 || shareRange.End <= shareRange.Start || shareRange.End > squareSize*squareSize {
+		return ShareProof{}, fmt.Errorf("share range [%d, %d) must be non-empty and within the %d shares of the original data square",
+			shareRange.Start, shareRange.End, squareSize*squareSize)
 	}
 	startRow := shareRange.Start / squareSize
 	endRow := (shareRange.End - 1) / squareSize

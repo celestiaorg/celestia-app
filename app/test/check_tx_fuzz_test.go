@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -37,10 +38,15 @@ var (
 )
 
 func newCheckTxFixture(t *testing.T) *checkTxFixture {
+	return newCheckTxFixtureWithOptions(t, testutil.EmptyAppOptions{})
+}
+
+// newCheckTxFixtureWithOptions is newCheckTxFixture on an app built with appOpts.
+func newCheckTxFixtureWithOptions(t *testing.T, appOpts servertypes.AppOptions) *checkTxFixture {
 	t.Helper()
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateDeterministicAccounts(5)
-	testApp, kr := testutil.SetupDeterministicTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	testApp, kr := testutil.SetupDeterministicTestAppWithOptions(appOpts, app.DefaultConsensusParams(), accounts...)
 	// A fixed clock keeps the pay-for-fibre promise fresh for the whole run.
 	blockTime := testutil.GenesisTime.Add(time.Hour)
 	commitBlockAt(t, testApp, blockTime)

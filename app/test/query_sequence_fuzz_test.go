@@ -9,6 +9,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
 	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/mempool"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,8 +33,15 @@ func newQuerySequenceFixture(t *testing.T) *querySequenceFixture {
 	sendTx := testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1000, accounts[1], accounts[:1], testutil.ChainID)[0]
 	resp := commitBlockAt(t, testApp, testutil.GenesisTime.Add(1), sendTx)
 	require.Zero(t, resp.TxResults[0].Code, resp.TxResults[0].Log)
+	testApp.SetPendingSequencer(noPendingSequencer{})
 	return &querySequenceFixture{app: testApp, signer: testfactory.GetAddress(kr, accounts[0])}
 }
+
+// noPendingSequencer reports no pending txs, so QuerySequence reads the
+// committed state as it does with an in-process mempool.
+type noPendingSequencer struct{}
+
+func (noPendingSequencer) HighestPendingSequence([]byte) (uint64, bool) { return 0, false }
 
 func fuzzQuerySequence(t *testing.T, signer []byte) {
 	t.Helper()
@@ -51,12 +59,17 @@ func fuzzQuerySequence(t *testing.T, signer []byte) {
 }
 
 // TestQuerySequenceFuzzSeeds checks the account that committed a tx reports
-// sequence 1, so the fuzz target compares against a live account.
+// sequence 1, so the fuzz target compares against a live account, on both the
+// mempool and the checkState fallback paths.
 func TestQuerySequenceFuzzSeeds(t *testing.T) {
 	fuzzQuerySequence(t, nil)
-	resp, err := querySequence.app.QuerySequence(t.Context(), &abci.RequestQuerySequence{Signer: querySequence.signer})
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), resp.Sequence)
+	for _, p := range []mempool.PendingSequencer{noPendingSequencer{}, nil} {
+		querySequence.app.SetPendingSequencer(p)
+		resp, err := querySequence.app.QuerySequence(t.Context(), &abci.RequestQuerySequence{Signer: querySequence.signer})
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), resp.Sequence)
+	}
+	querySequence.app.SetPendingSequencer(noPendingSequencer{})
 }
 
 // FuzzQuerySequence sends arbitrary signer bytes to QuerySequence. The CAT

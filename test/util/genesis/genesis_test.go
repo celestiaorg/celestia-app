@@ -11,19 +11,22 @@ import (
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	coretypes "github.com/cometbft/cometbft/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportBytesV11Fields checks that the v11 zkism, mint, distribution and
-// ibc channel genesis fields are only exported for app version 11 and above,
-// since the embedded v10 binary rejects them as unknown.
+// TestExportBytesV11Fields checks that the newer zkism, mint, distribution and
+// ibc channel genesis fields are only exported for app version 12 and above,
+// since the embedded v3-v11 binaries reject them as unknown.
 func TestExportBytesV11Fields(t *testing.T) {
 	tests := []struct {
 		appVersion    uint64
 		wantV11Fields bool
 	}{
 		{appVersion: 10, wantV11Fields: false},
+		// The embedded v11.0.0 binary is built on v10 and rejects these fields too.
+		{appVersion: 11, wantV11Fields: false},
 		{appVersion: appconsts.Version, wantV11Fields: true},
 	}
 
@@ -74,6 +77,14 @@ func TestExportBytesV11Fields(t *testing.T) {
 		_, hasUserRewards := distrState["user_outstanding_rewards"]
 		require.Equal(t, tc.wantV11Fields, hasUserRewards, "app version %d", tc.appVersion)
 		require.Contains(t, distrState, "fee_pool", "app version %d", tc.appVersion)
+
+		var stakingState map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(appState[stakingtypes.ModuleName], &stakingState))
+		for _, field := range []string{"last_unbonding_id", "unbonding_ids"} {
+			_, has := stakingState[field]
+			require.Equal(t, tc.wantV11Fields, has, "app version %d, staking field %s", tc.appVersion, field)
+		}
+		require.Contains(t, stakingState, "params", "app version %d", tc.appVersion)
 
 		var ibcState struct {
 			ChannelGenesis map[string]json.RawMessage `json:"channel_genesis"`

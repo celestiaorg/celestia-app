@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
 	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -37,12 +38,8 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	if k.sigCache == nil {
 		return
 	}
-	decoded := make([]*types.DecodedPayForFibre, 0, len(txs))
-	for _, rawTx := range txs {
-		if d := DecodePayForFibre(rawTx); d != nil {
-			decoded = append(decoded, d)
-		}
-	}
+	decoded := make([]*types.DecodedPayForFibre, len(txs))
+	parallel.ForEach(len(txs), func(i int) { decoded[i] = decodePayForFibre(txs[i], opts.Certificates) })()
 	k.PreverifyDecoded(ctx, decoded, opts)
 }
 

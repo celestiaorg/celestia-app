@@ -17,13 +17,23 @@ import (
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
+
+// newFullRecheckApp is a test app with fast recheck off, whose hits skip the
+// kept decode the recheck tests compare.
+func newFullRecheckApp() *app.App {
+	return app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0,
+		simtestutil.AppOptionsMap{app.FlagFastRecheck: false}, baseapp.SetChainID(testutil.ChainID))
+}
 
 // TestRecheckPayForFibreMatchesBaseApp rechecks the same pending PayForFibre
 // txs on two identical apps, through the cached decode on one and through
@@ -37,14 +47,14 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 		replayed
 		escrowDrained
 		timeoutHeight
-		neverAdmitted
+		plainSender
 		numAccounts
 	)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(numAccounts)
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
 	newApp := func() *app.App {
-		a := testutil.InitialiseTestAppWithGenesis(testutil.NewTestApp(), app.DefaultConsensusParams(), genesis)
+		a := testutil.InitialiseTestAppWithGenesis(newFullRecheckApp(), app.DefaultConsensusParams(), genesis)
 		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
 			Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash(),
 		})
@@ -92,7 +102,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 		pff(replayed, now), pff(replayed, now), // one promise in two envelopes
 		pff(escrowDrained, now),
 		pff(timeoutHeight, now, user.SetTimeoutHeight(uint64(lite.LastBlockHeight()+3))),
-		pff(neverAdmitted, now),
+		pff(plainSender, now),
 	}
 	staleTx, replayTx := pending[1], pending[5]
 	settledOriginal := pending[4]
@@ -115,17 +125,18 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 	}
 	require.False(t, lite.RecheckTxCached(pending[len(pending)-1]))
 
-	// Only admitted PayForFibres are kept: not a rejected one, nor another type.
+	// Only admitted txs are kept, of any type: not a rejected one.
 	rejected := pff(control, now, user.SetFee(1))
-	plain := sendTx(neverAdmitted, 1)
+	plain := sendTx(plainSender, 1)
 	for _, raw := range [][]byte{rejected, plain} {
 		resLite, err := lite.CheckTx(&abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		resRef, err := ref.CheckTx(&abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		require.Equal(t, resRef, resLite)
-		require.False(t, lite.RecheckTxCached(raw))
 	}
+	require.False(t, lite.RecheckTxCached(rejected))
+	require.True(t, lite.RecheckTxCached(plain))
 	require.NotEqual(t, abci.CodeTypeOK, code(rejected))
 
 	recheckAll := func(phase string) {
@@ -133,6 +144,8 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 			req := &abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_Recheck}
 			resLite, errLite := lite.CheckTx(req)
 			resRef, errRef := ref.BaseApp.CheckTx(req)
+			// A recheck that misses the cache runs the wrapper, which also sets the signer.
+			resLite.Address, resLite.Sequence = nil, 0
 			require.Equal(t, errRef, errLite, "%s: tx %d", phase, i)
 			require.Equal(t, resRef, resLite, "%s: tx %d", phase, i)
 		}
@@ -141,6 +154,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 
 	both(func(a *app.App) { commitAt(t, a, now.Add(time.Second)) })
 	recheckAll("unchanged state")
+	require.True(t, lite.RecheckTxCached(pending[len(pending)-1]), "a passing recheck miss is kept")
 
 	// A block settles one envelope of the replayed promise and bumps staleSeq;
 	// feeDrained spends its balance and escrowDrained's escrow is emptied.

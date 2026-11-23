@@ -1,10 +1,16 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"maps"
+	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"cosmossdk.io/core/header"
@@ -12,7 +18,10 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v11/x/signal/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -28,7 +37,7 @@ func (app *App) ExportAppStateAndValidators(
 	// The context must carry the last committed height so that slashing events are accounted for.
 	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
 
-	if err := app.checkExportable(ctx, modulesToExport); err != nil {
+	if err := app.checkExportable(ctx, forZeroHeight, modulesToExport); err != nil {
 		return servertypes.ExportedApp{}, err
 	}
 	blockTime, err := app.lastCommitTime()
@@ -36,6 +45,9 @@ func (app *App) ExportAppStateAndValidators(
 		return servertypes.ExportedApp{}, err
 	}
 	ctx = ctx.WithBlockTime(blockTime).WithHeaderInfo(header.Info{Time: blockTime})
+	if err := app.warnUnexportedUpgrades(ctx); err != nil {
+		return servertypes.ExportedApp{}, err
+	}
 
 	// We export at last height + 1, because that's the height at which
 	// Tendermint will start InitChain.
@@ -65,13 +77,20 @@ func (app *App) ExportAppStateAndValidators(
 
 // checkExportable refuses state that this binary cannot export into a usable
 // genesis.
-func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error {
+func (app *App) checkExportable(ctx sdk.Context, forZeroHeight bool, modulesToExport []string) error {
 	plan, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
 	switch {
 	case errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
 	case err != nil:
 		return err
-	case plan.Height <= app.LastBlockHeight()+1:
+	case plan.Height == app.LastBlockHeight()+1 && forZeroHeight:
+		return fmt.Errorf("upgrade %q is scheduled for height %d and a zero-height export at block %d may change the validator set: export with --height %d instead",
+			plan.Name, plan.Height, app.LastBlockHeight(), app.LastBlockHeight()-1)
+	case plan.Height == app.LastBlockHeight()+1:
+		if err := app.checkUpgradeWindow(ctx, plan); err != nil {
+			return err
+		}
+	case plan.Height <= app.LastBlockHeight():
 		return fmt.Errorf("upgrade %q is scheduled for height %d: export with --height %d instead",
 			plan.Name, plan.Height, app.LastBlockHeight()-1)
 	}
@@ -92,6 +111,39 @@ func (app *App) checkExportable(ctx sdk.Context, modulesToExport []string) error
 	return nil
 }
 
+// checkUpgradeWindow refuses an export at the last height before an upgrade if
+// that block changed the validator set: the IBC upgrade trusts the set named
+// by the NextValidatorsHash of its header.
+func (app *App) checkUpgradeWindow(ctx sdk.Context, plan upgradetypes.Plan) error {
+	last := app.LastBlockHeight()
+	info, err := app.StakingKeeper.GetHistoricalInfo(ctx, last)
+	if errors.Is(err, stakingtypes.ErrNoHistoricalInfo) {
+		return fmt.Errorf("upgrade %q is scheduled for height %d and block %d has no historical info: export with --height %d instead",
+			plan.Name, plan.Height, last, last-1)
+	}
+	if err != nil {
+		return err
+	}
+
+	genVals, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	if err != nil {
+		return err
+	}
+	vals := make([]*cmttypes.Validator, len(genVals))
+	for i, v := range genVals {
+		vals[i] = cmttypes.NewValidator(v.PubKey, v.Power)
+	}
+	valSet := &cmttypes.ValidatorSet{}
+	if err := valSet.UpdateWithChangeSet(vals); err != nil {
+		return fmt.Errorf("exported validator set: %w", err)
+	}
+	if !bytes.Equal(valSet.Hash(), info.Header.NextValidatorsHash) {
+		return fmt.Errorf("upgrade %q is scheduled for height %d and block %d changed the validator set: export with --height %d instead",
+			plan.Name, plan.Height, last, last-1)
+	}
+	return nil
+}
+
 // lastCommitTime returns the timestamp of the last commit. It is missing when
 // this node did not write it, e.g. after a snapshot restore.
 func (app *App) lastCommitTime() (time.Time, error) {
@@ -108,6 +160,55 @@ func (app *App) lastCommitTime() (time.Time, error) {
 		return time.Time{}, fmt.Errorf("no commit timestamp for height %d: export from a node that executed this height", height)
 	}
 	return info.Timestamp, nil
+}
+
+// exportWarnings receives the warnings of an export. The logger writes to
+// stdout, which carries the genesis without --output-document.
+var exportWarnings io.Writer = os.Stderr
+
+// warnUnexportedUpgrades warns about upgrade state that x/upgrade and x/signal
+// do not export. An IBC upgrade plan is not reported: the restart from this
+// export carries it out.
+func (app *App) warnUnexportedUpgrades(ctx sdk.Context) error {
+	plan, err := app.UpgradeKeeper.GetUpgradePlan(ctx)
+	switch {
+	case errors.Is(err, upgradetypes.ErrNoUpgradePlanFound):
+	case err != nil:
+		return err
+	default:
+		_, err := app.UpgradeKeeper.GetUpgradedClient(ctx, plan.Height)
+		if errors.Is(err, upgradetypes.ErrNoUpgradedClientFound) {
+			fmt.Fprintf(exportWarnings, "x/upgrade plan %q at height %d is not exported; schedule it again on the new chain\n", plan.Name, plan.Height)
+		} else if err != nil {
+			return err
+		}
+	}
+
+	res, err := app.SignalKeeper.GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
+	if err != nil {
+		return err
+	}
+	if u := res.Upgrade; u != nil {
+		fmt.Fprintf(exportWarnings, "x/signal pending upgrade to app version %d at height %d is not exported; "+
+			"validators must signal and run TryUpgrade again on the new chain, and the upgrade delay starts over\n", u.AppVersion, u.UpgradeHeight)
+	}
+
+	validators := make(map[uint64]int)
+	iter := ctx.KVStore(app.keys[signaltypes.StoreKey]).Iterator(signaltypes.FirstSignalKey, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		if !slices.Equal(iter.Key(), signaltypes.UpgradeKey) {
+			validators[signal.VersionFromBytes(iter.Value())]++
+		}
+	}
+	if len(validators) > 0 {
+		var tally []string
+		for _, v := range slices.Sorted(maps.Keys(validators)) {
+			tally = append(tally, fmt.Sprintf("app version %d: %d validators", v, validators[v]))
+		}
+		fmt.Fprintf(exportWarnings, "x/signal signals are not exported (%s); validators must signal again on the new chain\n", strings.Join(tally, ", "))
+	}
+	return nil
 }
 
 // prepare for fresh start at zero height

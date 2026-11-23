@@ -27,6 +27,8 @@
 1 ./app/test            FuzzAnteChainSignedTxs              5m 100x
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
+1 ./app                 FuzzFastRecheckDifferential         5m 10x
+1 ./app                 FuzzAnteTraceReplay                 5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
 1 ./app                 FuzzTxCacheValidation               5m 100x
 1 ./app                 FuzzFirstMsgIsPayForFibre           5m 100x
@@ -56,6 +58,8 @@
 1 ./x/forwarding/keeper FuzzForwardingAddressQueryMsgParity 2m 100x
 1 ./x/forwarding/keeper FuzzForwardIGPFee                   2m 100x
 1 ./x/zkism/keeper      FuzzZKISMMsgSequence                5m 100x
+1 ./test/interop        FuzzHyperlaneProcessMessage         5m -
+1 ./test/interop        FuzzHyperlaneMultisigISM            5m -
 1 ./x/fibre/keeper      FuzzEscrowMsgSequence               5m 100x
 1 ./x/fibre/keeper      FuzzFibreStoreKeyRoundTrip          2m 100x
 1 ./fibre               FuzzServerUploadShard               5m 100x
@@ -102,3 +106,6 @@
 1 ./app                 FuzzBuildProposalSquareParity       5m -
 1 ./pkg/secpverify      FuzzVerifyMatchesDecred             5m 100x
 1 ./pkg/secpverify      FuzzVerifyMatchesDecredSigned       5m 100x
+1 ./test/interop        FuzzTransferStackOnRecvPacket       5m -
+1 ./test/interop        FuzzICAHostOnRecvPacket             5m 100x
+1 ./test/interop        FuzzICAHostOnChanOpenTry            5m 100x

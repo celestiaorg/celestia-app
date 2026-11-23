@@ -16,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
-	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
@@ -88,7 +87,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			appTemplate := serverconfig.DefaultConfigTemplate
+			appTemplate := app.AppConfigTemplate
 			appConfig := app.DefaultAppConfig()
 			tmConfig := app.DefaultConsensusConfig()
 
@@ -128,9 +127,11 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	configCmd := confixcmd.ConfigCommand()
 	configCmd.AddCommand(syncConfigCmd())
+	genesisCmd := genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome)
+	genesisCmd.AddCommand(genesisFromExportCmd(capp))
 	rootCommand.AddCommand(
 		InitCmd(capp),
-		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
+		genesisCmd,
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
 		configCmd,

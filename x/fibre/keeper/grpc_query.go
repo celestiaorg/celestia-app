@@ -7,7 +7,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -69,15 +71,14 @@ func (k Keeper) IsPaymentProcessed(c context.Context, req *types.QueryIsPaymentP
 	if len(req.PromiseHash) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "payment promise hash cannot be empty")
 	}
+	if req.CreationTimestamp == nil {
+		return nil, status.Error(codes.InvalidArgument, "payment promise creation timestamp is required")
+	}
 
 	ctx := sdk.UnwrapSDKContext(c)
-
-	// Delegate to keeper method
-	found := k.IsPaymentProcessedByHash(ctx, req.PromiseHash)
-
+	processedPayment, found := k.GetProcessedPayment(ctx, *req.CreationTimestamp, req.PromiseHash)
 	var processedAt *time.Time
 	if found {
-		processedPayment, _ := k.GetProcessedPayment(ctx, req.PromiseHash)
 		processedAt = &processedPayment.ProcessedAt
 	}
 
@@ -94,12 +95,24 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
+	// The promise cache must only see the latest committed state. ABCI queries
+	// with a height are rejected by App.Query.
+	if md, ok := metadata.FromIncomingContext(c); ok && len(md.Get(grpctypes.GRPCBlockHeightHeader)) > 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s header is not supported for this query", grpctypes.GRPCBlockHeightHeader)
+	}
+
+	// The gRPC endpoint is adversarial: check the format of the promise before
+	// the stateful checks, which assume a well-formed promise. For example,
+	// they derive the signer address and that panics on a key of the wrong
+	// length.
+	if err := req.Promise.ValidateBasic(); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid payment promise: %v", err)
+	}
 
 	ctx := sdk.UnwrapSDKContext(c)
 
-	// Perform stateful verification only
-	// Note: Stateless validation (signature, format checks) should be done by the caller
-	// before making this query, as it doesn't require state access
+	// Note: The signature is verified below, and only when the promise is
+	// reserved against the validator-local budget.
 	expirationTime, err := k.ValidatePaymentPromiseStateful(ctx, &req.Promise)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

@@ -104,8 +104,37 @@ jobs:
           path: /tmp/latency-monitor-image.tar.gz
           retention-days: 1
 
+  # Build the test-only byzantine validator image (test/cmd/malicious-appd)
+  # for TestByzantineProposer. It is never published.
+  build-malicious-image:
+    needs: build-e2e-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - name: Set up Go
+        uses: ./.github/actions/setup-go
+
+      - name: Build malicious Docker image
+        env:
+          TAG: ${{ needs.build-e2e-image.outputs.tag }}
+        run: make build-docker-malicious CELESTIA_TAG="${TAG}"
+
+      - name: Save Docker image as artifact
+        env:
+          TAG: ${{ needs.build-e2e-image.outputs.tag }}
+        run: docker save "celestia-app-malicious:${TAG}" | gzip > /tmp/malicious-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
+        with:
+          name: malicious-image
+          path: /tmp/malicious-image.tar.gz
+          retention-days: 1
+
   test-nightly:
-    needs: [build-e2e-image, build-latency-monitor-image]
+    needs: [build-e2e-image, build-latency-monitor-image, build-malicious-image]
     runs-on: ubuntu-latest
     # Generous budget so the retried sync tests (up to 3 attempts of up to 30
     # minutes each) have headroom without prematurely killing the long-running
@@ -138,23 +167,39 @@ jobs:
           - test: TestRollback
             max-attempts: 2
           - test: TestSurgeryDA
+          # Seeded faults (partition, delay, loss, pause) under txsim load.
+          # A failed run logs its seed; see docs/chaos.md to replay it.
+          - test: TestChaos
+          # One byzantine validator among three honest ones, built from
+          # test/util/malicious.
+          - test: TestByzantineProposer
+            malicious-image: true
           - test: TestCortoLoad
             extra-image: true
           # Export and restart from the export: core state, then IBC/ICA and
-          # Hyperlane with the same chain-id, and IBC with a new chain-id
-          # recovered by governance.
+          # Hyperlane with the same chain-id, IBC with a new chain-id
+          # recovered by governance, and IBC through a planned upgrade.
           - test: TestExportRestart
           - test: TestExportRestartNewChainID
           - test: TestIBCExportRestart
             entrypoint: TestIBCTestSuite
           - test: TestIBCExportRestartNewChainID
             entrypoint: TestIBCTestSuite
+          - test: TestIBCPlannedUpgradeRestart
+            entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportRestart
             entrypoint: TestHyperlaneTestSuite
           # Export below the last height Hermes or the Hyperlane relayer saw.
           - test: TestIBCExportBelowTip
             entrypoint: TestIBCTestSuite
+          - test: TestICAExportBelowTip
+            entrypoint: TestIBCTestSuite
           - test: TestHyperlaneExportBelowTip
+            entrypoint: TestHyperlaneTestSuite
+          # Hyperlane with a validator and a multisig ISM on the EVM chain.
+          - test: TestHyperlaneMultisigExportRestart
+            entrypoint: TestHyperlaneTestSuite
+          - test: TestHyperlaneMultisigExportBelowTip
             entrypoint: TestHyperlaneTestSuite
     steps:
       - name: Checkout code
@@ -187,6 +232,17 @@ jobs:
         if: ${{ matrix.extra-image }}
         run: docker load < /tmp/latency-monitor-image.tar.gz
 
+      - name: Download malicious image artifact
+        if: ${{ matrix.malicious-image }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 #v8.0.2
+        with:
+          name: malicious-image
+          path: /tmp
+
+      - name: Load malicious Docker image
+        if: ${{ matrix.malicious-image }}
+        run: docker load < /tmp/malicious-image.tar.gz
+
       # TestCortoLoad skips itself when its env vars are absent so it can be
       # run selectively in local development. In the nightly that skip would
       # silently disable the load test, so fail fast if the secrets are unset.
@@ -208,7 +264,21 @@ jobs:
             exit 1
           fi
 
+      # TestChaos injects delay and loss with tc netem.
+      - name: Load the netem kernel module
+        if: ${{ matrix.test == 'TestChaos' }}
+        run: |
+          sudo modprobe sch_netem || {
+            sudo apt-get -qq update &&
+              sudo apt-get -qq install -y "linux-modules-extra-$(uname -r)" &&
+              sudo modprobe sch_netem
+          }
+
+      # The byzantine image is built from the checked-out source. With a tag
+      # input the honest image can come from another revision, so the test
+      # would mix app versions. Skip it then.
       - name: Run ${{ matrix.test }}
+        if: ${{ !(matrix.malicious-image && inputs.tag != '') }}
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           # Per-attempt cap; comfortably above a single run of any nightly test.
@@ -227,6 +297,8 @@ jobs:
           PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
           PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}
           PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
+          # Fail TestChaos instead of skipping its delay and loss steps.
+          CHAOS_REQUIRE_NETEM: ${{ matrix.test == 'TestChaos' && 'true' || '' }}
 
   test-race:
     runs-on: ubuntu-latest
@@ -400,7 +472,7 @@ jobs:
   notify-slack-on-failure:
     name: Notify Slack on failure
     runs-on: ubuntu-latest
-    needs: [build-e2e-image, build-latency-monitor-image, test-nightly, test-race, fuzz-targets, test-fuzz]
+    needs: [build-e2e-image, build-latency-monitor-image, build-malicious-image, test-nightly, test-race, fuzz-targets, test-fuzz]
     if: ${{ always() && contains(needs.*.result, 'failure') }}
     steps:
       - name: Slack Notification

@@ -20,10 +20,12 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -397,8 +399,10 @@ func (suite *KeeperTestSuite) TestReduceWithdrawalsForPayment() {
 }
 
 func (suite *KeeperTestSuite) TestProcessedPayment() {
+	created := suite.ctx.BlockTime().Add(-time.Minute)
+
 	suite.T().Run("keeper should return false for non-existent processed payment", func(t *testing.T) {
-		_, found := suite.keeper.GetProcessedPayment(suite.ctx, []byte("test-hash"))
+		_, found := suite.keeper.GetProcessedPayment(suite.ctx, created, []byte("test-hash"))
 		suite.False(found)
 	})
 
@@ -406,21 +410,15 @@ func (suite *KeeperTestSuite) TestProcessedPayment() {
 		want := types.ProcessedPayment{
 			PaymentPromiseHash: []byte("test-hash"),
 			ProcessedAt:        suite.ctx.BlockTime(),
+			CreationTimestamp:  created,
 		}
 		suite.keeper.SetProcessedPayment(suite.ctx, want)
 
-		got, found := suite.keeper.GetProcessedPayment(suite.ctx, []byte("test-hash"))
+		got, found := suite.keeper.GetProcessedPayment(suite.ctx, created, []byte("test-hash"))
 		suite.True(found)
 		suite.Equal(want, got)
-	})
-
-	suite.T().Run("keeper should delete processed payment", func(t *testing.T) {
-		payment := types.ProcessedPayment{
-			PaymentPromiseHash: []byte("test-hash"),
-			ProcessedAt:        suite.ctx.BlockTime(),
-		}
-		suite.keeper.DeleteProcessedPayment(suite.ctx, payment)
-		_, found := suite.keeper.GetProcessedPayment(suite.ctx, []byte("test-hash"))
+		// The creation time is part of the key.
+		_, found = suite.keeper.GetProcessedPayment(suite.ctx, created.Add(time.Nanosecond), []byte("test-hash"))
 		suite.False(found)
 	})
 
@@ -440,26 +438,10 @@ func (suite *KeeperTestSuite) TestProcessedPayment() {
 		suite.keeper.SetProcessedPayment(suite.ctx, types.ProcessedPayment{
 			PaymentPromiseHash: paymentPromiseHash,
 			ProcessedAt:        suite.ctx.BlockTime(),
+			CreationTimestamp:  paymentPromise.CreationTimestamp,
 		})
 
 		suite.True(suite.keeper.IsPaymentPromiseProcessed(suite.ctx, &paymentPromise))
-	})
-
-	suite.T().Run("keeper should parse processed payments by time key", func(t *testing.T) {
-		// Create a test time and payment promise hash
-		testTime := suite.ctx.BlockTime()
-		testHash := []byte("test-payment-hash")
-
-		// Create the key using the helper function
-		key := types.ProcessedPaymentsByTimeKey(testTime, testHash)
-
-		// Parse the key
-		parsedTime, parsedHash, err := suite.keeper.ParseProcessedPaymentsByTimeKey(key)
-		suite.NoError(err)
-
-		// Verify the parsed values match the originals
-		suite.Equal(testTime, parsedTime, "parsed time should match original")
-		suite.Equal(testHash, parsedHash, "parsed hash should match original")
 	})
 
 	suite.T().Run("keeper should reject short index keys", func(t *testing.T) {
@@ -468,74 +450,70 @@ func (suite *KeeperTestSuite) TestProcessedPayment() {
 		shortKeys := [][]byte{
 			nil,
 			{},
-			types.ProcessedPaymentsByTimeKeyPrefix,
-			append(bytes.Clone(types.ProcessedPaymentsByTimeKeyPrefix), '2'),
 			append(bytes.Clone(types.WithdrawalsByAvailableKeyPrefix), '2'),
 		}
 		for _, key := range shortKeys {
 			suite.NotPanics(func() {
-				_, _, err := suite.keeper.ParseProcessedPaymentsByTimeKey(key)
-				suite.Error(err, "processed payment key %x", key)
-				_, _, _, err = suite.keeper.ParseWithdrawalsByAvailableKey(key)
+				_, _, _, err := suite.keeper.ParseWithdrawalsByAvailableKey(key)
 				suite.Error(err, "withdrawal key %x", key)
 			})
 		}
 	})
+}
 
-	suite.T().Run("keeper should get processed payments by time", func(t *testing.T) {
-		// Create processed payments at different times
-		baseTime := suite.ctx.BlockTime()
+func (suite *KeeperTestSuite) TestQueryIsPaymentProcessed() {
+	created := suite.ctx.BlockTime().Add(-time.Minute)
+	hash := []byte("query-hash")
+	suite.keeper.SetProcessedPayment(suite.ctx, types.ProcessedPayment{PaymentPromiseHash: hash, ProcessedAt: suite.ctx.BlockTime(), CreationTimestamp: created})
 
-		payment1 := types.ProcessedPayment{
-			PaymentPromiseHash: []byte("payment-hash-1"),
-			ProcessedAt:        baseTime.Add(-2 * time.Hour),
-		}
-		payment2 := types.ProcessedPayment{
-			PaymentPromiseHash: []byte("payment-hash-2"),
-			ProcessedAt:        baseTime.Add(-1 * time.Hour),
-		}
-		payment3 := types.ProcessedPayment{
-			PaymentPromiseHash: []byte("payment-hash-3"),
-			ProcessedAt:        baseTime.Add(-30 * time.Minute),
-		}
-		payment4 := types.ProcessedPayment{
-			PaymentPromiseHash: []byte("payment-hash-4"),
-			ProcessedAt:        baseTime.Add(1 * time.Hour), // Future payment
-		}
+	_, err := suite.keeper.IsPaymentProcessed(suite.ctx, &types.QueryIsPaymentProcessedRequest{PromiseHash: hash})
+	suite.Equal(codes.InvalidArgument, status.Code(err), "creation timestamp is required")
 
-		// Set all payments
-		suite.keeper.SetProcessedPayment(suite.ctx, payment1)
-		suite.keeper.SetProcessedPayment(suite.ctx, payment2)
-		suite.keeper.SetProcessedPayment(suite.ctx, payment3)
-		suite.keeper.SetProcessedPayment(suite.ctx, payment4)
+	resp, err := suite.keeper.IsPaymentProcessed(suite.ctx, &types.QueryIsPaymentProcessedRequest{PromiseHash: hash, CreationTimestamp: &created})
+	suite.Require().NoError(err)
+	suite.True(resp.Found)
+	suite.True(resp.ProcessedAt.Equal(suite.ctx.BlockTime()))
 
-		// Get iterator for payments up to 45 minutes ago
-		cutoffTime := baseTime.Add(-45 * time.Minute)
-		iterator := suite.keeper.GetProcessedPaymentsByTimeIterator(suite.ctx, cutoffTime)
-		defer iterator.Close()
+	other := created.Add(time.Second)
+	resp, err = suite.keeper.IsPaymentProcessed(suite.ctx, &types.QueryIsPaymentProcessedRequest{PromiseHash: hash, CreationTimestamp: &other})
+	suite.Require().NoError(err)
+	suite.False(resp.Found)
+	suite.Nil(resp.ProcessedAt)
+}
 
-		// Collect payments from iterator
-		var foundPayments []types.ProcessedPayment
-		for ; iterator.Valid(); iterator.Next() {
-			processedAt, paymentPromiseHash, err := suite.keeper.ParseProcessedPaymentsByTimeKey(iterator.Key())
-			suite.NoError(err)
+func (suite *KeeperTestSuite) TestProcessedPaymentKeyOrder() {
+	// Keys sort by creation time first, at nanosecond precision, so pruning can
+	// iterate from the start of the prefix.
+	base := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	keys := [][]byte{
+		types.ProcessedPaymentKey(base, bytes.Repeat([]byte{0xff}, 32)),
+		types.ProcessedPaymentKey(base.Add(time.Nanosecond), bytes.Repeat([]byte{0x00}, 32)),
+		types.ProcessedPaymentKey(base.Add(time.Second), bytes.Repeat([]byte{0x00}, 32)),
+		types.ProcessedPaymentKey(base.Add(48*time.Hour), bytes.Repeat([]byte{0x00}, 32)),
+	}
+	for i := 1; i < len(keys); i++ {
+		suite.Negative(bytes.Compare(keys[i-1], keys[i]), "key %d", i)
+	}
+	// The zone of the timestamp does not change the key.
+	suite.Equal(types.ProcessedPaymentKey(base, []byte("h")), types.ProcessedPaymentKey(base.In(time.FixedZone("x", 3600)), []byte("h")))
+}
 
-			// Stop if we've reached payments within the retention window
-			if processedAt.After(cutoffTime) {
-				break
-			}
+func (suite *KeeperTestSuite) TestLegacyProcessedPayments() {
+	paymentPromise := suite.createPaymentPromise()
+	pp := fibre.PaymentPromise{}
+	suite.Require().NoError(pp.FromProto(&paymentPromise))
+	hash, err := pp.Hash()
+	suite.Require().NoError(err)
+	legacy := types.ProcessedPayment{PaymentPromiseHash: hash, ProcessedAt: suite.ctx.BlockTime()}
 
-			var payment types.ProcessedPayment
-			suite.cdc.MustUnmarshal(iterator.Value(), &payment)
-			suite.Equal(paymentPromiseHash, payment.PaymentPromiseHash, "hash from key should match payment")
-			foundPayments = append(foundPayments, payment)
-		}
-
-		// Should have found exactly 2 payments (payment1 and payment2)
-		suite.Len(foundPayments, 2, "should find payments 1 and 2 (older than 45 minutes)")
-		suite.Equal(payment1, foundPayments[0], "first payment should match")
-		suite.Equal(payment2, foundPayments[1], "second payment should match")
-	})
+	// A legacy entry carries no creation time; duplicate checks and queries find it by hash.
+	store := suite.ctx.KVStore(suite.storeKey)
+	store.Set(types.LegacyProcessedPaymentsByHashKey(hash), suite.cdc.MustMarshal(&legacy))
+	store.Set(types.LegacyProcessedPaymentsByTimeKey(legacy.ProcessedAt, hash), suite.cdc.MustMarshal(&legacy))
+	suite.True(suite.keeper.IsPaymentPromiseProcessed(suite.ctx, &paymentPromise))
+	got, found := suite.keeper.GetProcessedPayment(suite.ctx, paymentPromise.CreationTimestamp, hash)
+	suite.True(found)
+	suite.Equal(legacy.ProcessedAt, got.ProcessedAt)
 }
 
 // validatePaymentPromise runs the stateless and stateful checks a payment
@@ -589,6 +567,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromise() {
 		processedPayment := types.ProcessedPayment{
 			PaymentPromiseHash: promiseHash,
 			ProcessedAt:        suite.ctx.BlockTime(),
+			CreationTimestamp:  paymentPromise.CreationTimestamp,
 		}
 		suite.keeper.SetProcessedPayment(suite.ctx, processedPayment)
 
@@ -775,6 +754,22 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryReturnsShardRetenti
 	})
 }
 
+// The query is public, so a malformed promise must return an error instead of
+// panicking in the stateful checks.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryRejectsMalformedPromise() {
+	suite.T().Run("signer public key of the wrong length", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+		paymentPromise.SignerPublicKey.Key = []byte{1, 2, 3}
+
+		request := &types.QueryValidatePaymentPromiseRequest{Promise: paymentPromise}
+		suite.NotPanics(func() {
+			_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, request)
+			suite.Equal(codes.InvalidArgument, status.Code(err))
+		})
+	})
+}
+
 // twoPromisesFundedForOne returns two distinct promises from the same signer
 // whose escrow account is funded for exactly one of them, i.e. the second
 // promise is a double-spend attempt.
@@ -833,6 +828,23 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 
 	// Re-submitting the first promise is idempotent (already reserved).
 	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+}
+
+// TestValidatePaymentPromiseRejectsPinnedHeight checks that a request with a
+// block height header is refused before it reserves anything in the cache.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseRejectsPinnedHeight() {
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
+
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	pinned := metadata.NewIncomingContext(suite.ctx, metadata.Pairs(grpctypes.GRPCBlockHeightHeader, fmt.Sprint(suite.ctx.BlockHeight())))
+	_, err := suite.keeper.ValidatePaymentPromise(pinned, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.Equal(codes.InvalidArgument, status.Code(err))
+
+	// Nothing was reserved, so the other promise still fits a budget funded for one.
+	unpinned := metadata.NewIncomingContext(suite.ctx, metadata.MD{})
+	_, err = suite.keeper.ValidatePaymentPromise(unpinned, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
 	suite.NoError(err)
 }
 

@@ -3,8 +3,6 @@ package app
 import (
 	"bytes"
 	"fmt"
-	"runtime"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
@@ -67,9 +66,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	var (
-		sdkMessageCount int
-		zkProofMsgCount int
-		ismSigCount     int
+		msgCounts       blockMsgCounts
 		sdkGas          uint64
 		pfbMessageCount int
 		pffMessageCount int
@@ -117,7 +114,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
 	decoder := app.encodingConfig.TxConfig.TxDecoder()
-	waitDecode := forEachParallel(len(decodeCandidates), func(candidate int) {
+	waitDecode := parallel.ForEach(len(decodeCandidates), func(candidate int) {
 		idx := decodeCandidates[candidate]
 		sdkTx, err := decoder(req.Txs[idx])
 		if err != nil {
@@ -146,7 +143,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	if verifyPFF != nil {
 		// Runs alongside the walk; a panic is re-raised after it, so the recover above rejects the block.
-		waitVerify := goWait(verifyPFF)
+		waitVerify := parallel.Go(verifyPFF)
 		defer waitVerify()
 	}
 
@@ -163,7 +160,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		waitSquare   func()
 	)
 	if cached == nil {
-		waitSquare = goWait(func() {
+		waitSquare = parallel.Go(func() {
 			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
 		})
 		defer func() {
@@ -244,19 +241,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if zkProofMsgCount > appconsts.MaxZKProofMessages {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
-					return reject(), nil
-				}
-				ismSigCount += countISMSignatures(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if ismSigCount > appconsts.MaxISMSignatures {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures))
-					return reject(), nil
-				}
-				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
-				if sdkMessageCount > appconsts.MaxSDKMessages {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
+				if reason := msgCounts.add(msgs); reason != "" {
+					logInvalidPropBlock(app.Logger(), blockHeader, reason)
 					return reject(), nil
 				}
 				txGas := txGasLimit(sdkTx)
@@ -360,39 +346,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	return accept(), nil
 }
 
-// forEachParallel calls fn(i) for every i in [0, n) on up to GOMAXPROCS goroutines;
-// the returned wait re-raises a panic from fn on the caller's goroutine.
-func forEachParallel(n int, fn func(i int)) (wait func()) {
-	var (
-		next     atomic.Int64
-		panicked atomic.Pointer[any]
-		wg       sync.WaitGroup
-	)
-	for range min(runtime.GOMAXPROCS(0), n) {
-		wg.Go(func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicked.CompareAndSwap(nil, &r)
-				}
-			}()
-			for i := int(next.Add(1)) - 1; i < n; i = int(next.Add(1)) - 1 {
-				fn(i)
-			}
-		})
-	}
-	return func() {
-		wg.Wait()
-		if r := panicked.Load(); r != nil {
-			panic(*r)
-		}
-	}
-}
-
-// goWait runs fn on its own goroutine; wait blocks until fn returns and re-raises its panic.
-func goWait(fn func()) (wait func()) {
-	return forEachParallel(1, func(int) { fn() })
-}
-
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 	for _, msg := range msgs {
 		if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
@@ -400,6 +353,34 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 		}
 	}
 	return nil, false
+}
+
+// blockMsgCounts holds the per-block message counts ProcessProposal caps for
+// txs that are not PayForFibre txs.
+type blockMsgCounts struct {
+	sdkMsgs  int
+	zkProofs int
+	ismSigs  int
+}
+
+// add counts msgs into c and returns why the block now exceeds a cap, or "" if
+// it does not. Like CheckTx and PrepareProposal, it checks the executable
+// message count first: that count stops once past its cap, while the weighted
+// counts walk every entry of an ICA payload.
+func (c *blockMsgCounts) add(msgs []sdk.Msg) string {
+	c.sdkMsgs += countExecutableMsgs(msgs)
+	if c.sdkMsgs > appconsts.MaxSDKMessages {
+		return fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages)
+	}
+	c.zkProofs += countZKProofMsgs(msgs)
+	if c.zkProofs > appconsts.MaxZKProofMessages {
+		return fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages)
+	}
+	c.ismSigs += countISMSignatures(msgs)
+	if c.ismSigs > appconsts.MaxISMSignatures {
+		return fmt.Sprintf("block exceeds max ISM signature count of %d", appconsts.MaxISMSignatures)
+	}
+	return ""
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

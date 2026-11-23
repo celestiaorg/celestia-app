@@ -113,12 +113,35 @@ func TestNewTxInclusionProofRejectsOutOfOrderTxs(t *testing.T) {
 	require.NoError(t, err)
 	blobTxs := blobfactory.RandBlobTxs(signer, random.New(), 2, 1, 500).ToSliceOfBytes()
 	normalTxs := testfactory.GenerateRandomTxs(2, 500).ToSliceOfBytes()
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	fibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
-	// [blobTx A, normal N1, normal N2, blobTx B]
-	txs := [][]byte{blobTxs[0], normalTxs[0], normalTxs[1], blobTxs[1]}
+	testCases := map[string][][]byte{
+		"normal after blob":  {blobTxs[0], normalTxs[0], normalTxs[1], blobTxs[1]},
+		"normal after fibre": {fibreTx, normalTxs[0]},
+		"blob after fibre":   {fibreTx, blobTxs[0]},
+	}
+	for name, txs := range testCases {
+		t.Run(name, func(t *testing.T) {
+			for i := range txs {
+				_, err := proof.NewTxInclusionProof(txs, uint64(i), appconsts.Version)
+				require.Error(t, err, "tx index %d", i)
+			}
+		})
+	}
+}
+
+// BenchmarkNewTxInclusionProof reports the cost of one proof for a block of
+// many small txs.
+func BenchmarkNewTxInclusionProof(b *testing.B) {
+	txs := make([][]byte, 200_000)
 	for i := range txs {
-		_, err := proof.NewTxInclusionProof(txs, uint64(i), appconsts.Version)
-		require.Error(t, err, "tx index %d", i)
+		txs[i] = []byte{byte(i)}
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err := proof.NewTxInclusionProof(txs, 0, appconsts.Version)
+		require.NoError(b, err)
 	}
 }
 

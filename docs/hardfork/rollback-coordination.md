@@ -1,6 +1,7 @@
 # Coordinate a network rollback
 
 This runbook is for the protocol team. Validators and node operators follow [rollback.md](rollback.md).
+For a suspected network halt, start with [incident.md](incident.md) to confirm the halt and choose the recovery tool.
 
 ## When to use a rollback
 
@@ -14,8 +15,8 @@ Use a rollback when:
 
 Do not use a rollback when:
 
-- The network committed a header with a wrong app hash. A rollback can't fix it; use a new chain from an export.
-- The target height is before an app version upgrade. Rollback works only within one app version, and the command refuses this case. Use in-place surgery or a new chain.
+- The network committed a header with a wrong app hash. A rollback can't fix it; use in-place surgery ([surgery-coordination.md](surgery-coordination.md)) or a new chain from an export ([export-coordination.md](export-coordination.md)).
+- The target height is before an app version upgrade. Rollback works only within one app version, and the command refuses this case. Use in-place surgery or a [new chain](export-coordination.md).
 - The node pruned the state or blocks at the target height. Use state sync or a snapshot.
 
 ## Before the restart

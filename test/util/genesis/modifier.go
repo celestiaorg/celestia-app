@@ -20,6 +20,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
@@ -80,6 +81,10 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 		gs.Params.Threshold = "0.000001"
 		vp := time.Second * 10 // Extended from 4s to 10s to reduce flakiness
 		gs.Params.VotingPeriod = &vp
+		// The expedited voting period must be shorter than the voting period,
+		// or the gov params fail validation, e.g. in genesis from-export.
+		evp := time.Second * 5
+		gs.Params.ExpeditedVotingPeriod = &evp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state
 	}
@@ -119,14 +124,15 @@ func FundAccounts(codec codec.Codec, addresses []sdk.AccAddress, balance sdk.Coi
 	}
 }
 
-// zkismV11Fields are the zkism genesis fields introduced in app version 11.
+// zkismV11Fields are the zkism genesis fields introduced in app version 12.
+// The V11 names predate the move of these changes from v11 to v12.
 var zkismV11Fields = []string{"tree_states", "state_root_history", "tree_state_history"}
 
-// zkismV11IsmFields are the fields of each zkism genesis ism introduced in app version 11.
+// zkismV11IsmFields are the fields of each zkism genesis ism introduced in app version 12.
 var zkismV11IsmFields = []string{"root_history_size", "state_height"}
 
 // StripZkismV11Fields removes the zkism genesis fields introduced in app
-// version 11, which older binaries reject as unknown.
+// version 12, which the embedded binaries reject as unknown.
 func StripZkismV11Fields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		raw, ok := state[zkismtypes.ModuleName]
@@ -169,7 +175,7 @@ func StripZkismV11Fields() Modifier {
 }
 
 // StripMintGenesisFields removes the minter and genesis_time fields from the
-// mint genesis state, which binaries for app versions below 11 reject.
+// mint genesis state, which binaries for app versions below 12 reject.
 func StripMintGenesisFields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		raw, ok := state[minttypes.ModuleName]
@@ -193,11 +199,12 @@ func StripMintGenesisFields() Modifier {
 	}
 }
 
-// StripForkGenesisFields removes the distribution and ibc channel genesis
-// fields added by the cosmos-sdk and ibc-go forks, which binaries for app
-// versions below 11 reject as unknown.
+// StripForkGenesisFields removes the staking, distribution and ibc channel
+// genesis fields added by the cosmos-sdk and ibc-go forks, which binaries for
+// app versions below 12 reject as unknown.
 func StripForkGenesisFields() Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		stripFields(state, stakingtypes.ModuleName, nil, "last_unbonding_id", "unbonding_ids")
 		stripFields(state, distrtypes.ModuleName, nil, "user_outstanding_rewards")
 		stripFields(state, ibcexported.ModuleName, []string{"channel_genesis"},
 			"upgrades", "counterparty_upgrades", "error_receipts", "pruning_sequence_starts", "recv_start_sequences")

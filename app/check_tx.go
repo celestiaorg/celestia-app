@@ -6,12 +6,14 @@ import (
 	"cosmossdk.io/errors"
 	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/txutil"
 	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This
@@ -21,6 +23,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
+	if app.fastRecheck != nil && req.Type == abci.CheckTxType_Recheck {
+		if res, ok := app.fastRecheck.recheck(req.Tx); ok {
+			return res, nil
+		}
+	}
+
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -29,10 +37,14 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
-	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
-	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
-	if req.Type == abci.CheckTxType_Recheck && pffDecodeCandidate(tx) {
-		return app.recheckPayForFibre(req)
+	// A recheck of a tx admitted with pure wrapper checks (recheckCacheable) skips them
+	// and reuses the admitted decode; the mempool ignores signer/sequence on recheck.
+	if req.Type == abci.CheckTxType_Recheck {
+		if _, plain := txutil.PlainSDKBody(tx); plain {
+			if sdkTx, ok := app.recheckTxs.get(tx); ok {
+				return app.recheckDecoded(tx, sdkTx)
+			}
+		}
 	}
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTxNoCopy(tx)
@@ -41,6 +53,13 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
 		}
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
+
+	// A blob tx is keyed by its inner tx, which is all BaseApp checks.
+	if req.Type == abci.CheckTxType_Recheck && isBlob {
+		if sdkTx, ok := app.recheckTxs.get(btx.Tx); ok {
+			return app.recheckDecoded(btx.Tx, sdkTx)
+		}
 	}
 
 	if isBlob {
@@ -58,20 +77,15 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	checkTxCtx, ok := app.CheckState()
-	if !ok {
-		err := fmt.Errorf("checkState not set")
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	if msgCount := countExecutableMsgs(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if proofCount := countZKProofMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
+	if proofCount := countZKProofMsgs(sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if sigCount := countISMSignatures(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
+	if sigCount := countISMSignatures(sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxISMSignatures, "tx carries %d ISM signatures, limit is %d", sigCount, appconsts.MaxISMSignatures)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
@@ -90,28 +104,43 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	res, err := app.forwardCheckTx(req, sdkTx)
-	if isPFF && req.Type == abci.CheckTxType_New && err == nil && res.Code == abci.CodeTypeOK {
-		app.recheckTxs.add(tx, sdkTx)
-	}
-	return res, err
+	return app.forwardCheckTx(req, sdkTx)
 }
 
-// recheckPayForFibre rechecks a PayForFibre on the decode cached at admission.
-func (app *App) recheckPayForFibre(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	sdkTx, ok := app.recheckTxs.get(req.Tx)
-	if !ok {
-		return app.BaseApp.CheckTx(req)
+// recheckCacheable allows only messages whose wrapper checks are pure and whose
+// decode stays near their raw size, so the cache's byte budget bounds its memory.
+func recheckCacheable(tx sdk.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		switch m := msg.(type) {
+		case *fibretypes.MsgPayForFibre, *blobtypes.MsgPayForBlobs:
+		case *banktypes.MsgSend:
+			if !m.Amount.IsValid() {
+				return false
+			}
+		default:
+			return false
+		}
 	}
-	res, err := app.checkDecoded(req, sdkTx)
+	return true
+}
+
+// recheckDecoded rechecks raw on its cached decode, dropping the decode if raw fails.
+func (app *App) recheckDecoded(raw []byte, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
+	res, err := app.checkDecoded(&abci.RequestCheckTx{Tx: raw, Type: abci.CheckTxType_Recheck}, sdkTx)
 	if err != nil || res.Code != abci.CodeTypeOK {
-		app.recheckTxs.drop(req.Tx)
+		app.recheckTxs.drop(raw)
 	}
 	return res, err
 }
 
-// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx.
-func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
+// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx, and
+// records the pass for fast recheck.
+func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (res *abci.ResponseCheckTx, err error) {
+	if f := app.fastRecheck; f != nil {
+		if tr := f.begin(sdkTx); tr != nil {
+			defer func() { f.end(req.Tx, sdkTx, tr, res, err) }()
+		}
+	}
 	defer app.txHandoff.lend(req.Tx, sdkTx)()
 	return app.BaseApp.CheckTx(req)
 }
@@ -172,6 +201,10 @@ func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.Re
 
 	res.Address = signerAddr
 	res.Sequence = signerSeq
+	// Also on a recheck miss: a full cache refuses admissions until the next sweep.
+	if recheckCacheable(sdkTx) {
+		app.recheckTxs.add(req.Tx, sdkTx)
+	}
 	return res, nil
 }
 

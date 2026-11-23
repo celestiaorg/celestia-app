@@ -8,7 +8,6 @@ import (
 	blobante "github.com/celestiaorg/celestia-app/v11/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v11/x/fibre/ante"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v11/x/fibre/keeper"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v11/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -16,6 +15,12 @@ import (
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
 )
+
+// FibreKeeper is what the fibre decorators need from the fibre keeper.
+type FibreKeeper interface {
+	fibreante.FibreKeeper
+	fibreante.FibrePromiseKeeper
+}
 
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
@@ -28,9 +33,10 @@ func NewAnteHandler(
 	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
-	fibreKeeper *fibrekeeper.Keeper,
+	fibreKeeper FibreKeeper,
 	sigCache *sigcache.Cache,
 	sdkMessageCounter SDKMessageCounter,
+	pendingNextSequence PendingNextSequenceFn,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -70,6 +76,9 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		// When simulating, raise each signer's sequence to its next one if recheck
+		// has not rebuilt checkState up to it yet.
+		NewSimulateSequenceDecorator(accountKeeper, pendingNextSequence),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.

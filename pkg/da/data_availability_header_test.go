@@ -275,12 +275,21 @@ func testDAHValidateBasic(t *testing.T, extendShares func([][]byte) (*rsmt2d.Ext
 	var tooSmallDah DataAvailabilityHeader
 	tooSmallDah.ColumnRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
 	tooSmallDah.RowRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
-	// use a bad hash
-	badHashDah := MinDataAvailabilityHeader()
-	badHashDah.hash = []byte{1, 2, 3, 4}
 	// dah with not equal number of roots
 	mismatchDah := MinDataAvailabilityHeader()
 	mismatchDah.ColumnRoots = append(mismatchDah.ColumnRoots, bytes.Repeat([]byte{2}, 32))
+	// dah with a short row root
+	shortRootDah := MinDataAvailabilityHeader()
+	shortRootDah.RowRoots[0] = shortRootDah.RowRoots[0][:1]
+	// dah with a long column root
+	longRootDah := MinDataAvailabilityHeader()
+	longRootDah.ColumnRoots[1] = append(bytes.Clone(longRootDah.ColumnRoots[1]), 0)
+	// dah with 6 row and column roots, which is not a power of two
+	sixRoots := make([][]byte, 6)
+	for i := range sixRoots {
+		sixRoots[i] = MinDataAvailabilityHeader().RowRoots[0]
+	}
+	nonPowerOfTwoDah := DataAvailabilityHeader{RowRoots: sixRoots, ColumnRoots: sixRoots}
 
 	tests := []test{
 		{
@@ -304,24 +313,36 @@ func testDAHValidateBasic(t *testing.T, extendShares func([][]byte) (*rsmt2d.Ext
 			errStr:    "minimum valid DataAvailabilityHeader has at least",
 		},
 		{
-			name:      "bad hash",
-			dah:       badHashDah,
-			expectErr: true,
-			errStr:    "wrong hash",
-		},
-		{
 			name:      "mismatched roots",
 			dah:       mismatchDah,
 			expectErr: true,
 			errStr:    "unequal number of row and column roots",
+		},
+		{
+			name:      "short row root",
+			dah:       shortRootDah,
+			expectErr: true,
+			errStr:    "row root 0 is 1 bytes; it must be 90 bytes",
+		},
+		{
+			name:      "long column root",
+			dah:       longRootDah,
+			expectErr: true,
+			errStr:    "column root 1 is 91 bytes; it must be 90 bytes",
+		},
+		{
+			name:      "root count not a power of two",
+			dah:       nonPowerOfTwoDah,
+			expectErr: true,
+			errStr:    "must be a power of two",
 		},
 	}
 
 	for _, tt := range tests {
 		err := tt.dah.ValidateBasic()
 		if tt.expectErr {
+			require.Error(t, err, tt.name)
 			require.True(t, strings.Contains(err.Error(), tt.errStr), tt.name)
-			require.Error(t, err)
 			continue
 		}
 		require.NoError(t, err)

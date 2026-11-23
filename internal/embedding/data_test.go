@@ -244,3 +244,50 @@ func TestCelestiaAppV10(t *testing.T) {
 		})
 	}
 }
+
+func TestCelestiaAppV11(t *testing.T) {
+	realData := v11binaryCompressed
+	defer func() {
+		v11binaryCompressed = realData
+	}()
+
+	testCases := []struct {
+		name            string
+		modifyFn        func()
+		expectedVersion string
+		expectedError   error
+	}{
+		{
+			name: "valid binary data",
+			modifyFn: func() {
+				v11binaryCompressed = realData
+			},
+			expectedVersion: v11Version,
+		},
+		{
+			name: "nil binaryCompressed",
+			modifyFn: func() {
+				v11binaryCompressed = nil
+			},
+			expectedError: fmt.Errorf("no binary data available for platform %s", platform()),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.modifyFn()
+			version, binary, err := CelestiaAppV11()
+
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectedError, err)
+				assert.Empty(t, version)
+				assert.Nil(t, binary)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedVersion, version)
+				assert.NotEmpty(t, binary)
+			}
+		})
+	}
+}

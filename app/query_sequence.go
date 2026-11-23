@@ -3,33 +3,128 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 
+	storetypes "cosmossdk.io/store/types"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/mempool"
+	"github.com/cometbft/cometbft/node"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// QuerySequence returns the committed account sequence for the provided signer.
-// We bypass BaseApp's mempool-aware implementation so the application can
-// ensure it queries from the latest committed state.
+// SetPendingSequencer injects the in-process mempool that QuerySequence reads
+// pending sequences from. Without it QuerySequence falls back to checkState.
+func (app *App) SetPendingSequencer(p mempool.PendingSequencer) {
+	if p == nil {
+		app.pendingSequencer.Store(nil)
+		return
+	}
+	app.pendingSequencer.Store(&p)
+	// Read the loaded state until the first Commit, e.g. after the multiplexer
+	// switches to this app with txs already pending.
+	if app.committedCtx.Load() == nil && app.LastBlockHeight() > 0 {
+		if ctx, err := app.CreateQueryContext(0, false); err == nil {
+			app.committedCtx.CompareAndSwap(nil, &ctx)
+		}
+	}
+}
+
+type pendingSequencerSetter interface {
+	SetPendingSequencer(mempool.PendingSequencer)
+}
+
+// WirePendingSequencer hands an in-process app (or a wrapper embedding *App)
+// the node's mempool before the node starts; standalone start and testnode use it.
+func WirePendingSequencer(a servertypes.Application, n *node.Node) error {
+	s, ok := a.(pendingSequencerSetter)
+	if !ok {
+		return nil
+	}
+	p, ok := n.Mempool().(mempool.PendingSequencer)
+	if !ok {
+		return fmt.Errorf("mempool %T does not report pending sequences", n.Mempool())
+	}
+	s.SetPendingSequencer(p)
+	return nil
+}
+
+// QuerySequence returns the signer's next sequence from the mempool and
+// committed state (see nextSequence), so it does not lag during recheck.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
+	sequence, ok := app.nextSequence(req.Signer)
+	if !ok {
+		return app.querySequenceFromCheckState(req.Signer)
+	}
+	return &abci.ResponseQuerySequence{Sequence: sequence}, nil
+}
+
+// nextSequence returns max(committed sequence, highest pending sequence + 1),
+// or false without an in-process mempool or a committed height. Takes no app locks.
+func (app *App) nextSequence(signer []byte) (uint64, bool) {
+	if app.pendingSequencer.Load() == nil {
+		return 0, false
+	}
+	// Mempool first: a tx it drops after a Commit is then in the state read below.
+	pendingNext, hasPending := app.pendingNextSequence(signer)
+	committed := app.committedCtx.Load()
+	if committed == nil {
+		return 0, false
+	}
+	sequence := app.accountSequence(*committed, signer)
+	if hasPending && pendingNext > sequence {
+		sequence = pendingNext
+	}
+	return sequence, true
+}
+
+// pendingNextSequence returns the signer's highest pending sequence + 1, or false
+// without an in-process mempool or a pending tx. Takes only the CAT store's lock.
+func (app *App) pendingNextSequence(signer []byte) (uint64, bool) {
+	p := app.pendingSequencer.Load()
+	if p == nil {
+		return 0, false
+	}
+	pending, ok := (*p).HighestPendingSequence(signer)
+	if !ok || pending == math.MaxUint64 {
+		return 0, false
+	}
+	return pending + 1, true
+}
+
+// storeCommittedContext caches a read-only context on the state Commit just
+// wrote; each reader gives it its own gas meter.
+func (app *App) storeCommittedContext() {
+	ctx, err := app.CreateQueryContext(0, false)
+	if err != nil {
+		app.Logger().Error("QuerySequence falls back to checkState", "err", err)
+		app.committedCtx.Store(nil)
+		return
+	}
+	app.committedCtx.Store(&ctx)
+}
+
+// querySequenceFromCheckState is the fallback when nextSequence has no answer
+// (out-of-process node, no committed height); it lags the true value during recheck.
+func (app *App) querySequenceFromCheckState(signer []byte) (*abci.ResponseQuerySequence, error) {
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()
 
-	addr := sdk.AccAddress(req.Signer)
-
-	checkTxCtx, ok := app.CheckState()
-	if !ok {
+	// BaseApp's lock: FinalizeBlock writes the same IAVL tree from another ABCI connection.
+	var sequence uint64
+	if !app.ReadCheckState(func(ctx sdk.Context) { sequence = app.accountSequence(ctx, signer) }) {
 		return &abci.ResponseQuerySequence{}, errors.New("checkState not set")
 	}
-
-	sequence, err := app.AccountKeeper.GetSequence(checkTxCtx, addr)
-	if err != nil {
-		if errors.Is(err, sdkerrors.ErrUnknownAddress) {
-			return &abci.ResponseQuerySequence{Sequence: 0}, nil
-		}
-		return nil, err
-	}
-
 	return &abci.ResponseQuerySequence{Sequence: sequence}, nil
+}
+
+// accountSequence returns the signer's sequence in ctx, or 0 for an unknown
+// account. Own gas meter: concurrent readers would otherwise share ctx's.
+func (app *App) accountSequence(ctx sdk.Context, signer []byte) uint64 {
+	acc := app.AccountKeeper.GetAccount(ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()), sdk.AccAddress(signer))
+	if acc == nil {
+		return 0
+	}
+	return acc.GetSequence()
 }

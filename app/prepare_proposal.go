@@ -28,7 +28,6 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		handler,
 		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
-		app.IBCKeeper.ChannelKeeper,
 		maxSquareSize,
 		appconsts.SubtreeRootThreshold,
 	)
@@ -37,7 +36,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	}
 	fsb.validateBlobTx = app.ValidateBlobTxWithCache
 
-	fsb.decodePFF = fibrekeeper.DecodePayForFibre
+	fsb.decodePFF = fibrekeeper.DerivePayForFibre
 	fsb.preverifyPFF = func(ctx sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
 		app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{Certificates: true})
 	}

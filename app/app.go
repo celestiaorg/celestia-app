@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -66,6 +67,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/mempool"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -224,8 +226,10 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
-	// recheckTxs keeps admitted PayForFibre decodes (~31 KB each) for their
-	// rechecks, at most one per mempool slot.
+	// fastRecheck replays eligible rechecks from records; nil when FlagFastRecheck is false.
+	fastRecheck *fastRecheck
+	// recheckTxs keeps the decodes of admitted txs (PayForFibre ~31 KB each) for
+	// their rechecks, at most one per mempool slot.
 	recheckTxs *recheckTxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool *wrapper.TreePool
@@ -233,10 +237,13 @@ type App struct {
 	delayedPrecommitTimeout time.Duration
 	timeoutCommit           time.Duration
 	dynamicTimeoutCommit    time.Duration
-	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
-	// This prevents data races between Commit updating checkState and QuerySequence
-	// reading it via CheckState().
+	// checkStateMu guards checkState for CheckTx, Commit and the QuerySequence
+	// fallback. Simulate is guarded by the SDK fork's BaseApp.Simulate RLock.
 	checkStateMu *sync.RWMutex
+	// pendingSequencer is the in-process CAT mempool; unset when out of process.
+	pendingSequencer *atomic.Pointer[mempool.PendingSequencer]
+	// committedCtx reads the last committed state; Commit replaces it.
+	committedCtx *atomic.Pointer[sdk.Context]
 	// stateFixes repair committed state at set heights. See state_fixes.go.
 	stateFixes []StateFix
 	// upgradeInfo is the plan scheduled by the last EndBlocker run. Commit writes it,
@@ -315,6 +322,8 @@ func newApp(
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
+		pendingSequencer:        &atomic.Pointer[mempool.PendingSequencer]{},
+		committedCtx:            &atomic.Pointer[sdk.Context]{},
 		stateFixes:              stateFixes,
 	}
 
@@ -426,7 +435,7 @@ func newApp(
 		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
 		app.IBCKeeper.ChannelKeeper,
 		app.BankKeeper,
-		pfmICS4Wrapper{app.IBCKeeper.ChannelKeeper}, // replaces error text in acks of forwarded packets
+		app.IBCKeeper.ChannelKeeper,
 		govModuleAddr,
 	)
 
@@ -436,14 +445,14 @@ func newApp(
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
-	// - Packet Forwarding Middleware (its error acks carry no error text)
+	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = pfmIBCMiddleware{packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
+	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-	)}
+	)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -603,6 +612,10 @@ func newApp(
 	app.SetPrepareProposal(app.PrepareProposalHandler)
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
+	if fastRecheckEnabled(appOpts) {
+		// A record outlives its tx by up to one Commit: room for two mempools.
+		app.fastRecheck = newFastRecheck(app, 2*maxTxs)
+	}
 	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -804,7 +817,11 @@ func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 // newAnteHandler returns the ante handler that validates transactions,
 // including in PrepareProposal and ProcessProposal.
 func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
-	return ante.NewAnteHandler(
+	var fibreKeeper ante.FibreKeeper = app.FibreKeeper
+	if app.fastRecheck != nil {
+		fibreKeeper = untracedPromises{Keeper: app.FibreKeeper, f: app.fastRecheck}
+	}
+	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
@@ -815,18 +832,23 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
-		app.FibreKeeper,
+		fibreKeeper,
 		app.sigCache,
 		app.CountSDKMessages,
+		app.pendingNextSequence,
 	)
+	if app.fastRecheck != nil {
+		return app.wrapAnte(handler)
+	}
+	return handler
 }
 
 // CountSDKMessages returns how many messages msgs execute, counting the
-// messages that MsgExec and ICA packets dispatch. Unlike the per-block budget
-// count, it reads no state, so the ante handler charges the same gas for it in
-// every phase.
+// messages that MsgExec and ICA packets dispatch. It is the per-block budget
+// count, which reads no state, so the ante handler charges the same gas for it
+// in every phase.
 func (app *App) CountSDKMessages(msgs []sdk.Msg) int {
-	return countSDKMessageGasWeight(msgs)
+	return countExecutableMsgs(msgs)
 }
 
 // GetTxConfig implements the TestingApp interface.
@@ -938,7 +960,7 @@ func (app *App) getMinGasPrice() (float64, error) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, app.Query)
+	tmservice.RegisterTendermintService(clientCtx, app.GRPCQueryRouter(), app.encodingConfig.InterfaceRegistry, rejectProofQueries(app.Query))
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
@@ -1043,9 +1065,8 @@ func (app *App) SetDynamicTimeoutCommit(d time.Duration) {
 	app.dynamicTimeoutCommit = d
 }
 
-// Commit overrides BaseApp's Commit to add synchronization with QuerySequence.
-// This prevents data races between commit updating checkState (mempool state) and
-// QuerySequence reading it via CheckState().
+// Commit serializes BaseApp's Commit with the app's checkState readers and
+// refreshes the committed context QuerySequence reads.
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	// Written before committing, so a crash replays the block and rewrites it.
 	if plan := app.upgradeInfo; plan != nil {
@@ -1056,5 +1077,10 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 	app.recheckTxs.sweep()
-	return app.BaseApp.Commit()
+	if app.fastRecheck != nil {
+		app.fastRecheck.commit()
+	}
+	res, err := app.BaseApp.Commit()
+	app.storeCommittedContext()
+	return res, err
 }

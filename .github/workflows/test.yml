@@ -25,6 +25,7 @@ jobs:
           bash scripts/test_race_recipe_test.sh
           bash scripts/test_cover_test.sh
           bash scripts/hardfork/recovery_test.sh
+          bash scripts/hardfork/export_test.sh
           bash scripts/e2e_dockerfile_test.sh
           bash scripts/check_test_results_test.sh
           bash scripts/check_build_info_test.sh
@@ -194,7 +195,7 @@ jobs:
         if: steps.embedded-cache.outputs.cache-hit != 'true'
         run: |
           pids=()
-          for v in 3 4 5 6 7 8 9 10; do
+          for v in 3 4 5 6 7 8 9 10 11; do
             version=$(sed -nE "s/^CELESTIA_V${v}_VERSION := (.+)$/\1/p" Makefile)
             (
               id=$(docker create "ghcr.io/celestiaorg/celestia-app-standalone:${version}")

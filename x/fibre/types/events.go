@@ -62,11 +62,12 @@ func PayForFibreEvent(signer string, namespace, commitment []byte, validatorCoun
 }
 
 // NewEventPaymentPromiseTimeout returns a new EventPaymentPromiseTimeout
-func NewEventPaymentPromiseTimeout(processor string, escrowSigner string, paymentPromiseHash []byte) *EventPaymentPromiseTimeout {
+func NewEventPaymentPromiseTimeout(processor string, escrowSigner string, paymentPromiseHash []byte, creationTimestamp time.Time) *EventPaymentPromiseTimeout {
 	return &EventPaymentPromiseTimeout{
 		Processor:          processor,
 		EscrowSigner:       escrowSigner,
 		PaymentPromiseHash: paymentPromiseHash,
+		CreationTimestamp:  creationTimestamp,
 	}
 }
 
@@ -79,9 +80,10 @@ func NewEventUpdateFibreParams(authority string, params Params) *EventUpdateFibr
 }
 
 // NewEventProcessedPaymentPruned returns a new EventProcessedPaymentPruned
-func NewEventProcessedPaymentPruned(paymentPromiseHash []byte, processedAt time.Time) *EventProcessedPaymentPruned {
+func NewEventProcessedPaymentPruned(paymentPromiseHash []byte, processedAt, creationTimestamp time.Time) *EventProcessedPaymentPruned {
 	return &EventProcessedPaymentPruned{
 		PaymentPromiseHash: paymentPromiseHash,
 		ProcessedAt:        processedAt,
+		CreationTimestamp:  creationTimestamp,
 	}
 }

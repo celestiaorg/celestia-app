@@ -100,10 +100,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain0, recipient, initialDeposit)
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	// The forwarding-relayer is configured to attach the custom IGP as the forward's hook.
-	forwardingService := s.ConfigureForwardRelayer(ctx, chain, []string{
-		fmt.Sprintf("CUSTOM_IGP_HOOK=%s", customIGP.String()),
-	})
+	forwardingService := s.StartForwardBackend(ctx)
 
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	// The address must commit to the IGP; a default-hook address is ErrAddressMismatch.
@@ -113,19 +110,26 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
 	beforeForwardBalance := s.QueryBankBalance(ctx, chain, forwardAddress, chain.Config.Denom)
+	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
+	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 
 	// Trigger the reth0 -> reth1 transfer via celestia x/forwarding.
 	amount := sdkmath.NewInt(500)
 	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
 	s.SendTransferRemoteTxEvm(ctx, reth0, tokenRouter, celestiaDomain, forwardAddrBytes32, amount)
 
+	// The forwarding relayer starts only after the deposit is seen, so it cannot move the
+	// deposit out between two polls.
 	expForwardBalance := beforeForwardBalance.Add(amount)
 	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
 
+	// The forwarding-relayer is configured to attach the custom IGP as the forward's hook.
+	s.StartForwardRelayer(ctx, chain, forwardingService, []string{
+		fmt.Sprintf("CUSTOM_IGP_HOOK=%s", customIGP.String()),
+	})
+
 	// Delivery on reth1 by the real relayer agent (the forward paid the custom IGP, so a relayer
 	// watching it delivers). Same assertion as the baseline forwarding test.
-	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
-	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 

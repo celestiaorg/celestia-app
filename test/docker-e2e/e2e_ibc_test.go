@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/ibc"
@@ -57,6 +58,8 @@ type IBCTestSuite struct {
 
 	// hermesOpts change the Hermes config before the clients are created.
 	hermesOpts []relayer.ConfigOption
+	// celestiaModifiers change the Celestia genesis before the chain starts.
+	celestiaModifiers []genesis.Modifier
 }
 
 // setupIBCInfrastructure sets up IBC test infrastructure with specified app
@@ -70,7 +73,7 @@ func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64, withTransferCha
 
 	// setup chains in parallel
 	s.celestiaCfg = dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
-	s.celestiaCfg.Genesis = s.celestiaCfg.Genesis.WithAppVersion(appVersion)
+	s.celestiaCfg.Genesis = s.celestiaCfg.Genesis.WithAppVersion(appVersion).WithModifiers(s.celestiaModifiers...)
 
 	g, gCtx := errgroup.WithContext(ctx)
 
@@ -218,7 +221,12 @@ func (s *IBCTestSuite) TestIBC() {
 
 	t.Run("new_connection_and_channel", func(t *testing.T) {
 		t.Logf("Creating new connection and channel after upgrade")
+		// The running relayer signs with the same chain-b key as the hermes CLI, so pause it
+		// and let its in-flight acks commit first. Hermes.Stop would delete the config volume.
+		s.Require().NoError(s.hermes.StopContainer(ctx), "failed to stop hermes relayer")
+		s.Require().NoError(wait.ForBlocks(ctx, 2, s.chainB), "failed to wait for chain-b blocks")
 		_, channel = s.establishIBCConnection(ctx)
+		s.Require().NoError(s.hermes.StartContainer(ctx), "failed to restart hermes relayer")
 	})
 
 	t.Run("new_channel_transfers_celestia_to_simapp", func(t *testing.T) {

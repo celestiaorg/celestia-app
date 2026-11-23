@@ -183,7 +183,7 @@ func TestInstall(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, json.Unmarshal(bz, &got))
 		require.Equal(t, *rep, got)
-		require.Contains(t, got.Status, "trial-import")
+		require.Contains(t, got.Status, "runbook")
 		require.Equal(t, []string{"genesis.json"}, entries(t, filepath.Dir(p.out)))
 		require.Equal(t, []string{"report.json"}, entries(t, filepath.Dir(p.rep)))
 	})

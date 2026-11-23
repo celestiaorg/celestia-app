@@ -78,6 +78,7 @@ CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
 CELESTIA_V9_VERSION := v9.0.8
 CELESTIA_V10_VERSION := v10.5.0
+CELESTIA_V11_VERSION := v11.0.0
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -118,11 +119,11 @@ install: download-embedded-binaries
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9 10,download-v$(v)-binaries)
+EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9 10 11,download-v$(v)-binaries)
 # v3 release tarballs are named celestia-app_*; later ones are celestia-app-standalone_*.
 EMBEDDED_TARBALL_PREFIX = $(if $(filter 3,$*),celestia-app,celestia-app-standalone)
 
-## download-embedded-binaries: Download the celestia-app v3-v10 binaries for the current platform.
+## download-embedded-binaries: Download the celestia-app v3-v11 binaries for the current platform.
 download-embedded-binaries: $(EMBEDDED_BINARY_TARGETS)
 .PHONY: download-embedded-binaries
 
@@ -294,6 +295,13 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
+## test-sim-determinism: Run the simulation several times per seed and check that the app hash is the same. Set SIM_FLAGS to override, e.g. SIM_FLAGS="-Seed=7 -NumBlocks=50".
+SIM_FLAGS ?= -NumBlocks=200 -BlockSize=100
+test-sim-determinism:
+	@echo "--> Running app state determinism simulation"
+	@go test -tags sims -run TestAppStateDeterminism ./app -timeout 30m $(SIM_FLAGS)
+.PHONY: test-sim-determinism
+
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
@@ -386,6 +394,16 @@ txsim-build-docker:
 latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
+
+MALICIOUS_IMAGE_DIR := build/malicious-image
+## build-docker-malicious: Build the test-only image of a byzantine validator (test/cmd/malicious-appd) for TestByzantineProposer. Never publish it.
+build-docker-malicious:
+	@echo "--> Building celestia-app-malicious:$(CELESTIA_TAG)"
+	@mkdir -p $(MALICIOUS_IMAGE_DIR)/docker
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o $(MALICIOUS_IMAGE_DIR)/celestia-appd ./test/cmd/malicious-appd
+	@cp docker/entrypoint.sh $(MALICIOUS_IMAGE_DIR)/docker/
+	$(DOCKER) build -t celestia-app-malicious:$(CELESTIA_TAG) -f docker/e2e.Dockerfile $(MALICIOUS_IMAGE_DIR)
+.PHONY: build-docker-malicious
 
 # TALIS_CGO_BUILD builds celestia-appd and fibre with cgo in a linux/amd64 Alpine
 # container. The static musl link runs on any VM regardless of its glibc.

@@ -26,10 +26,13 @@ func TestPFMErrorAckIsFixed(t *testing.T) {
 		"empty receiver":    `{"forward":{"receiver":"","port":"transfer","channel":"channel-0"}}`,
 		"invalid forward":   `{"forward":{"receiver":1}}`,
 		"negative retries":  `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel-0","retries":-1}}`,
+		// Upstream packet-forward-middleware v8.2.0 dereferences a nil pointer
+		// for forward metadata that decodes to null.
+		"null Forward key": `{"forward":{"receiver":"cosmos1abc","port":"transfer","channel":"channel-0"},"Forward":null}`,
 	}
 
 	// The pinned bytes are part of consensus: ibc-go commits their hash.
-	want := `{"error":"ABCI code: 11151: error handling packet: see events for details"}`
+	want := `{"error":"packet-forward-middleware error: forward failed"}`
 	for name, memo := range memos {
 		t.Run(name, func(t *testing.T) {
 			data, err := json.Marshal(ibctransfertypes.FungibleTokenPacketData{

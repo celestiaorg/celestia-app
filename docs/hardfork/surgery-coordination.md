@@ -1,6 +1,7 @@
 # Coordinate in-place surgery
 
 This runbook is for the protocol team. Validators and node operators follow [surgery.md](surgery.md).
+For a suspected network halt, start with [incident.md](incident.md) to confirm the halt and choose the recovery tool.
 
 In-place surgery repairs bad state on the same chain. A release lists a state fix in `app/state_fixes.go`. The fix runs once, at fix height F, before BeginBlock, on every node that executes F. Nodes that sync from genesis later run it too.
 
@@ -59,7 +60,7 @@ Review the fix as consensus-critical code:
   - the `v<N>` lines in `.goreleaser.yaml`;
   - the `v<N>` checksums in `scripts/embedded_checksums.txt`.
 - If validators run a later major release, release it again with the new pin. Check every release binary and image with `celestia-appd passthrough v<N> version`.
-- A new chain from a zero-height export with the same chain ID would run the fix again at F. Give that chain a new chain ID, or drop the fix from its release.
+- A new chain from an export at E starts at I above E ([export-coordination.md](export-coordination.md)). After an emergency restart it keeps the chain ID. If F is at or above I, the old chain never reached F, and the new chain executes F and runs the fix. Drop the fix from that chain's release if it must not run. If F is above E and below I, the new chain never runs it. After a planned restart the chain ID is a new revision, so a fix gated on the old chain ID never runs.
 
 ## Before the restart
 

@@ -81,6 +81,10 @@ app-db-backend = ""
 # If this is set to zero, the query can consume an unbounded amount of gas.
 query-gas-limit = "0"
 
+# EnableSubspaceQueries serves /store/<name>/subspace ABCI queries, which scan a whole key prefix.
+# Leave false on validators.
+enable-subspace-queries = false
+
 # DisableOptimisticExecution executes blocks only in FinalizeBlock, not speculatively from ProcessProposal.
 # Read by the app (e.g. celestia-app); no effect unless the app wires it. Per node; consensus is unaffected.
 disable-optimistic-execution = false
@@ -301,3 +305,9 @@ stop-node-on-err = true
 # Note, this configuration only applies to SDK built-in app-side mempool
 # implementations.
 max-txs = -1
+
+[fast-recheck]
+
+# Enable replays a mempool tx's recorded ante writes on recheck when every value they read is unchanged.
+# Set it to false to run the full ante on every recheck.
+enable = true

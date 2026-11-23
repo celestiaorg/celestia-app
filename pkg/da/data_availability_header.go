@@ -2,6 +2,7 @@ package da
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -18,13 +19,16 @@ import (
 	sharev4 "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	"github.com/cometbft/cometbft/types"
 )
 
 var (
 	maxExtendedSquareWidth = appconsts.SquareSizeUpperBound * 2
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
+
+// rootSize is the size of an NMT root: a minimum namespace, a maximum
+// namespace and a SHA-256 digest.
+const rootSize = 2*sharev4.NamespaceSize + sha256.Size
 
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the
 // erasure coded version of the data in Block.Data. The original Block.Data is
@@ -176,10 +180,9 @@ func (dah *DataAvailabilityHeader) Hash() []byte {
 		return dah.hash
 	}
 
-	rowsCount := len(dah.RowRoots)
-	slices := make([][]byte, rowsCount+rowsCount)
-	copy(slices[0:rowsCount], dah.RowRoots)
-	copy(slices[rowsCount:], dah.ColumnRoots)
+	slices := make([][]byte, 0, len(dah.RowRoots)+len(dah.ColumnRoots))
+	slices = append(slices, dah.RowRoots...)
+	slices = append(slices, dah.ColumnRoots...)
 	// The single data root is computed using a simple binary merkle tree.
 	// Effectively being root(rowRoots || columnRoots):
 	dah.hash = merkle.HashFromByteSlices(slices)
@@ -202,11 +205,14 @@ func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader) (dah 
 		return nil, errors.New("nil DataAvailabilityHeader")
 	}
 
-	dah = new(DataAvailabilityHeader)
-	dah.RowRoots = dahp.RowRoots
-	dah.ColumnRoots = dahp.ColumnRoots
-
-	return dah, dah.ValidateBasic()
+	dah = &DataAvailabilityHeader{
+		RowRoots:    dahp.RowRoots,
+		ColumnRoots: dahp.ColumnRoots,
+	}
+	if err := dah.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	return dah, nil
 }
 
 // ValidateBasic runs stateless checks on the DataAvailabilityHeader.
@@ -233,10 +239,19 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 			len(dah.ColumnRoots),
 		)
 	}
-	if err := types.ValidateHash(dah.Hash()); err != nil {
-		return fmt.Errorf("wrong hash: %v", err)
+	if !squarev4.IsPowerOfTwo(len(dah.RowRoots)) {
+		return fmt.Errorf("number of row and column roots %d must be a power of two", len(dah.RowRoots))
 	}
-
+	for i, root := range dah.RowRoots {
+		if len(root) != rootSize {
+			return fmt.Errorf("row root %d is %d bytes; it must be %d bytes", i, len(root), rootSize)
+		}
+	}
+	for i, root := range dah.ColumnRoots {
+		if len(root) != rootSize {
+			return fmt.Errorf("column root %d is %d bytes; it must be %d bytes", i, len(root), rootSize)
+		}
+	}
 	return nil
 }
 
@@ -249,8 +264,11 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	return len(dah.ColumnRoots) == 0 || len(dah.RowRoots) == 0
 }
 
-// SquareSize returns the number of rows in the original data square.
+// SquareSize returns the width of the original data square, or 0 for a nil header.
 func (dah *DataAvailabilityHeader) SquareSize() int {
+	if dah == nil {
+		return 0
+	}
 	return len(dah.RowRoots) / 2
 }
 

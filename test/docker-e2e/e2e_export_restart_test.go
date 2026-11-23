@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,8 +39,10 @@ import (
 
 // TestIBCExportRestart checks that IBC transfers, a pending packet and an ICA
 // survive a halt, an export and a restart of Celestia from that export with
-// the same chain-id. Hermes moves simapp's client of Celestia across the
-// restart with the old blocks of an archive node.
+// the same chain-id. simapp's client of Celestia is at C-1, where C is the
+// last height of the archive node that keeps the old blocks, as when Hermes
+// updates it right before the halt. Hermes moves it across the restart from an
+// older height.
 func (s *IBCTestSuite) TestIBCExportRestart() {
 	s.runIBCExportRestart(false)
 }
@@ -107,7 +110,7 @@ func (s *IBCTestSuite) runIBCExportRestart(newChainID bool) {
 		substitute := s.createSubstituteClient(ctx, r.newChainID)
 		s.recoverClientByGovernance(ctx, clientID, substitute)
 	} else {
-		s.updateClientAcrossRestart(ctx, clientID, archive)
+		s.updateClientFromHalt(ctx, clientID, archive, r.initialHeight)
 	}
 	s.requireCelestiaClientActive(ctx)
 
@@ -161,6 +164,43 @@ func (s *IBCTestSuite) updateClientAcrossRestart(ctx context.Context, clientID s
 		"--archive-address", "http://"+archive.HostName()+":26657",
 	)
 	s.T().Logf("hermes update client across the restart at height %d: %s", restartHeight, out)
+}
+
+// updateClientFromHalt updates simapp's client of Celestia to C-1, where C is
+// the last height of the archive, and then across the restart to the initial
+// height I. Hermes needs the full light block at the trusted height plus one,
+// with the validators of the height after it, and the archive has no
+// validators above C. So an update trusting C-1 fails and one trusting a
+// stored height T at or below C-2 works, as the export runbook says. A client
+// at C cannot be set up here for the same reason.
+func (s *IBCTestSuite) updateClientFromHalt(ctx context.Context, clientID string, archive *cosmos.ChainNode, initialHeight int64) {
+	status, err := archive.Client.Status(ctx)
+	s.Require().NoError(err, "failed to query the archive")
+	c := status.SyncInfo.LatestBlockHeight
+	latest := func() int64 { return int64(s.celestiaClientState(ctx, clientID).LatestHeight.RevisionHeight) }
+	trusted := latest()
+	s.Require().LessOrEqual(trusted, c-2, "client is already above C-2")
+
+	// Hermes reads heights up to C from the archive and higher ones from the new chain.
+	route := []string{"--restart-height", strconv.FormatInt(c, 10), "--archive-address", "http://" + archive.HostName() + ":26657"}
+	update := []string{"update", "client", "--host-chain", simappChainID, "--client", clientID}
+	s.hermesExec(ctx, slices.Concat(update, []string{"--height", strconv.FormatInt(c-1, 10)}, route)...)
+	s.Require().Equal(c-1, latest(), "client is not at C-1")
+
+	toI := slices.Concat(update, []string{"--height", strconv.FormatInt(initialHeight, 10)}, route)
+	execCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	// Tastora returns the output of a failed command in the error.
+	_, _, err = s.hermes.Exec(execCtx, s.logger, slices.Concat([]string{"hermes", "--json"}, toI), nil)
+	s.Require().Error(err, "update trusting C-1 succeeded")
+	s.T().Logf("hermes update client trusting C-1=%d: %v", c-1, err)
+	s.Require().ErrorContains(err, fmt.Sprintf("height %d must be less than or equal to the current blockchain height %d", c+1, c),
+		"update trusting C-1 failed for another reason than the missing validators of C+1")
+	s.Require().Equal(c-1, latest(), "failed update moved the client")
+
+	s.hermesExec(ctx, slices.Concat(toI, []string{"--trusted-height", strconv.FormatInt(trusted, 10)})...)
+	s.Require().Equal(initialHeight, latest(), "client was not updated to the initial height")
+	s.T().Logf("client moved from C-1=%d to I=%d, trusting %d", c-1, initialHeight, trusted)
 }
 
 // moveHermesToChainID points the Hermes config and key at the new chain-id.
@@ -500,12 +540,22 @@ type hyperlaneExportSetup struct {
 	agent          *hyperlane.Agent
 	rethDomain     uint32
 	celestiaDomain uint32
+	// validator signs Celestia checkpoints when the setup has a validator key.
+	validator *hyperlane.Agent
 }
 
 // setupHyperlaneExport starts the chains and the relayer for an export test.
 // The relayer database is relayerExportDB from the first start, so a restart
 // can keep it.
 func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlaneExportSetup {
+	return s.setupHyperlaneExportWith(ctx, "")
+}
+
+// setupHyperlaneExportWith is setupHyperlaneExport. With a validator key, the
+// EVM mailbox's default ISM is a 1-of-1 messageIdMultisigIsm of that validator,
+// which runs as an agent and has announced its checkpoints before the relayer
+// starts.
+func (s *HyperlaneTestSuite) setupHyperlaneExportWith(ctx context.Context, validatorKey string) *hyperlaneExportSetup {
 	t := s.T()
 	chain, err := dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(ctx)
 	s.Require().NoError(err)
@@ -520,20 +570,35 @@ func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlan
 	da := s.WithBridgeNodeNetwork(ctx, chain)
 	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
 
-	hyp, err := hyperlane.NewDeployer(ctx, hyperlane.Config{
+	hypCfg := hyperlane.Config{
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
 		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
-	}, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
+	}
+	if validatorKey != "" {
+		addr, err := hyperlane.ValidatorAddress(validatorKey)
+		s.Require().NoError(err)
+		hypCfg.DefaultIsm = &hyperlane.IsmCfg{
+			Type:       "messageIdMultisigIsm",
+			Validators: []hyperlane.QuotedHexAddress{hyperlane.QuotedHexAddress(addr.Hex())},
+			Threshold:  1,
+		}
+	}
+	hyp, err := hyperlane.NewDeployer(ctx, hypCfg, t.Name(), []hyperlane.ChainConfigProvider{reth, chain})
 	s.Require().NoError(err)
 	s.Require().NoError(hyp.Deploy(ctx))
 
 	cfg, err := hyp.DeployCosmosNoopISM(ctx, cosmos.NewBroadcaster(chain), chain.GetFaucetWallet())
 	s.Require().NoError(err)
-	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	tokenRouter, err := hyp.EVMWarpTokenAddress(ctx)
 	s.Require().NoError(err)
 	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, cfg.TokenID)
+
+	var validator *hyperlane.Agent
+	if validatorKey != "" {
+		validator = s.startHyperlaneValidator(ctx, chain, hyp, validatorKey)
+	}
 
 	s.setRelayerDB(ctx, hyp, relayerExportDB)
 	agent := s.StartRelayerAgent(ctx, hyp)
@@ -547,6 +612,7 @@ func (s *HyperlaneTestSuite) setupHyperlaneExport(ctx context.Context) *hyperlan
 		agent:          agent,
 		rethDomain:     s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp),
 		celestiaDomain: s.GetDomainForChain(ctx, HypCelestiaChainName, hyp),
+		validator:      validator,
 	}
 }
 

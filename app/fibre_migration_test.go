@@ -138,3 +138,23 @@ func TestV12FibreMigrationRollsBackRefunds(t *testing.T) {
 		require.Equal(t, sdk.NewInt64Coin("stake", 50), testApp.BankKeeper.GetBalance(ctx, owner, "stake"))
 	}
 }
+
+// TestV12UpgradeKeepsLegacyProcessedPayments checks that payments processed before v12
+// keep blocking replays after the upgrade until pruning drains them.
+func TestV12UpgradeKeepsLegacyProcessedPayments(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1).WithBlockTime(util.GenesisTime.Add(time.Hour))
+	k := testApp.FibreKeeper
+	legacy := fibretypes.ProcessedPayment{PaymentPromiseHash: bytes.Repeat([]byte{7}, 32), ProcessedAt: ctx.BlockTime()}
+	store := ctx.KVStore(testApp.GetKey(fibretypes.StoreKey))
+	bz := testApp.AppCodec().MustMarshal(&legacy)
+	store.Set(fibretypes.LegacyProcessedPaymentsByHashKey(legacy.PaymentPromiseHash), bz)
+	store.Set(fibretypes.LegacyProcessedPaymentsByTimeKey(legacy.ProcessedAt, legacy.PaymentPromiseHash), bz)
+
+	require.NoError(t, applyV12FromFibreV1(t, testApp, ctx))
+	require.True(t, k.IsPromiseProcessed(ctx, ctx.BlockTime().Add(-time.Minute), legacy.PaymentPromiseHash))
+
+	pruneAt := ctx.BlockTime().Add(k.GetParams(ctx).PaymentPromiseRetentionWindow() + time.Second)
+	require.NoError(t, k.BeginBlocker(ctx.WithBlockTime(pruneAt)))
+	require.False(t, k.IsPromiseProcessed(ctx, ctx.BlockTime().Add(-time.Minute), legacy.PaymentPromiseHash))
+}

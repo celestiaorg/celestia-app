@@ -3,6 +3,7 @@ package testnode
 import (
 	"path/filepath"
 
+	celestiaapp "github.com/celestiaorg/celestia-app/v11/app"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -51,8 +52,14 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
 		servercmtlog.CometLoggerWrapper{Logger: logger},
 	)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return cometNode, app, err
+	if err := celestiaapp.WirePendingSequencer(app, cometNode); err != nil {
+		return nil, nil, err
+	}
+	return cometNode, app, nil
 }
 
 // getGenDocProvider returns a function that loads the genesis document from file.
