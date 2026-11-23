@@ -395,6 +395,16 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
+MALICIOUS_IMAGE_DIR := build/malicious-image
+## build-docker-malicious: Build the test-only image of a byzantine validator (test/cmd/malicious-appd) for TestByzantineProposer. Never publish it.
+build-docker-malicious:
+	@echo "--> Building celestia-app-malicious:$(CELESTIA_TAG)"
+	@mkdir -p $(MALICIOUS_IMAGE_DIR)/docker
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o $(MALICIOUS_IMAGE_DIR)/celestia-appd ./test/cmd/malicious-appd
+	@cp docker/entrypoint.sh $(MALICIOUS_IMAGE_DIR)/docker/
+	$(DOCKER) build -t celestia-app-malicious:$(CELESTIA_TAG) -f docker/e2e.Dockerfile $(MALICIOUS_IMAGE_DIR)
+.PHONY: build-docker-malicious
+
 # TALIS_CGO_BUILD builds celestia-appd and fibre with cgo in a linux/amd64 Alpine
 # container. The static musl link runs on any VM regardless of its glibc.
 TALIS_CGO_BUILD = $(DOCKER) run --rm --platform linux/amd64 -v "$(CURDIR)":/src -w /src \
