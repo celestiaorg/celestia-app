@@ -16,7 +16,7 @@ On startup, a v12 binary raises `ttl-num-blocks` below 117 to 117 (was 36) and `
 
 **Block-count parameters**: the v12 upgrade handler sets the block-count parameters to their v11 values × 3.25 (2.6s / 0.8s), replacing any value set by governance: `slashing.SignedBlocksWindow` 10,000 → 32,500, `staking.HistoricalEntries` 10,000 → 32,500 and `fibre.PaymentPromiseHeightWindow` 1,000 → 3,250. It also lowers IBC `MaxExpectedTimePerBlock` from 13s to 4s. Upgrade height delays are 108,000 / 216,000 / 756,000 blocks on Corto / Mocha / Mainnet. `consensus.evidence.MaxAgeNumBlocks` becomes 1,011,000 (was 404,400): the 337h unbonding period at a 1.2s average block time, so the evidence window stays within it only while blocks average at most 1.2s.
 
-**Throughput**: `MaxBytes` (32 MiB) and the square size are unchanged, so the maximum data rate rises with the block rate, up to ~40 MiB/s at 0.8s blocks (~12 MiB/s at 2.6s). The per-block message caps become 300 SDK messages (was 600) and 200 PayForFibre messages (unchanged); with 200 PFBs the count caps sum to 700, within celestia-core's 1,000-tx block limit. CheckTx rejects a tx with more than 300 SDK messages, counting those inside MsgExec and ICA packets.
+**Throughput**: `MaxBytes` (32 MiB) and the square size are unchanged, so the maximum data rate rises with the block rate, up to ~40 MiB/s at 0.8s blocks (~12 MiB/s at 2.6s). The per-block message caps become 300 SDK messages (was 600) and 500 PayForFibre messages (was 200); with 200 PFBs the count caps sum to celestia-core's 1,000-tx block limit. CheckTx rejects a tx with more than 300 SDK messages, counting those inside MsgExec and ICA packets.
 
 **`x/signal`**:
 
