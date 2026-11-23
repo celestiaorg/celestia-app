@@ -918,6 +918,8 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
+	// The tx services read committed txs, so they use QueryTxConfig.
+	clientCtx = clientCtx.WithTxConfig(app.encodingConfig.QueryTxConfig)
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)
 	gasestimation.RegisterGasEstimationService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.TxConfig.TxDecoder(), app.getGovMaxSquareBytes, app.Simulate, app.getMinGasPrice)
