@@ -20,10 +20,12 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -810,6 +812,23 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 
 	// Re-submitting the first promise is idempotent (already reserved).
 	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+}
+
+// TestValidatePaymentPromiseRejectsPinnedHeight checks that a request with a
+// block height header is refused before it reserves anything in the cache.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseRejectsPinnedHeight() {
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
+
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	pinned := metadata.NewIncomingContext(suite.ctx, metadata.Pairs(grpctypes.GRPCBlockHeightHeader, fmt.Sprint(suite.ctx.BlockHeight())))
+	_, err := suite.keeper.ValidatePaymentPromise(pinned, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.Equal(codes.InvalidArgument, status.Code(err))
+
+	// Nothing was reserved, so the other promise still fits a budget funded for one.
+	unpinned := metadata.NewIncomingContext(suite.ctx, metadata.MD{})
+	_, err = suite.keeper.ValidatePaymentPromise(unpinned, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
 	suite.NoError(err)
 }
 

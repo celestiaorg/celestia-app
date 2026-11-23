@@ -7,7 +7,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/fibre"
 	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -92,6 +94,11 @@ func (k Keeper) IsPaymentProcessed(c context.Context, req *types.QueryIsPaymentP
 func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValidatePaymentPromiseRequest) (*types.QueryValidatePaymentPromiseResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
+	}
+	// The promise cache must only see the latest committed state. ABCI queries
+	// with a height are rejected by App.Query.
+	if md, ok := metadata.FromIncomingContext(c); ok && len(md.Get(grpctypes.GRPCBlockHeightHeader)) > 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s header is not supported for this query", grpctypes.GRPCBlockHeightHeader)
 	}
 
 	ctx := sdk.UnwrapSDKContext(c)
