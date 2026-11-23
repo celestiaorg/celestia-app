@@ -23,6 +23,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
+	if app.fastRecheck != nil && req.Type == abci.CheckTxType_Recheck {
+		if res, ok := app.fastRecheck.recheck(req.Tx); ok {
+			return res, nil
+		}
+	}
+
 	tx := req.Tx
 
 	// all txs must be less than or equal to the max tx size limit
@@ -127,8 +133,14 @@ func (app *App) recheckDecoded(raw []byte, sdkTx sdk.Tx) (*abci.ResponseCheckTx,
 	return res, err
 }
 
-// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx.
-func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
+// checkDecoded runs BaseApp's CheckTx with sdkTx, the decode of req.Tx, and
+// records the pass for fast recheck.
+func (app *App) checkDecoded(req *abci.RequestCheckTx, sdkTx sdk.Tx) (res *abci.ResponseCheckTx, err error) {
+	if f := app.fastRecheck; f != nil {
+		if tr := f.begin(sdkTx); tr != nil {
+			defer func() { f.end(req.Tx, sdkTx, tr, res, err) }()
+		}
+	}
 	defer app.txHandoff.lend(req.Tx, sdkTx)()
 	return app.BaseApp.CheckTx(req)
 }
