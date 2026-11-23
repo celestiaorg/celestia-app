@@ -223,7 +223,7 @@ func (e *eqEnv) newPromise(i int) *fibretypes.PaymentPromise {
 	pp.CreationTimestamp = e.blockTime.Add(-time.Duration(e.rng.Intn(150)) * time.Second).Truncate(time.Second)
 	pp.BlobSize = uint32(1 + e.rng.Intn(4_000_000))
 	commitment := make([]byte, share.FibreCommitmentSize)
-	e.rng.Read(commitment)
+	_, _ = e.rng.Read(commitment)
 	pp.Commitment = commitment
 	fp := fibre.PaymentPromise{}
 	require.NoError(e.t, fp.FromProto(pp))
@@ -261,7 +261,7 @@ func (e *eqEnv) pfbTx(i int, seq uint64) []byte {
 	require.NoError(e.t, e.signer.SetSequence(e.names[i], seq))
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{byte(1 + e.rng.Intn(200))}, share.NamespaceVersionZeroIDSize))
 	data := make([]byte, 1+e.rng.Intn(4000))
-	e.rng.Read(data)
+	_, _ = e.rng.Read(data)
 	b, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
 	require.NoError(e.t, err)
 	gas := e.gas("pfb", 400_000)
