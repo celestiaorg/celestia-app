@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"strings"
 	"time"
 
 	"cosmossdk.io/collections"
@@ -78,10 +79,10 @@ func balanceKey(addr sdk.AccAddress) []byte {
 
 // begin starts tracing the ante pass of sdkTx if a passed pass can be replayed:
 // one utia fee paid by a plain account (a vesting account's spendable balance and
-// a fee grant depend on block time). It returns nil otherwise.
+// a fee grant depend on block time) and no IBC core message. It returns nil otherwise.
 func (f *fastRecheck) begin(sdkTx sdk.Tx) *anteTrace {
 	payer := utiaFeePayer(sdkTx)
-	if payer == nil {
+	if payer == nil || hasIBCCoreMsg(sdkTx) {
 		return nil
 	}
 	var plain bool
@@ -113,6 +114,17 @@ func utiaFeePayer(sdkTx sdk.Tx) (payer sdk.AccAddress) {
 		return nil
 	}
 	return feeTx.FeePayer()
+}
+
+// hasIBCCoreMsg reports whether a top-level message of sdkTx is an IBC core
+// message: the IBC relay ante reads the block time and height and writes them.
+func hasIBCCoreMsg(sdkTx sdk.Tx) bool {
+	for _, msg := range sdkTx.GetMsgs() {
+		if strings.HasPrefix(sdk.MsgTypeURL(msg), "/ibc.core.") {
+			return true
+		}
+	}
+	return false
 }
 
 // end stops the trace and records raw's pass if it passed and can be replayed.
