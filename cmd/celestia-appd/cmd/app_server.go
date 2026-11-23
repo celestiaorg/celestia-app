@@ -43,15 +43,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		panic(err)
 	}
 
-	return app.New(
-		logger,
-		db,
-		traceStore,
-		cast.ToUint(appOptions.Get(server.FlagInvCheckPeriod)),
-		encoding.MakeConfig(app.ModuleEncodingRegisters...),
-		cast.ToInt64(appOptions.Get(UpgradeHeightFlag)),
-		cast.ToDuration(appOptions.Get(TimeoutCommitFlag)),
-		appOptions,
+	baseappOptions := []func(*baseapp.BaseApp){
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOptions.Get(server.FlagMinGasPrices))),
 		baseapp.SetMinRetainBlocks(cast.ToUint64(appOptions.Get(server.FlagMinRetainBlocks))),
@@ -62,5 +54,18 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		baseapp.SetTrace(cast.ToBool(appOptions.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOptions.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOptions.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOptions.Get(server.FlagStateSyncSnapshotKeepRecent)))),
+	}
+	baseappOptions = append(baseappOptions, app.PerformanceBaseappOptions(appOptions)...)
+
+	return app.New(
+		logger,
+		db,
+		traceStore,
+		cast.ToUint(appOptions.Get(server.FlagInvCheckPeriod)),
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
+		cast.ToInt64(appOptions.Get(UpgradeHeightFlag)),
+		cast.ToDuration(appOptions.Get(TimeoutCommitFlag)),
+		appOptions,
+		baseappOptions...,
 	)
 }
