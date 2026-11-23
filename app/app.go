@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"time"
 
@@ -438,7 +437,7 @@ func New(
 		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	))
-	if os.Getenv("CELESTIA_SIG_PREVERIFY") == "1" { // sync-speedup prototype
+	if signaturePreverifyEnabled(appOpts) {
 		app.SetBatchSigPreverifier(authante.NewBatchSigPreverifier(app.AccountKeeper, encodingConfig.TxConfig.SignModeHandler()))
 	}
 	app.SetPostHandler(posthandler.New())
