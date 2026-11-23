@@ -26,7 +26,7 @@ jobs:
   # the merge job fails if this list misses one.
   test-coverage-shard:
     name: test-coverage-shard (${{ matrix.shard }})
-    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: namespace-profile-celestia-app-mq
     permissions:
       contents: read
     strategy:
