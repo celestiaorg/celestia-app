@@ -110,13 +110,14 @@ func TestPrepareProposalDifferential(t *testing.T) {
 			}
 		}
 	}
-	// pattern repeats two 3-message txs and one 1-message tx, so the SDK count overshoots
+	// pattern repeats one 1-message tx and two 3-message txs, so the SDK count overshoots
 	// the cap and a later 1-message tx still fits.
 	pattern := make([][]byte, 0, numMultiSends*3/2)
 	for i := 0; i+1 < numMultiSends; i += 2 {
-		pattern = append(pattern, multiSends[i], multiSends[i+1], sends[i/2])
+		pattern = append(pattern, sends[i/2], multiSends[i], multiSends[i+1])
 	}
 
+	allCaps := appconsts.MaxSDKMessages + appconsts.MaxPFBMessages + appconsts.MaxPayForFibreMessages
 	workloads := []struct {
 		name     string
 		txs      [][]byte
@@ -124,12 +125,12 @@ func TestPrepareProposalDifferential(t *testing.T) {
 	}{
 		{"under-cap-mix", interleave(sends[:100], multiSends[:20], blobs[:50], pffs[:50]), 220},
 		{"sdk-over-cap", sends, appconsts.MaxSDKMessages},
-		// 85 triples reach 595; one more 3-message tx fits, then two 1-message txs.
-		{"sdk-multi-msg-over-cap", pattern, 85*3 + 3},
+		// 42 triples reach 294; a 1- and a 3-message tx reach 298, then two 1-message txs fit.
+		{"sdk-multi-msg-over-cap", pattern, 42*3 + 4},
 		{"pfb-over-cap", blobs, appconsts.MaxPFBMessages},
 		{"pff-over-cap", pffs, appconsts.MaxPayForFibreMessages},
-		{"all-over-cap-interleaved", interleave(sends, blobs, pffs), 1000},
-		{"all-over-cap-concatenated", append(append(append([][]byte{}, blobs...), pffs...), sends...), 1000},
+		{"all-over-cap-interleaved", interleave(sends, blobs, pffs), allCaps},
+		{"all-over-cap-concatenated", append(append(append([][]byte{}, blobs...), pffs...), sends...), allCaps},
 		{"expiring-flood", append(append(append(append([][]byte{}, expiring...), sends[:10]...), blobs[:5]...), pffs[:5]...), 20},
 		{"expiring-interleaved-over-cap", interleave(expiring, sends), appconsts.MaxSDKMessages},
 	}
