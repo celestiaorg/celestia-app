@@ -97,9 +97,11 @@ func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeig
 	return blocks, nil
 }
 
+// DecodeBlockData decodes the txs in a committed block. It uses the default
+// decoder, so it also reads txs committed before the strict encoding rule.
 func DecodeBlockData(data types.Data) ([]sdk.Tx, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	decoder := encCfg.TxConfig.TxDecoder()
+	decoder := encCfg.QueryTxConfig.TxDecoder()
 	txs := make([]sdk.Tx, 0)
 	for _, txBytes := range data.Txs {
 		blobTx, isBlobTx, err := tx.UnmarshalBlobTx(txBytes)
@@ -121,7 +123,7 @@ func DecodeBlockData(data types.Data) ([]sdk.Tx, error) {
 func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight, toHeight int64) (float64, int64, error) {
 	var (
 		encCfg   = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		decoder  = encCfg.TxConfig.TxDecoder()
+		decoder  = encCfg.QueryTxConfig.TxDecoder()
 		totalGas int64
 		count    int64
 		average  = func() float64 {
