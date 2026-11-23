@@ -43,6 +43,9 @@ import (
 // outside it.
 const numPreverifyValidators = 4
 
+// fixtureCacheSize holds a certificate and a promise for every candidate, so no entry is evicted.
+const fixtureCacheSize = 2 * appconsts.MaxPayForFibreCandidates
+
 type preverifyFixture struct {
 	ctx           sdk.Context
 	storeKey      storetypes.StoreKey
@@ -63,7 +66,7 @@ func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
 	t.Helper()
 
 	fresh := *f
-	fresh.cache = sigcache.New(1024)
+	fresh.cache = sigcache.New(fixtureCacheSize)
 	fresh.keeper = keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), f.storeKey,
 		&MockBankKeeper{}, f.stakingKeeper, authtypes.NewModuleAddress("gov").String(), false, fresh.cache)
 	return &fresh
@@ -111,7 +114,7 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 	require.NoError(t, stateStore.LoadLatestVersion())
 
 	ctx := sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	cache := sigcache.New(1024)
+	cache := sigcache.New(fixtureCacheSize)
 	stakingKeeper := &MockStakingKeeper{}
 	k := keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), storeKey,
 		&MockBankKeeper{}, stakingKeeper, authtypes.NewModuleAddress("gov").String(), false, cache)

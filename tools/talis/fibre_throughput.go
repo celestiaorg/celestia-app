@@ -217,7 +217,7 @@ func fibreThroughputCmd() *cobra.Command {
 			}
 
 			// Per-PFF gas records accumulated across the whole run for the
-			// end-of-run summary. At the 200 PFF/block cap this is ~20k small
+			// end-of-run summary. At the 500 PFF/block cap this is ~50k small
 			// structs per 100 blocks, so keeping them all is cheap.
 			var allPFFGas []pffGasTrace
 
