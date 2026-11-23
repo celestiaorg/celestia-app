@@ -570,23 +570,23 @@ func TestFastRecheckAllMiss(t *testing.T) {
 	e := newEqEnv(t, 11, 8)
 	defer e.full.Close()
 	defer e.fast.Close()
-	var allMiss int
 	for round := range 12 {
 		e.addNewTxs(20)
 		txs := e.buildBlock(round)
 		e.commit(txs)
 		e.removeIncluded(txs)
-		if round%3 == 0 {
+		reset := round%3 == 0
+		if reset {
 			e.fast.ResetFastRecheck()
 		}
-		hits := e.hits
+		hits, misses := e.hits, e.misses
 		e.recheck()
 		e.requireSameCheckState(round)
-		if e.hits == hits {
-			allMiss++
+		if reset {
+			require.Equal(t, hits, e.hits, "round %d: a recheck hit after the records were dropped", round)
+			require.Greater(t, e.misses, misses, "round %d: nothing was rechecked", round)
 		}
 	}
-	require.GreaterOrEqual(t, allMiss, 4, "every third recheck must miss everywhere")
 	require.Positive(t, e.hits)
 }
 
@@ -658,8 +658,11 @@ func TestFastRecheckConcurrentSimulate(t *testing.T) {
 			}
 		}
 	}()
+	// Stop the goroutine before the deferred Close calls, also when a check fails.
+	defer func() {
+		close(stop)
+		<-done
+	}()
 	e.runEq(5)
-	close(stop)
-	<-done
 	require.Positive(t, e.hits)
 }

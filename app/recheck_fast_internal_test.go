@@ -5,6 +5,7 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -71,7 +72,7 @@ func TestUtiaFeePayerMalformed(t *testing.T) {
 	msgAny, err := codectypes.NewAnyWithValue(banktypes.NewMsgSend(addr, addr, nil))
 	require.NoError(t, err)
 	single := &txtypes.ModeInfo{Sum: &txtypes.ModeInfo_Single_{Single: &txtypes.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT}}}
-	for name, fee := range map[string]*txtypes.Fee{"no fee": nil, "bad granter": {Granter: "garbage"}} {
+	for name, fee := range map[string]*txtypes.Fee{"no fee": nil, "bad granter": {Amount: sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)), Granter: "garbage"}} {
 		raw, err := (&txtypes.Tx{
 			Body:       &txtypes.TxBody{Messages: []*codectypes.Any{msgAny}},
 			AuthInfo:   &txtypes.AuthInfo{SignerInfos: []*txtypes.SignerInfo{{ModeInfo: single}}, Fee: fee},
@@ -80,6 +81,10 @@ func TestUtiaFeePayerMalformed(t *testing.T) {
 		require.NoError(t, err, name)
 		sdkTx, err := enc.TxConfig.TxDecoder()(raw)
 		require.NoError(t, err, name)
+		if fee != nil {
+			// The fee passes utiaFeePayer's checks, so it reaches the panicking accessor.
+			require.Panics(t, func() { sdkTx.(sdk.FeeTx).FeeGranter() }, name)
+		}
 		require.Nil(t, utiaFeePayer(sdkTx), name)
 	}
 }
