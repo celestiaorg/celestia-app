@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"time"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	cryptov2 "github.com/cometbft/cometbft/proto/tendermint/crypto"
@@ -17,6 +16,7 @@ import (
 	typesv1 "github.com/tendermint/tendermint/proto/tendermint/types"
 	versionv1 "github.com/tendermint/tendermint/proto/tendermint/version"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type RemoteABCIClientV1 struct {
@@ -31,6 +31,9 @@ type RemoteABCIClientV1 struct {
 	chainID string
 	// initialAppVersion is the app version that was parsed from the genesis file or state
 	initialAppVersion uint64
+	// batchUnsupported is set once the child did not acknowledge a DeliverTx
+	// batch, so later blocks use per-tx calls directly.
+	batchUnsupported bool
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
@@ -96,7 +99,6 @@ func (a *RemoteABCIClientV1) Commit() (*abciv2.ResponseCommit, error) {
 
 // FinalizeBlock implements abciv2.ABCI
 func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*abciv2.ResponseFinalizeBlock, error) {
-	tStart := time.Now()
 	appVersion := a.endBlockConsensusAppVersion
 	if appVersion == 0 {
 		infoResp, err := a.Info(&abciv2.RequestInfo{})
@@ -119,7 +121,6 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		}
 	}
 
-	tInfo := time.Now()
 	commitInfo := commitInfoV2ToV1(&req.DecidedLastCommit)
 
 	beginBlockResp, err := a.BeginBlock(context.Background(), &abciv1.RequestBeginBlock{
@@ -152,13 +153,11 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		return nil, err
 	}
 
-	tBegin := time.Now()
 	commitBlockResps, err := a.deliverTxs(req.Txs)
 	if err != nil {
 		return nil, err
 	}
 
-	tDeliver := time.Now()
 	endBlockResp, err := a.EndBlock(
 		context.Background(),
 		&abciv1.RequestEndBlock{
@@ -170,7 +169,6 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		return nil, err
 	}
 
-	tEnd := time.Now()
 	// convert events
 	var events []abciv2.Event
 	events = append(events, abciEventV1ToV2(beginBlockResp.Events...)...)
@@ -192,13 +190,9 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
 
 	// commit result
-	tConv := time.Now()
 	commitResp, err := a.ABCIApplicationClient.Commit(context.Background(), &abciv1.RequestCommit{}, grpc.WaitForReady(true))
 	if err != nil {
 		return nil, err
-	}
-	if muxTimingEnabled {
-		muxTiming.record(len(req.Txs), tInfo.Sub(tStart), tBegin.Sub(tInfo), tDeliver.Sub(tBegin), tEnd.Sub(tDeliver), tConv.Sub(tEnd), time.Since(tConv))
 	}
 
 	// set the retain height, used in commit noop
@@ -675,17 +669,25 @@ func timeoutInfoV1ToV2(info abciv1.TimeoutsInfo) abciv2.TimeoutInfo {
 	}
 }
 
-// deliverTxBatchMagic must match the patched child's abci/types.DeliverTxBatchMagic.
-const deliverTxBatchMagic = "\xffCELESTIA-DELIVERTX-BATCH-V1"
+// These must match the patched child's abci/types.DeliverTxBatchMagic and
+// DeliverTxBatchMetadataKey/Value. The child only treats a payload as a batch
+// when the call carries the metadata, so a raw block tx that starts with the
+// magic is never mistaken for a batch.
+const (
+	deliverTxBatchMagic         = "\xffCELESTIA-DELIVERTX-BATCH-V1"
+	deliverTxBatchMetadataKey   = "x-celestia-delivertx-batch"
+	deliverTxBatchMetadataValue = "v1"
+)
 
 var muxBatchEnabled = os.Getenv("CELESTIA_MUX_BATCH") == "1"
 
 // deliverTxs executes txs in order on the remote app. With CELESTIA_MUX_BATCH=1
-// it sends all txs in one round trip to a child that supports batching, and
-// falls back to per-tx calls if the child does not recognise the batch (an
-// unpatched child rejects the undecodable payload without changing state).
+// it sends all txs in one round trip to a child that supports batching. If the
+// child does not acknowledge the batch (an unpatched child rejects the
+// undecodable payload without changing state), it falls back to per-tx calls
+// and stops batching for this client.
 func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliverTx, error) {
-	if muxBatchEnabled && len(txs) > 1 {
+	if muxBatchEnabled && !a.batchUnsupported && len(txs) > 1 {
 		var tmp [binary.MaxVarintLen64]byte
 		buf := bytes.NewBuffer(make([]byte, 0, len(deliverTxBatchMagic)+len(txs)*binary.MaxVarintLen64))
 		buf.WriteString(deliverTxBatchMagic)
@@ -694,7 +696,8 @@ func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliver
 			buf.Write(tmp[:k])
 			buf.Write(tx)
 		}
-		resp, err := a.DeliverTx(context.Background(), &abciv1.RequestDeliverTx{Tx: buf.Bytes()}, grpc.WaitForReady(true), grpc.MaxCallSendMsgSize(math.MaxInt32), grpc.MaxCallRecvMsgSize(math.MaxInt32))
+		ctx := metadata.AppendToOutgoingContext(context.Background(), deliverTxBatchMetadataKey, deliverTxBatchMetadataValue)
+		resp, err := a.DeliverTx(ctx, &abciv1.RequestDeliverTx{Tx: buf.Bytes()}, grpc.WaitForReady(true), grpc.MaxCallSendMsgSize(math.MaxInt32), grpc.MaxCallRecvMsgSize(math.MaxInt32))
 		if err != nil {
 			return nil, err
 		}
@@ -719,6 +722,7 @@ func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliver
 			return out, nil
 		}
 		// child does not support batching: fall through to per-tx calls
+		a.batchUnsupported = true
 	}
 	out := make([]*abciv1.ResponseDeliverTx, 0, len(txs))
 	for _, tx := range txs {
@@ -729,31 +733,4 @@ func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliver
 		out = append(out, r)
 	}
 	return out, nil
-}
-
-var muxTimingEnabled = os.Getenv("CELESTIA_MUX_TIMING") == "1"
-
-type muxTimingAgg struct {
-	n, txs                                  int64
-	info, begin, deliver, end, conv, commit int64
-}
-
-// muxTiming is only touched from FinalizeBlock, which runs on the serialized consensus connection.
-var muxTiming muxTimingAgg
-
-func (m *muxTimingAgg) record(txs int, info, begin, deliver, end, conv, commit time.Duration) {
-	m.n++
-	m.txs += int64(txs)
-	m.info += int64(info)
-	m.begin += int64(begin)
-	m.deliver += int64(deliver)
-	m.end += int64(end)
-	m.conv += int64(conv)
-	m.commit += int64(commit)
-	if m.n == 500 {
-		ms := func(v int64) float64 { return float64(v) / float64(m.n) / 1e6 }
-		fmt.Fprintf(os.Stderr, "MUXTIMING blocks=%d avg_txs=%.1f info=%.2fms begin=%.2fms deliver=%.2fms end=%.2fms conv=%.2fms commit=%.2fms\n",
-			m.n, float64(m.txs)/float64(m.n), ms(m.info), ms(m.begin), ms(m.deliver), ms(m.end), ms(m.conv), ms(m.commit))
-		*m = muxTimingAgg{}
-	}
 }
