@@ -39,17 +39,7 @@ func TestCheckTxChargesGasPerSDKMessage(t *testing.T) {
 		signer := createSigner(t, kr, accounts[0], enc.TxConfig, fetchedAcc.GetAccountNumber())
 		addr := signer.Account(accounts[0]).Address()
 
-		// Six MsgExec with 99 empty MsgSends each weigh MaxSDKMessages.
-		msgs := make([]sdk.Msg, 6)
-		for i := range msgs {
-			inner := make([]sdk.Msg, 99)
-			for j := range inner {
-				inner[j] = &banktypes.MsgSend{}
-			}
-			exec := authz.NewMsgExec(addr, inner)
-			msgs[i] = &exec
-		}
-		rawTx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(gasLimit, appconsts.DefaultMinGasPrice))
+		rawTx, _, err := signer.CreateTx(emptyMsgExecs(addr), user.SetGasLimitAndGasPrice(gasLimit, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)
 
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
@@ -80,4 +70,20 @@ func TestCheckTxChargesGasPerSDKMessage(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, sdkerrors.ErrOutOfGas.ABCICode(), resp.Code, resp.Log)
 	})
+}
+
+// emptyMsgExecs returns MsgExecs of empty MsgSends that together weigh
+// MaxSDKMessages: each weighs one plus the messages it dispatches.
+func emptyMsgExecs(addr sdk.AccAddress) []sdk.Msg {
+	var msgs []sdk.Msg
+	// Chunked because the decoder rejects more nested messages.
+	for left := appconsts.MaxSDKMessages; left > 0; left -= codectypes.MaxUnpackAnySubCalls {
+		inner := make([]sdk.Msg, min(left, codectypes.MaxUnpackAnySubCalls)-1)
+		for j := range inner {
+			inner[j] = &banktypes.MsgSend{}
+		}
+		exec := authz.NewMsgExec(addr, inner)
+		msgs = append(msgs, &exec)
+	}
+	return msgs
 }

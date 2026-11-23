@@ -2,17 +2,15 @@
 
 package appconsts
 
-// The following consts are not consensus breaking and will be applied straight
-// after this binary is started.
-// The message caps softly constrain the processing time of blocks to 0.25sec,
-// except MaxISMSignatures, which relies on gas pricing instead; see its comment.
-// The benchmarks used to find these limits can be found in `app/benchmarks`.
+// ProcessProposal enforces these caps, so changing one needs an app version.
+// They keep block processing under ~0.25s, except MaxISMSignatures (gas-priced; see its comment).
+// The benchmarks behind them are in `app/benchmarks`.
 const (
 	// MaxPFBMessages is the maximum number of PFB messages that a block can contain.
 	MaxPFBMessages = 200
 
 	// MaxSDKMessages is the maximum number of SDK messages, aside from PFBs, that a block can contain.
-	MaxSDKMessages = 600
+	MaxSDKMessages = 300
 
 	// MaxZKProofMessages bounds messages that verify a ZK proof or parse a verifying key in a block.
 	MaxZKProofMessages = 64

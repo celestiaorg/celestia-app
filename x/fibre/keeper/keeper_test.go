@@ -754,6 +754,22 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryReturnsShardRetenti
 	})
 }
 
+// The query is public, so a malformed promise must return an error instead of
+// panicking in the stateful checks.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryRejectsMalformedPromise() {
+	suite.T().Run("signer public key of the wrong length", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+		paymentPromise.SignerPublicKey.Key = []byte{1, 2, 3}
+
+		request := &types.QueryValidatePaymentPromiseRequest{Promise: paymentPromise}
+		suite.NotPanics(func() {
+			_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, request)
+			suite.Equal(codes.InvalidArgument, status.Code(err))
+		})
+	})
+}
+
 // twoPromisesFundedForOne returns two distinct promises from the same signer
 // whose escrow account is funded for exactly one of them, i.e. the second
 // promise is a double-spend attempt.

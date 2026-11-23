@@ -18,6 +18,10 @@ const (
 	// OutOfOrderHandlerKey is the key used to set the out of order prepare
 	// proposal handler.
 	OutOfOrderHandlerKey = "out_of_order"
+
+	// BadDataRootHandlerKey is the key used to set the prepare proposal
+	// handler that builds an honest block and then corrupts its data root.
+	BadDataRootHandlerKey = "bad_data_root"
 )
 
 // BehaviorConfig defines the malicious behavior for the application. It
@@ -36,7 +40,8 @@ type PrepareProposalHandler func(req *abci.RequestPrepareProposal) (*abci.Respon
 // PrepareProposalHandlerMap is a map of all the known prepare proposal handlers.
 func (a *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
 	return map[string]PrepareProposalHandler{
-		OutOfOrderHandlerKey: a.OutOfOrderPrepareProposal,
+		OutOfOrderHandlerKey:  a.OutOfOrderPrepareProposal,
+		BadDataRootHandlerKey: a.BadDataRootPrepareProposal,
 	}
 }
 

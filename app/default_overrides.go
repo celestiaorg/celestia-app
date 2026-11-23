@@ -302,7 +302,8 @@ var AppConfigTemplate = serverconfig.DefaultConfigTemplate + `
 [fast-recheck]
 
 # Enable replays a mempool tx's recorded ante writes on recheck when every value they read is unchanged.
-enable = false
+# Set it to false to run the full ante on every recheck.
+enable = true
 `
 
 func DefaultAppConfig() *serverconfig.Config {

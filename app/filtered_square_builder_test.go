@@ -150,6 +150,11 @@ func newBlobTx(t *testing.T, txConfig client.TxConfig) []byte {
 	return blobTxBytes
 }
 
+// TestPerClassCapsFitCoreTxLimit keeps every class's cap reachable in a block core accepts.
+func TestPerClassCapsFitCoreTxLimit(t *testing.T) {
+	require.LessOrEqual(t, appconsts.MaxSDKMessages+appconsts.MaxPFBMessages+appconsts.MaxPayForFibreMessages, coretypes.MaxBlockTxs)
+}
+
 func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	txConfig := encConf.TxConfig

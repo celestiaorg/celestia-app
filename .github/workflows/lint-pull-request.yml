@@ -4,9 +4,9 @@ name: lint-pull-request
 # GitHub's merge queue requires every required check to report on the
 # merge-group commit, but pull_request_target never fires there, so the check
 # would never appear and the queue would wait on it forever. On merge_group
-# the job runs with its validation step skipped and reports success: the title
-# was already validated on the pull request itself, and a merge-group commit
-# has no PR title to check.
+# the job is skipped, which satisfies a required check without waiting for a
+# runner: the title was already validated on the pull request itself, and a
+# merge-group commit has no PR title to check.
 on:
   pull_request_target:
     types:
@@ -21,10 +21,10 @@ permissions:
 jobs:
   main:
     name: conventional-commit-pr-title
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 #v6.1.2
-        if: github.event_name == 'pull_request_target'
         with:
           subjectPattern: '^\[(high|medium|low)\] \S.*$'
           subjectPatternError: |

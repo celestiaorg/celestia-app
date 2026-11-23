@@ -101,11 +101,18 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 		return nil, status.Errorf(codes.InvalidArgument, "%s header is not supported for this query", grpctypes.GRPCBlockHeightHeader)
 	}
 
+	// The gRPC endpoint is adversarial: check the format of the promise before
+	// the stateful checks, which assume a well-formed promise. For example,
+	// they derive the signer address and that panics on a key of the wrong
+	// length.
+	if err := req.Promise.ValidateBasic(); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid payment promise: %v", err)
+	}
+
 	ctx := sdk.UnwrapSDKContext(c)
 
-	// Perform stateful verification only
-	// Note: Stateless validation (signature, format checks) should be done by the caller
-	// before making this query, as it doesn't require state access
+	// Note: The signature is verified below, and only when the promise is
+	// reserved against the validator-local budget.
 	expirationTime, err := k.ValidatePaymentPromiseStateful(ctx, &req.Promise)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

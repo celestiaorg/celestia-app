@@ -87,11 +87,10 @@ const (
 	// single request keeps a query priced like any other message.
 	MaxModuleQuerySafeRequests = 1
 
-	// GasPerAdditionalSDKMessage is charged for every message a tx counts
-	// against MaxSDKMessages beyond the first, so taking the whole per-block
-	// budget costs at least ~6M gas. It is below the ~36k gas a MsgSend uses,
-	// so multi-message txs pay well under twice their execution cost.
-	GasPerAdditionalSDKMessage uint64 = 10_000
+	// GasPerAdditionalSDKMessage is charged per message a tx counts against MaxSDKMessages beyond
+	// the first, so filling the whole budget costs (MaxSDKMessages-1) × this. It is below the
+	// ~60k fixed cost of a separate tx, so batching messages stays cheaper than splitting them.
+	GasPerAdditionalSDKMessage uint64 = 20_000
 )
 
 // MinCommissionRate is 20%.

@@ -303,10 +303,10 @@ The SDK module does not insert commitments or blobs into the data square. Data-s
 
 A valid PayForFibre transaction for square construction is a plain SDK transaction that contains exactly one `MsgPayForFibre` and no other messages. PrepareProposal separates these transactions from normal SDK transactions, drops mixed or multi-PFF transactions, skips transactions after `MaxPayForFibreMessages`, and appends accepted Fibre transactions to the square builder. ProcessProposal rejects a block if a plain SDK transaction contains multiple `MsgPayForFibre` messages, mixes `MsgPayForFibre` with other messages, or causes the block to exceed `MaxPayForFibreMessages`.
 
-The current production constant is:
+From app version 12 the constant is 500 (200 in earlier versions):
 
 ```go
-const MaxPayForFibreMessages = 200
+const MaxPayForFibreMessages = 500
 ```
 
 `x/fibre/types.TryParseFibreTx` parses the `MsgPayForFibre`, requires a present `payment_promise`, decodes the promise namespace, decodes the transaction `signer` bech32 address to raw bytes, and builds the system blob with:

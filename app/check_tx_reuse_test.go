@@ -49,7 +49,7 @@ func TestCheckTxReuseMatchesMain(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(numAccounts)
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
 	newApp := func() *app.App {
-		a := testutil.InitialiseTestAppWithGenesis(testutil.NewTestApp(), app.DefaultConsensusParams(), genesis)
+		a := testutil.InitialiseTestAppWithGenesis(newFullRecheckApp(), app.DefaultConsensusParams(), genesis)
 		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash()})
 		require.NoError(t, err)
 		_, err = a.Commit()
@@ -198,7 +198,7 @@ func TestRecheckUsesKeptDecode(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
-	a := testutil.InitialiseTestAppWithGenesis(testutil.NewTestApp(), app.DefaultConsensusParams(), genesis)
+	a := testutil.InitialiseTestAppWithGenesis(newFullRecheckApp(), app.DefaultConsensusParams(), genesis)
 	_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash()})
 	require.NoError(t, err)
 	_, err = a.Commit()

@@ -26,7 +26,7 @@ func TestPrepareProposalPFFDifferential(t *testing.T) {
 	}
 
 	var (
-		numValid    = 300
+		numValid    = 3 * appconsts.MaxPayForFibreMessages / 2
 		numExpiring = appconsts.MaxPayForFibreCandidates / 2
 		numUnfunded = appconsts.MaxPayForFibreCandidates / 2
 		numBadCert  = 100
@@ -86,7 +86,7 @@ func TestPrepareProposalPFFDifferential(t *testing.T) {
 		// The candidate bound used to fill with failing txs and keep no PayForFibre tx.
 		{"pff-ante-fail-flood", slices.Concat(failing, valid[:50]), 50},
 		// At least MaxPayForFibreMessages valid txs within the first MaxPayForFibreCandidates.
-		{"pff-ante-fail-under-bound", slices.Concat(expiring[:150], valid), appconsts.MaxPayForFibreMessages},
+		{"pff-ante-fail-under-bound", slices.Concat(expiring[:numExpiring/2], valid), appconsts.MaxPayForFibreMessages},
 		{"pff-ante-fail-interleaved-over-cap", interleave(failing, valid), appconsts.MaxPayForFibreMessages},
 		{"pff-bad-cert-under-bound", slices.Concat(badCert, valid), appconsts.MaxPayForFibreMessages},
 		{"pff-mixed-fail-under-cap", interleave(slices.Concat(badCert[:50], expiring[:50]), valid[:150]), 150},

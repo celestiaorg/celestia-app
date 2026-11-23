@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,7 +53,7 @@ func TestSigCacheCapacity(t *testing.T) {
 
 	// A block's worth of PayForFibre messages fits many times over, so the
 	// entries a proposal writes survive until the next phase reads them.
-	perBlock := sigCacheEntriesPerTx * 200 // appconsts.MaxPayForFibreMessages
+	perBlock := sigCacheEntriesPerTx * appconsts.MaxPayForFibreMessages
 	require.Greater(t, SigCacheCapacity(DefaultMempoolMaxTxs), perBlock*10)
 }
 
