@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"sync"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	cryptov2 "github.com/cometbft/cometbft/proto/tendermint/crypto"
@@ -33,20 +34,31 @@ type RemoteABCIClientV1 struct {
 	// deliverTxBatch enables sending a block's txs to the child in one
 	// DeliverTx call (app.toml performance.delivertx-batch).
 	deliverTxBatch bool
-	// batchProbed and batchSupported cache the child's answer to the batch
-	// capability probe.
-	batchProbed, batchSupported bool
+	// probe caches the child's answer to the batch capability probe; it is
+	// shared by all clients for the same child process.
+	probe *batchProbe
+}
+
+// batchProbe records whether a child process supports DeliverTx batches.
+type batchProbe struct {
+	mu                sync.Mutex
+	probed, supported bool
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-// deliverTxBatch enables DeliverTx batching when the child supports it.
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64, deliverTxBatch bool) *RemoteABCIClientV1 {
+// deliverTxBatch enables DeliverTx batching when the child supports it; probe
+// caches that answer across clients for the same child (nil for a new one).
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64, deliverTxBatch bool, probe *batchProbe) *RemoteABCIClientV1 {
+	if probe == nil {
+		probe = &batchProbe{}
+	}
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
 		initialAppVersion:     initialAppVersion,
 		deliverTxBatch:        deliverTxBatch,
+		probe:                 probe,
 	}
 }
 
@@ -687,23 +699,44 @@ const (
 // childSupportsBatch asks the child once, via Echo, whether it can execute
 // DeliverTx batches. An unpatched child echoes the probe back unchanged.
 func (a *RemoteABCIClientV1) childSupportsBatch() (bool, error) {
-	if a.batchProbed {
-		return a.batchSupported, nil
+	p := a.probe
+	if p == nil {
+		p = &batchProbe{}
+		a.probe = p
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.probed {
+		return p.supported, nil
 	}
 	resp, err := a.Echo(context.Background(), &abciv1.RequestEcho{Message: deliverTxBatchProbe}, grpc.WaitForReady(true))
 	if err != nil {
 		return false, err
 	}
-	a.batchProbed = true
-	a.batchSupported = resp.Message == deliverTxBatchProbeAck
-	return a.batchSupported, nil
+	p.probed = true
+	p.supported = resp.Message == deliverTxBatchProbeAck
+	return p.supported, nil
+}
+
+// maxDeliverTxBatchBytes caps a batch payload well below the child's 75 MiB
+// gRPC receive limit; larger blocks use per-tx calls.
+var maxDeliverTxBatchBytes = 64 << 20
+
+// deliverTxBatchSize returns the encoded size of a batch payload for txs.
+func deliverTxBatchSize(txs [][]byte) int {
+	var tmp [binary.MaxVarintLen64]byte
+	n := len(deliverTxBatchMagic)
+	for _, tx := range txs {
+		n += binary.PutUvarint(tmp[:], uint64(len(tx))) + len(tx)
+	}
+	return n
 }
 
 // deliverTxs executes txs in order on the remote app. When batching is enabled
 // and the child supports it, all txs are sent in one round trip; otherwise each
 // tx is sent with its own DeliverTx call.
 func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliverTx, error) {
-	if a.deliverTxBatch && len(txs) > 1 {
+	if a.deliverTxBatch && len(txs) > 1 && deliverTxBatchSize(txs) <= maxDeliverTxBatchBytes {
 		supported, err := a.childSupportsBatch()
 		if err != nil {
 			return nil, err

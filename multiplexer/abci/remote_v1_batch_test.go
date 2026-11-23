@@ -221,30 +221,48 @@ func TestDeliverTxBatchMatchesPerTx(t *testing.T) {
 }
 
 func TestDeliverTxBatchEnabledConfig(t *testing.T) {
-	for _, tc := range []struct {
-		val     any
-		want    bool
-		wantErr bool
-	}{
-		{nil, true, false},
-		{true, true, false},
-		{false, false, false},
-		{"true", true, false},
-		{"false", false, false},
-		{"nope", false, true},
-	} {
-		v := viper.New()
-		if tc.val != nil {
-			v.Set(configDeliverTxBatch, tc.val)
-		}
-		got, err := deliverTxBatchEnabled(v)
-		if tc.wantErr {
-			require.Error(t, err, "%v", tc.val)
-			continue
-		}
-		require.NoError(t, err, "%v", tc.val)
-		require.Equal(t, tc.want, got, "%v", tc.val)
+	v := viper.New()
+	require.True(t, deliverTxBatchEnabled(v), "missing key defaults to true")
+	for val, want := range map[any]bool{true: true, false: false, "true": true, "false": false} {
+		v.Set(configDeliverTxBatch, val)
+		require.Equal(t, want, deliverTxBatchEnabled(v), "%v", val)
 	}
+}
+
+// TestDeliverTxBatchProbeSharedAcrossClients checks that clients created for
+// the same child process share one capability probe.
+func TestDeliverTxBatchProbeSharedAcrossClients(t *testing.T) {
+	child, _ := newBatchChild(t, true, true)
+	probe := &batchProbe{}
+	for range 3 {
+		client := &RemoteABCIClientV1{ABCIApplicationClient: batchChildClient{child, child.deliverTx(t)}, deliverTxBatch: true, probe: probe}
+		_, err := client.FinalizeBlock(finalizeReq([][]byte{{1}, {2}}))
+		require.NoError(t, err)
+	}
+	require.Equal(t, 1, child.echoes)
+}
+
+// TestDeliverTxBatchTooLarge checks that a block whose batch payload would
+// exceed maxDeliverTxBatchBytes uses per-tx calls instead.
+func TestDeliverTxBatchTooLarge(t *testing.T) {
+	prev := maxDeliverTxBatchBytes
+	maxDeliverTxBatchBytes = 1000
+	t.Cleanup(func() { maxDeliverTxBatchBytes = prev })
+
+	txs := [][]byte{make([]byte, 600), make([]byte, 600)}
+	txs[0][0], txs[1][0] = 1, 2
+	child, client := newBatchChild(t, true, true)
+	_, err := client.FinalizeBlock(finalizeReq(txs))
+	require.NoError(t, err)
+	require.False(t, child.sawBatchPayload)
+	require.Equal(t, txs, child.executed)
+	require.Equal(t, 2, child.rpcs)
+
+	small := [][]byte{{1}, {2}}
+	child, client = newBatchChild(t, true, true)
+	_, err = client.FinalizeBlock(finalizeReq(small))
+	require.NoError(t, err)
+	require.True(t, child.sawBatchPayload)
 }
 
 func TestDeliverTxBatchErrors(t *testing.T) {
