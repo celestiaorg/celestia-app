@@ -275,11 +275,19 @@ func (fx *icaHostFuzzFixture) handshake(t *testing.T, port, version string, orde
 	hops := []string{ch.host.ConnectionID}
 	cap, err := fx.app.ScopedIBCKeeper.NewCapability(ctx, host.ChannelCapabilityPath(icatypes.HostPortID, channelID))
 	require.NoError(t, err)
+	activeID, active := fx.app.ICAHostKeeper.GetActiveChannelID(ctx, ch.host.ConnectionID, port)
+	if active {
+		existing, found := fx.app.IBCKeeper.ChannelKeeper.GetChannel(ctx, icatypes.HostPortID, activeID)
+		active = !found || existing.State != channeltypes.CLOSED
+	}
 	var negotiated string
 	mustNotPanic(t, "ICA OnChanOpenTry", func() {
 		negotiated, err = fx.stack.OnChanOpenTry(ctx, channeltypes.Order(order), hops, icatypes.HostPortID, channelID, cap,
 			channeltypes.NewCounterparty(port, "channel-999"), version)
 	})
+	if active {
+		require.Error(t, err, "reopened active channel %s for port %q", activeID, port)
+	}
 	if err != nil {
 		return false
 	}
