@@ -38,6 +38,8 @@ import (
 const (
 	msgSendURL = "/cosmos.bank.v1beta1.MsgSend"
 	msgExecURL = "/cosmos.authz.v1beta1.MsgExec"
+
+	msgUpdateMinfeeParamsURL = "/celestia.minfee.v1.MsgUpdateMinfeeParams"
 	// nonCriticalField has bit 11 set, so the SDK decoder lets it through in
 	// TxBody and in the messages inside it.
 	nonCriticalField = 1025
@@ -341,9 +343,12 @@ func TestCanonicalTxDecoderRejectsWireForms(t *testing.T) {
 		{
 			name: "non-minimal tag in TxRaw",
 			raw: func() []byte {
+				// Only the tag of body_bytes is non-minimal; fields 2 and 3
+				// follow once each, so no other rule applies.
 				b := []byte{0x8a, 0x00} // tag of field 1, bytes, in two bytes
 				b = protowire.AppendBytes(b, f.body)
-				return append(b, txRawBytes(nil, f.authInfo)...)
+				b = appendBytesField(b, 2, f.authInfo)
+				return appendBytesField(b, 3, bytes.Repeat([]byte{7}, 64))
 			}(),
 		},
 		{
@@ -474,6 +479,20 @@ func TestCanonicalTxDecoderRejectsStringsAndDecimals(t *testing.T) {
 	sendWithAmount := func(amount []byte) []byte {
 		return txRawBytes(bodyBytes("", anyBytes(msgSendURL, msgSendBytes(testFrom, testTo, coinBytes("utia", amount)))), f.authInfo)
 	}
+	// minfeeWithPrice holds a MsgUpdateMinfeeParams whose non-nullable
+	// LegacyDec network_min_gas_price is price, or left out when price is nil.
+	minfeeWithPrice := func(price []byte) []byte {
+		var params []byte
+		if price != nil {
+			params = appendBytesField(nil, 1, price)
+		}
+		msg := appendBytesField(appendBytesField(nil, 1, []byte(testFrom)), 2, params)
+		return txRawBytes(bodyBytes("", anyBytes(msgUpdateMinfeeParamsURL, msg)), f.authInfo)
+	}
+	// The canonical form of LegacyDec 0.002 decodes, so the cases below
+	// fail only on the LegacyDec value.
+	_, err := f.decode(minfeeWithPrice([]byte("2000000000000000")))
+	require.NoError(t, err)
 	testCases := []struct {
 		name string
 		raw  []byte
@@ -493,6 +512,11 @@ func TestCanonicalTxDecoderRejectsStringsAndDecimals(t *testing.T) {
 		{"empty coin amount nested in MsgExec", txRawBytes(bodyBytes("", anyBytes(msgExecURL, msgExecBytes(
 			anyBytes(msgSendURL, msgSendBytes(testFrom, testTo, coinBytes("utia", []byte{}))),
 		))), f.authInfo)},
+		{"LegacyDec left out of a message", minfeeWithPrice(nil)},
+		{"empty LegacyDec", minfeeWithPrice([]byte{})},
+		{"LegacyDec with a plus sign", minfeeWithPrice([]byte("+2000000000000000"))},
+		{"LegacyDec with a leading zero", minfeeWithPrice([]byte("02000000000000000"))},
+		{"negative zero LegacyDec", minfeeWithPrice([]byte("-0"))},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -510,6 +534,10 @@ func TestCanonicalTxDecoderAcceptsEncoderOutput(t *testing.T) {
 	decode := config.TxConfig.TxDecoder()
 	sdkDecode := authtx.DefaultTxDecoder(config.Codec)
 	anys := candidateAnys(t)
+	// These messages hold a client state Any and a consensus state Any.
+	// fillFields sets every Any to the same value, so no filled form decodes.
+	wantSkipped := []string{"/ibc.core.client.v1.MsgCreateClient", "/ibc.core.client.v1.MsgUpgradeClient"}
+	var skipped []string
 	checked, withAny := 0, 0
 	for _, url := range config.InterfaceRegistry.ListImplementations(sdk.MsgInterfaceProtoName) {
 		// Try each Any value until the SDK decoder accepts the tx.
@@ -520,7 +548,6 @@ func TestCanonicalTxDecoderAcceptsEncoderOutput(t *testing.T) {
 			filled := fillFields(reflect.ValueOf(msg).Elem(), anyValue, 0)
 			raw, ok := encodeTx(t, config, msg)
 			if !ok {
-				t.Logf("%s: cannot be set", url)
 				break
 			}
 			sdkTx, sdkErr := sdkDecode(raw)
@@ -542,9 +569,11 @@ func TestCanonicalTxDecoderAcceptsEncoderOutput(t *testing.T) {
 			break
 		}
 		if !accepted {
-			t.Logf("%s: the SDK decoder rejects every filled form", url)
+			skipped = append(skipped, url)
 		}
 	}
+	// Every registered message must be checked, except the known skips.
+	require.ElementsMatch(t, wantSkipped, skipped)
 	t.Logf("checked %d message types, %d with an Any set", checked, withAny)
 	require.Greater(t, checked, 100)
 	require.Greater(t, withAny, 10)
