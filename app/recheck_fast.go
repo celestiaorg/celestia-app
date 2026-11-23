@@ -13,13 +13,21 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/spf13/cast"
 )
 
-// FlagFastRecheck turns on fast recheck: app.toml `[fast-recheck] enable = true`.
+// FlagFastRecheck is app.toml `[fast-recheck] enable`; fast recheck is on unless it is false.
 const FlagFastRecheck = "fast-recheck.enable"
+
+// fastRecheckEnabled reports whether appOpts leaves fast recheck on.
+func fastRecheckEnabled(appOpts servertypes.AppOptions) bool {
+	v := appOpts.Get(FlagFastRecheck)
+	return v == nil || cast.ToBool(v)
+}
 
 // fastRecheck answers a recheck by replaying the writes of the tx's last passed
 // ante pass when every store value that pass read is unchanged, so the full

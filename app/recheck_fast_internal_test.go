@@ -15,6 +15,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -130,6 +131,15 @@ func TestAnteTraceUntracedAccessFails(t *testing.T) {
 	ms.GetStore(k).(storetypes.KVStore).Get([]byte("k"))
 	require.False(t, tr.failed, "GetStore of a KV store is traced")
 	require.Len(t, tr.reads, 1)
+}
+
+// A missing setting enables fast recheck, and only an explicit false disables it.
+func TestFastRecheckEnabled(t *testing.T) {
+	require.True(t, fastRecheckEnabled(simtestutil.AppOptionsMap{}), "a missing setting enables it")
+	require.True(t, fastRecheckEnabled(simtestutil.AppOptionsMap{FlagFastRecheck: true}))
+	require.True(t, fastRecheckEnabled(simtestutil.AppOptionsMap{FlagFastRecheck: "true"}))
+	require.False(t, fastRecheckEnabled(simtestutil.AppOptionsMap{FlagFastRecheck: false}))
+	require.False(t, fastRecheckEnabled(simtestutil.AppOptionsMap{FlagFastRecheck: "false"}))
 }
 
 // The records stay within their entry and byte budgets, and a Commit drops the

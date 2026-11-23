@@ -17,13 +17,23 @@ import (
 	minfeetypes "github.com/celestiaorg/celestia-app/v11/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
+
+// newFullRecheckApp is a test app with fast recheck off, whose hits skip the
+// kept decode the recheck tests compare.
+func newFullRecheckApp() *app.App {
+	return app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0,
+		simtestutil.AppOptionsMap{app.FlagFastRecheck: false}, baseapp.SetChainID(testutil.ChainID))
+}
 
 // TestRecheckPayForFibreMatchesBaseApp rechecks the same pending PayForFibre
 // txs on two identical apps, through the cached decode on one and through
@@ -44,7 +54,7 @@ func TestRecheckPayForFibreMatchesBaseApp(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(numAccounts)
 	genesis, valSet, kr := testutil.GenesisStateWithSingleValidator(testutil.NewTestApp(), accounts...)
 	newApp := func() *app.App {
-		a := testutil.InitialiseTestAppWithGenesis(testutil.NewTestApp(), app.DefaultConsensusParams(), genesis)
+		a := testutil.InitialiseTestAppWithGenesis(newFullRecheckApp(), app.DefaultConsensusParams(), genesis)
 		_, err := a.FinalizeBlock(&abci.RequestFinalizeBlock{
 			Time: testutil.GenesisTime, Height: 1, Hash: a.LastCommitID().Hash, NextValidatorsHash: valSet.Hash(),
 		})
