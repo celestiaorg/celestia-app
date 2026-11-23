@@ -73,6 +73,17 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 - **Assumptions notes** live in `docs/plans/` and are never committed.
 - **Working notes are never committed**: implementation plans, review or audit findings, investigation logs, and similar agent working documents (e.g. `docs/<topic>-review.md`) go in the gitignored `docs/plans/` or the PR description, not in the diff. Before opening or updating a PR, check the diff for such files and remove them.
 
+## Cloud VMs
+
+Every session must follow this rule. Each newly created VM (cloud instance, droplet, etc.) must have a name that contains:
+
+1. The user name of the engineer who requested it (e.g. `rachid`).
+2. The ID of the session that created it.
+3. Its purpose (e.g. `loadtest`, `bench`).
+4. Its creation date (`YYYYMMDD`).
+
+Example: `rachid-<session-id>-loadtest-20261123`. If a provider's name length or character limits require it, shorten the session ID but keep all four parts.
+
 ## Pull Requests
 
 - Follow [README.md#contributing](README.md#contributing) for review levels. Use the higher level when unsure and reassess if scope changes.
