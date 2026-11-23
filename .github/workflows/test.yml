@@ -13,7 +13,7 @@ jobs:
     # already runs every package without -short on PRs, and test-short was the
     # slowest job in this workflow.
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
@@ -29,11 +29,12 @@ jobs:
           bash scripts/e2e_dockerfile_test.sh
           bash scripts/check_test_results_test.sh
           bash scripts/check_build_info_test.sh
+          bash scripts/ci_runner_test.sh
         timeout-minutes: 10
 
   test-e2e-compile:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: ./.github/actions/setup-go
@@ -49,7 +50,7 @@ jobs:
     # Coverage runs the same tests in the merge queue. Release/manual runs keep
     # this matrix because test-coverage.yml does not run on those events.
     if: github.event_name != 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -101,7 +102,7 @@ jobs:
     # The coverage suite excludes test/util, including its own regression tests.
     # Keep these tests on the combined merge result when go-test is skipped.
     if: github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: ./.github/actions/setup-go
@@ -137,7 +138,7 @@ jobs:
         timeout-minutes: 20
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     # The separately required test-coverage statuses gate the merge-group Go
     # suite. This aggregate gates the additional tests and ordinary PR suite.
     needs: [go-test, test-util, test-scripts, test-e2e-compile, test-multiplexer, build-e2e-artifacts, test-docker-e2e, test-arm64]
@@ -154,7 +155,7 @@ jobs:
     # Run only in the merge queue and on release branches. Not needed for PR
     # feedback since unit tests already validate module correctness.
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
@@ -167,7 +168,7 @@ jobs:
     # Run only in the merge queue and on release branches since E2E tests only
     # run there.
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -232,7 +233,7 @@ jobs:
     needs: build-e2e-artifacts
     # Run only in the merge queue and on release branches.
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       # Don't cancel the other e2e tests when one fails; each test is
       # independent and we want signal from all of them.

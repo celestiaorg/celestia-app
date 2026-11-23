@@ -26,7 +26,7 @@ jobs:
   # the merge job fails if this list misses one.
   test-coverage-shard:
     name: test-coverage-shard (${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
     strategy:
@@ -64,7 +64,7 @@ jobs:
   test-coverage:
     if: github.event_name != 'pull_request'
     needs: test-coverage-shard
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
       id-token: write
