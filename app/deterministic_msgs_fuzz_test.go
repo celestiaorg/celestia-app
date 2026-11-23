@@ -174,7 +174,9 @@ func checkPFMForwards(t *testing.T, memo string) {
 	t.Helper()
 	d := make(map[string]any)
 	if json.Unmarshal([]byte(memo), &d) != nil || d["forward"] == nil {
-		return // OnRecvPacket does not forward the packet.
+		// OnRecvPacket does not forward the packet; it passes it down as a plain transfer. A number out of the
+		// float64 range, such as 1e400 anywhere in the memo, fails this decode, so PFM does not forward either.
+		return
 	}
 	var m pfmtypes.PacketMetadata
 	require.NoError(t, json.Unmarshal([]byte(memo), &m), memo)
@@ -558,6 +560,12 @@ func (g *memoGen) next() {
 		}
 		g.in = s.in
 		g.clean = g.clean && s.clean
+		if s.sb.Len() > transfertypes.MaximumMemoLength {
+			// The memo is over the limit either way; escaping each layer again would double its size.
+			g.clean = false
+			g.sb.WriteString(`"` + strings.Repeat("p", transfertypes.MaximumMemoLength) + `"`)
+			return
+		}
 		g.sb.WriteString(jsonString(s.sb.String()))
 	case 4, 5:
 		g.choose(nil, `"abc"`, `""`, `"[1,2]"`, `"null"`, `"5"`, `"\"{}\""`, `"{\"a\":"`, `5`, `[1,{"a":1}]`, `true`)
@@ -629,4 +637,14 @@ func (g *memoGen) object() {
 		g.value()
 	}
 	g.close("}")
+}
+
+// TestMemoGenOutputBounded checks that a short input nesting string next memos does not grow the generated memo
+// exponentially.
+func TestMemoGenOutputBounded(t *testing.T) {
+	layer := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0}
+	g := &memoGen{in: bytes.Repeat(layer, 20), clean: true}
+	g.memo()
+	require.LessOrEqual(t, g.sb.Len(), 3*transfertypes.MaximumMemoLength)
+	require.False(t, g.clean)
 }
