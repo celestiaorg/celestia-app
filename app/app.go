@@ -226,7 +226,7 @@ type App struct {
 	sigCache *sigcache.Cache
 	// txHandoff passes BaseApp the decode CheckTx already holds.
 	txHandoff *txHandoff
-	// fastRecheck replays eligible rechecks from records; nil unless FlagFastRecheck is set.
+	// fastRecheck replays eligible rechecks from records; nil when FlagFastRecheck is false.
 	fastRecheck *fastRecheck
 	// recheckTxs keeps the decodes of admitted txs (PayForFibre ~31 KB each) for
 	// their rechecks, at most one per mempool slot.
@@ -612,7 +612,7 @@ func newApp(
 	app.SetPrepareProposal(app.PrepareProposalHandler)
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
-	if cast.ToBool(appOpts.Get(FlagFastRecheck)) {
+	if fastRecheckEnabled(appOpts) {
 		// A record outlives its tx by up to one Commit: room for two mempools.
 		app.fastRecheck = newFastRecheck(app, 2*maxTxs)
 	}

@@ -50,7 +50,7 @@ func (fx *checkTxFixture) runCheckTx(t *testing.T, raw []byte, typ abci.CheckTxT
 // newRecheckFixtures builds the same fixture on a stock app and on a fast
 // recheck app. Both are deterministic, so they start from the same state.
 func newRecheckFixtures(t *testing.T) [2]*checkTxFixture {
-	stock := newCheckTxFixture(t)
+	stock := newCheckTxFixtureWithOptions(t, simtestutil.AppOptionsMap{app.FlagFastRecheck: false})
 	fast := newCheckTxFixtureWithOptions(t, simtestutil.AppOptionsMap{app.FlagFastRecheck: true})
 	require.Equal(t, stock.txs, fast.txs)
 	require.Equal(t, stock.app.LastCommitID(), fast.app.LastCommitID())
