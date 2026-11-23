@@ -1,6 +1,9 @@
 version: "2"
 run:
   modules-download-mode: readonly
+  # Lint the simulation tests too.
+  build-tags:
+    - sims
 linters:
   enable:
     - copyloopvar

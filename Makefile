@@ -295,6 +295,13 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
+## test-sim-determinism: Run the simulation several times per seed and check that the app hash is the same. Set SIM_FLAGS to override, e.g. SIM_FLAGS="-Seed=7 -NumBlocks=50".
+SIM_FLAGS ?= -NumBlocks=200 -BlockSize=100
+test-sim-determinism:
+	@echo "--> Running app state determinism simulation"
+	@go test -tags sims -run TestAppStateDeterminism ./app -timeout 30m $(SIM_FLAGS)
+.PHONY: test-sim-determinism
+
 ## test-docker-e2e: Run end to end tests via docker.
 test-docker-e2e:
 	@if [ -z "$(test)" ]; then \
