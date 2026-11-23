@@ -37,6 +37,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
+	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/netutil"
 	"golang.org/x/sync/errgroup"
@@ -47,7 +48,23 @@ import (
 const (
 	flagTraceStore = "trace-store"
 	flagGRPCOnly   = "grpc-only"
+	// configDeliverTxBatch is the app.toml key that enables DeliverTx batching
+	// to the v1-v3 child. A missing key means enabled.
+	configDeliverTxBatch = "performance.delivertx-batch"
 )
+
+// deliverTxBatchEnabled reads performance.delivertx-batch, defaulting to true.
+func deliverTxBatchEnabled(v interface{ Get(string) any }) (bool, error) {
+	raw := v.Get(configDeliverTxBatch)
+	if raw == nil {
+		return true, nil
+	}
+	enabled, err := cast.ToBoolE(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: %w", configDeliverTxBatch, raw, err)
+	}
+	return enabled, nil
+}
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
 // It handles version switching between embedded and native applications.
@@ -630,7 +647,11 @@ func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
-		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion), nil
+		batch, err := deliverTxBatchEnabled(m.svrCtx.Viper)
+		if err != nil {
+			return nil, err
+		}
+		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion, batch), nil
 	case ABCIClientVersion2:
 		return NewRemoteABCIClientV2(m.conn), nil
 	}

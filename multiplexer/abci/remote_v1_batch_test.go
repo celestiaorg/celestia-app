@@ -11,18 +11,12 @@ import (
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	typesv2 "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	abciv1 "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
-
-func setMuxBatch(t *testing.T, on bool) {
-	t.Helper()
-	prev := muxBatchEnabled
-	muxBatchEnabled = on
-	t.Cleanup(func() { muxBatchEnabled = prev })
-}
 
 // batchChild simulates the v3 child: execTx is its DeliverTx, and with
 // supportsBatch it serves batches the way the patched celestia-core
@@ -34,9 +28,22 @@ type batchChild struct {
 	corrupt func([]byte) []byte
 	// failAfter, if > 0, makes the RPC fail once that many txs have run.
 	failAfter int
+	// noAck makes a batch response omit the acknowledgement.
+	noAck bool
 
 	executed [][]byte
 	rpcs     int
+	echoes   int
+	// sawBatchPayload records whether a batch payload ever reached the child.
+	sawBatchPayload bool
+}
+
+func (c *batchChild) Echo(_ context.Context, req *abciv1.RequestEcho, _ ...grpc.CallOption) (*abciv1.ResponseEcho, error) {
+	c.echoes++
+	if c.supportsBatch && req.Message == deliverTxBatchProbe {
+		return &abciv1.ResponseEcho{Message: deliverTxBatchProbeAck}, nil
+	}
+	return &abciv1.ResponseEcho{Message: req.Message}, nil
 }
 
 func execTx(tx []byte) abciv1.ResponseDeliverTx {
@@ -79,6 +86,9 @@ func (c *batchChild) deliverTx(t *testing.T) func(ctx context.Context, req *abci
 		c.rpcs++
 		md, _ := metadata.FromOutgoingContext(ctx)
 		v := md.Get(deliverTxBatchMetadataKey)
+		if len(v) > 0 {
+			c.sawBatchPayload = true
+		}
 		if c.supportsBatch && len(v) == 1 && v[0] == deliverTxBatchMetadataValue && bytes.HasPrefix(req.Tx, []byte(deliverTxBatchMagic)) {
 			b := req.Tx[len(deliverTxBatchMagic):]
 			var data []byte
@@ -100,12 +110,11 @@ func (c *batchChild) deliverTx(t *testing.T) func(ctx context.Context, req *abci
 			if c.corrupt != nil {
 				data = c.corrupt(data)
 			}
-			return wire(t, abciv1.ResponseDeliverTx{Data: data, Info: deliverTxBatchMagic}), nil
-		}
-		if bytes.HasPrefix(req.Tx, []byte(deliverTxBatchMagic)) && len(v) == 1 {
-			// An unpatched child fails to decode the batch payload; it
-			// does not change state, so it is not recorded as executed.
-			return wire(t, abciv1.ResponseDeliverTx{Code: 2, Log: "tx parse error", Codespace: "sdk"}), nil
+			info := deliverTxBatchMagic
+			if c.noAck {
+				info = ""
+			}
+			return wire(t, abciv1.ResponseDeliverTx{Data: data, Info: info}), nil
 		}
 		if err := c.run(req.Tx); err != nil {
 			return nil, err
@@ -119,11 +128,15 @@ type batchChildClient struct {
 	deliver func(ctx context.Context, req *abciv1.RequestDeliverTx, opts ...grpc.CallOption) (*abciv1.ResponseDeliverTx, error)
 }
 
+func (c batchChildClient) Echo(ctx context.Context, req *abciv1.RequestEcho, opts ...grpc.CallOption) (*abciv1.ResponseEcho, error) {
+	return c.batchChild.Echo(ctx, req, opts...)
+}
+
 func (c batchChildClient) DeliverTx(ctx context.Context, req *abciv1.RequestDeliverTx, opts ...grpc.CallOption) (*abciv1.ResponseDeliverTx, error) {
 	return c.deliver(ctx, req, opts...)
 }
 
-func newBatchChild(t *testing.T, supportsBatch bool) (*batchChild, *RemoteABCIClientV1) {
+func newBatchChild(t *testing.T, supportsBatch, batching bool) (*batchChild, *RemoteABCIClientV1) {
 	c := &batchChild{
 		mockABCIApplicationClient: mockABCIApplicationClient{
 			infoResp:       &abciv1.ResponseInfo{AppVersion: 1},
@@ -133,7 +146,7 @@ func newBatchChild(t *testing.T, supportsBatch bool) (*batchChild, *RemoteABCICl
 		},
 		supportsBatch: supportsBatch,
 	}
-	return c, &RemoteABCIClientV1{ABCIApplicationClient: batchChildClient{c, c.deliverTx(t)}}
+	return c, &RemoteABCIClientV1{ABCIApplicationClient: batchChildClient{c, c.deliverTx(t)}, deliverTxBatch: batching}
 }
 
 func finalizeReq(txs [][]byte) *abciv2.RequestFinalizeBlock {
@@ -178,7 +191,7 @@ func finalizeAll(t *testing.T, client *RemoteABCIClientV1, blocks [][][]byte) []
 // TestDeliverTxBatchMatchesPerTx checks that FinalizeBlock returns identical
 // responses (codes, data, gas, logs, events, app hash) and the child executes
 // the same txs in the same order with batching off, on with a batch-capable
-// child, and on with an unpatched child (fallback).
+// child, and on with an unpatched child, which never receives a batch payload.
 func TestDeliverTxBatchMatchesPerTx(t *testing.T) {
 	blocks := randBlocks(rand.New(rand.NewSource(7)), 40)
 	var allTxs [][]byte
@@ -186,29 +199,55 @@ func TestDeliverTxBatchMatchesPerTx(t *testing.T) {
 		allTxs = append(allTxs, b...)
 	}
 
-	setMuxBatch(t, false)
-	stockChild, stockClient := newBatchChild(t, true)
+	stockChild, stockClient := newBatchChild(t, true, false)
 	want := finalizeAll(t, stockClient, blocks)
 	require.Equal(t, allTxs, stockChild.executed)
 	require.Equal(t, len(allTxs), stockChild.rpcs)
+	require.Zero(t, stockChild.echoes)
+	require.False(t, stockChild.sawBatchPayload)
 
-	setMuxBatch(t, true)
-	batchChild, batchClient := newBatchChild(t, true)
+	batchChild, batchClient := newBatchChild(t, true, true)
 	require.Equal(t, want, finalizeAll(t, batchClient, blocks))
 	require.Equal(t, allTxs, batchChild.executed)
 	require.Less(t, batchChild.rpcs, stockChild.rpcs)
-	require.False(t, batchClient.batchUnsupported)
+	require.Equal(t, 1, batchChild.echoes, "the capability probe runs once")
 
-	oldChild, oldClient := newBatchChild(t, false)
+	oldChild, oldClient := newBatchChild(t, false, true)
 	require.Equal(t, want, finalizeAll(t, oldClient, blocks))
 	require.Equal(t, allTxs, oldChild.executed)
-	require.True(t, oldClient.batchUnsupported)
-	// Only one batch attempt is made against an unpatched child.
-	require.Equal(t, len(allTxs)+1, oldChild.rpcs)
+	require.Equal(t, len(allTxs), oldChild.rpcs)
+	require.Equal(t, 1, oldChild.echoes)
+	require.False(t, oldChild.sawBatchPayload, "an unpatched child must never receive a batch payload")
+}
+
+func TestDeliverTxBatchEnabledConfig(t *testing.T) {
+	for _, tc := range []struct {
+		val     any
+		want    bool
+		wantErr bool
+	}{
+		{nil, true, false},
+		{true, true, false},
+		{false, false, false},
+		{"true", true, false},
+		{"false", false, false},
+		{"nope", false, true},
+	} {
+		v := viper.New()
+		if tc.val != nil {
+			v.Set(configDeliverTxBatch, tc.val)
+		}
+		got, err := deliverTxBatchEnabled(v)
+		if tc.wantErr {
+			require.Error(t, err, "%v", tc.val)
+			continue
+		}
+		require.NoError(t, err, "%v", tc.val)
+		require.Equal(t, tc.want, got, "%v", tc.val)
+	}
 }
 
 func TestDeliverTxBatchErrors(t *testing.T) {
-	setMuxBatch(t, true)
 	txs := [][]byte{{1, 2}, {3, 4}, {5, 6}}
 
 	for name, corrupt := range map[string]func([]byte) []byte{
@@ -219,7 +258,7 @@ func TestDeliverTxBatchErrors(t *testing.T) {
 		"bad proto":     func(b []byte) []byte { return append(b, 1, 0xff) },
 		"empty payload": func([]byte) []byte { return nil },
 	} {
-		child, client := newBatchChild(t, true)
+		child, client := newBatchChild(t, true, true)
 		child.corrupt = corrupt
 		_, err := client.FinalizeBlock(finalizeReq(txs))
 		require.Error(t, err, name)
@@ -228,9 +267,16 @@ func TestDeliverTxBatchErrors(t *testing.T) {
 	}
 
 	// The child dying mid-batch is an error; txs are not re-sent individually.
-	child, client := newBatchChild(t, true)
+	child, client := newBatchChild(t, true, true)
 	child.failAfter = 2
 	_, err := client.FinalizeBlock(finalizeReq(txs))
+	require.Error(t, err)
+	require.Equal(t, 1, child.rpcs)
+
+	// A batch the child does not acknowledge is an error, not a fallback.
+	child, client = newBatchChild(t, true, true)
+	child.noAck = true
+	_, err = client.FinalizeBlock(finalizeReq(txs))
 	require.Error(t, err)
 	require.Equal(t, 1, child.rpcs)
 }
