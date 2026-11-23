@@ -27,6 +27,8 @@
 1 ./app/test            FuzzAnteChainSignedTxs              5m 100x
 1 ./app                 FuzzCountICAPacketMsgs              5m -
 1 ./app                 FuzzCountTxMsgs                     5m 100x
+1 ./app                 FuzzFastRecheckDifferential         5m 10x
+1 ./app                 FuzzAnteTraceReplay                 5m 100x
 1 ./app                 FuzzPFFDecodeCandidateParity        5m 100x
 1 ./app                 FuzzTxCacheValidation               5m 100x
 1 ./app                 FuzzFirstMsgIsPayForFibre           5m 100x
