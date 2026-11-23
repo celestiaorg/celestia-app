@@ -918,7 +918,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
-	// The tx services read committed txs, so they use QueryTxConfig.
+	// The tx services read committed txs, which the strict decoder can reject.
 	clientCtx = clientCtx.WithTxConfig(app.encodingConfig.QueryTxConfig)
 	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.encodingConfig.InterfaceRegistry)
 	celestiatx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.encodingConfig.InterfaceRegistry)

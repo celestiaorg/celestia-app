@@ -20,11 +20,11 @@ import (
 type Config struct {
 	InterfaceRegistry codectypes.InterfaceRegistry
 	Codec             codec.Codec
-	// TxConfig is the tx config that the state machine uses.
+	// TxConfig decodes with the strict decoder. The state machine uses it.
 	TxConfig client.TxConfig
 	// QueryTxConfig decodes with the default SDK decoder. Use it only to read
-	// committed txs, so that a later, stricter TxConfig decoder cannot make
-	// older txs unreadable.
+	// committed txs: blocks from before the strict rule can hold txs that the
+	// strict decoder rejects.
 	QueryTxConfig         client.TxConfig
 	Amino                 *codec.LegacyAmino
 	AddressPrefix         string
@@ -84,7 +84,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	return Config{
 		InterfaceRegistry:     interfaceRegistry,
 		Codec:                 protoCodec,
-		TxConfig:              newTxConfig(authtx.DefaultTxDecoder(protoCodec)),
+		TxConfig:              newTxConfig(authtx.StrictTxDecoder(protoCodec)),
 		QueryTxConfig:         newTxConfig(authtx.DefaultTxDecoder(protoCodec)),
 		Amino:                 amino,
 		AddressPrefix:         addressPrefix,
