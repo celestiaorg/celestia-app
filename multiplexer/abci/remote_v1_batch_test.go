@@ -156,7 +156,7 @@ func finalizeReq(txs [][]byte) *abciv2.RequestFinalizeBlock {
 // randBlocks returns blocks with 0..20 random txs, including empty txs and raw
 // txs that start with the batch magic (app v1 allowed undecodable txs).
 func randBlocks(r *rand.Rand, n int) [][][]byte {
-	blocks := make([][][]byte, n)
+	blocks := make([][][]byte, n, n+1)
 	for i := range blocks {
 		txs := make([][]byte, r.Intn(21))
 		for j := range txs {
@@ -194,7 +194,7 @@ func finalizeAll(t *testing.T, client *RemoteABCIClientV1, blocks [][][]byte) []
 // child, and on with an unpatched child, which never receives a batch payload.
 func TestDeliverTxBatchMatchesPerTx(t *testing.T) {
 	blocks := randBlocks(rand.New(rand.NewSource(7)), 40)
-	var allTxs [][]byte
+	allTxs := make([][]byte, 0, 20*len(blocks))
 	for _, b := range blocks {
 		allTxs = append(allTxs, b...)
 	}
