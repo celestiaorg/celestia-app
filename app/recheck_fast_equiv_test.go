@@ -616,6 +616,37 @@ func TestFastRecheckGuardedReads(t *testing.T) {
 	require.Zero(t, unguarded)
 }
 
+// TestFastRecheckUnrecordedState checks that the full recheck ante depends on
+// no stored value the record did not read: for a replayable record of each tx
+// kind, every other key changed in turn either stops the replay or leaves it
+// agreeing with the full recheck. Each record costs about two full antes per
+// key, so this runs on a few records only.
+func TestFastRecheckUnrecordedState(t *testing.T) {
+	e := newEqEnv(t, 51, 8)
+	defer e.full.Close()
+	defer e.fast.Close()
+	// Senders with a plain account, a funded escrow and no fee grant.
+	txs := map[string][]byte{
+		"send": e.sendTx(1, e.checkSeq(1), 2, math.OneInt(), user.SetGasLimit(200_000), user.SetFee(2_000)),
+		"pfb":  e.pfbTx(2, e.checkSeq(2)),
+		"pff":  e.pffTx(4, e.checkSeq(4), e.newPromise(4), user.SetGasLimit(1_000_000), user.SetFee(10_000)),
+	}
+	for kind, raw := range txs {
+		require.Equal(t, abci.CodeTypeOK, e.checkTx(e.fast, raw, abci.CheckTxType_New).Code, kind)
+	}
+	// A block without them but with a fee, so the fee collector holds fees and
+	// check state is back at committed state: each record replays.
+	last := len(e.names) - 1
+	e.commit([][]byte{e.sendTx(last, e.committedSeq(last), 0, math.OneInt(), user.SetGasLimit(200_000), user.SetFee(2_000))})
+	for _, kind := range slices.Sorted(maps.Keys(txs)) {
+		changes, replayed, unsound := e.fast.FastRecheckUnrecordedState(txs[kind], 1)
+		t.Logf("%s: changes=%d replayed=%d", kind, changes, replayed)
+		require.Positive(t, changes, "%s: the record does not replay", kind)
+		require.Positive(t, replayed, "%s: no change left the record replayable", kind)
+		require.Empty(t, unsound, "%s: a replay disagrees with the full recheck after a change to a key the record did not read", kind)
+	}
+}
+
 // TestFastRecheckPayerDrained checks the two balances the replay must not
 // reproduce: a payer left with less than the fee (rejected) or with exactly the
 // fee (its balance is removed, not written).
