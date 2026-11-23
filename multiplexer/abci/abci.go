@@ -115,11 +115,19 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 	if err != nil {
 		// It is not possible to shutdown the multiplexer via m.Stop() here
 		// because CometBFT is blocked on the response from this method. So this
-		// just returns an error to CometBFT and the user must exit the process
-		// manually (via CTRL + C). This error results in a consensus failure on
+		// returns an error to CometBFT, which panics on it and exits the process
+		// without running any cleanup. This error results in a consensus failure on
 		// v3.x which matches the behavior on v4.x. The node state will remain
 		// intact after the consensus failure so the user can continue syncing
 		// after the consensus failure here.
+		//
+		// The embedded app has committed every earlier height, so stop it now.
+		// Otherwise it would outlive the panic and keep the database lock.
+		m.mu.Lock()
+		if stopErr := m.stopEmbeddedApp(); stopErr != nil {
+			m.logger.Error("failed to stop embedded app while halting", "err", stopErr)
+		}
+		m.mu.Unlock()
 		return nil, fmt.Errorf("failed to finalize block because the node should halt: %w", err)
 	}
 
