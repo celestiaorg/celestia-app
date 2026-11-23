@@ -104,3 +104,5 @@
 1 ./pkg/secpverify      FuzzVerifyMatchesDecred             5m 100x
 1 ./pkg/secpverify      FuzzVerifyMatchesDecredSigned       5m 100x
 1 ./test/interop        FuzzTransferStackOnRecvPacket       5m -
+1 ./test/interop        FuzzICAHostOnRecvPacket             5m 100x
+1 ./test/interop        FuzzICAHostOnChanOpenTry            5m 100x
