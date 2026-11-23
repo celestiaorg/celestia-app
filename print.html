@@ -5912,8 +5912,8 @@ certificates this rule accepts.</p>
 <h2 id="data-square-construction"><a class="header" href="#data-square-construction">Data Square Construction</a></h2>
 <p>The SDK module does not insert commitments or blobs into the data square. Data-square metadata is synthesized during app square construction in the app proposal path; no <code>fibre</code> build tag is required.</p>
 <p>A valid PayForFibre transaction for square construction is a plain SDK transaction that contains exactly one <code>MsgPayForFibre</code> and no other messages. PrepareProposal separates these transactions from normal SDK transactions, drops mixed or multi-PFF transactions, skips transactions after <code>MaxPayForFibreMessages</code>, and appends accepted Fibre transactions to the square builder. ProcessProposal rejects a block if a plain SDK transaction contains multiple <code>MsgPayForFibre</code> messages, mixes <code>MsgPayForFibre</code> with other messages, or causes the block to exceed <code>MaxPayForFibreMessages</code>.</p>
-<p>The current production constant is:</p>
-<pre><code class="language-go">const MaxPayForFibreMessages = 200
+<p>From app version 12 the constant is 500 (200 in earlier versions):</p>
+<pre><code class="language-go">const MaxPayForFibreMessages = 500
 </code></pre>
 <p><code>x/fibre/types.TryParseFibreTx</code> parses the <code>MsgPayForFibre</code>, requires a present <code>payment_promise</code>, decodes the promise namespace, decodes the transaction <code>signer</code> bech32 address to raw bytes, and builds the system blob with:</p>
 <pre><code class="language-go">share.NewV2Blob(namespace, payment_promise.blob_version, payment_promise.commitment, signer_bytes)
