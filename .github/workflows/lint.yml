@@ -32,7 +32,10 @@ jobs:
   # complex functions are grandfathered. Config: .golangci-gocognit.yml.
   gocognit:
     name: gocognit (new code)
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    # PR only: issues are reported only on lines the PR changed, and the PR run
+    # already checked those lines. Another queued PR cannot change them without
+    # a textual conflict.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -55,7 +58,7 @@ jobs:
       - name: Run gocognit on changed code
         if: steps.changes.outputs.go == 'true'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: make lint-complexity LINT_BASE="$BASE_SHA"
 
   govulncheck:
@@ -66,7 +69,11 @@ jobs:
       - uses: ./.github/actions/setup-go
       - run: make govulncheck
 
+  # Skip in the merge queue: hadolint and yamllint check each file on its own,
+  # so a file that passed on the PR still passes on the combined merge result.
+  # Another queued PR cannot change that file without a textual conflict.
   hadolint:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -130,6 +137,7 @@ jobs:
           fi
 
   yamllint:
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
