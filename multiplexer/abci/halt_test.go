@@ -31,4 +31,10 @@ func TestFinalizeBlockHaltStopsEmbeddedApp(t *testing.T) {
 	_, err = m.FinalizeBlock(context.Background(), &abci.RequestFinalizeBlock{Height: 5})
 	require.ErrorContains(t, err, "halting node per configuration at height 5")
 	require.True(t, child.IsStopped(), "the embedded app must be stopped when halting")
+
+	// A concurrent caller (CheckTx, Query, gRPC) must not restart the child
+	// after the halt, or it would hold the database lock again.
+	_, err = m.getApp()
+	require.ErrorContains(t, err, "halted")
+	require.True(t, child.IsStopped(), "the embedded app must stay stopped after halting")
 }

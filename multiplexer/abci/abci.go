@@ -124,6 +124,7 @@ func (m *Multiplexer) FinalizeBlock(_ context.Context, req *abci.RequestFinalize
 		// The embedded app has committed every earlier height, so stop it now.
 		// Otherwise it would outlive the panic and keep the database lock.
 		m.mu.Lock()
+		m.halted = true
 		if stopErr := m.stopEmbeddedApp(); stopErr != nil {
 			m.logger.Error("failed to stop embedded app while halting", "err", stopErr)
 		}
