@@ -159,13 +159,10 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	syncClient := s.rpcClient(syncNode)
 
 	// Crash the node halfway through the sync and restart it on the same data.
-	crashHeight := targetHeight / 2
-	err = s.WaitForSync(ctx, syncClient, knobsSyncTimeout, func(info rpctypes.SyncInfo) bool {
-		return info.LatestBlockHeight >= crashHeight
-	})
-	s.Require().NoError(err, "sync node did not reach height %d", crashHeight)
+	crashHeight := s.waitForHeightWhileCatchingUp(ctx, syncClient, targetHeight/2, targetHeight*3/4)
 	_, err = s.client.ContainerKill(ctx, syncNode.Name(), mobyclient.ContainerKillOptions{Signal: "SIGKILL"})
 	s.Require().NoError(err, "failed to kill sync node")
+	t.Logf("Killed the sync node at height %d of %d", crashHeight, targetHeight)
 	s.Require().NoError(syncNode.Restart(ctx), "failed to restart sync node after SIGKILL")
 	syncClient = s.rpcClient(syncNode)
 
@@ -196,6 +193,27 @@ func (s *CelestiaTestSuite) rpcClient(node *cosmos.ChainNode) rpcclient.Client {
 	client, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client of %s", node.Name())
 	return client
+}
+
+// waitForHeightWhileCatchingUp polls the node until it is catching up at a
+// height in [from, to) and returns that height. It fails if the node leaves
+// that window first, so a crash there always interrupts the sync.
+func (s *CelestiaTestSuite) waitForHeightWhileCatchingUp(ctx context.Context, client rpcclient.Client, from, to int64) int64 {
+	deadline := time.Now().Add(knobsSyncTimeout)
+	for time.Now().Before(deadline) {
+		status, err := client.Status(ctx)
+		if err == nil {
+			h := status.SyncInfo.LatestBlockHeight
+			s.Require().Less(h, to, "sync node passed height %d before it could be crashed mid-sync", to)
+			if h >= from {
+				s.Require().True(status.SyncInfo.CatchingUp, "sync node stopped catching up at height %d", h)
+				return h
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	s.FailNow("sync node did not reach the crash window", "heights [%d, %d)", from, to)
+	return 0
 }
 
 // waitForDeferredLag waits until block 1 is more than deferredCatchUpLag
