@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"bytes"
-	"encoding/hex"
 	"maps"
 	"testing"
 	"time"
@@ -27,6 +26,8 @@ const (
 	cacheFuzzOpWidth = 8
 	cacheFuzzSigners = 3
 	cacheFuzzPool    = 8
+	// cacheFuzzCap scales the per-signer pending cap down so it is reachable.
+	cacheFuzzCap = 4
 )
 
 var cacheFuzzKeys = func() []*secp256k1.PrivKey {
@@ -39,19 +40,12 @@ var cacheFuzzKeys = func() []*secp256k1.PrivKey {
 
 var cacheFuzzSizes = []uint32{1, 4096, 65536, 1 << 20}
 
-// sweepEvent is one sweep of a signer's budget and the AvailableBalance it
-// reconciled against.
-type sweepEvent struct {
-	signer    string
-	available math.Int
-}
-
-// sweepRecorder is the keeper as the cache's state reader, recording sweeps.
+// sweepRecorder is the keeper as the cache's state reader, recording reads.
 // The cache reads the escrow on every reservation but reads the params only
 // in a sweep, so a params read marks a sweep of the signer last read.
 type sweepRecorder struct {
 	k             *Keeper
-	sweeps        []sweepEvent
+	sweeps        []string
 	lastSigner    string
 	lastAvailable math.Int
 }
@@ -70,92 +64,118 @@ func (r *sweepRecorder) IsPromiseProcessed(ctx sdk.Context, creationTimestamp ti
 }
 
 func (r *sweepRecorder) GetParams(ctx sdk.Context) types.Params {
-	r.sweeps = append(r.sweeps, sweepEvent{r.lastSigner, r.lastAvailable})
+	r.sweeps = append(r.sweeps, r.lastSigner)
 	return r.k.GetParams(ctx)
 }
 
-type cacheSnapshot struct {
-	remaining map[string]string
-	hashes    map[string]map[string]struct{}
+// signerSnapshot is a signer's reservations; replays and forgeries must not
+// change it, while height and available may move on any read.
+type signerSnapshot struct {
 	pending   map[string]pendingPromise
+	committed string
 }
+
+type cacheSnapshot map[string]signerSnapshot
 
 func snapshotCache(c *LocalPromiseCache) cacheSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	s := cacheSnapshot{remaining: map[string]string{}, hashes: map[string]map[string]struct{}{}, pending: maps.Clone(c.pending)}
+	s := cacheSnapshot{}
 	for signer, b := range c.budgets {
-		s.remaining[signer] = b.remaining.String()
-		s.hashes[signer] = maps.Clone(b.hashes)
+		b.mu.Lock()
+		s[signer] = signerSnapshot{pending: maps.Clone(b.pending), committed: b.committed.String()}
+		b.mu.Unlock()
 	}
 	return s
 }
 
-// FuzzPromiseCacheReservations drives the ValidatePaymentPromise query with
-// its validator-local promise cache through signed, forged and replayed
-// promises, escrow balance changes, on-chain settlements and block advances.
-// A forged promise must be rejected without touching the cache, and a promise
-// whose hash is already reserved leaves the cache unchanged. Per signer, the
-// reservations a sweep kept plus those added since never exceed the
-// AvailableBalance that sweep read (or the kept amount, if already above it),
-// and a swept signer keeps no settled or no longer settleable reservation. A reservation that reads a lower AvailableBalance than the
-// last sweep sweeps first; a higher one needs no sweep.
+// reserved reports whether any signer holds a reservation for hashKey.
+func (s cacheSnapshot) reserved(hashKey string) bool {
+	for _, b := range s {
+		if _, ok := b.pending[hashKey]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// newestEscrow is the AvailableBalance the cache read at the newest height.
+type newestEscrow struct {
+	height    int64
+	available math.Int
+}
+
+// FuzzPromiseCacheReservations checks ValidatePaymentPromise's cache: forgeries leave it untouched,
+// replays unchanged, and a signer's pending stays ≤ the AvailableBalance read at its newest height.
+// A reservation is dropped only by a sweep of its signer, which keeps no settled or expired one.
 func FuzzPromiseCacheReservations(f *testing.F) {
-	promise := func(signer, size, commit byte, minutes int8, forge byte) []byte {
-		return []byte{0, signer, size, commit, byte(minutes), 0, forge}
+	promise := func(signer, size, commit byte, minutes int8, forge, stale byte) []byte {
+		return []byte{0, signer, size, commit, byte(minutes), 0, forge, stale}
 	}
 	replay := func(idx byte) []byte { return []byte{1, idx} }
-	balance := func(signer, units, availThirds byte) []byte { return []byte{2, signer, units, availThirds} }
+	balance := func(signer, units, availThirds, minus byte) []byte {
+		return []byte{2, signer, units, availThirds, minus}
+	}
 	settle := func(idx byte) []byte { return []byte{3, idx} }
 	advance := func(minutes, hours byte) []byte { return []byte{4, minutes, hours} }
 	f.Add([]byte{})
-	// Reserve up to the budget, replay, fail, settle one and retry next block.
+	// Reserve up to a budget one utia short of three promises, replay, fail;
+	// a settlement lowers the escrow by its amount, so the next block's sweep
+	// frees nothing net and only a deposit admits the next promise.
 	f.Add(fuzzutil.Records(cacheFuzzOpWidth,
-		balance(0, 3, 3), promise(0, 1, 1, -1, 0), replay(0), promise(0, 1, 2, -1, 0), promise(0, 1, 3, -1, 0),
-		promise(0, 1, 4, -1, 0), settle(0), promise(0, 1, 4, -1, 0), advance(1, 0), promise(0, 1, 4, -1, 0)))
+		balance(0, 3, 3, 1), promise(0, 1, 1, -1, 0, 0), replay(0), promise(0, 1, 2, -1, 0, 0), promise(0, 1, 3, -1, 0, 0),
+		settle(0), balance(0, 2, 3, 1), promise(0, 1, 3, -1, 0, 0), advance(1, 0), promise(0, 1, 3, -1, 0, 0),
+		balance(0, 4, 3, 0), promise(0, 1, 4, -1, 0, 0)))
 	// Forgeries of every kind against a funded signer, then a valid promise.
 	f.Add(fuzzutil.Records(cacheFuzzOpWidth,
-		balance(1, 9, 3), promise(1, 2, 1, 0, 1), promise(1, 2, 1, 0, 2), promise(1, 2, 1, 0, 3), promise(1, 2, 1, 0, 4),
-		promise(1, 0, 9, 0, 0), promise(1, 2, 1, 0, 0)))
-	// A withdrawal lowers the available balance; reservations stop at the old
-	// budget until a failing reservation in a new block forces a sweep, and
-	// reservations held past the withdrawal delay are dropped on that sweep.
+		balance(1, 9, 3, 0), promise(1, 2, 1, 0, 1, 0), promise(1, 2, 1, 0, 2, 0), promise(1, 2, 1, 0, 3, 0), promise(1, 2, 1, 0, 4, 0),
+		promise(1, 0, 9, 0, 0, 0), promise(1, 2, 1, 0, 0, 0)))
+	// A withdrawal empties the available balance and reservations fail; once
+	// the oldest passes the withdrawal delay a failing reservation sweeps it,
+	// and a deposit admits again.
 	f.Add(fuzzutil.Records(cacheFuzzOpWidth,
-		balance(2, 4, 3), promise(2, 1, 1, -2, 0), balance(2, 4, 0), promise(2, 1, 2, -2, 0), advance(0, 1),
-		promise(2, 1, 3, -1, 0), advance(0, 3), balance(2, 4, 3), promise(2, 1, 4, -1, 0), promise(2, 1, 5, -1, 0), advance(1, 0), promise(2, 1, 6, -1, 0)))
+		balance(2, 4, 3, 0), promise(2, 1, 1, -2, 0, 0), balance(2, 4, 0, 0), promise(2, 1, 2, -2, 0, 0), advance(0, 1),
+		promise(2, 1, 3, -1, 0, 0), advance(0, 3), promise(2, 1, 4, -1, 0, 0), balance(2, 4, 3, 0), promise(2, 1, 5, -1, 0, 0)))
+	// The cache reads a low escrow at the new height, then a deposit is read
+	// through the previous block's ctx: the height guard keeps the low budget.
+	f.Add(fuzzutil.Records(cacheFuzzOpWidth,
+		balance(0, 6, 3, 0), advance(1, 0), balance(0, 6, 1, 0), promise(0, 1, 1, 0, 0, 0), balance(0, 9, 3, 0),
+		promise(0, 1, 2, 0, 0, 1), promise(0, 1, 3, 0, 0, 1), promise(0, 1, 4, 0, 0, 1), promise(0, 1, 5, 0, 0, 0)))
+	// A well-funded signer reaches the pending cap; a settlement swept in the
+	// next block frees a slot.
+	f.Add(fuzzutil.Records(cacheFuzzOpWidth,
+		balance(1, 15, 3, 0), promise(1, 1, 1, 0, 0, 0), promise(1, 1, 2, 0, 0, 0), promise(1, 1, 3, 0, 0, 0), promise(1, 1, 4, 0, 0, 0),
+		promise(1, 1, 5, 0, 0, 0), settle(0), balance(1, 14, 3, 0), advance(1, 0), promise(1, 1, 5, 0, 0, 0)))
 
 	f.Fuzz(func(t *testing.T, ops []byte) {
 		key := storetypes.NewKVStoreKey(types.StoreKey)
 		tctx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
 		ctx := tctx.Ctx.WithChainID("test-chain").WithBlockHeight(100).WithBlockTime(time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
+		// prevCtx is the previous block's ctx; it reads the current store at an older height.
+		prevCtx := ctx
 		k := NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), key, nil, nil, authtypes.NewModuleAddress("gov").String(), false, nil)
 		params := types.DefaultParams()
 		params.WithdrawalDelay = 2 * time.Hour // short enough for sweeps to drop old reservations
 		k.SetParams(ctx, params)
 		reader := &sweepRecorder{k: k}
 		k.promiseCache = NewLocalPromiseCache(reader)
+		k.promiseCache.maxPending = cacheFuzzCap
 
 		signers := make([]string, cacheFuzzSigners)
 		for i, pk := range cacheFuzzKeys {
 			signers[i] = sdk.AccAddress(pk.PubKey().Address()).String()
 		}
 		unit := types.PaymentAmount(cacheFuzzSizes[1]).Amount
-		availAtSweep := map[string]math.Int{}
-		// committed is the cost of a signer's reservations since its last
-		// sweep, counting those the sweep kept; capAtSweep bounds it by the
-		// balance that sweep read, or by the kept cost when that is larger.
-		committed := map[string]math.Int{}
-		capAtSweep := map[string]math.Int{}
-		hashSigner := map[string]string{}
+		newest := map[string]newestEscrow{}
 		var pool []types.PaymentPromise
 
-		validate := func(p types.PaymentPromise, signer string, forged bool) {
+		validate := func(vctx sdk.Context, p types.PaymentPromise, signer string, forged bool) {
 			hash, err := promiseHash(&p)
 			require.NoError(t, err)
-			hashKey := hex.EncodeToString(hash)
+			hashKey := string(hash)
 			before := snapshotCache(k.promiseCache)
 			reader.sweeps, reader.lastSigner = nil, ""
-			_, err = k.ValidatePaymentPromise(ctx, &types.QueryValidatePaymentPromiseRequest{Promise: p})
+			_, err = k.ValidatePaymentPromise(vctx, &types.QueryValidatePaymentPromiseRequest{Promise: p})
 			after := snapshotCache(k.promiseCache)
 			if forged {
 				require.Error(t, err, "accepted a forged promise")
@@ -163,54 +183,58 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				require.Empty(t, reader.lastSigner, "a forged promise reached the cache")
 				return
 			}
-			_, reservedBefore := before.pending[hashKey]
+			reservedBefore := before.reserved(hashKey)
 			if reservedBefore {
 				require.Equal(t, before, after, "re-reserving a promise changed the cache")
 			}
-			_, reservedAfter := after.pending[hashKey]
 			if err == nil {
-				require.True(t, reservedAfter, "an accepted promise must be reserved")
+				require.True(t, after.reserved(hashKey), "an accepted promise must be reserved")
 			} else if !reservedBefore {
-				require.False(t, reservedAfter, "a rejected promise must not be reserved")
+				require.False(t, after.reserved(hashKey), "a rejected promise must not be reserved")
 			}
 
-			swept := map[string]bool{}
-			// A reservation that reads a balance below the last sweep's must
-			// sweep first, so the budget never exceeds what is available now.
-			if prev, ok := availAtSweep[signer]; ok && !reservedBefore && reader.lastSigner == signer && reader.lastAvailable.LT(prev) {
-				require.NotEmpty(t, reader.sweeps, "available balance fell from %s to %s without a sweep", prev, reader.lastAvailable)
+			// Mirror the cache: keep the escrow read at the newest height.
+			if n, ok := newest[signer]; reader.lastSigner == signer && (!ok || vctx.BlockHeight() >= n.height) {
+				newest[signer] = newestEscrow{vctx.BlockHeight(), reader.lastAvailable}
 			}
-			for _, s := range reader.sweeps {
-				kept := math.ZeroInt()
-				for h := range after.hashes[s.signer] {
-					if _, ok := before.pending[h]; ok {
-						kept = kept.Add(requiredAmount(after.pending[h].blobSize))
+			for s, b := range after {
+				require.LessOrEqual(t, len(b.pending), cacheFuzzCap, "signer %s is over the pending cap", s)
+			}
+			if err == nil && !reservedBefore {
+				total := math.ZeroInt()
+				for _, pp := range after[signer].pending {
+					total = total.Add(requiredAmount(pp.blobSize))
+				}
+				require.True(t, total.LTE(newest[signer].available), "%s pending above the %s available at height %d",
+					total, newest[signer].available, newest[signer].height)
+			}
+
+			for s, b := range after {
+				for h := range b.pending {
+					if !before.reserved(h) {
+						require.Equal(t, hashKey, h, "reserved a hash other than the promise's")
+						require.Equal(t, signer, s, "reserved under another signer")
 					}
 				}
-				availAtSweep[s.signer], committed[s.signer] = s.available, kept
-				capAtSweep[s.signer] = math.MaxInt(s.available, kept)
-				swept[s.signer] = true
 			}
-			for h := range after.pending {
-				if _, ok := before.pending[h]; !ok {
-					require.Equal(t, hashKey, h, "reserved a hash other than the promise's")
-					hashSigner[h] = signer
-					committed[signer] = committed[signer].Add(requiredAmount(after.pending[h].blobSize))
-					require.True(t, committed[signer].LTE(capAtSweep[signer]),
-						"%s committed since the last sweep, which read %s", committed[signer], availAtSweep[signer])
+			swept := map[string]bool{}
+			for _, s := range reader.sweeps {
+				swept[s] = true
+			}
+			staleBefore := vctx.BlockTime().Add(-params.WithdrawalDelay)
+			for s, b := range before {
+				for h, pp := range b.pending {
+					if _, ok := after[s].pending[h]; !ok {
+						require.True(t, swept[s], "a reservation was dropped without a sweep of its signer")
+						require.True(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, []byte(h)) || !pp.creationTimestamp.After(staleBefore),
+							"a sweep dropped a promise that is neither settled nor expired")
+					}
 				}
 			}
-			for h := range before.pending {
-				if _, ok := after.pending[h]; !ok {
-					require.True(t, swept[hashSigner[h]], "a reservation was dropped without a sweep of its signer")
-				}
-			}
-			staleBefore := ctx.BlockTime().Add(-params.WithdrawalDelay)
-			for signer := range swept {
-				for h := range after.hashes[signer] {
-					raw, _ := hex.DecodeString(h)
-					require.False(t, k.IsPromiseProcessed(ctx, after.pending[h].creationTimestamp, raw), "a sweep kept a settled promise")
-					require.True(t, after.pending[h].creationTimestamp.After(staleBefore), "a sweep kept an unsettleable promise")
+			for s := range swept {
+				for h, pp := range after[s].pending {
+					require.False(t, k.IsPromiseProcessed(vctx, pp.creationTimestamp, []byte(h)), "a sweep kept a settled promise")
+					require.True(t, pp.creationTimestamp.After(staleBefore), "a sweep kept an expired promise")
 				}
 			}
 		}
@@ -220,18 +244,21 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 			r := c.Record(cacheFuzzOpWidth)
 			switch r.Byte() % 5 {
 			case 0:
-				who := r.Intn(cacheFuzzSigners)
+				who, size, commit, minutes, hoff, forge := r.Intn(cacheFuzzSigners), r.Intn(len(cacheFuzzSizes)), r.Byte(), int8(r.Byte()), int8(r.Byte())%4, r.Byte()%5
+				vctx := ctx
+				if r.Byte()%2 == 1 {
+					vctx = prevCtx
+				}
 				pk := cacheFuzzKeys[who]
 				p := types.PaymentPromise{
 					ChainId:           "test-chain",
 					Namespace:         share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize)).Bytes(),
-					BlobSize:          cacheFuzzSizes[r.Intn(len(cacheFuzzSizes))],
-					Commitment:        bytes.Repeat([]byte{r.Byte()}, 32),
-					CreationTimestamp: ctx.BlockTime().Add(time.Duration(int8(r.Byte())) * time.Minute),
-					Height:            ctx.BlockHeight() + int64(int8(r.Byte())%4),
+					BlobSize:          cacheFuzzSizes[size],
+					Commitment:        bytes.Repeat([]byte{commit}, 32),
+					CreationTimestamp: vctx.BlockTime().Add(time.Duration(minutes) * time.Minute),
+					Height:            vctx.BlockHeight() + int64(hoff),
 					SignerPublicKey:   *pk.PubKey().(*secp256k1.PubKey),
 				}
-				forge := r.Byte() % 5
 				signWith := pk
 				if forge == 3 {
 					signWith = cacheFuzzKeys[(who+1)%cacheFuzzSigners]
@@ -253,19 +280,20 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				if forge == 0 && len(pool) < cacheFuzzPool {
 					pool = append(pool, p)
 				}
-				validate(p, signers[who], forge != 0)
+				validate(vctx, p, signers[who], forge != 0)
 			case 1:
 				if len(pool) > 0 {
 					p := pool[r.Intn(len(pool))]
-					validate(p, sdk.AccAddress(p.SignerPublicKey.Address()).String(), false)
+					validate(ctx, p, sdk.AccAddress(p.SignerPublicKey.Address()).String(), false)
 				}
 			case 2:
 				signer := signers[r.Intn(cacheFuzzSigners)]
 				bal := unit.MulRaw(int64(r.Byte() % 16))
+				avail := math.MaxInt(math.ZeroInt(), bal.MulRaw(int64(r.Byte()%4)).QuoRaw(3).SubRaw(int64(r.Byte())))
 				k.SetEscrowAccount(ctx, types.EscrowAccount{
 					Signer:           signer,
 					Balance:          sdk.NewCoin(appconsts.BondDenom, bal),
-					AvailableBalance: sdk.NewCoin(appconsts.BondDenom, bal.MulRaw(int64(r.Byte()%4)).QuoRaw(3)),
+					AvailableBalance: sdk.NewCoin(appconsts.BondDenom, avail),
 				})
 			case 3:
 				if len(pool) > 0 {
@@ -276,7 +304,16 @@ func FuzzPromiseCacheReservations(f *testing.F) {
 				}
 			case 4:
 				d := time.Duration(r.Byte()%60)*time.Minute + time.Duration(r.Byte()%4)*time.Hour
+				prevCtx = ctx
 				ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1).WithBlockTime(ctx.BlockTime().Add(d))
+			}
+			// committed must always equal the cost of what is pending, rejections included.
+			for s, b := range snapshotCache(k.promiseCache) {
+				sum := math.ZeroInt()
+				for _, p := range b.pending {
+					sum = sum.Add(requiredAmount(p.blobSize))
+				}
+				require.Equal(t, sum.String(), b.committed, "%s committed differs from its pending total", s)
 			}
 		}
 	})
