@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -53,5 +55,56 @@ func TestPerformanceBaseappOptions(t *testing.T) {
 		}
 		require.Equal(t, tc.want, got, "parallel-commit %v", tc.opts)
 		require.Equal(t, tc.want, sdk.ExecutionCachesEnabled(), "execution-caches %v", tc.opts)
+	}
+}
+
+// storeKnobRecorder records the deferred-persistence and repair-ahead values
+// baseapp passes to the multistore.
+type storeKnobRecorder struct {
+	storetypes.CommitMultiStore
+	mode        string
+	interval    int64
+	snapshot    uint64
+	repairAhead *bool
+}
+
+func (r *storeKnobRecorder) SetDeferredPersistence(mode string, interval int64, snapshotInterval uint64) error {
+	r.mode, r.interval, r.snapshot = mode, interval, snapshotInterval
+	return nil
+}
+
+func (r *storeKnobRecorder) SetRepairAhead(enabled bool) { r.repairAhead = &enabled }
+
+// TestPerformanceBaseappOptionsStore checks that deferred persistence and
+// store repair follow app.toml and that a read-only load (export, rollback)
+// turns both off.
+func TestPerformanceBaseappOptionsStore(t *testing.T) {
+	t.Cleanup(func() { sdk.SetExecutionCaches(true) })
+	for _, tc := range []struct {
+		name         string
+		opts         mapAppOptions
+		wantMode     string
+		wantInterval int64
+		wantSnapshot uint64
+		wantRepair   bool
+	}{
+		{"defaults", mapAppOptions{}, rootmulti.DeferredSync, rootmulti.DefaultDeferredFlushInterval, 0, true},
+		{"explicit off", mapAppOptions{FlagDeferredPersistence: "off", FlagDeferredFlushInterval: 7}, rootmulti.DeferredOff, 7, 0, true},
+		{"snapshot interval passed through", mapAppOptions{server.FlagStateSyncSnapshotInterval: 1500}, rootmulti.DeferredSync, rootmulti.DefaultDeferredFlushInterval, 1500, true},
+		{"read-only load", mapAppOptions{server.KeyReadOnlyLoad: true, FlagDeferredPersistence: "sync"}, rootmulti.DeferredOff, rootmulti.DefaultDeferredFlushInterval, 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bapp := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
+			rec := &storeKnobRecorder{CommitMultiStore: bapp.CommitMultiStore()}
+			bapp.SetCMS(rec)
+			for _, opt := range PerformanceBaseappOptions(tc.opts) {
+				opt(bapp)
+			}
+			require.Equal(t, tc.wantMode, rec.mode)
+			require.Equal(t, tc.wantInterval, rec.interval)
+			require.Equal(t, tc.wantSnapshot, rec.snapshot)
+			require.NotNil(t, rec.repairAhead)
+			require.Equal(t, tc.wantRepair, *rec.repairAhead)
+		})
 	}
 }
