@@ -454,6 +454,6 @@ replace (
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
-replace cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124054158-67a44ba8adc3
+replace cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124064306-90952cbc8a2a
 
 replace github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261123165557-92c18b120688
