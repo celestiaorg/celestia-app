@@ -9,3 +9,4 @@ The following pages contain the types used by celestia-app. The target audience 
 - [Types v9](types_v9.md)
 - [Types v10](types_v10.md)
 - [Types v11](types_v11.md)
+- [Types v12](types_v12.md)
