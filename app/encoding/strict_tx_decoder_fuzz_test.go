@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v12/x/blob/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
