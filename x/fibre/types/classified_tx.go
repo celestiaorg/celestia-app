@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v12/pkg/sigcache"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"

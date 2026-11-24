@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"google.golang.org/grpc/encoding"
 	_ "google.golang.org/grpc/encoding/proto" // standard codec, used for non-gogoproto messages
 	"google.golang.org/grpc/mem"

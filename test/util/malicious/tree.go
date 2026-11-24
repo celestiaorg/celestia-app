@@ -3,8 +3,8 @@ package malicious
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/pkg/wrapper"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"

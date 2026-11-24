@@ -12,7 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app/v12/fibre/internal/grpc"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )

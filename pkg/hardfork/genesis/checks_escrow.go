@@ -11,8 +11,8 @@ import (
 
 	"cosmossdk.io/math"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"

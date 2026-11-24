@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v12/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v12/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clock "github.com/filecoin-project/go-clock"

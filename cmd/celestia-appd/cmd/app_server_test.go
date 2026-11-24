@@ -12,8 +12,8 @@ import (
 
 	"cosmossdk.io/log"
 	storecache "cosmossdk.io/store/cache"
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"

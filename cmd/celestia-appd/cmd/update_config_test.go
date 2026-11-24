@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/stretchr/testify/assert"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v11/fibre/internal/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app/v12/fibre/internal/grpc"
 	"github.com/stretchr/testify/require"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"

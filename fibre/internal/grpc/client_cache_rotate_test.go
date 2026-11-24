@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )

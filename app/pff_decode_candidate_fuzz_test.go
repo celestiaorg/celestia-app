@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

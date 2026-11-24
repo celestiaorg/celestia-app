@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v12/multiplexer/appd"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/stretchr/testify/require"

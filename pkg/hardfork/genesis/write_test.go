@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/hardfork/genesis"
+	"github.com/celestiaorg/celestia-app/v12/pkg/hardfork/genesis"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"

@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
 

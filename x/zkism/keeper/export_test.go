@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 )
 
 // GetMerkleTreeState is a test func used for getting the merkle tree state of an ISM.

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"

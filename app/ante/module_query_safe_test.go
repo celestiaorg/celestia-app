@@ -3,10 +3,10 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/ante"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/ante"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"

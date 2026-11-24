@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/internal/groth16"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/internal/groth16"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	"github.com/consensys/gnark-crypto/ecc"
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/stretchr/testify/require"

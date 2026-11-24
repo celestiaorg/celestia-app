@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"math/rand/v2"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v12/fibre/validator"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"

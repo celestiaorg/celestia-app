@@ -3,7 +3,7 @@ package merkle
 import (
 	"crypto/sha256"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/internal/sha256x2"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/internal/sha256x2"
 )
 
 // Prefix bytes distinguish leaf from internal nodes, matching CometBFT/Tendermint.

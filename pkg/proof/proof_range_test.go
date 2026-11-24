@@ -3,8 +3,8 @@ package proof_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/da"
-	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v12/pkg/da"
+	"github.com/celestiaorg/celestia-app/v12/pkg/proof"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
 )

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/pkg/hardfork/genesis"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/pkg/hardfork/genesis"
 	cmttypes "github.com/cometbft/cometbft/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/stretchr/testify/require"

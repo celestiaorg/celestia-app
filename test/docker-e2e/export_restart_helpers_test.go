@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"

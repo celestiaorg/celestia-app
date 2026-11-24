@@ -1,4 +1,4 @@
-module github.com/celestiaorg/celestia-app/v11
+module github.com/celestiaorg/celestia-app/v12
 
 go 1.26.11
 

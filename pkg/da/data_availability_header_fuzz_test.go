@@ -3,8 +3,8 @@ package da
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	daproto "github.com/celestiaorg/celestia-app/v11/proto/celestia/core/v1/da"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	daproto "github.com/celestiaorg/celestia-app/v12/proto/celestia/core/v1/da"
 	"github.com/stretchr/testify/require"
 )
 

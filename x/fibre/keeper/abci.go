@@ -5,7 +5,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v11/app/params"
+	"github.com/celestiaorg/celestia-app/v12/app/params"
 )
 
 // NewGenesisState creates a new GenesisState object

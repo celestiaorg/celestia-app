@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/x/blob/types"
 )
 
 var _ types.MsgServer = msgServer{}

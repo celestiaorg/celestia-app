@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"cosmossdk.io/collections"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"

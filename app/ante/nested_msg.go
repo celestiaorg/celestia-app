@@ -2,9 +2,9 @@ package ante
 
 import (
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
-	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v12/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"

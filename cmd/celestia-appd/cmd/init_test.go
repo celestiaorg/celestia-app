@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	"github.com/cometbft/cometbft/types"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"

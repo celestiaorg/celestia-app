@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v12/app/grpc/tx"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"

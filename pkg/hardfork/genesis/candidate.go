@@ -8,9 +8,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
-	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
+	minttypes "github.com/celestiaorg/celestia-app/v12/x/mint/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"

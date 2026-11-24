@@ -4,9 +4,9 @@ import (
 	gocontext "context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
-	"github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
+	"github.com/celestiaorg/celestia-app/v12/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/stretchr/testify/require"
 )

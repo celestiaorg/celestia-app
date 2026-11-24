@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/secpverify"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/secpverify"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"

@@ -4,7 +4,7 @@ import (
 	"crypto/subtle"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/field"
 	"github.com/klauspost/reedsolomon"
 )
 

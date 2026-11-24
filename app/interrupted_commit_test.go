@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"

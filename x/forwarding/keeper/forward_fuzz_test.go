@@ -8,9 +8,9 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v11/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/x/forwarding/keeper"
+	"github.com/celestiaorg/celestia-app/v12/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

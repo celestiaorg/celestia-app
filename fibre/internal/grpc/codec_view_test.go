@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/row"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/encoding/protowire"

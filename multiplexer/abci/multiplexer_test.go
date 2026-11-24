@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v12/multiplexer/appd"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"

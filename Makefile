@@ -14,7 +14,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME := github.com/celestiaorg/celestia-app/v11
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v12
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag
 # and update GOLANG_CROSS_DIGEST to the digest of that tag's manifest index.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
@@ -43,7 +43,7 @@ endif
 BUILD_TAGS_STANDALONE := ledger$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer$(if $(BUILD_TAGS_STATIC),$(comma)$(BUILD_TAGS_STATIC))
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v11/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT) $(LDFLAGS_STATIC)
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v12/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT) $(LDFLAGS_STATIC)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 

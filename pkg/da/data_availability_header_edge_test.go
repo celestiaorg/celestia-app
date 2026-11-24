@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	daproto "github.com/celestiaorg/celestia-app/v11/proto/celestia/core/v1/da"
+	daproto "github.com/celestiaorg/celestia-app/v12/proto/celestia/core/v1/da"
 	"github.com/stretchr/testify/require"
 )
 

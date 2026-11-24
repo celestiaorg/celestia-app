@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v12/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

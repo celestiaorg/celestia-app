@@ -16,8 +16,8 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )

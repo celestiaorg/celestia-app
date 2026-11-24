@@ -3,10 +3,10 @@ package app
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
-	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/test/util/fuzzutil"
+	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

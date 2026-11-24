@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v12/test/util/fuzzutil"
 )
 
 // Small shape so each fuzz iteration encodes and verifies quickly. K+N = 8

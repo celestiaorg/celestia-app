@@ -11,8 +11,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/test/util/fuzzutil"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/mem"
 )

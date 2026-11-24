@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"cosmossdk.io/x/feegrant"
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"

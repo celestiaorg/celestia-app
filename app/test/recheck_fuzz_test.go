@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
