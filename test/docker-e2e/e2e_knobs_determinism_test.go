@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -53,16 +55,16 @@ func knobsAppTOML(on bool) map[string]string {
 }
 
 // withKnobs returns post-init functions that apply the default node config
-// and then turn every sync speedup on or off. appTopLevel holds extra
-// top-level app.toml keys.
-func withKnobs(on bool, appTopLevel map[string]string) []func(context.Context, *cosmos.ChainNode) error {
+// and then turn every sync speedup on or off. appExtra holds extra app.toml
+// keys by table ("" is the top level).
+func withKnobs(on bool, appExtra map[string]map[string]string) []func(context.Context, *cosmos.ChainNode) error {
 	b := strconv.FormatBool(on)
 	return append(dockerchain.DefaultPostInit(), func(ctx context.Context, node *cosmos.ChainNode) error {
 		if err := editTOML(ctx, node, "config/app.toml", "performance", knobsAppTOML(on)); err != nil {
 			return err
 		}
-		if len(appTopLevel) > 0 {
-			if err := editTOML(ctx, node, "config/app.toml", "", appTopLevel); err != nil {
+		for _, section := range slices.Sorted(maps.Keys(appExtra)) {
+			if err := editTOML(ctx, node, "config/app.toml", section, appExtra[section]); err != nil {
 				return err
 			}
 		}
@@ -149,9 +151,10 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	s.Require().NoError(err)
 	s.waitForDeferredLag(ctx, validator)
 
-	syncNode := s.addKnobsNode(ctx, chain, withKnobs(true, map[string]string{
-		"pruning":           `"everything"`,
-		"min-retain-blocks": "0",
+	// Pruning "everything" rejects state sync snapshots, so turn them off too.
+	syncNode := s.addKnobsNode(ctx, chain, withKnobs(true, map[string]map[string]string{
+		"":           {"pruning": `"everything"`, "min-retain-blocks": "0"},
+		"state-sync": {"snapshot-interval": "0"},
 	}))
 	syncClient := s.rpcClient(syncNode)
 
