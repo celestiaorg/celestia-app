@@ -1,11 +1,19 @@
 package testnode
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 func TestReverseSlice(t *testing.T) {
@@ -59,4 +67,30 @@ func TestReadBlockchainHeaders(t *testing.T) {
 			"expected height %d, got %d", i, got)
 		i++
 	}
+}
+
+// TestDecodeBlockDataReadsNonCanonicalTx checks that DecodeBlockData reads a
+// committed tx that only the strict decoder rejects. Blocks committed before
+// the strict rule can hold such txs.
+func TestDecodeBlockDataReadsNonCanonicalTx(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	builder := enc.TxConfig.NewTxBuilder()
+	from, to := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)), sdk.AccAddress(bytes.Repeat([]byte{2}, 20))
+	require.NoError(t, builder.SetMsgs(banktypes.NewMsgSend(from, to, sdk.NewCoins(sdk.NewInt64Coin("utia", 1)))))
+	canonical, err := enc.TxConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+
+	// Add a non-critical unknown field to the body. The default decoder
+	// accepts it and the strict decoder rejects it.
+	var raw txtypes.TxRaw
+	require.NoError(t, raw.Unmarshal(canonical))
+	raw.BodyBytes = protowire.AppendBytes(protowire.AppendTag(raw.BodyBytes, 1025, protowire.BytesType), []byte("x"))
+	nonCanonical, err := raw.Marshal()
+	require.NoError(t, err)
+	_, err = enc.TxConfig.TxDecoder()(nonCanonical)
+	require.Error(t, err)
+
+	txs, err := DecodeBlockData(types.Data{Txs: types.Txs{nonCanonical}})
+	require.NoError(t, err)
+	require.Len(t, txs, 1)
 }

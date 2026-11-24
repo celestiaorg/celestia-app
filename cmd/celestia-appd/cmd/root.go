@@ -60,7 +60,7 @@ func NewRootCmd() *cobra.Command {
 	initClientContext := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
-		// The CLI reads committed txs, so it uses QueryTxConfig.
+		// The CLI reads committed txs, which the strict decoder can reject.
 		WithTxConfig(encodingConfig.QueryTxConfig).
 		WithLegacyAmino(encodingConfig.Amino).
 		WithInput(os.Stdin).

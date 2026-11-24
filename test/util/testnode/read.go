@@ -97,7 +97,8 @@ func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeig
 	return blocks, nil
 }
 
-// DecodeBlockData decodes the txs in a committed block with QueryTxConfig.
+// DecodeBlockData decodes the txs in a committed block. It uses the default
+// decoder, so it also reads txs committed before the strict encoding rule.
 func DecodeBlockData(data types.Data) ([]sdk.Tx, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.QueryTxConfig.TxDecoder()
