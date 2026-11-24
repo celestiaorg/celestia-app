@@ -156,10 +156,11 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	validator := chain.Nodes()[0]
 	targetHeight, err := validator.Height(ctx)
 	s.Require().NoError(err)
-	// Every block up to the end of the crash window must be old enough for
-	// deferred persistence, so the crash interrupts a deferred sync.
+	// Every block must be old enough for deferred persistence, so the crash
+	// interrupts a deferred sync and every child (and the parent) syncs its
+	// era in deferred mode and hands the store over at the upgrade.
 	crashFrom, crashTo := int64(knobsBaseEraBlocks/2), int64(knobsBaseEraBlocks*5/6)
-	s.waitForDeferredLag(ctx, validator, crashTo)
+	s.waitForDeferredLag(ctx, validator, targetHeight)
 
 	// Pruning "everything" rejects state sync snapshots, so turn them off too.
 	syncNode := s.addKnobsNode(ctx, chain, withKnobs(true, map[string]map[string]string{
