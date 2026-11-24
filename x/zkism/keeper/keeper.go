@@ -13,7 +13,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
+
+// verifierCacheSize bounds the parsed verifying keys kept; ISMs on the same SP1 release share one key.
+const verifierCacheSize = 128
 
 var _ util.InterchainSecurityModule = (*Keeper)(nil)
 
@@ -24,6 +28,9 @@ type Keeper struct {
 	stateRootHistory rootHistory
 	treeStateHistory rootHistory
 	schema           collections.Schema
+
+	// verifiers memoizes parsed Groth16 verifying keys by their bytes; a hit only saves the parse's pairing.
+	verifiers *lru.Cache[string, *types.SP1Groth16Verifier]
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string
@@ -44,6 +51,11 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 		panic(err)
 	}
 
+	verifiers, err := lru.New[string, *types.SP1Groth16Verifier](verifierCacheSize)
+	if err != nil {
+		panic(err)
+	}
+
 	keeper := &Keeper{
 		coreKeeper:       hyperlaneKeeper,
 		isms:             isms,
@@ -51,6 +63,7 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 		stateRootHistory: stateRootHistory,
 		treeStateHistory: treeStateHistory,
 		schema:           schema,
+		verifiers:        verifiers,
 		authority:        authority,
 	}
 
@@ -63,6 +76,21 @@ func NewKeeper(cdc codec.Codec, storeService corestore.KVStoreService, hyperlane
 // Logger returns the module logger extracted using the sdk context.
 func (k *Keeper) Logger(ctx context.Context) log.Logger {
 	return sdk.UnwrapSDKContext(ctx).Logger().With("module", "x/"+types.ModuleName)
+}
+
+// verifier returns the verifier for vkey, parsing the key only when it is not cached. Parse errors
+// are not cached.
+func (k *Keeper) verifier(vkey []byte) (*types.SP1Groth16Verifier, error) {
+	key := string(vkey)
+	if v, ok := k.verifiers.Get(key); ok {
+		return v, nil
+	}
+	v, err := types.NewSP1Groth16Verifier(vkey)
+	if err != nil {
+		return nil, err
+	}
+	k.verifiers.Add(key, v)
+	return v, nil
 }
 
 // Exists implements hyperlane util.InterchainSecurityModule.

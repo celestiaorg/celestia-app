@@ -66,9 +66,9 @@ func NewSP1Groth16Verifier(vkBytes []byte) (*SP1Groth16Verifier, error) {
 	}, nil
 }
 
-// Prefix returns the verifier's SP1 hash prefix.
+// Prefix returns a copy of the verifier's SP1 hash prefix; verifiers are shared, so callers must not alias it.
 func (v *SP1Groth16Verifier) Prefix() []byte {
-	return v.prefix[:]
+	return bytes.Clone(v.prefix[:])
 }
 
 // VerifyProof checks that the given proof is valid using the verifier's key,
@@ -80,8 +80,8 @@ func (v *SP1Groth16Verifier) VerifyProof(proofBz, programVk, publicValues []byte
 		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", ProofBytesLen, len(proofBz))
 	}
 
-	if !bytes.Equal(v.Prefix(), proofBz[:PrefixLen]) {
-		return errorsmod.Wrapf(ErrInvalidProofPrefix, "expected %x, got %x", v.Prefix(), proofBz[:PrefixLen])
+	if !bytes.Equal(v.prefix[:], proofBz[:PrefixLen]) {
+		return errorsmod.Wrapf(ErrInvalidProofPrefix, "expected %x, got %x", v.prefix[:], proofBz[:PrefixLen])
 	}
 
 	// SP1 v6 layout after the 4-byte vkey-hash prefix:
