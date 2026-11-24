@@ -48,3 +48,13 @@ func (k *Keeper) GetIsm(ctx context.Context, ismId util.HexAddress) (types.Inter
 func (k *Keeper) SetIsm(ctx context.Context, ismId util.HexAddress, ism types.InterchainSecurityModule) error {
 	return k.isms.Set(ctx, ismId.GetInternalId(), ism)
 }
+
+// Verifier is a test func used for looking up the cached verifier of a verifying key.
+func (k *Keeper) Verifier(vkey []byte) (*types.SP1Groth16Verifier, error) {
+	return k.verifier(vkey)
+}
+
+// VerifierCacheLen is a test func used for counting the cached verifiers.
+func (k *Keeper) VerifierCacheLen() int {
+	return k.verifiers.Len()
+}

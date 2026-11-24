@@ -87,7 +87,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 		return nil, errorsmod.Wrapf(types.ErrAlreadyUpdatedInBlock, "state updated at height %d", height)
 	}
 
-	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
+	verifier, err := m.verifier(ism.Groth16Vkey)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrapf(types.ErrInvalidMerkleTreeAddress, "expected %x, got %x", ism.MerkleTreeAddress, publicValues.MerkleTreeAddress)
 	}
 
-	verifier, err := types.NewSP1Groth16Verifier(ism.Groth16Vkey)
+	verifier, err := m.verifier(ism.Groth16Vkey)
 	if err != nil {
 		return nil, err
 	}
