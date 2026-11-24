@@ -113,6 +113,18 @@ The default list of flags, unless overridden is the following:
 
 `celestia-appd` overrides these defaults for every embedded version. It passes `--with-tendermint=false` and `--transport=grpc`, plus `--inter-block-cache` for v3-v8 and `--minimum-gas-prices` for v4-v5. See [`modify_root_command_multiplexer.go`](../cmd/celestia-appd/cmd/modify_root_command_multiplexer.go).
 
+### Inter-block cache for v4-v8 (`sync-only`)
+
+The v4-v8 apps run with `--inter-block-cache=false` because their cosmos-sdk forks lack the locking that makes the cache safe while CheckTx, Simulate or queries read state during block execution: a concurrent read can leave a stale value in the cache and fork the node. Embedded v4-v8 apps that support it can instead turn the cache on in a mode that serves nothing else:
+
+```toml
+[performance]
+inter-block-cache = "sync-only"    # default "off"
+inter-block-cache-size = 100000    # entries per store
+```
+
+While a v4-v8 app runs in this mode, it refuses CheckTx, QuerySequence, ABCI queries (except peer filtering), every app gRPC and REST request, and state sync. Block execution and `Info` are unchanged. The mode is meant for nodes syncing past the v4-v8 eras; v3 and v9+ ignore it. The multiplexer validates both keys at startup.
+
 Only explicitly set start flags supported by the selected embedded version are forwarded. Cobra's parsed values are serialized as `--name=value`, preserving values that look like flags or subcommands. `Multiplexer` appends its mandatory overrides last.
 
 When adding a start flag or updating an embedded binary, update `unsupportedFlags` in `cmd/celestia-appd/cmd/modify_root_command_multiplexer.go` and run `make test-multiplexer`. Its compatibility test compares the native flags with every embedded binary, including hidden flags, and detects missing or obsolete exclusions.

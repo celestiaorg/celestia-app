@@ -154,6 +154,14 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	if err != nil {
 		return nil, err
 	}
+	syncOnly, err := interBlockCacheSyncOnly(svrCtx.Viper)
+	if err != nil {
+		return nil, err
+	}
+	if syncOnly {
+		svrCtx.Logger.Info("performance.inter-block-cache is sync-only: embedded v4-v8 apps run with the inter-block cache and serve no transactions, queries or state sync")
+	}
+
 	mp := &Multiplexer{
 		svrCtx:         svrCtx,
 		svrCfg:         svrCfg,
