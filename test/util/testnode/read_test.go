@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
