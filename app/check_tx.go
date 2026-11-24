@@ -17,6 +17,10 @@ import (
 // method wraps the default Baseapp's method so that it can parse and check
 // transactions that contain blobs.
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	if app.interBlockCacheSyncOnly {
+		return responseCheckTxWithEvents(ErrInterBlockCacheSyncOnly, 0, 0, []abci.Event{}, false), nil
+	}
+
 	app.checkStateMu.Lock()
 	defer app.checkStateMu.Unlock()
 
