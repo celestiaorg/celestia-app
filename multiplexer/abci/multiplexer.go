@@ -37,6 +37,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
+	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"golang.org/x/net/netutil"
@@ -53,9 +54,18 @@ const (
 	configDeliverTxBatch = "performance.delivertx-batch"
 )
 
-// deliverTxBatchEnabled reads performance.delivertx-batch, defaulting to true.
-func deliverTxBatchEnabled(v *viper.Viper) bool {
-	return !v.IsSet(configDeliverTxBatch) || v.GetBool(configDeliverTxBatch)
+// deliverTxBatchEnabled reads performance.delivertx-batch, defaulting to true
+// when the key is missing. A value that is not a bool is an error.
+func deliverTxBatchEnabled(v *viper.Viper) (bool, error) {
+	if !v.IsSet(configDeliverTxBatch) {
+		return true, nil
+	}
+	raw := v.Get(configDeliverTxBatch)
+	enabled, err := cast.ToBoolE(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: must be true or false", configDeliverTxBatch, fmt.Sprint(raw))
+	}
+	return enabled, nil
 }
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
@@ -137,6 +147,10 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	if err := versions.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid versions: %w", err)
 	}
+	deliverTxBatch, err := deliverTxBatchEnabled(svrCtx.Viper)
+	if err != nil {
+		return nil, err
+	}
 	mp := &Multiplexer{
 		svrCtx:         svrCtx,
 		svrCfg:         svrCfg,
@@ -149,7 +163,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		chainID:        chainID,
 		appVersion:     applicationVersion,
 		nextAppVersion: applicationVersion,
-		deliverTxBatch: deliverTxBatchEnabled(svrCtx.Viper),
+		deliverTxBatch: deliverTxBatch,
 	}
 
 	return mp, nil

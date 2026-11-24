@@ -11,6 +11,9 @@ import (
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	typesv2 "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/server"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	abciv1 "github.com/tendermint/tendermint/abci/types"
@@ -222,11 +225,30 @@ func TestDeliverTxBatchMatchesPerTx(t *testing.T) {
 
 func TestDeliverTxBatchEnabledConfig(t *testing.T) {
 	v := viper.New()
-	require.True(t, deliverTxBatchEnabled(v), "missing key defaults to true")
+	enabled, err := deliverTxBatchEnabled(v)
+	require.NoError(t, err)
+	require.True(t, enabled, "missing key defaults to true")
 	for val, want := range map[any]bool{true: true, false: false, "true": true, "false": false} {
 		v.Set(configDeliverTxBatch, val)
-		require.Equal(t, want, deliverTxBatchEnabled(v), "%v", val)
+		enabled, err := deliverTxBatchEnabled(v)
+		require.NoError(t, err, "%v", val)
+		require.Equal(t, want, enabled, "%v", val)
 	}
+	for _, val := range []any{"yes", "enabled", []string{"true"}} {
+		v.Set(configDeliverTxBatch, val)
+		_, err := deliverTxBatchEnabled(v)
+		require.ErrorContains(t, err, "invalid performance.delivertx-batch", "%v", val)
+	}
+}
+
+// An invalid performance.delivertx-batch stops the multiplexer from starting.
+func TestNewMultiplexerRejectsInvalidDeliverTxBatch(t *testing.T) {
+	v := viper.New()
+	v.Set(configDeliverTxBatch, "yes")
+	svrCtx := server.NewDefaultContext()
+	svrCtx.Viper = v
+	_, err := NewMultiplexer(svrCtx, serverconfig.Config{}, client.Context{}, nil, Versions{{AppVersion: 3}}, "test", 3, nil)
+	require.ErrorContains(t, err, `invalid performance.delivertx-batch "yes"`)
 }
 
 // TestDeliverTxBatchProbeSharedAcrossClients checks that clients created for
