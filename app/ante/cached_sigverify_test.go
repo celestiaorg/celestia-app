@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -108,6 +109,18 @@ func TestPreverifyTxSignaturesMatchesColdAnteDecision(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("caches only once the chain passes", func(t *testing.T) {
+		cache := sigcache.New(16)
+		d := appante.NewCachedSigVerificationDecorator(testApp.AccountKeeper, enc.TxConfig.SignModeHandler(), cache)
+		reject := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, errors.New("rejected") }
+		_, err := d.AnteHandle(ctx, valid, false, reject)
+		require.EqualError(t, err, "rejected")
+		require.Zero(t, cache.Len())
+		_, err = d.AnteHandle(ctx, valid, false, nextAnteHandler)
+		require.NoError(t, err)
+		require.Equal(t, 1, cache.Len())
+	})
 
 	// Warming a nil tx, a tx with no signatures and a tx for an account with no
 	// recorded public key must not panic or poison the cache.

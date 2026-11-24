@@ -18,19 +18,35 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// NewCachedSigVerificationDecorator returns the SDK's signature verification
-// decorator with a cache of signatures that already verified, so a signature
-// checked by an earlier ante pass skips the curve operation. Everything else -
-// the sequence check, the error messages, the recheck skip - is the SDK's.
-func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache) ante.SigVerificationDecorator {
-	return ante.NewSigVerificationDecorator(ak, signModeHandler, ante.WithSignatureVerifier(cachedVerifier(sigCache)))
+// CachedSigVerificationDecorator is the SDK's signature verification decorator
+// with a cache, so a signature an earlier ante pass verified skips the curve
+// operation. A tx's signatures are cached only once the rest of the chain accepts it.
+type CachedSigVerificationDecorator struct {
+	ak              ante.AccountKeeper
+	signModeHandler *txsigning.HandlerMap
+	sigCache        *sigcache.Cache
+}
+
+func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache) CachedSigVerificationDecorator {
+	return CachedSigVerificationDecorator{ak: ak, signModeHandler: signModeHandler, sigCache: sigCache}
+}
+
+func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	var verified []sigcache.Key
+	verify := cachedVerifier(d.sigCache, func(key sigcache.Key) { verified = append(verified, key) })
+	newCtx, err := ante.NewSigVerificationDecorator(d.ak, d.signModeHandler, ante.WithSignatureVerifier(verify)).AnteHandle(ctx, tx, simulate, next)
+	if err == nil {
+		for _, key := range verified {
+			d.sigCache.Add(key)
+		}
+	}
+	return newCtx, err
 }
 
 // cachedVerifier wraps authsigning.VerifySignature with a lookup in sigCache.
 // The sign bytes are a pure function of the keyed inputs, so a hit skips a
-// check that would have produced the same result. Only successful
-// verifications are recorded, so a rejected signature is rejected again.
-func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
+// check that would have produced the same result. Only successes reach record.
+func cachedVerifier(sigCache *sigcache.Cache, record func(sigcache.Key)) ante.SignatureVerifier {
 	return func(
 		ctx context.Context,
 		pubKey cryptotypes.PubKey,
@@ -51,19 +67,20 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 			return err
 		}
 		if keyed && sigCache != nil {
-			sigCache.Add(key)
+			record(key)
 		}
 		return nil
 	}
 }
 
 // PreverifyTxSignatures warms the signature cache for single-signer direct-sign txs
-// before ante runs; sound because the key binds every sign-bytes input.
+// before ante runs; sound because the key binds every sign-bytes input. Unlike the
+// ante path it records before the tx is accepted, bounded by one proposal's txs.
 func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx) {
 	if sigCache == nil {
 		return
 	}
-	verify := cachedVerifier(sigCache)
+	verify := cachedVerifier(sigCache, sigCache.Add)
 	type workItem struct {
 		pubKey     cryptotypes.PubKey
 		signerData txsigning.SignerData
