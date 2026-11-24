@@ -253,7 +253,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16.0.20261123153549-ebefc0f1ec21
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.2-sdk-v0.46.16.0.20261124054332-303b82c04db3
 	// Temporary: celestiaorg/iavl fork with deferred persistence, until a tag is cut.
 	github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261123151647-fb8f3f6d29a5
 	// Replace IBC with celestiaorg fork which includes fixes for security vulnerabilities.
