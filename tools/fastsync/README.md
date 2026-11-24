@@ -103,7 +103,7 @@ Build and test (the module is outside the repository's `go.work`):
 
 ```sh
 cd tools/fastsync
-make build   # binaries in ./build
+make build   # binaries in ./build (fastindex46 is its own module, built by the same target)
 make test
 ```
 
@@ -115,7 +115,7 @@ The tools land in a series of changes; this table lists the full set.
 | `fshdr forward` | verify headers up from one trusted header (links, commits, validator sets) and write `expected.tsv` |
 | `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
-| `fastindex` | build the IAVL fast-node index of an applied DB offline |
+| `fastindex`, `fastindex46` | build the IAVL fast-node index of an applied DB offline (SDK v0.50 / v0.46 stores) |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
 | `scripts/segment.sh` | run and check one re-execution segment |
@@ -189,6 +189,25 @@ hashes.
 With celestia-core v0.43 the offline state sync height is kept until the node
 stores its first block, so a first start that fails before that can simply be
 retried.
+
+### fastindex
+
+The appliers write with the IAVL fast-node index off. A node with the default
+`iavl-disable-fastnode = false` then rebuilds the index of every store inside
+its first `LoadVersion`, before it does anything else, which takes minutes or
+more on mainnet-size state and logs nothing at `log_level = warn`. `fastindex`
+does that rebuild offline, visibly, and checks that the commit id did not change
+(the index is not part of any hash):
+
+```sh
+fastindex   -db ~/.celestia-app/data -backend pebbledb -check   # exit 3: a node would rebuild
+fastindex   -db ~/.celestia-app/data -backend pebbledb          # app v4+ DB (SDK v0.50, IAVL v1)
+fastindex46 -db ~/.celestia-app/data -backend pebbledb          # app v1-v3 DB (SDK v0.46, IAVL v0.19)
+```
+
+The cost is one pass over the leaves of the final state; history does not
+matter. `fastindex46` is a separate module (`fastindex46/`) because it needs
+the SDK v0.46 store that celestia-app v3 uses.
 
 ### bsfix
 
