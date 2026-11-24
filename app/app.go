@@ -669,6 +669,8 @@ func (app *App) PreBlocker(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sd
 	// the transactions execute. Validator certificates are left out:
 	// FinalizeBlock never verifies them.
 	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{})
+	// Verify the block's ZK proofs in parallel; handlers reuse each verdict after charging gas.
+	app.IsmKeeper.PreverifyProofs(ctx, zkProofMsgs(app.encodingConfig.TxConfig.TxDecoder(), req.Txs))
 	res, err := app.ModuleManager.PreBlock(ctx)
 	if err != nil {
 		return nil, err

@@ -34,6 +34,7 @@ type KeeperTestSuite struct {
 	suite.Suite
 
 	ctx         sdk.Context
+	app         *app.App
 	zkISMKeeper *keeper.Keeper
 }
 
@@ -45,6 +46,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	// Block heights start at 1, so height 0 keeps its meaning of "no proof accepted yet".
 	suite.ctx = testApp.NewUncachedContext(false, cmtproto.Header{Height: 1, Version: version.Consensus{App: appconsts.Version}})
+	suite.app = testApp
 	suite.zkISMKeeper = testApp.IsmKeeper
 }
 

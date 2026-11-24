@@ -58,3 +58,24 @@ func (k *Keeper) Verifier(vkey []byte) (*types.SP1Groth16Verifier, error) {
 func (k *Keeper) VerifierCacheLen() int {
 	return k.verifiers.Len()
 }
+
+// RecordVerdict is a test func used for recording err as the only verdict, for these exact inputs.
+func (k *Keeper) RecordVerdict(vkey, programVk, proof, publicValues []byte, err error) {
+	verdicts := map[proofInputs]error{newProofInputs(vkey, programVk, proof, publicValues): err}
+	k.verdicts.Store(&verdicts)
+}
+
+// HasVerdict is a test func used for checking whether a verdict is recorded for these exact inputs.
+func (k *Keeper) HasVerdict(vkey, programVk, proof, publicValues []byte) bool {
+	verdicts := k.verdicts.Load()
+	if verdicts == nil {
+		return false
+	}
+	_, ok := (*verdicts)[newProofInputs(vkey, programVk, proof, publicValues)]
+	return ok
+}
+
+// VerifyProof is a test func used for verifying a proof the way the handlers do.
+func (k *Keeper) VerifyProof(v *types.SP1Groth16Verifier, vkey, proof, programVk, publicValues []byte) error {
+	return k.verifyProof(v, vkey, proof, programVk, publicValues)
+}
