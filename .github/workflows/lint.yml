@@ -58,13 +58,29 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: make lint-complexity LINT_BASE="$BASE_SHA"
 
+  # On pull requests, scan only when the PR changes dependencies, the Go
+  # version, or the scan itself. A new advisory against an existing dependency
+  # is not caused by the PR, and the merge queue (which scans the PR merged
+  # with the latest main) still catches it before merge.
   govulncheck:
     runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
+        if: github.event_name == 'pull_request'
+        id: changes
+        with:
+          token: ''
+          filters: |
+            deps:
+              - '**/go.mod'
+              - '**/go.sum'
+              - 'Makefile'
       - uses: ./.github/actions/setup-go
+        if: github.event_name != 'pull_request' || steps.changes.outputs.deps == 'true'
       - run: make govulncheck
+        if: github.event_name != 'pull_request' || steps.changes.outputs.deps == 'true'
 
   hadolint:
     runs-on: ${{ github.event_name != 'pull_request' && vars.TRUSTED_CI_RUNNER || 'ubuntu-latest' }}
