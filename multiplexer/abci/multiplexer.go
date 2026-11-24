@@ -96,6 +96,9 @@ type Multiplexer struct {
 	cancelInfo context.CancelFunc
 	// started indicates if there is an embedded app or native app running
 	started bool
+	// halted is set once a halt condition stopped the embedded app, so no
+	// later caller restarts it. Guarded by mu.
+	halted bool
 	// appCreator is a function type responsible for creating a new application instance.
 	appCreator servertypes.AppCreator
 	// nativeApp represents the instance of a native application.
@@ -593,6 +596,10 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 // getAppLocked is getApp for callers that hold m.mu.
 func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 	m.logger.Debug("getting app", "app_version", m.appVersion, "next_app_version", m.nextAppVersion)
+
+	if m.halted {
+		return nil, errors.New("node halted per configuration; not starting an app")
+	}
 
 	// get the appropriate version for the latest app version.
 	currentVersion, err := m.versions.GetForAppVersion(m.appVersion)
