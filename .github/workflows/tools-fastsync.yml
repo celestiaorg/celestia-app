@@ -34,6 +34,16 @@ jobs:
           cache-dependency-path: |
             tools/fastsync/go.sum
             tools/fastsync/fastindex46/go.sum
+      - name: download modules
+        # retry: proxy.golang.org occasionally resets a stream mid-download
+        run: |
+          for i in 1 2 3; do
+            go mod download && (cd fastindex46 && go mod download) && exit 0
+            sleep $((i * 10))
+          done
+          exit 1
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
