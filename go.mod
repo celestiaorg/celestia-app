@@ -286,6 +286,6 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
 )
 
-replace cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124074252-9b37fd61c1b2
+replace cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124120132-bb67e4d3057b
 
-replace github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261123165557-92c18b120688
+replace github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261124115638-2483695d24be
