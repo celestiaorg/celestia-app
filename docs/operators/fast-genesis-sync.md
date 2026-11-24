@@ -9,8 +9,7 @@ This guide is for operators who sync a node from genesis (or from a bootstrapped
 1. Edit the config files before the first start (see [Recommended config](#recommended-config)).
 2. Run the node under systemd with `KillMode=mixed` (see [Run under systemd](#run-under-systemd)).
 3. Keep block retention off until the node is past the v4 upgrade, or start from an empty blockstore (see [Block retention](#block-retention)).
-4. Restart the node once after the v4 upgrade (see [Restart after the v4 upgrade](#restart-after-the-v4-upgrade)).
-5. Switch to the normal tip configuration once the node has caught up.
+4. Switch to the normal tip configuration once the node has caught up.
 
 ## Recommended config
 
@@ -83,11 +82,16 @@ Pick one:
 
 Note that the start hook only raises a non-zero `min-retain-blocks` to the minimum; `0` is left alone.
 
-## Restart after the v4 upgrade
+## Deferred persistence across upgrades
 
-Some work that is deferred during the early eras (deferred persistence in the stores) is re-enabled only when the process starts on a version that supports it. Restart the node once after it crosses the v4 upgrade height. With `KillMode=mixed` this is a clean `systemctl restart celestia-appd`.
+No restart is needed at any upgrade. Each binary that executes blocks decides at commit time whether to defer writes, and a DB left in deferred state by one binary is picked up by the next:
 
-TODO: confirm whether this restart is still needed and why. In the open pull requests, deferred persistence exists only for v1 to v3 and for v7 and later (see [Which eras get which speedup](#which-eras-get-which-speedup)), not for the v4 child, and each child decides it when it starts, so the reason given above does not match the code.
+- The v3 child turns deferred persistence on at the first block of a sync from genesis.
+- At the v4 upgrade the trees are still in the IAVL v0.19 format. The v4 child executes one block with per-block writes, then deletes the versions below the latest (log line `deferred persistence: deleted the versions below the latest to turn the mode on`) and turns the mode on.
+- Every later binary loads the DB with the mode already on (`deferred IAVL persistence on`).
+- At the tip the node logs `deferred IAVL persistence off: caught up` and writes every block.
+
+If the mode stays off, the binary logs the reason once at `info` level (`deferred IAVL persistence stays off while catching up`). With `log_level = "warn"` that line is hidden; use `log_level = "info"` for the first minutes after an upgrade if you want to confirm the mode.
 
 ## Inter-block cache
 
@@ -146,7 +150,7 @@ All keys are in the `[performance]` section. A missing key means its default, so
 `"sync"` turns on only when both of these hold:
 
 - The node is catching up: the block time is more than 10 minutes behind the wall clock. The wall clock only decides when data is written, never what is computed.
-- The node keeps no history that deferred mode would delete. On v4 and later every IAVL tree must hold a single version (a fresh or deferred-written DB). On v1 to v3, pruning must not keep more recent versions than `deferred-flush-interval`, state sync snapshots must be off (`snapshot-interval = 0`) and IAVL lazy loading must be off.
+- The node keeps no history that deferred mode would delete. On v4 and later, with `pruning = "everything"`, the node deletes the few versions stock pruning still holds and turns the mode on; a larger history (for example right after switching from `"default"`) is left to stock pruning first, so the mode turns on once that has caught up. With any other pruning setting the mode turns on only when every tree holds at most one version below the latest. On v1 to v3, pruning must not keep more recent versions than `deferred-flush-interval`, state sync snapshots must be off (`snapshot-interval = 0`) and IAVL lazy loading must be off.
 
 The default `pruning = "default"` keeps history, so with it deferred persistence stays off. For a fast sync from genesis set:
 
