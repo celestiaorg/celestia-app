@@ -108,14 +108,14 @@ Once every embedded child is patched, the eras get:
 | App version era | Binary (cosmos-sdk line) | `app.toml` `[performance]` options |
 | --- | --- | --- |
 | v1 to v3 | v3 child (v0.46) | `signature-preverify`, `parallel-commit`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval`; `delivertx-batch` (read by the parent) |
-| v4, v5 | v4 and v5 children (v0.50) | `execution-caches` |
-| v6 | v6 child (v0.51) | `execution-caches` |
+| v4, v5 | v4 and v5 children (v0.50) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
+| v6 | v6 child (v0.51) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
 | v7 to v11 | v7 to v11 children (v0.52) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
 | v12 and later | parent (main) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
 
-An era only gets a speedup if the child embedded in your release is patched. So far patched children exist for v3 and v10 only; the other eras run unpatched children and ignore these keys. Check the release notes of the release you run.
+An era only gets a speedup if the child embedded in your release is patched. An unpatched child ignores these keys. Patched builds of every embedded child (v3.13.0, v4.1.0, v5.0.12, v6.4.10, v7.0.3, v8.0.8, v9.0.8, v10.5.0 and v11.0.0) exist on unmerged branches and pass the multi-version determinism test ([celestia-app#8792](https://github.com/celestiaorg/celestia-app/pull/8792)). Check the release notes of the release you run.
 
-TODO: confirm the patched children embedded in the release this guide ships with, and the exact v4 to v6 coverage once the backports are merged.
+TODO: confirm the patched children embedded in the release this guide ships with.
 
 ### `config/config.toml`
 
@@ -134,7 +134,7 @@ All keys are in the `[performance]` section. A missing key means its default, so
 | `signature-preverify` | `true` | Verifies a block's secp256k1 signatures in parallel before executing it and caches the valid ones. v1 to v3 only. | If it causes CPU contention. |
 | `delivertx-batch` | `true` | The parent sends all transactions of a v1 to v3 block to the child in one call instead of one call per transaction. Used only when the child supports it; blocks over 64 MiB use per-transaction calls. Not written to a new `app.toml`; add the key to turn it off. | If the parent and the v3 child fail to communicate. |
 | `parallel-commit` | `true` | Writes, hashes and commits the stores in parallel. | If you suspect a store write problem. |
-| `async-pruning` | `true` | Prunes old IAVL versions in the background instead of inside `Commit`. v7 and later only. | If pruning falls behind or disk use grows. |
+| `async-pruning` | `true` | Prunes old IAVL versions in the background instead of inside `Commit`. v4 and later only. | If pruning falls behind or disk use grows. |
 | `execution-caches` | `true` | Caches decoded params and validators (and, on v1 to v3, bech32 addresses) during block execution. Gas and results are unchanged because the store is still read. | If you suspect stale cached data. |
 | `deferred-persistence` | `"sync"` | `"sync"` keeps new IAVL nodes in memory while the node is catching up and writes them every `deferred-flush-interval` blocks; at the tip it flushes and goes back to writing every block. `"off"` writes every block. See [Deferred persistence](#deferred-persistence). | If you need app-state rollback, or the host has little memory. |
 | `deferred-flush-interval` | `100` | Blocks between flushes in deferred mode. After a crash the node replays at most this many blocks. | Lower it to bound memory and replay after a crash. |
@@ -146,7 +146,7 @@ All keys are in the `[performance]` section. A missing key means its default, so
 `"sync"` turns on only when both of these hold:
 
 - The node is catching up: the block time is more than 10 minutes behind the wall clock. The wall clock only decides when data is written, never what is computed.
-- The node keeps no history that deferred mode would delete. On v7 and later every IAVL tree must hold a single version (a fresh, state-synced or deferred-written DB). On v1 to v3, pruning must not keep more recent versions than `deferred-flush-interval`, state sync snapshots must be off (`snapshot-interval = 0`) and IAVL lazy loading must be off.
+- The node keeps no history that deferred mode would delete. On v4 and later every IAVL tree must hold a single version (a fresh or deferred-written DB). On v1 to v3, pruning must not keep more recent versions than `deferred-flush-interval`, state sync snapshots must be off (`snapshot-interval = 0`) and IAVL lazy loading must be off.
 
 The default `pruning = "default"` keeps history, so with it deferred persistence stays off. For a fast sync from genesis set:
 
@@ -158,15 +158,16 @@ With `pruning = "everything"` the node keeps no historical state, so queries at 
 
 Things to know before you rely on it:
 
-- **Rollback.** A DB written in deferred mode holds only the last flushed version, so its app state cannot be rolled back. Only CometBFT state can be rolled back, to a height at or above the last flushed version; the node then replays the blocks after the last flushed version on start. On v7 and later `rollback` does this by itself and refuses a lower target. On v1 to v3 `rollback` refuses and asks for `rollback --cometbft-only`. If you need app-state rollback, run with `deferred-persistence = "off"`.
+- **Rollback.** A DB written in deferred mode holds only the last flushed version, so its app state cannot be rolled back. Only CometBFT state can be rolled back, to a height at or above the last flushed version; the node then replays the blocks after the last flushed version on start. On v4 and later `rollback` does this by itself and refuses a lower target. On v1 to v3 `rollback` refuses and asks for `rollback --cometbft-only`. If you need app-state rollback, run with `deferred-persistence = "off"`.
 - **Crashes.** A kill between flushes loses nothing that cannot be recomputed: on the next start the node repairs the store and CometBFT replays up to `deferred-flush-interval` blocks.
 - **Shutdown.** On SIGINT or SIGTERM the store flushes before it exits. The default interval of 100 is small enough for that flush to finish before the multiplexer kills the child.
-- **Memory.** Up to `deferred-flush-interval` blocks of new IAVL nodes stay in memory. On v7 and later about 4 million unflushed nodes (1 to 2 GB) force an earlier flush.
+- **State sync.** A node started from a state sync snapshot may stay in per-block mode: activation can refuse when a store did not change in the snapshot's last block. A fix exists on an unmerged branch ([celestiaorg/iavl#4](https://github.com/celestiaorg/iavl/pull/4)). Syncing from genesis is not affected.
+- **Memory.** Up to `deferred-flush-interval` blocks of new IAVL nodes stay in memory. On v4 and later about 4 million unflushed nodes (1 to 2 GB) force an earlier flush.
 
-The lines differ in which values they accept, and an invalid value stops the binary that reads it. Because the children share `app.toml`, use only values every line accepts:
+Every line accepts the same values, so the shared `app.toml` works for all eras. Any other value stops the binary that reads it:
 
-- `deferred-persistence`: use `"sync"` or `"off"`. The v7 and later binaries also accept `"always"` (defer at the tip too, pruning the DB to one version on start), but the v1 to v3 child rejects it.
-- `deferred-flush-interval`: use a value from 2 to 1000. The v7 and later binaries treat `0` as the default and accept any positive value, but the v1 to v3 child rejects `0`, `1` and values above 1000.
+- `deferred-persistence`: `"sync"`, `"off"` or `"always"`. `"always"` defers at the tip too and prunes the DB to one version on start (v4 and later). The v1 to v3 child has no such mode: it runs `"always"` as `"sync"` and logs that at start.
+- `deferred-flush-interval`: `0` means the default (100). Any positive value is accepted. The v1 to v3 child runs values above 1000 as 1000 (it logs that at start), because it bounds memory only by the interval.
 
 ## Expected speeds
 
