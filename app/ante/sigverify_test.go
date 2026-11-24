@@ -159,12 +159,13 @@ func TestCachedVerifierRecordsOnlySuccesses(t *testing.T) {
 		cache := sigcache.New(8)
 		inputs := signedInputs(t, handler)
 
-		require.NoError(t, inputs.verify(cachedVerifier(cache), handler))
+		require.NoError(t, inputs.verify(cachedVerifier(cache, cache.Add), handler))
 		require.True(t, cache.Has(inputs.key(t)))
 
-		// A second pass over the same signature hits and records nothing new.
-		require.NoError(t, inputs.verify(cachedVerifier(cache), handler))
-		require.Equal(t, 1, cache.Len())
+		// A second pass over the same signature hits and records nothing.
+		recorded := 0
+		require.NoError(t, inputs.verify(cachedVerifier(cache, func(sigcache.Key) { recorded++ }), handler))
+		require.Zero(t, recorded)
 	})
 
 	t.Run("failure", func(t *testing.T) {
@@ -172,7 +173,7 @@ func TestCachedVerifierRecordsOnlySuccesses(t *testing.T) {
 		inputs := signedInputs(t, handler)
 		inputs.sigData.Signature = []byte("not a signature")
 
-		require.Error(t, inputs.verify(cachedVerifier(cache), handler))
+		require.Error(t, inputs.verify(cachedVerifier(cache, cache.Add), handler))
 		require.Zero(t, cache.Len())
 	})
 }
@@ -185,10 +186,10 @@ func TestCachedVerifierHitSkipsVerification(t *testing.T) {
 	cache := sigcache.New(8)
 	inputs := signedInputs(t, handler)
 	inputs.sigData.Signature = []byte("not a signature")
-	require.Error(t, inputs.verify(cachedVerifier(cache), handler))
+	require.Error(t, inputs.verify(cachedVerifier(cache, cache.Add), handler))
 
 	cache.Add(inputs.key(t))
-	require.NoError(t, inputs.verify(cachedVerifier(cache), handler))
+	require.NoError(t, inputs.verify(cachedVerifier(cache, cache.Add), handler))
 }
 
 // TestCachedVerifierWithoutCache pins that the cache is an optimization: a
@@ -197,10 +198,10 @@ func TestCachedVerifierWithoutCache(t *testing.T) {
 	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
 	inputs := signedInputs(t, handler)
 
-	require.NoError(t, inputs.verify(cachedVerifier(nil), handler))
+	require.NoError(t, inputs.verify(cachedVerifier(nil, nil), handler))
 
 	inputs.sigData.Signature = []byte("not a signature")
-	require.Error(t, inputs.verify(cachedVerifier(nil), handler))
+	require.Error(t, inputs.verify(cachedVerifier(nil, nil), handler))
 }
 
 // TestCachedVerifierDoesNotCacheUnkeyable covers an unkeyable signature
@@ -212,7 +213,7 @@ func TestCachedVerifierDoesNotCacheUnkeyable(t *testing.T) {
 	inputs.sigData.SignMode = signing.SignMode_SIGN_MODE_TEXTUAL
 
 	// No TEXTUAL handler is registered, so the ordinary path reports it.
-	require.Error(t, inputs.verify(cachedVerifier(cache), handler))
+	require.Error(t, inputs.verify(cachedVerifier(cache, cache.Add), handler))
 	require.Zero(t, cache.Len())
 }
 
@@ -223,6 +224,6 @@ func TestCachedVerifierErrorsMatchSDK(t *testing.T) {
 	inputs := signedInputs(t, handler)
 	multi := &signing.MultiSignatureData{}
 	want := authsigning.VerifySignature(context.Background(), inputs.pubKey, inputs.signerData, multi, handler, inputs.txData)
-	got := cachedVerifier(nil)(context.Background(), inputs.pubKey, inputs.signerData, multi, handler, inputs.txData)
+	got := cachedVerifier(nil, nil)(context.Background(), inputs.pubKey, inputs.signerData, multi, handler, inputs.txData)
 	require.EqualError(t, got, want.Error())
 }
