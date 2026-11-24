@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v11/app"
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
-	"github.com/celestiaorg/celestia-app/v11/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
+	"github.com/celestiaorg/celestia-app/v12/x/minfee/types"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/appdb"
+	"github.com/celestiaorg/celestia-app/v12/app/appdb"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/stretchr/testify/require"
 )

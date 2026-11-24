@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v12/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 )
 

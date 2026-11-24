@@ -3,7 +3,7 @@ package grpc
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 )
 
 // benchDownloadResponse builds a DownloadShardResponse approximating a served

@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"

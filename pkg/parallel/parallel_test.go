@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/parallel"
+	"github.com/celestiaorg/celestia-app/v12/pkg/parallel"
 	"github.com/stretchr/testify/require"
 )
 

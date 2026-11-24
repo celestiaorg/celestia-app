@@ -4,7 +4,7 @@ import (
 	"math"
 
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/internal/groth16"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/internal/groth16"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 

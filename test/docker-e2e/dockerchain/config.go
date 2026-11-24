@@ -7,9 +7,9 @@ import (
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v12/test/util/testnode"
 )
 
 const (

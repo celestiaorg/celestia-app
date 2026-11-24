@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
+	"github.com/celestiaorg/celestia-app/v12/test/util/fuzzutil"
 	"github.com/stretchr/testify/require"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

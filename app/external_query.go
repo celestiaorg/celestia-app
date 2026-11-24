@@ -4,8 +4,8 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/proof"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"google.golang.org/grpc/codes"

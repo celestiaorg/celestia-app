@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	"google.golang.org/grpc/codes"

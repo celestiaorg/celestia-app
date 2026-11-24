@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app"
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"

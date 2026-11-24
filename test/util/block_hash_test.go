@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"

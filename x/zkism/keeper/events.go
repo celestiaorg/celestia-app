@@ -2,7 +2,7 @@ package keeper
 
 import (
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

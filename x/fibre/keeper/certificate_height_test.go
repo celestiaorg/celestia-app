@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v11/fibre"
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre"
+	"github.com/celestiaorg/celestia-app/v12/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"

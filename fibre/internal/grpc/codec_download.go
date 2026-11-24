@@ -3,8 +3,8 @@ package grpc
 import (
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
-	"github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/row"
+	"github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/mem"
 )

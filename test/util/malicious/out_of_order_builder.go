@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v12/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	"github.com/celestiaorg/go-square/v4/share"

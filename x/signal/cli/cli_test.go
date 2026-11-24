@@ -3,8 +3,8 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v11/x/signal/cli"
+	"github.com/celestiaorg/celestia-app/v12/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v12/x/signal/cli"
 	testutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/stretchr/testify/suite"
 )

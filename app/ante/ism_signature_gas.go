@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )

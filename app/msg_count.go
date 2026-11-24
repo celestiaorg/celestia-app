@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	"github.com/celestiaorg/celestia-app/v11/app/ante"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/app/ante"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"

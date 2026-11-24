@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	txsigning "cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v11/pkg/secpverify"
-	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v12/pkg/secpverify"
+	"github.com/celestiaorg/celestia-app/v12/pkg/sigcache"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -3,9 +3,9 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v11/app"
-	"github.com/celestiaorg/celestia-app/v11/app/appdb"
-	"github.com/celestiaorg/celestia-app/v11/app/observability"
+	"github.com/celestiaorg/celestia-app/v12/app"
+	"github.com/celestiaorg/celestia-app/v12/app/appdb"
+	"github.com/celestiaorg/celestia-app/v12/app/observability"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"

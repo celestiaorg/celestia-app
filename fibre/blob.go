@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/row"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 

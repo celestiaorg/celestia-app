@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/hardfork/genesis"
-	"github.com/celestiaorg/celestia-app/v11/test/util"
-	minttypes "github.com/celestiaorg/celestia-app/v11/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/hardfork/genesis"
+	"github.com/celestiaorg/celestia-app/v12/test/util"
+	minttypes "github.com/celestiaorg/celestia-app/v12/x/mint/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	appda "github.com/celestiaorg/celestia-app/v11/pkg/da"
-	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	appda "github.com/celestiaorg/celestia-app/v12/pkg/da"
+	"github.com/celestiaorg/celestia-app/v12/pkg/user"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	da "github.com/celestiaorg/tastora/framework/docker/dataavailability"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"

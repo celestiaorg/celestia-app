@@ -3,7 +3,7 @@ package testnode
 import (
 	"path/filepath"
 
-	celestiaapp "github.com/celestiaorg/celestia-app/v11/app"
+	celestiaapp "github.com/celestiaorg/celestia-app/v12/app"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"

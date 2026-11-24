@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/txutil"
-	"github.com/celestiaorg/celestia-app/v11/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/txutil"
+	"github.com/celestiaorg/celestia-app/v12/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v12/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

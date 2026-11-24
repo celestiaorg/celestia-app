@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/state"
-	valtypes "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v12/fibre/state"
+	valtypes "github.com/celestiaorg/celestia-app/v12/x/valaddr/types"
 	"github.com/cometbft/cometbft/crypto"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

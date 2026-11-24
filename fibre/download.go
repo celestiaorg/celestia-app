@@ -7,10 +7,10 @@ import (
 	"iter"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/row"
-	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/row"
+	"github.com/celestiaorg/celestia-app/v12/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/rlc"
 )
 
 // download is the per-download session/state for fetching and reconstructing a blob.

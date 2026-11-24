@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	testutil "github.com/celestiaorg/celestia-app/v11/test/util"
+	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"

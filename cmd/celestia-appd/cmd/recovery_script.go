@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v11/scripts/hardfork"
+	"github.com/celestiaorg/celestia-app/v12/scripts/hardfork"
 	"github.com/spf13/cobra"
 )
 

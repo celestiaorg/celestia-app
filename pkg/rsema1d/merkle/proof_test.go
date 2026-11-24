@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/merkle"
 	"github.com/stretchr/testify/require"
 )
 

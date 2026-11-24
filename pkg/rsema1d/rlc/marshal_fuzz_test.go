@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v12/pkg/rsema1d/rlc"
 )
 
 // FuzzUnmarshal checks rlc.Unmarshal on RLC bytes received from fibre upload

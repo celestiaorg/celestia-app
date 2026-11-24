@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre/internal/tlsid"
+	"github.com/celestiaorg/celestia-app/v12/fibre/internal/tlsid"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"

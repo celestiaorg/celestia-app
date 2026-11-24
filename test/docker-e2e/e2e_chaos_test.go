@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v12/test/util/genesis"
 	"github.com/celestiaorg/tastora/framework/docker/consts"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"

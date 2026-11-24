@@ -8,9 +8,9 @@ import (
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v11/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/keeper"
-	"github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/keeper"
+	"github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )

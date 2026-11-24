@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/test/util/fuzzutil"
+	"github.com/celestiaorg/celestia-app/v12/test/util/fuzzutil"
 	"github.com/stretchr/testify/require"
 )
 

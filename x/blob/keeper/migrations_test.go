@@ -3,9 +3,9 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v12/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 

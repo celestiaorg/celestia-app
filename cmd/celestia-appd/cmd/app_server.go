@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	storecache "cosmossdk.io/store/cache"
-	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v12/app"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/server"

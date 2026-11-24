@@ -5,9 +5,9 @@ package simulation
 import (
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/x/signal"
-	"github.com/celestiaorg/celestia-app/v11/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/x/signal"
+	"github.com/celestiaorg/celestia-app/v12/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"

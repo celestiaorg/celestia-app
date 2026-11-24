@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v12/app/grpc/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"

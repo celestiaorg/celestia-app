@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v12/x/forwarding/types"
 )
 
 // fuzzDerivation is one DeriveForwardingAddress input decoded from fuzz bytes.

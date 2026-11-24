@@ -7,7 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v12/app/grpc/tx"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"

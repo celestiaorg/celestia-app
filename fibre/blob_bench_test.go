@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v11/fibre"
+	"github.com/celestiaorg/celestia-app/v12/fibre"
 )
 
 // BenchmarkNewBlob encodes max-size blobs through the default config, serially

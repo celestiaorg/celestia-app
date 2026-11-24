@@ -17,7 +17,7 @@ import (
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v11/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v12/multiplexer/appd"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"

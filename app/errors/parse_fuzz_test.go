@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	apperr "github.com/celestiaorg/celestia-app/v11/app/errors"
+	apperr "github.com/celestiaorg/celestia-app/v12/app/errors"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 

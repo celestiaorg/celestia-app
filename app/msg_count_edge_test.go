@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
-	"github.com/celestiaorg/celestia-app/v11/app/encoding"
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	zkismtypes "github.com/celestiaorg/celestia-app/v11/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v12/app/encoding"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/proto"

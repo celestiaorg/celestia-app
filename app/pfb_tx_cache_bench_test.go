@@ -5,9 +5,9 @@ import (
 	mathrand "math/rand"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v11/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v11/test/util/random"
+	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v12/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v12/test/util/random"
 	"github.com/celestiaorg/go-square/v4/share"
 )
 
