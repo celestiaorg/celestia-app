@@ -868,8 +868,8 @@ github.com/celestiaorg/cosmos-sdk/api v0.7.6 h1:81in9Zk+noz0ko+hZFSSK8L1aawFN8/C
 github.com/celestiaorg/cosmos-sdk/api v0.7.6/go.mod h1:1BgQSufu6ZQkst3YBIHDCo/TPUrhfU4fV7tOI0ftql8=
 github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627 h1:qYV81fA5E739ZtdMFCjChx0AMY+qBmMVPfRE3ol+VCE=
 github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627/go.mod h1:lQTBplaW3HQLKQdPaQq+ElW6zASAoo9r3bJ7pOr8SWo=
-github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124050628-b7212420451d h1:e4UyP1+PB16FuzhusbPEj2JUS/IhvXDKP81oFMFf4Eo=
-github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124050628-b7212420451d/go.mod h1:sC/XIP3mVFEMTkDHtt42ox7RsEalkpR6qUCqvDs8PLk=
+github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124054158-67a44ba8adc3 h1:d9+Rl1AsOihOImR3iGAalILIkp1vm9+Z7K9smzzwots=
+github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124054158-67a44ba8adc3/go.mod h1:sC/XIP3mVFEMTkDHtt42ox7RsEalkpR6qUCqvDs8PLk=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-square/v2 v2.3.3 h1:vhu6Lt39km19Q/Jk4nS3r2cuWJq6jFg+/1+iG8YGftY=
