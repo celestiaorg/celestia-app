@@ -61,7 +61,7 @@ func NewCelestiaChainBuilder(t *testing.T, cfg *Config) *tastoradockertypes.Chai
 		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
 		WithAdditionalStartArgs(startArgs(cfg)...).
 		WithEncodingConfig(&encodingConfig).
-		WithPostInit(getPostInitModifications("0.025utia")...).
+		WithPostInit(DefaultPostInit()...).
 		WithFaucetWallet(faucetWallet).
 		WithNodes(vals...).
 		WithGenesis(genesisBz)
@@ -77,6 +77,14 @@ func startArgs(cfg *Config) []string {
 		"--timeout-commit=" + TimeoutCommit.String(),
 		"--delayed-precommit-timeout=" + DelayedPrecommitTimeout.String(),
 	}
+}
+
+// DefaultPostInit returns the config modifications every node of
+// NewCelestiaChainBuilder gets. A node-level WithPostInit replaces the chain's
+// functions instead of adding to them, so a node that needs extra changes must
+// start from these.
+func DefaultPostInit() []func(context.Context, *tastoradockertypes.ChainNode) error {
+	return getPostInitModifications("0.025utia")
 }
 
 // getPostInitModifications returns a slice of functions to modify configuration files of a ChainNode post-initialization.
