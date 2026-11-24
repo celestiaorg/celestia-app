@@ -32,6 +32,10 @@ const (
 	// run deferred and the later ones do not.
 	deferredCatchUpLag = 10 * time.Minute
 	knobsSyncTimeout   = 30 * time.Minute
+	// knobsBaseEraBlocks is how many blocks the chain makes at the base app
+	// version, which the multiplexer runs in the v3 child. The genesis sync
+	// node is killed inside this era, in [1/2, 5/6) of it.
+	knobsBaseEraBlocks = 300
 )
 
 // knobsAppTOML returns the [performance] keys of app.toml with every sync
@@ -91,7 +95,8 @@ func editTOML(ctx context.Context, node *cosmos.ChainNode, path, section string,
 // speedup off, and the chain upgrades through every app version from v2 to
 // the latest. A third node then block syncs the whole history from genesis
 // with every speedup on, pruning "everything" (so deferred persistence is
-// active for blocks older than deferredCatchUpLag) and a SIGKILL halfway. All
+// active for blocks older than deferredCatchUpLag) and a SIGKILL inside the
+// base era, which the v3 child runs. All
 // nodes must agree on the block and app hash of every height and return
 // identical /block_results (tx results, gas, events, validator and consensus
 // param updates).
@@ -140,6 +145,7 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 
 	testBankSend(t, chain, cfg)
 	testPFBSubmission(t, chain, cfg)
+	s.waitForHeight(ctx, chain.Nodes()[:1], knobsBaseEraBlocks)
 	for v := uint64(knobsBaseAppVersion + 1); v <= appconsts.Version; v++ {
 		t.Logf("Upgrading to app version %d", v)
 		s.UpgradeChain(ctx, chain, cfg, v)
@@ -152,7 +158,8 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	s.Require().NoError(err)
 	// Every block up to the end of the crash window must be old enough for
 	// deferred persistence, so the crash interrupts a deferred sync.
-	s.waitForDeferredLag(ctx, validator, targetHeight*3/4)
+	crashFrom, crashTo := int64(knobsBaseEraBlocks/2), int64(knobsBaseEraBlocks*5/6)
+	s.waitForDeferredLag(ctx, validator, crashTo)
 
 	// Pruning "everything" rejects state sync snapshots, so turn them off too.
 	syncNode := s.addKnobsNode(ctx, chain, withKnobs(true, map[string]map[string]string{
@@ -161,8 +168,9 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	}))
 	syncClient := s.rpcClient(syncNode)
 
-	// Crash the node halfway through the sync and restart it on the same data.
-	crashHeight := s.waitForHeightWhileCatchingUp(ctx, syncClient, targetHeight/2, targetHeight*3/4)
+	// Crash the node in the base era, while the v3 child defers its writes,
+	// and restart it on the same data.
+	crashHeight := s.waitForHeightWhileCatchingUp(ctx, syncClient, crashFrom, crashTo)
 	s.logDeferredLines(ctx, syncNode, "before the crash")
 	_, err = s.client.ContainerKill(ctx, syncNode.Name(), mobyclient.ContainerKillOptions{Signal: "SIGKILL"})
 	s.Require().NoError(err, "failed to kill sync node")
