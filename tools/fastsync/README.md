@@ -114,7 +114,6 @@ The tools land in a series of changes; this table lists the full set.
 | `fshdr forward` | verify headers up from one trusted header (links, commits, validator sets) and write `expected.tsv` |
 | `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
-| `fsboot inspect` | print the store heights and whether the node can start |
 | `fastindex` | build the IAVL fast-node index of an applied DB offline |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
@@ -156,6 +155,32 @@ One header type covers every mainnet height: the header and commit encoding
 and hashing are identical in the celestia-core v0.34 and v0.38-based lines
 (`internal/hdrchain`, mainnet fixtures in its `testdata`). A future encoding
 change adds a `HeaderType` there.
+
+### fsboot
+
+`fsboot bootstrap` writes the CometBFT state store and block store of a node
+home at height `H`: the bytes `celestia-appd comet bootstrap-state --height H`
+writes, from data checked against the verified hash of header `H+1`. It needs no
+light client and no trusting period, so it works at any height `expected.tsv`
+covers (checkpoints and old targets included). The node home must have empty
+CometBFT stores, as for the stock command.
+
+```sh
+fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv \
+  -rpc https://rpc-a.example,https://rpc-b.example
+# or take headers, commit, validator sets and params from a stopped node you run
+fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv -src-data /srv/archive/data
+```
+
+`-dry-run` runs every check and writes nothing. Pass two or more independent
+`-rpc` servers: the fields no header authenticates must then agree on all of
+them. The tests run the stock `BootstrapStateWithGenProvider` and `fsboot`
+against the same RPC server and require identical stores, and cover forged
+validator sets, consensus params, commit signatures, headers and trusted hashes.
+
+With celestia-core v0.43 the offline state sync height is kept until the node
+stores its first block, so a first start that fails before that can simply be
+retried.
 
 ### bsfix
 
