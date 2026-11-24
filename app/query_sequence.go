@@ -13,6 +13,10 @@ import (
 // We bypass BaseApp's mempool-aware implementation so the application can
 // ensure it queries from the latest committed state.
 func (app *App) QuerySequence(_ context.Context, req *abci.RequestQuerySequence) (*abci.ResponseQuerySequence, error) {
+	if app.interBlockCacheSyncOnly {
+		return nil, ErrInterBlockCacheSyncOnly
+	}
+
 	app.checkStateMu.RLock()
 	defer app.checkStateMu.RUnlock()
 

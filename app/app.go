@@ -199,6 +199,11 @@ type App struct {
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
 	checkStateMu *sync.RWMutex
+
+	// interBlockCacheSyncOnly is set when performance.inter-block-cache is
+	// "sync-only": the inter-block cache is on and the app refuses
+	// transactions, queries and state sync. See interblock_cache.go.
+	interBlockCacheSyncOnly bool
 }
 
 // New returns a reference to an uninitialized app. Callers must subsequently
@@ -213,6 +218,12 @@ func New(
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
+	interBlockCache, err := ParseInterBlockCacheConfig(appOpts)
+	if err != nil {
+		panic(err)
+	}
+	baseAppOptions = withInterBlockCache(interBlockCache, baseAppOptions)
+
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
@@ -225,12 +236,16 @@ func New(
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
 	app := &App{
-		BaseApp:       baseApp,
-		keys:          keys,
-		tkeys:         tkeys,
-		memKeys:       memKeys,
-		timeoutCommit: timeoutCommit,
-		checkStateMu:  &sync.RWMutex{},
+		BaseApp:                 baseApp,
+		keys:                    keys,
+		tkeys:                   tkeys,
+		memKeys:                 memKeys,
+		timeoutCommit:           timeoutCommit,
+		checkStateMu:            &sync.RWMutex{},
+		interBlockCacheSyncOnly: interBlockCache.SyncOnly,
+	}
+	if interBlockCache.SyncOnly {
+		logger.Info("inter-block cache on in sync-only mode: this app version serves no transactions, queries or state sync", "entries_per_store", interBlockCache.Size)
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
