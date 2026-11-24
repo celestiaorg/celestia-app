@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync/atomic"
 
 	"cosmossdk.io/collections"
 	corestore "cosmossdk.io/core/store"
@@ -31,6 +32,8 @@ type Keeper struct {
 
 	// verifiers memoizes parsed Groth16 verifying keys by their bytes; a hit only saves the parse's pairing.
 	verifiers *lru.Cache[string, *types.SP1Groth16Verifier]
+	// verdicts holds the current block's proof verdicts from PreverifyProofs.
+	verdicts atomic.Pointer[map[proofInputs]error]
 
 	coreKeeper types.HyperlaneKeeper
 	authority  string

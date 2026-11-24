@@ -93,7 +93,7 @@ func (m msgServer) UpdateInterchainSecurityModule(ctx context.Context, msg *type
 	}
 
 	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verify")
-	if err := verifier.VerifyProof(msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
+	if err := m.verifyProof(verifier, ism.Groth16Vkey, msg.Proof, ism.StateTransitionVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	sdk.UnwrapSDKContext(ctx).GasMeter().ConsumeGas(types.DefaultProofVerifyCostGroth16, "groth16 verify")
-	if err := verifier.VerifyProof(msg.Proof, ism.StateMembershipVkey, msg.PublicValues); err != nil {
+	if err := m.verifyProof(verifier, ism.Groth16Vkey, msg.Proof, ism.StateMembershipVkey, msg.PublicValues); err != nil {
 		return nil, err
 	}
 
