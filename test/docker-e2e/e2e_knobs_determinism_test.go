@@ -258,7 +258,7 @@ func (s *CelestiaTestSuite) logDeferredLines(ctx context.Context, node *cosmos.C
 		}
 	}
 	s.T().Logf("%s: %d deferred persistence log lines %s", node.Name(), len(lines), when)
-	for _, line := range lines[:min(len(lines), 10)] {
+	for _, line := range lines[:min(len(lines), 40)] {
 		s.T().Log(line)
 	}
 }
