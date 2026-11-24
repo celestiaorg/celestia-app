@@ -35,6 +35,10 @@ import (
 )
 
 // CheckVersionCmd returns a command to check if a specific version exists in all IAVL stores
+// performanceDeferredPersistence is the app.toml key of the SDK's deferred
+// IAVL persistence mode ("sync", "always" or "off").
+const performanceDeferredPersistence = "performance.deferred-persistence"
+
 func CheckVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check-version [height]",
@@ -63,6 +67,12 @@ Example:
 				return fmt.Errorf("failed to open database: %w", err)
 			}
 			defer db.Close()
+
+			// Load the stores the way export and rollback do: with deferred
+			// persistence off, a DB left by deferred mode is refused instead
+			// of repaired, so this diagnostic never writes to it. SDK
+			// versions without the option ignore the key.
+			serverCtx.Viper.Set(performanceDeferredPersistence, "off")
 
 			// Create app instance to access stores
 			// serverCtx.Viper implements AppOptions interface
