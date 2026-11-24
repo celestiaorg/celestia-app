@@ -471,7 +471,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.4
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc1
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.43.0-rc2
 	// Pin to the celestia fork of cosmos-db for a configurable pebble block cache.
 	github.com/cosmos/cosmos-db => github.com/celestiaorg/cosmos-db v1.1.3-celestia.1
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.53.7
