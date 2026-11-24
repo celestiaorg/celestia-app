@@ -2,7 +2,7 @@
 
 This guide is for operators who sync a node from genesis (or from a bootstrapped state) with the multiplexer build of `celestia-appd`. Syncing replays every app version era through the embedded binaries, so the settings below matter much more than they do at the tip.
 
-> **Status: draft.** Measured speeds and the sync speedup options are marked `TODO` and will be filled in before this guide is final.
+> **Status: draft.** Measured speeds are marked `TODO` and will be filled in before this guide is final. The sync speedup options describe open pull requests and can change before release.
 
 ## Quick checklist
 
@@ -87,7 +87,7 @@ Note that the start hook only raises a non-zero `min-retain-blocks` to the minim
 
 Some work that is deferred during the early eras (deferred persistence in the stores) is re-enabled only when the process starts on a version that supports it. Restart the node once after it crosses the v4 upgrade height. With `KillMode=mixed` this is a clean `systemctl restart celestia-appd`.
 
-TODO: confirm the exact upgrade height and the version that re-enables deferred persistence once the sync speedups are merged.
+TODO: confirm whether this restart is still needed and why. In the open pull requests, deferred persistence exists only for v1 to v3 and for v7 and later (see [Which eras get which speedup](#which-eras-get-which-speedup)), not for the v4 child, and each child decides it when it starts, so the reason given above does not match the code.
 
 ## Inter-block cache
 
@@ -97,13 +97,76 @@ TODO: document how to enable it for the embedded children (flag or `app.toml` ke
 
 ## Sync speedups
 
-The maintainers have decided that the sync speedups will be on by default, with a per-knob config option to disable the ones that carry risk. The option names are not final.
+The sync speedups are on by default. The ones that carry risk have a config option to turn them off. None of them changes the app hash, events or gas; they only change how fast blocks are verified, executed and written. The option names below are taken from the open pull requests and can still change before release.
 
-TODO: fill in the option table below.
+### Which eras get which speedup
+
+The parent `celestia-appd` runs CometBFT for every height, so the `config.toml` options apply to every era. The `app.toml` options are read by the binary that executes the block: the embedded child for v1 to v11, the parent from v12. The embedded children share the parent's home directory and read the same `config/app.toml`; a child ignores keys it does not know. Pass these options in `app.toml`, not as command-line flags: the parent rejects flags it does not define, and it does not define the child-only ones.
+
+Once every embedded child is patched, the eras get:
+
+| App version era | Binary (cosmos-sdk line) | `app.toml` `[performance]` options |
+| --- | --- | --- |
+| v1 to v3 | v3 child (v0.46) | `signature-preverify`, `parallel-commit`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval`; `delivertx-batch` (read by the parent) |
+| v4, v5 | v4 and v5 children (v0.50) | `execution-caches` |
+| v6 | v6 child (v0.51) | `execution-caches` |
+| v7 to v11 | v7 to v11 children (v0.52) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
+| v12 and later | parent (main) | `parallel-commit`, `async-pruning`, `execution-caches`, `deferred-persistence`, `deferred-flush-interval` |
+
+An era only gets a speedup if the child embedded in your release is patched. So far patched children exist for v3 and v10 only; the other eras run unpatched children and ignore these keys. Check the release notes of the release you run.
+
+TODO: confirm the patched children embedded in the release this guide ships with, and the exact v4 to v6 coverage once the backports are merged.
+
+### `config/config.toml`
 
 | Option | Default | What it does | When to disable |
 | --- | --- | --- | --- |
-| TODO | TODO | TODO | TODO |
+| `parallel_commit_verify` (top level) | `true` | Verifies the signatures of large commits on several cores. Results are identical to sequential verification. | If it causes CPU contention with other processes on the host. |
+| `[blocksync] pipeline` | `true` | Prepares the next block (part set and commit verification) while the current one is applied. The synced blocks and state are identical. | If you suspect a blocksync problem; `false` prepares each block after the previous one is applied. |
+| `[blocksync] max_requesters` | `40` | Number of blocks requested ahead of the one being applied, in `[2, 1000]`; `0` means the default. Worst-case memory is `max_requesters` times the maximum block size. | Lower it on hosts with little memory. Raising it helps only when peers are slow. |
+
+### `config/app.toml`
+
+All keys are in the `[performance]` section. A missing key means its default, so an `app.toml` written by an older release gets the speedups without editing.
+
+| Option | Default | What it does | When to disable |
+| --- | --- | --- | --- |
+| `signature-preverify` | `true` | Verifies a block's secp256k1 signatures in parallel before executing it and caches the valid ones. v1 to v3 only. | If it causes CPU contention. |
+| `delivertx-batch` | `true` | The parent sends all transactions of a v1 to v3 block to the child in one call instead of one call per transaction. Used only when the child supports it; blocks over 64 MiB use per-transaction calls. Not written to a new `app.toml`; add the key to turn it off. | If the parent and the v3 child fail to communicate. |
+| `parallel-commit` | `true` | Writes, hashes and commits the stores in parallel. | If you suspect a store write problem. |
+| `async-pruning` | `true` | Prunes old IAVL versions in the background instead of inside `Commit`. v7 and later only. | If pruning falls behind or disk use grows. |
+| `execution-caches` | `true` | Caches decoded params and validators (and, on v1 to v3, bech32 addresses) during block execution. Gas and results are unchanged because the store is still read. | If you suspect stale cached data. |
+| `deferred-persistence` | `"sync"` | `"sync"` keeps new IAVL nodes in memory while the node is catching up and writes them every `deferred-flush-interval` blocks; at the tip it flushes and goes back to writing every block. `"off"` writes every block. See [Deferred persistence](#deferred-persistence). | If you need app-state rollback, or the host has little memory. |
+| `deferred-flush-interval` | `100` | Blocks between flushes in deferred mode. After a crash the node replays at most this many blocks. | Lower it to bound memory and replay after a crash. |
+
+`blocksync-events-off` is not part of the default set. It exists only on unmerged branches, defaults to `false` and changes what `/block_results` returns for synced blocks, so leave it unset.
+
+### Deferred persistence
+
+`"sync"` turns on only when both of these hold:
+
+- The node is catching up: the block time is more than 10 minutes behind the wall clock. The wall clock only decides when data is written, never what is computed.
+- The node keeps no history that deferred mode would delete. On v7 and later every IAVL tree must hold a single version (a fresh, state-synced or deferred-written DB). On v1 to v3, pruning must not keep more recent versions than `deferred-flush-interval`, state sync snapshots must be off (`snapshot-interval = 0`) and IAVL lazy loading must be off.
+
+The default `pruning = "default"` keeps history, so with it deferred persistence stays off. For a fast sync from genesis set:
+
+```toml
+pruning = "everything"
+```
+
+With `pruning = "everything"` the node keeps no historical state, so queries at past heights fail. Restore your usual pruning after the node has caught up.
+
+Things to know before you rely on it:
+
+- **Rollback.** A DB written in deferred mode holds only the last flushed version, so its app state cannot be rolled back. Only CometBFT state can be rolled back, to a height at or above the last flushed version; the node then replays the blocks after the last flushed version on start. On v7 and later `rollback` does this by itself and refuses a lower target. On v1 to v3 `rollback` refuses and asks for `rollback --cometbft-only`. If you need app-state rollback, run with `deferred-persistence = "off"`.
+- **Crashes.** A kill between flushes loses nothing that cannot be recomputed: on the next start the node repairs the store and CometBFT replays up to `deferred-flush-interval` blocks.
+- **Shutdown.** On SIGINT or SIGTERM the store flushes before it exits. The default interval of 100 is small enough for that flush to finish before the multiplexer kills the child.
+- **Memory.** Up to `deferred-flush-interval` blocks of new IAVL nodes stay in memory. On v7 and later about 4 million unflushed nodes (1 to 2 GB) force an earlier flush.
+
+The lines differ in which values they accept, and an invalid value stops the binary that reads it. Because the children share `app.toml`, use only values every line accepts:
+
+- `deferred-persistence`: use `"sync"` or `"off"`. The v7 and later binaries also accept `"always"` (defer at the tip too, pruning the DB to one version on start), but the v1 to v3 child rejects it.
+- `deferred-flush-interval`: use a value from 2 to 1000. The v7 and later binaries treat `0` as the default and accept any positive value, but the v1 to v3 child rejects `0`, `1` and values above 1000.
 
 ## Expected speeds
 
