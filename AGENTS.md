@@ -59,6 +59,16 @@ All branches use forked cosmos-sdk and celestia-core. The exact versions are pin
 3. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
 4. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
 
+## Benchmarking
+
+Every PR that changes non-test Go code must be benchmarked against its base branch before it is opened or marked ready, to show it does not regress performance.
+
+- Write a benchmark that targets exactly the code path the PR changes, with realistic inputs; existing benchmarks rarely isolate the change.
+- Run that same benchmark on the base commit and on the PR head, on the same machine: `go test -run '^$' -bench <Name> -benchmem -count 10 ./<pkg> > {base,head}.txt`, then `benchstat base.txt head.txt`. If the benchmark calls new APIs, write it against the behaviour both versions share.
+- Keep the benchmark code out of the PR diff; put the benchstat summary (or a short before/after table) in the PR description and note that it was run out of tree.
+- Fix any statistically significant regression in time, bytes, or allocs per op, or justify it in the PR description.
+- Docs, CI, and test-only changes are exempt.
+
 ## AI Safety Invariants
 
 @docs/ai/invariants.md
