@@ -8,6 +8,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -149,7 +150,9 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 	validator := chain.Nodes()[0]
 	targetHeight, err := validator.Height(ctx)
 	s.Require().NoError(err)
-	s.waitForDeferredLag(ctx, validator)
+	// Every block up to the end of the crash window must be old enough for
+	// deferred persistence, so the crash interrupts a deferred sync.
+	s.waitForDeferredLag(ctx, validator, targetHeight*3/4)
 
 	// Pruning "everything" rejects state sync snapshots, so turn them off too.
 	syncNode := s.addKnobsNode(ctx, chain, withKnobs(true, map[string]map[string]string{
@@ -160,6 +163,7 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 
 	// Crash the node halfway through the sync and restart it on the same data.
 	crashHeight := s.waitForHeightWhileCatchingUp(ctx, syncClient, targetHeight/2, targetHeight*3/4)
+	s.logDeferredLines(ctx, syncNode, "before the crash")
 	_, err = s.client.ContainerKill(ctx, syncNode.Name(), mobyclient.ContainerKillOptions{Signal: "SIGKILL"})
 	s.Require().NoError(err, "failed to kill sync node")
 	t.Logf("Killed the sync node at height %d of %d", crashHeight, targetHeight)
@@ -170,6 +174,7 @@ func (s *CelestiaTestSuite) TestSyncKnobsDeterminism() {
 		return !info.CatchingUp && info.LatestBlockHeight >= targetHeight
 	})
 	s.Require().NoError(err, "sync node did not catch up to height %d", targetHeight)
+	s.logDeferredLines(ctx, syncNode, "after the restart")
 
 	nodes := cosmos.ChainNodes{validator, offNode, syncNode}
 	s.Require().NoError(internal.CheckRange(ctx, rpcNodes(nodes), 1, targetHeight))
@@ -216,12 +221,12 @@ func (s *CelestiaTestSuite) waitForHeightWhileCatchingUp(ctx context.Context, cl
 	return 0
 }
 
-// waitForDeferredLag waits until block 1 is more than deferredCatchUpLag
-// older than the wall clock, so a node syncing from genesis defers writes.
-func (s *CelestiaTestSuite) waitForDeferredLag(ctx context.Context, node *cosmos.ChainNode) {
-	height := int64(1)
+// waitForDeferredLag waits until the block at height is more than
+// deferredCatchUpLag older than the wall clock, so a node syncing from
+// genesis defers its writes up to that height.
+func (s *CelestiaTestSuite) waitForDeferredLag(ctx context.Context, node *cosmos.ChainNode, height int64) {
 	block, err := s.rpcClient(node).Block(ctx, &height)
-	s.Require().NoError(err, "failed to fetch block 1")
+	s.Require().NoError(err, "failed to fetch block %d", height)
 	wait := time.Until(block.Block.Time.Add(deferredCatchUpLag + time.Minute))
 	if wait <= 0 {
 		return
@@ -231,6 +236,21 @@ func (s *CelestiaTestSuite) waitForDeferredLag(ctx context.Context, node *cosmos
 	case <-time.After(wait):
 	case <-ctx.Done():
 		s.Require().NoError(ctx.Err())
+	}
+}
+
+// logDeferredLines logs the node's deferred persistence log lines. An image
+// without the speedups has none, so this only reports.
+func (s *CelestiaTestSuite) logDeferredLines(ctx context.Context, node *cosmos.ChainNode, when string) {
+	var lines []string
+	for line := range strings.SplitSeq(s.containerLogs(ctx, node.Name()), "\n") {
+		if strings.Contains(strings.ToLower(line), "deferred") {
+			lines = append(lines, line)
+		}
+	}
+	s.T().Logf("%s: %d deferred persistence log lines %s", node.Name(), len(lines), when)
+	for _, line := range lines[:min(len(lines), 10)] {
+		s.T().Log(line)
 	}
 }
 
