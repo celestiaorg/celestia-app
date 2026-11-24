@@ -117,6 +117,27 @@ func TestFillKeepsValidPFFsBehindRejectedOnes(t *testing.T) {
 	require.Len(t, fill.preverified, appconsts.MaxPayForFibreCandidates)
 }
 
+// TestFillKeepsValidPFFsBehindUnsettleableOnes pins that PayForFibre txs that pass the ante but
+// fail settlement, past the pre-verification bound, do not keep valid ones out of a full block.
+func TestFillKeepsValidPFFsBehindUnsettleableOnes(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	unsettleable := newPFFs(t, txConfig, appconsts.MaxPayForFibreCandidates)
+	valid := newPFFs(t, txConfig, appconsts.MaxPayForFibreMessages)
+	failed := 0
+	router := stubMsgRouter{handler: func(sdk.Context, sdk.Msg) (*sdk.Result, error) {
+		if failed < len(unsettleable) {
+			failed++
+			return nil, errors.New("insufficient escrow balance")
+		}
+		return &sdk.Result{}, nil
+	}}
+
+	fill := &pffFill{txConfig: txConfig, preverify: true, router: router}
+	require.Equal(t, valid, fill.run(t, append(append([][]byte{}, unsettleable...), valid...)))
+	require.Equal(t, len(unsettleable), failed)
+	require.Equal(t, unsettleable, fill.preverified)
+}
+
 // TestFillPreverifiesTheCandidateSet pins that the warm-up gets what the old candidate bound kept:
 // the first MaxPayForFibreCandidates PayForFibre txs that pass the shape check, in order.
 func TestFillPreverifiesTheCandidateSet(t *testing.T) {
