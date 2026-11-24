@@ -1,0 +1,41 @@
+name: tools-fastsync
+on:
+  pull_request:
+    paths:
+      - tools/fastsync/**
+      - .github/workflows/tools-fastsync.yml
+  push:
+    branches:
+      - "v*"
+    tags:
+      - "v*"
+
+# Cancel superseded runs on the same PR. Pushes to branches get a unique group
+# (run_id), so post-merge runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tools-fastsync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tools/fastsync
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        with:
+          go-version-file: tools/fastsync/go.mod
+          cache-dependency-path: tools/fastsync/go.sum
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: vet
+        run: go vet ./...
+      - name: build
+        run: make build
+      - name: test
+        run: go test -race ./...
