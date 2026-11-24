@@ -113,7 +113,7 @@ require (
 	github.com/containerd/continuity v0.4.2 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/iavl v1.2.6 // indirect
+	github.com/cosmos/iavl v1.2.8 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.15.0 // indirect
 	github.com/creachadair/atomicfile v0.3.1 // indirect
@@ -274,7 +274,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	// TODO: update to a v0.39.x release after that is created from celestia-core main branch.
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.59.0-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.0-sdk-v0.50.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.31.0-sdk-v0.50.14.0.20261124090321-9a6620232e02
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
 	// This replace can be removed once celestiaorg/cosmos-sdk is updated to use ledger-cosmos-go v0.16.0.
@@ -285,3 +285,7 @@ replace (
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
 )
+
+replace cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v0.1.0-alpha.1.0.20261124074252-9b37fd61c1b2
+
+replace github.com/cosmos/iavl => github.com/celestiaorg/iavl v0.0.0-20261123165557-92c18b120688
