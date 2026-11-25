@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v12/app/ante"
 	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -37,6 +38,17 @@ func countExecutableMsgs(msgs []sdk.Msg) int {
 		}
 	}
 	return count
+}
+
+// blockLimits returns the per-block limits that PrepareProposal applies to
+// SDK txs. The mempool applies the same limits when it reaps.
+func blockLimits() abci.BlockLimits {
+	return abci.BlockLimits{
+		MaxSdkGas:          appconsts.MaxSDKGas,
+		MaxSdkMessages:     appconsts.MaxSDKMessages,
+		MaxZkProofMessages: appconsts.MaxZKProofMessages,
+		MaxIsmSignatures:   appconsts.MaxISMSignatures,
+	}
 }
 
 // txGasLimit returns the gas limit tx declares, which caps the gas its
