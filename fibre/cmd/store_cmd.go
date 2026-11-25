@@ -157,6 +157,8 @@ func writeStoreStats(out io.Writer, backend string, stats fibre.StoreStats, now 
 	fmt.Fprintf(w, "local recorded bytes\t%d\n", stats.LocalBytes)
 	fmt.Fprintf(w, "object markers\t%d\n", stats.ObjectMarkers)
 	fmt.Fprintf(w, "object recorded bytes\t%d\n", stats.ObjectBytes)
+	fmt.Fprintf(w, "packed markers\t%d\n", stats.PackedMarkers)
+	fmt.Fprintf(w, "packed recorded bytes\t%d\n", stats.PackedBytes)
 	fmt.Fprintf(w, "legacy markers\t%d\n", stats.LegacyMarkers)
 	fmt.Fprintf(w, "invalid markers\t%d\n", stats.InvalidMarkers)
 	fmt.Fprintf(w, "prune entries\t%d\n", stats.PruneEntries)
@@ -206,21 +208,21 @@ func newStoreMarkersCmd() *cobra.Command {
 			return writeStoreMarkers(cmd.OutOrStdout(), page)
 		},
 	}
-	cmd.Flags().StringVar(&backend, "backend", "", "filter by backend: local, object, or invalid")
+	cmd.Flags().StringVar(&backend, "backend", "", "filter by backend: local, object, packed, or invalid")
 	cmd.Flags().IntVar(&limit, "limit", 100, "maximum markers to list (0 for all)")
 	return cmd
 }
 
 func writeStoreMarkers(out io.Writer, page fibre.MarkerPage) error {
 	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "BACKEND\tSIZE\tCOMMITMENT\tPROMISE HASH\tKEY\tERROR")
+	fmt.Fprintln(w, "BACKEND\tSIZE\tCOMMITMENT\tPROMISE HASH\tKEY\tPACK ID\tERROR")
 	for _, marker := range page.Markers {
 		label := marker.Backend
 		if marker.Legacy {
 			label += " (legacy)"
 		}
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\n",
-			label, marker.Size, marker.Commitment, marker.PromiseHash, marker.Key, marker.Error)
+		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\n",
+			label, marker.Size, marker.Commitment, marker.PromiseHash, marker.Key, marker.PackID, marker.Error)
 	}
 	if page.Truncated {
 		fmt.Fprintf(w, "showing %d markers; more exist, use --limit 0\n", len(page.Markers))

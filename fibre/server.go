@@ -185,6 +185,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		"storage_backend", s.Config.StorageBackend,
 		"object_configured", objectConfigured,
 		"object_markers_present", s.store.shards.objectMarkersPresent,
+		"packed_markers_present", s.store.shards.packedMarkersPresent,
 	}
 	if objectConfigured {
 		objectNamespace := objectCfg.canonical()

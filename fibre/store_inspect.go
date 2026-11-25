@@ -13,7 +13,10 @@ import (
 	"github.com/cockroachdb/pebble/v2/vfs/atomicfs"
 )
 
-const storageBackendInvalid = "invalid"
+const (
+	storageBackendPacked  = "packed"
+	storageBackendInvalid = "invalid"
+)
 
 // StoreInspector reads store metadata without opening shard backends or modifying the store.
 type StoreInspector struct {
@@ -28,11 +31,13 @@ type MarkerInfo struct {
 	Backend     string
 	Size        int64
 	Legacy      bool
+	PackID      string // hex pack identity; set only for packed markers
 	Error       string
 }
 
 // MarkerFilter limits the markers returned by [StoreInspector.Markers].
-// Backend may be empty, "local", or "object". Limit zero returns all matches.
+// Backend may be empty, "local", "object", "packed", or "invalid". Limit zero
+// returns all matches.
 type MarkerFilter struct {
 	Backend string
 	Limit   int
@@ -49,10 +54,12 @@ type StoreStats struct {
 	Markers          int // includes valid and invalid markers
 	LocalMarkers     int
 	ObjectMarkers    int
+	PackedMarkers    int
 	LegacyMarkers    int
 	InvalidMarkers   int
 	LocalBytes       uint64 // excludes legacy markers, which record no size
 	ObjectBytes      uint64 // recorded marker sizes
+	PackedBytes      uint64 // recorded shard sizes, not the size of packed objects
 	PruneEntries     int
 	InvalidPruneKeys int
 	PruneBacklog     int // valid entries earlier than the current UTC minute
@@ -114,8 +121,10 @@ func (i *StoreInspector) Close() error {
 
 // Markers returns shard markers in Pebble key order.
 func (i *StoreInspector) Markers(ctx context.Context, filter MarkerFilter) (MarkerPage, error) {
-	if filter.Backend != "" && filter.Backend != storageBackendLocal && filter.Backend != storageBackendObject && filter.Backend != storageBackendInvalid {
-		return MarkerPage{}, fmt.Errorf("backend must be local, object, or invalid")
+	switch filter.Backend {
+	case "", storageBackendLocal, storageBackendObject, storageBackendPacked, storageBackendInvalid:
+	default:
+		return MarkerPage{}, fmt.Errorf("backend must be local, object, packed, or invalid")
 	}
 	if filter.Limit < 0 {
 		return MarkerPage{}, fmt.Errorf("limit must not be negative")
@@ -154,6 +163,9 @@ func (i *StoreInspector) Stats(ctx context.Context, now time.Time) (StoreStats, 
 		case storageBackendObject:
 			stats.ObjectMarkers++
 			stats.ObjectBytes += uint64(marker.Size)
+		case storageBackendPacked:
+			stats.PackedMarkers++
+			stats.PackedBytes += uint64(marker.Size)
 		default:
 			stats.InvalidMarkers++
 		}
@@ -216,14 +228,27 @@ func inspectMarker(key, value []byte) MarkerInfo {
 		marker.Error = err.Error()
 		return marker
 	}
-	marker.Size = size
-	marker.Legacy = len(value) == 0
 	switch backend {
 	case localBackendTag:
 		marker.Backend = storageBackendLocal
 	case objectBackendTag:
 		marker.Backend = storageBackendObject
+	case packedObjectBackendTag:
+		packID, _, _, err := decodePackedShardMarker(value)
+		if err != nil {
+			marker.Backend = storageBackendInvalid
+			marker.Error = err.Error()
+			return marker
+		}
+		marker.Backend = storageBackendPacked
+		marker.PackID = hex.EncodeToString(packID[:])
+	default:
+		marker.Backend = storageBackendInvalid
+		marker.Error = fmt.Sprintf("unsupported shard backend tag 0x%02x", byte(backend))
+		return marker
 	}
+	marker.Size = size
+	marker.Legacy = len(value) == 0
 	return marker
 }
 
