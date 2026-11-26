@@ -156,13 +156,22 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 		segs = append(segs, segment{start: flushFrom, end: len(framing)})
 	}
 
+	// Converting a mem.SliceBuffer value to mem.Buffer allocates once per
+	// view. Keeping the views in one slice and adding pointers to its
+	// elements avoids that. views must never grow past its capacity, or
+	// earlier pointers would refer to a stale backing array.
+	views := make([]mem.SliceBuffer, 0, 2*len(segs))
 	bs := make(mem.BufferSlice, 0, 2*len(segs))
+	add := func(b []byte) {
+		views = append(views, b)
+		bs = append(bs, &views[len(views)-1])
+	}
 	for _, seg := range segs {
 		if seg.end > seg.start {
-			bs = append(bs, mem.SliceBuffer(framing[seg.start:seg.end]))
+			add(framing[seg.start:seg.end])
 		}
 		if seg.data != nil {
-			bs = append(bs, mem.SliceBuffer(seg.data))
+			add(seg.data)
 		}
 	}
 	return bs, nil
