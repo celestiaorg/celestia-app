@@ -13,21 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-func readConfig(v *viper.Viper) (config, error) {
-	cfg := config{endpoint: v.GetString("version-reporting.endpoint"), interval: defaultInterval}
-	if cfg.endpoint == "" {
-		return cfg, nil
-	}
-	if v.IsSet("version-reporting.interval") {
-		var err error
-		cfg.interval, err = time.ParseDuration(v.GetString("version-reporting.interval"))
-		if err != nil {
-			return cfg, fmt.Errorf("invalid version-reporting interval: %w", err)
-		}
-	}
-	return cfg, cfg.validate()
-}
-
 // Run reports until ctx is canceled. Call it in a node lifecycle worker after
 // startup. Errors affect reporting only, never the node's error group.
 // A nil node covers gRPC-only and external-ABCI processes, which must not report.
@@ -55,6 +40,21 @@ func Run(ctx context.Context, n *node.Node, v *viper.Viper, logger log.Logger) {
 	if err := run(ctx, cfg, n.GenesisDoc().ChainID, status, logger); err != nil {
 		logger.Warn("version reporting stopped", "err", err)
 	}
+}
+
+func readConfig(v *viper.Viper) (config, error) {
+	cfg := config{endpoint: v.GetString("version-reporting.endpoint"), interval: defaultInterval}
+	if cfg.endpoint == "" {
+		return cfg, nil
+	}
+	if v.IsSet("version-reporting.interval") {
+		var err error
+		cfg.interval, err = time.ParseDuration(v.GetString("version-reporting.interval"))
+		if err != nil {
+			return cfg, fmt.Errorf("invalid version-reporting interval: %w", err)
+		}
+	}
+	return cfg, cfg.validate()
 }
 
 // ConfigureRPC can wait for the remote signer without accepting a context. Allow
