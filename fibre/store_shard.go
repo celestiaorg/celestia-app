@@ -27,8 +27,11 @@ type routedStorage struct {
 	// packed batches several shards into one object. It is non-nil only when
 	// packing is enabled or previously-packed shards still need reads or pruning.
 	packed *packedBackend
-	// objectMarkersPresent is captured when the store opens.
+	// objectMarkersPresent and packedMarkersPresent are captured when the store
+	// opens. They reflect the marker backend tag only; a packed marker with an
+	// invalid offset still counts.
 	objectMarkersPresent bool
+	packedMarkersPresent bool
 }
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
@@ -51,6 +54,7 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 		storage = newRoutedStorage(local, object)
 	}
 	storage.objectMarkersPresent = objectMarkersPresent
+	storage.packedMarkersPresent = packedMarkersPresent
 	// Only object mode packs new shards. Shards packed earlier stay readable
 	// and prunable in either mode.
 	shardsPerObject := 1

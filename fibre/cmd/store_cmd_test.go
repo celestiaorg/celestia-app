@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"net"
 	"net/http"
@@ -200,6 +201,38 @@ func TestStoreMarkersCmdFiltersAndLimits(t *testing.T) {
 	require.NotContains(t, output.String(), "/shard/"+commitment+"/01")
 }
 
+func TestStoreCmdsReportPackedMarkers(t *testing.T) {
+	home := t.TempDir()
+	db, err := pebbledb.Open(home, &pebbledb.Options{})
+	require.NoError(t, err)
+	commitment := strings.Repeat("01", 32)
+	packID := strings.Repeat("ab", 16)
+	require.NoError(t, db.Set([]byte("/shard/"+commitment+"/01"), markerValue(1, 10), pebbledb.Sync))
+	require.NoError(t, db.Set([]byte("/shard/"+commitment+"/02"), packedMarkerValue(t, 20, 0, packID), pebbledb.Sync))
+	require.NoError(t, db.Set([]byte("/shard/"+commitment+"/03"), packedMarkerValue(t, 30, 20, packID), pebbledb.Sync))
+	require.NoError(t, db.Close())
+
+	cmd := newStoreStatsCmd()
+	cmd.Flags().String(flagHome, home, "")
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+	require.Regexp(t, `(?m)^packed markers\s+2$`, output.String())
+	require.Regexp(t, `(?m)^packed recorded bytes\s+50$`, output.String())
+	require.Regexp(t, `(?m)^invalid markers\s+0$`, output.String())
+
+	cmd = newStoreMarkersCmd()
+	cmd.Flags().String(flagHome, home, "")
+	cmd.SetArgs([]string{"--backend", "packed"})
+	output.Reset()
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+	require.Regexp(t, `(?m)^BACKEND\s+SIZE\s+COMMITMENT\s+PROMISE HASH\s+KEY\s+PACK ID\s+ERROR$`, output.String())
+	require.Regexp(t, `(?m)^packed\s+20\s+.*/shard/`+commitment+`/02\s+`+packID+`\s*$`, output.String())
+	require.Contains(t, output.String(), "/shard/"+commitment+"/03")
+	require.NotContains(t, output.String(), "/shard/"+commitment+"/01")
+}
+
 func markerValue(backend byte, size uint64) []byte {
 	// Mirrors fibre.encodeShardMarkerForBackend, which is package-private.
 	marker := make([]byte, 10)
@@ -207,4 +240,14 @@ func markerValue(backend byte, size uint64) []byte {
 	marker[1] = backend
 	binary.BigEndian.PutUint64(marker[2:], size)
 	return marker
+}
+
+func packedMarkerValue(t *testing.T, size, offset uint64, packID string) []byte {
+	// Mirrors fibre.encodePackedShardMarker, which is package-private.
+	id, err := hex.DecodeString(packID)
+	require.NoError(t, err)
+	require.Len(t, id, 16)
+	marker := append(markerValue(6, size), make([]byte, 8)...)
+	binary.BigEndian.PutUint64(marker[10:], offset)
+	return append(marker, id...)
 }

@@ -367,6 +367,8 @@ func TestPackedSurvivesRestart(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { require.NoError(t, store.Close()) }()
 			require.NotNil(t, store.shards.packed, "packed markers re-attach the packed backend")
+			require.True(t, store.shards.packedMarkersPresent)
+			require.False(t, store.shards.objectMarkersPresent)
 
 			for _, promise := range promises {
 				got, err := store.Get(t.Context(), promise.Commitment)

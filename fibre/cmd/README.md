@@ -122,23 +122,29 @@ fibre version
 
 ### Store inspection
 
-Stop the Fibre server before inspecting its store. The inspection commands open
-Pebble read-only and do not access shard payloads or object storage.
+Stop the Fibre server before inspecting its store: Pebble allows only one
+process to hold the store lock. These commands open Pebble read-only and do not
+read shard payloads or contact object storage.
 
 ```sh
 fibre store stats
 fibre store markers
 fibre store markers --backend object --limit 100
+fibre store markers --backend packed --limit 100
 fibre store markers --backend invalid --limit 0
 ```
 
-`stats` reports marker counts and recorded bytes by backend, malformed metadata,
-the prune backlog, and the saved object namespace. Byte totals are the sizes
-recorded in versioned markers; legacy markers do not record their size.
-`markers` lists individual markers in key order and reports when its output is
-truncated. Set `--limit 0` to list all matching markers. Both commands require
-the Fibre server to be stopped because Pebble allows only one process to hold
-the store lock.
+`stats` reports marker counts, recorded bytes, malformed metadata, the prune
+backlog, and the saved object namespace. It counts packed markers separately
+from plain object markers. Each packed marker describes a byte range in a shared
+object, so packed recorded bytes are the sum of the recorded shard sizes, not
+the total size of the objects. Legacy markers do not record a size.
+
+`markers` lists entries in key order and shows the pack ID for valid packed
+markers. Use `--backend invalid` to see why an entry was classified as invalid. For
+example, a packed marker with an out-of-range offset is listed as `invalid`,
+with an error and no pack ID. If the output is truncated, use `--limit 0` to
+list all matching markers.
 
 Check the currently configured object storage destination and credentials with:
 
@@ -246,11 +252,29 @@ check completes.
 
 ### Switching shard storage backends
 
-Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
+Changing `storage_backend` between `local` and `object` changes only where new
+shards are stored. Existing shards stay on their original backend.
 
-**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix. To move them, follow [Migrating to another bucket or prefix](#migrating-to-another-bucket-or-prefix).
+**Warning:** After switching to `local`, keep `[object_storage]` configured
+with valid credentials for the same bucket and prefix. Local mode still needs
+object storage to read and prune retained plain and packed object shards.
+Do not delete the object data or change the bucket or prefix while those shards
+remain. To move them, follow
+[Migrating to another bucket or prefix](#migrating-to-another-bucket-or-prefix).
 
-Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
+Before removing `[object_storage]`:
+
+1. Stop Fibre and run `fibre store stats`. Both `object markers` and
+   `packed markers` must be zero.
+2. Restart Fibre in `local` mode with `[object_storage]` still configured.
+   Check the `store ready` log from that restart. It must explicitly show both
+   `object_markers_present=false` and `packed_markers_present=false`.
+
+Zero counts are necessary but not sufficient. For example, inspection counts a
+packed marker with an out-of-range offset as `invalid`, but startup still
+counts it as present and requires object storage. If either flag is `true`
+or missing, keep the configuration. You can stop Fibre and run
+`fibre store markers --backend invalid --limit 0` to inspect invalid markers.
 
 ### Migrating to another bucket or prefix
 
