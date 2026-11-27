@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v12/app"
 	"github.com/celestiaorg/celestia-app/v12/app/encoding"
 	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
@@ -11,8 +13,10 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v12/test/util"
 	"github.com/celestiaorg/celestia-app/v12/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v12/test/util/testfactory"
+	zkismtypes "github.com/celestiaorg/celestia-app/v12/x/zkism/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +46,7 @@ func TestBlockLimits(t *testing.T) {
 // limits: an SDK tx counts towards them, a blob tx and a PayForFibre tx do not.
 func TestCheckTxUsage(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := testfactory.GenerateAccounts(3)
+	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
@@ -72,6 +76,69 @@ func TestCheckTxUsage(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, recheckRes.Code, recheckRes.Log)
 		require.Equal(t, abci.TxUsage{}, recheckRes.Usage)
+	})
+
+	t.Run("an SDK tx reports its ZK proof messages", func(t *testing.T) {
+		const gasLimit = 1_000_000
+		const proofCount = 2
+		addr := testfactory.GetAddress(kr, accounts[3])
+		msgs := make([]sdk.Msg, 0, proofCount)
+		for i := range proofCount {
+			msgs = append(msgs, &zkismtypes.MsgUpdateInterchainSecurityModule{
+				Id:     util.CreateMockHexAddress("ism", int64(i+1)),
+				Proof:  make([]byte, zkismtypes.ProofBytesLen),
+				Signer: addr.String(),
+			})
+		}
+		rawTx, _, err := newSigner(3).CreateTx(msgs, user.SetGasLimit(gasLimit), user.SetFee(gasLimit))
+		require.NoError(t, err)
+
+		res, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: rawTx, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
+		wantUsage := abci.TxUsage{SdkGas: gasLimit, SdkMessages: proofCount, ZkProofMessages: proofCount}
+		require.Equal(t, wantUsage, res.Usage)
+	})
+
+	t.Run("an SDK tx reports its ISM signatures", func(t *testing.T) {
+		const sigCount = 3
+		gasLimit := ismGasLimit(sigCount)
+		addr := testfactory.GetAddress(kr, accounts[4])
+		msg := &hyperlanetypes.MsgProcessMessage{
+			Relayer:  addr.String(),
+			Metadata: ismMetadataHex(sigCount),
+			Message:  "0x",
+		}
+		rawTx, _, err := newSigner(4).CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(gasLimit))
+		require.NoError(t, err)
+
+		res, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: rawTx, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
+		wantUsage := abci.TxUsage{SdkGas: gasLimit, SdkMessages: 1, IsmSignatures: sigCount}
+		require.Equal(t, wantUsage, res.Usage)
+	})
+
+	t.Run("an SDK tx reports the messages a MsgExec dispatches", func(t *testing.T) {
+		const gasLimit = 300_000
+		const nestedCount = 3
+		addr := testfactory.GetAddress(kr, accounts[5])
+		amount := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1))
+		nested := make([]sdk.Msg, 0, nestedCount)
+		for range nestedCount {
+			nested = append(nested, banktypes.NewMsgSend(addr, addr, amount))
+		}
+		exec := authz.NewMsgExec(addr, nested)
+		rawTx, _, err := newSigner(5).CreateTx([]sdk.Msg{&exec}, user.SetGasLimit(gasLimit), user.SetFee(gasLimit))
+		require.NoError(t, err)
+
+		res, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: rawTx, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
+		// One top-level message, but the block executes the MsgExec and the
+		// messages it dispatches.
+		wantUsage := abci.TxUsage{SdkGas: gasLimit, SdkMessages: 1 + nestedCount}
+		require.Equal(t, wantUsage, res.Usage)
 	})
 
 	t.Run("a blob tx reports no usage", func(t *testing.T) {
