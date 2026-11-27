@@ -535,6 +535,9 @@ func TestSyncAppConfigFile(t *testing.T) {
 	added, _, err := syncConfigFile(filepath.Join(home, "config", "app.toml"), reference, false)
 	require.NoError(t, err)
 	require.Empty(t, added)
+	sctx := startContext(t, home)
+	require.Empty(t, sctx.Viper.GetString("version-reporting.endpoint"))
+	require.Equal(t, "1m", sctx.Viper.GetString("version-reporting.interval"))
 
 	t.Log("dry run reports an older app.toml's missing settings and writes nothing")
 	path := filepath.Join(t.TempDir(), "app.toml")
@@ -543,6 +546,8 @@ func TestSyncAppConfigFile(t *testing.T) {
 	added, backup, err := syncConfigFile(path, reference, true)
 	require.NoError(t, err)
 	require.Contains(t, added, "streaming.abci.keys")
+	require.Contains(t, added, "version-reporting.endpoint")
+	require.Contains(t, added, "version-reporting.interval")
 	require.Empty(t, backup)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
