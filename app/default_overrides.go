@@ -304,6 +304,21 @@ var AppConfigTemplate = serverconfig.DefaultConfigTemplate + `
 # Enable replays a mempool tx's recorded ante writes on recheck when every value they read is unchanged.
 # Set it to false to run the full ante on every recheck.
 enable = true
+
+###############################################################################
+###                        Validator Version Reporting                      ###
+###############################################################################
+
+[version-reporting]
+
+# OTLP HTTP base URL, e.g. "https://collector.example.com"; empty disables reporting.
+# Only caught-up nodes with positive voting power in the active validator set report.
+# Sends binary version, commit, chain ID, consensus address, and report timestamp.
+# Independent of telemetry.enabled and --otel-endpoint; no other metrics are sent.
+endpoint = ""
+
+# Check eligibility and report immediately after startup, then at this interval.
+interval = "1m"
 `
 
 func DefaultAppConfig() *serverconfig.Config {

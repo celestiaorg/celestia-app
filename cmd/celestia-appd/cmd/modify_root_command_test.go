@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v12/app"
 	"github.com/celestiaorg/celestia-app/v12/app/appdb"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/node"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,9 @@ import (
 // node starts, as the multiplexer does.
 func TestStandaloneStartWiresPendingSequencer(t *testing.T) {
 	opts := standaloneStartCmdOptions()
-	require.Equal(t, reflect.ValueOf(app.WirePendingSequencer).Pointer(), reflect.ValueOf(opts.PreNodeStart).Pointer())
+	// A node without a pending-sequence mempool must still fail the existing hook.
+	require.ErrorContains(t, opts.PreNodeStart(&app.App{}, &node.Node{}), "does not report pending sequences")
+	require.NotNil(t, opts.PostSetup)
 	// The hook is set alongside the pebble DB opener, not instead of it.
 	require.Equal(t, reflect.ValueOf(appdb.Open).Pointer(), reflect.ValueOf(opts.DBOpener).Pointer())
 }

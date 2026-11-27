@@ -16,6 +16,7 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v12/app/appdb"
 	"github.com/celestiaorg/celestia-app/v12/app/observability"
+	versionreport "github.com/celestiaorg/celestia-app/v12/internal/version"
 	"github.com/celestiaorg/celestia-app/v12/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
@@ -182,12 +183,16 @@ func (m *Multiplexer) Start() error {
 
 	if m.isEmbeddedApp() {
 		m.logger.Debug("using embedded app, not continuing with grpc or api servers")
-		return m.g.Wait()
-	}
-
-	if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {
+	} else if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {
 		return err
 	}
+
+	// One reporter in the outer process, regardless of the active app version.
+	// Start only after setup succeeds so startup errors cannot leak this worker.
+	m.g.Go(func() error {
+		versionreport.Run(m.ctx, m.cmNode, m.svrCtx.Viper, m.logger)
+		return nil
+	})
 
 	// wait for signal capture and gracefully return
 	// we are guaranteed to be waiting for the quit-signal listener goroutine.
