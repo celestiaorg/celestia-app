@@ -37,7 +37,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
+	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"golang.org/x/net/netutil"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -47,7 +49,24 @@ import (
 const (
 	flagTraceStore = "trace-store"
 	flagGRPCOnly   = "grpc-only"
+	// configDeliverTxBatch is the app.toml key that enables DeliverTx batching
+	// to the v1-v3 child. A missing key means enabled.
+	configDeliverTxBatch = "performance.delivertx-batch"
 )
+
+// deliverTxBatchEnabled reads performance.delivertx-batch, defaulting to true
+// when the key is missing. A value that is not a bool is an error.
+func deliverTxBatchEnabled(v *viper.Viper) (bool, error) {
+	if !v.IsSet(configDeliverTxBatch) {
+		return true, nil
+	}
+	raw := v.Get(configDeliverTxBatch)
+	enabled, err := cast.ToBoolE(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: must be true or false", configDeliverTxBatch, fmt.Sprint(raw))
+	}
+	return enabled, nil
+}
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
 // It handles version switching between embedded and native applications.
@@ -64,6 +83,11 @@ type Multiplexer struct {
 	appVersion uint64
 	// nextAppVersion this is updated based on the consensus params every FinalizeBlock.
 	nextAppVersion uint64
+	// deliverTxBatch is app.toml performance.delivertx-batch, read at startup.
+	deliverTxBatch bool
+	// v1BatchProbe caches the running v1 child's DeliverTx batch support; it is
+	// replaced whenever an embedded app is started.
+	v1BatchProbe *batchProbe
 	// switchInfo is the Info response of the previous app, taken right after it
 	// committed the block that switched the app version. Info returns it until
 	// the new app commits its first block, because before then the new app has
@@ -123,7 +147,10 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	if err := versions.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid versions: %w", err)
 	}
-
+	deliverTxBatch, err := deliverTxBatchEnabled(svrCtx.Viper)
+	if err != nil {
+		return nil, err
+	}
 	mp := &Multiplexer{
 		svrCtx:         svrCtx,
 		svrCfg:         svrCfg,
@@ -136,6 +163,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		chainID:        chainID,
 		appVersion:     applicationVersion,
 		nextAppVersion: applicationVersion,
+		deliverTxBatch: deliverTxBatch,
 	}
 
 	return mp, nil
@@ -630,7 +658,10 @@ func (m *Multiplexer) getAppLocked() (servertypes.ABCI, error) {
 
 	switch m.activeVersion.ABCIVersion {
 	case ABCIClientVersion1:
-		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion), nil
+		if m.v1BatchProbe == nil {
+			m.v1BatchProbe = &batchProbe{}
+		}
+		return NewRemoteABCIClientV1(m.conn, m.chainID, m.appVersion, m.deliverTxBatch, m.v1BatchProbe), nil
 	case ABCIClientVersion2:
 		return NewRemoteABCIClientV2(m.conn), nil
 	}
@@ -649,6 +680,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 	if err := m.stopEmbeddedApp(); err != nil {
 		return fmt.Errorf("failed to stop active version: %w", err)
 	}
+	m.v1BatchProbe = nil // the new child must be probed again
 
 	if version.Appd.IsStopped() {
 		for _, preHandler := range version.PreHandlers {

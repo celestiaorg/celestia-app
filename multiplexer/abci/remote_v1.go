@@ -1,9 +1,12 @@
 package abci
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"sync"
 
 	abciv2 "github.com/cometbft/cometbft/abci/types"
 	cryptov2 "github.com/cometbft/cometbft/proto/tendermint/crypto"
@@ -13,6 +16,7 @@ import (
 	typesv1 "github.com/tendermint/tendermint/proto/tendermint/types"
 	versionv1 "github.com/tendermint/tendermint/proto/tendermint/version"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type RemoteABCIClientV1 struct {
@@ -27,15 +31,34 @@ type RemoteABCIClientV1 struct {
 	chainID string
 	// initialAppVersion is the app version that was parsed from the genesis file or state
 	initialAppVersion uint64
+	// deliverTxBatch enables sending a block's txs to the child in one
+	// DeliverTx call (app.toml performance.delivertx-batch).
+	deliverTxBatch bool
+	// probe caches the child's answer to the batch capability probe; it is
+	// shared by all clients for the same child process.
+	probe *batchProbe
+}
+
+// batchProbe records whether a child process supports DeliverTx batches.
+type batchProbe struct {
+	mu                sync.Mutex
+	probed, supported bool
 }
 
 // NewRemoteABCIClientV1 returns a new ABCI Client (using ABCI v1).
 // The client behaves like Tendermint for the server side (the application side).
-func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64) *RemoteABCIClientV1 {
+// deliverTxBatch enables DeliverTx batching when the child supports it; probe
+// caches that answer across clients for the same child (nil for a new one).
+func NewRemoteABCIClientV1(conn *grpc.ClientConn, chainID string, initialAppVersion uint64, deliverTxBatch bool, probe *batchProbe) *RemoteABCIClientV1 {
+	if probe == nil {
+		probe = &batchProbe{}
+	}
 	return &RemoteABCIClientV1{
 		ABCIApplicationClient: abciv1.NewABCIApplicationClient(conn),
 		chainID:               chainID,
 		initialAppVersion:     initialAppVersion,
+		deliverTxBatch:        deliverTxBatch,
+		probe:                 probe,
 	}
 }
 
@@ -146,16 +169,9 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 		return nil, err
 	}
 
-	commitBlockResps := make([]*abciv1.ResponseDeliverTx, 0, len(req.Txs))
-	for _, tx := range req.Txs {
-		commitBlockResp, err := a.DeliverTx(context.Background(), &abciv1.RequestDeliverTx{
-			Tx: tx,
-		}, grpc.WaitForReady(true))
-		if err != nil {
-			return nil, err
-		}
-
-		commitBlockResps = append(commitBlockResps, commitBlockResp)
+	commitBlockResps, err := a.deliverTxs(req.Txs)
+	if err != nil {
+		return nil, err
 	}
 
 	endBlockResp, err := a.EndBlock(
@@ -172,13 +188,10 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 	// convert events
 	var events []abciv2.Event
 	events = append(events, abciEventV1ToV2(beginBlockResp.Events...)...)
-	for _, commitBlockResp := range commitBlockResps {
-		events = append(events, abciEventV1ToV2(commitBlockResp.Events...)...)
-	}
-	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
-
 	txResults := make([]*abciv2.ExecTxResult, len(commitBlockResps))
 	for i, commitBlockResp := range commitBlockResps {
+		txEvents := abciEventV1ToV2(commitBlockResp.Events...)
+		events = append(events, txEvents...)
 		txResults[i] = &abciv2.ExecTxResult{
 			Code:      commitBlockResp.Code,
 			Data:      commitBlockResp.Data,
@@ -186,10 +199,11 @@ func (a *RemoteABCIClientV1) FinalizeBlock(req *abciv2.RequestFinalizeBlock) (*a
 			Info:      commitBlockResp.Info,
 			GasWanted: commitBlockResp.GasWanted,
 			GasUsed:   commitBlockResp.GasUsed,
-			Events:    abciEventV1ToV2(commitBlockResp.Events...),
+			Events:    txEvents,
 			Codespace: commitBlockResp.Codespace,
 		}
 	}
+	events = append(events, abciEventV1ToV2(endBlockResp.Events...)...)
 
 	// commit result
 	commitResp, err := a.ABCIApplicationClient.Commit(context.Background(), &abciv1.RequestCommit{}, grpc.WaitForReady(true))
@@ -669,4 +683,114 @@ func timeoutInfoV1ToV2(info abciv1.TimeoutsInfo) abciv2.TimeoutInfo {
 		TimeoutPropose: info.TimeoutPropose,
 		TimeoutCommit:  info.TimeoutCommit,
 	}
+}
+
+// These must match the patched child's abci/types constants. The child only
+// treats a payload as a batch when the call carries the metadata, so a raw
+// block tx that starts with the magic is never mistaken for a batch.
+const (
+	deliverTxBatchMagic         = "\xffCELESTIA-DELIVERTX-BATCH-V1"
+	deliverTxBatchMetadataKey   = "x-celestia-delivertx-batch"
+	deliverTxBatchMetadataValue = "v1"
+	deliverTxBatchProbe         = "celestia-delivertx-batch-v1?"
+	deliverTxBatchProbeAck      = "celestia-delivertx-batch-v1"
+)
+
+// childSupportsBatch asks the child once, via Echo, whether it can execute
+// DeliverTx batches. An unpatched child echoes the probe back unchanged.
+func (a *RemoteABCIClientV1) childSupportsBatch() (bool, error) {
+	p := a.probe
+	if p == nil {
+		p = &batchProbe{}
+		a.probe = p
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.probed {
+		return p.supported, nil
+	}
+	resp, err := a.Echo(context.Background(), &abciv1.RequestEcho{Message: deliverTxBatchProbe}, grpc.WaitForReady(true))
+	if err != nil {
+		return false, err
+	}
+	p.probed = true
+	p.supported = resp.Message == deliverTxBatchProbeAck
+	return p.supported, nil
+}
+
+// maxDeliverTxBatchBytes caps a batch payload well below the child's 75 MiB
+// gRPC receive limit; larger blocks use per-tx calls.
+var maxDeliverTxBatchBytes = 64 << 20
+
+// deliverTxBatchSize returns the encoded size of a batch payload for txs.
+func deliverTxBatchSize(txs [][]byte) int {
+	var tmp [binary.MaxVarintLen64]byte
+	n := len(deliverTxBatchMagic)
+	for _, tx := range txs {
+		n += binary.PutUvarint(tmp[:], uint64(len(tx))) + len(tx)
+	}
+	return n
+}
+
+// deliverTxs executes txs in order on the remote app. When batching is enabled
+// and the child supports it, all txs are sent in one round trip; otherwise each
+// tx is sent with its own DeliverTx call.
+func (a *RemoteABCIClientV1) deliverTxs(txs [][]byte) ([]*abciv1.ResponseDeliverTx, error) {
+	if a.deliverTxBatch && len(txs) > 1 && deliverTxBatchSize(txs) <= maxDeliverTxBatchBytes {
+		supported, err := a.childSupportsBatch()
+		if err != nil {
+			return nil, err
+		}
+		if supported {
+			return a.deliverTxBatchCall(txs)
+		}
+	}
+	out := make([]*abciv1.ResponseDeliverTx, 0, len(txs))
+	for _, tx := range txs {
+		r, err := a.DeliverTx(context.Background(), &abciv1.RequestDeliverTx{Tx: tx}, grpc.WaitForReady(true))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+// deliverTxBatchCall sends txs as one batch and returns exactly one response
+// per tx, in order.
+func (a *RemoteABCIClientV1) deliverTxBatchCall(txs [][]byte) ([]*abciv1.ResponseDeliverTx, error) {
+	var tmp [binary.MaxVarintLen64]byte
+	buf := bytes.NewBuffer(make([]byte, 0, len(deliverTxBatchMagic)+len(txs)*binary.MaxVarintLen64))
+	buf.WriteString(deliverTxBatchMagic)
+	for _, tx := range txs {
+		k := binary.PutUvarint(tmp[:], uint64(len(tx)))
+		buf.Write(tmp[:k])
+		buf.Write(tx)
+	}
+	ctx := metadata.AppendToOutgoingContext(context.Background(), deliverTxBatchMetadataKey, deliverTxBatchMetadataValue)
+	resp, err := a.DeliverTx(ctx, &abciv1.RequestDeliverTx{Tx: buf.Bytes()}, grpc.WaitForReady(true), grpc.MaxCallSendMsgSize(math.MaxInt32), grpc.MaxCallRecvMsgSize(math.MaxInt32))
+	if err != nil {
+		return nil, err
+	}
+	if resp.Info != deliverTxBatchMagic {
+		return nil, fmt.Errorf("DeliverTx batch not acknowledged by child")
+	}
+	out := make([]*abciv1.ResponseDeliverTx, 0, len(txs))
+	b := resp.Data
+	for len(b) > 0 {
+		l, k := binary.Uvarint(b)
+		if k <= 0 || uint64(len(b)-k) < l {
+			return nil, fmt.Errorf("malformed DeliverTx batch response")
+		}
+		r := new(abciv1.ResponseDeliverTx)
+		if err := r.Unmarshal(b[k : k+int(l)]); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+		b = b[k+int(l):]
+	}
+	if len(out) != len(txs) {
+		return nil, fmt.Errorf("DeliverTx batch: got %d responses for %d txs", len(out), len(txs))
+	}
+	return out, nil
 }
