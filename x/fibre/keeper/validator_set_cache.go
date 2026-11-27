@@ -83,6 +83,7 @@ func (k Keeper) validatorSetAtHeight(height int64, valset []stakingtypes.Validat
 	}
 
 	validators := make([]*core.Validator, len(valset))
+	var totalPower int64
 	for i, val := range valset {
 		consPubKey, err := val.ConsPubKey()
 		if err != nil {
@@ -95,7 +96,19 @@ func (k Keeper) validatorSetAtHeight(height int64, valset []stakingtypes.Validat
 			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid ed25519 public key size for validator %s", val.GetOperator())
 		}
 
-		validators[i] = core.NewValidator(ed25519.PubKey(pubKeyBytes), val.Tokens.Int64())
+		// Clients and Fibre servers read CometBFT voting power (tokens /
+		// DefaultPowerReduction) from BlockAPI. Raw token balances are not
+		// comparable to that power: reward dust changes the floor(2/3)
+		// threshold by a utia and rejects a certificate the client accepted.
+		power, err := consensusVotingPower(val)
+		if err != nil {
+			return nil, err
+		}
+		if totalPower > core.MaxTotalVotingPower-power {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator set voting power exceeds %d", core.MaxTotalVotingPower)
+		}
+		totalPower += power
+		validators[i] = core.NewValidator(ed25519.PubKey(pubKeyBytes), power)
 	}
 
 	converted := &convertedValidatorSet{
@@ -110,6 +123,24 @@ func (k Keeper) validatorSetAtHeight(height int64, valset []stakingtypes.Validat
 		k.valSetCache.Add(height, converted)
 	}
 	return converted, nil
+}
+
+// consensusVotingPower is the CometBFT voting power staking records for val.
+// It follows sdk.TokensToConsensusPower without panicking on a balance that
+// does not fit in int64. Zero power is refused: CometBFT omits those
+// validators, and NewValidatorSet panics when one is passed in.
+func consensusVotingPower(val stakingtypes.Validator) (int64, error) {
+	if val.Tokens.IsNil() || val.Tokens.IsNegative() {
+		return 0, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "negative token balance for validator %s", val.GetOperator())
+	}
+	power := val.Tokens.Quo(sdk.DefaultPowerReduction)
+	if !power.IsInt64() || power.Int64() > core.MaxTotalVotingPower {
+		return 0, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "consensus power for validator %s exceeds %d", val.GetOperator(), core.MaxTotalVotingPower)
+	}
+	if power.IsZero() {
+		return 0, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator %s has zero consensus power", val.GetOperator())
+	}
+	return power.Int64(), nil
 }
 
 // newValidatorSetCache returns the per-height validator set cache.
