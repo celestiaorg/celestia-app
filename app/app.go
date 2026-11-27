@@ -651,7 +651,7 @@ func newApp(
 func (app *App) Name() string { return app.BaseApp.Name() }
 
 // Info implements the abci interface. It overrides baseapp's Info method, essentially becoming a decorator
-// in order to assign TimeoutInfo values in the response.
+// in order to assign TimeoutInfo and BlockLimits values in the response.
 func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	res, err := app.BaseApp.Info(req)
 	if err != nil {
@@ -659,6 +659,21 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	}
 
 	res.TimeoutInfo = app.TimeoutInfo(res.AppVersion)
+	res.BlockLimits = blockLimits()
+
+	return res, nil
+}
+
+// FinalizeBlock implements the abci interface. It overrides baseapp's
+// FinalizeBlock method in order to assign BlockLimits in the response, which
+// keeps the mempool's limits current across an app version upgrade.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	res, err := app.BaseApp.FinalizeBlock(req)
+	if err != nil {
+		return res, err
+	}
+
+	res.BlockLimits = blockLimits()
 
 	return res, nil
 }

@@ -77,15 +77,18 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	if msgCount := countExecutableMsgs(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	msgCount := countExecutableMsgs(sdkTx.GetMsgs())
+	if msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if proofCount := countZKProofMsgs(sdkTx.GetMsgs()); proofCount > appconsts.MaxZKProofMessages {
+	proofCount := countZKProofMsgs(sdkTx.GetMsgs())
+	if proofCount > appconsts.MaxZKProofMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxZKProofMessages, "tx contains %d proof-work messages, limit is %d", proofCount, appconsts.MaxZKProofMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
-	if sigCount := countISMSignatures(sdkTx.GetMsgs()); sigCount > appconsts.MaxISMSignatures {
+	sigCount := countISMSignatures(sdkTx.GetMsgs())
+	if sigCount > appconsts.MaxISMSignatures {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxISMSignatures, "tx carries %d ISM signatures, limit is %d", sigCount, appconsts.MaxISMSignatures)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
@@ -97,14 +100,31 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// A tx whose gas limit alone exceeds the block's SDK gas budget can never be
 	// included. PayForFibre txs are bounded by their own per-block count instead.
 	isPFF := fibretypes.PayForFibreMsg(sdkTx) != nil
-	if !isPFF {
-		if gas := txGasLimit(sdkTx); !fitsSDKGas(0, gas) {
-			err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKGas, "tx gas limit is %d, limit is %d", gas, appconsts.MaxSDKGas)
-			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
-		}
+	gasLimit := txGasLimit(sdkTx)
+	if !isPFF && !fitsSDKGas(0, gasLimit) {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKGas, "tx gas limit is %d, limit is %d", gasLimit, appconsts.MaxSDKGas)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		return res, err
+	}
+
+	// Tell the mempool what this tx uses of the per-block limits, so that it
+	// does not reap a tx that PrepareProposal would skip. PrepareProposal does
+	// not count PayForFibre txs towards them, and blob txs never reach here.
+	// The mempool keeps the usage from the first check and ignores recheck
+	// responses, so a recheck reports none, whichever recheck path it takes.
+	if !isPFF && req.Type == abci.CheckTxType_New {
+		res.Usage = abci.TxUsage{
+			SdkGas:          gasLimit,
+			SdkMessages:     uint64(msgCount),
+			ZkProofMessages: uint64(proofCount),
+			IsmSignatures:   uint64(sigCount),
+		}
+	}
+	return res, nil
 }
 
 // recheckCacheable allows only messages whose wrapper checks are pure and whose
