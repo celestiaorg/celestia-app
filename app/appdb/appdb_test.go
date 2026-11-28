@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v11/app/appdb"
+	"github.com/cockroachdb/pebble/vfs"
+	"github.com/cometbft/cometbft/libs/walfsync"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/stretchr/testify/require"
 )
@@ -34,4 +36,25 @@ func TestOpenGoLevelDB(t *testing.T) {
 	defer db.Close()
 	require.IsType(t, &dbm.GoLevelDB{}, db)
 	require.DirExists(t, filepath.Join(root, "data", "application.db"))
+}
+
+// TestWrapWALFsync checks that the app DB opened after WrapWALFsync follows a
+// walfsync controller.
+func TestWrapWALFsync(t *testing.T) {
+	orig := vfs.Default
+	appdb.WrapWALFsync()
+	require.NotEqual(t, orig, vfs.Default, "default FS wrapped")
+	wrapped := vfs.Default
+	appdb.WrapWALFsync()
+	require.Equal(t, wrapped, vfs.Default, "wrapped once")
+
+	root := t.TempDir()
+	db, err := appdb.Open(root, dbm.PebbleDBBackend)
+	require.NoError(t, err)
+	c := walfsync.NewController(walfsync.ModeCatchup, filepath.Join(root, "data"))
+	require.NoError(t, c.StartCatchup())
+	require.NoError(t, db.SetSync([]byte("k"), []byte("v")))
+	require.NoError(t, c.FinishCatchup())
+	require.NoFileExists(t, filepath.Join(root, "data", walfsync.MarkerFile))
+	require.NoError(t, db.Close())
 }
