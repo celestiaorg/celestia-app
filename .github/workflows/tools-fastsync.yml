@@ -31,12 +31,14 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         with:
           go-version-file: tools/fastsync/go.mod
-          cache-dependency-path: tools/fastsync/go.sum
+          cache-dependency-path: |
+            tools/fastsync/go.sum
+            tools/fastsync/fastindex46/go.sum
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
-        run: go vet ./...
+        run: go vet ./... && (cd fastindex46 && go vet ./...)
       - name: build
         run: make build
       - name: test
-        run: go test -race ./...
+        run: go test -race ./... && (cd fastindex46 && go test -race ./...)

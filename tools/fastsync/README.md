@@ -85,7 +85,7 @@ What no header authenticates (the same as in `comet bootstrap-state`):
 `fsboot` takes these from its sources as the stock command does, so a single
 source is trusted for them. It requires at least two distinct `-rpc` servers
 that return identical values (one honest server detects a forgery) and checks
-them against header `H`'s proposer; with
+them against header `H`'s proposer and the local application DB; with
 `-src-data` they come from a node you run.
 
 Without step 4, the application state is only known to have the committed app
@@ -103,7 +103,7 @@ Build and test (the module is outside the repository's `go.work`):
 
 ```sh
 cd tools/fastsync
-make build   # binaries in ./build
+make build   # binaries in ./build (fastindex46 is its own module, built by the same target)
 make test
 ```
 
@@ -115,7 +115,7 @@ The tools land in a series of changes; this table lists the full set.
 | `fshdr forward` | verify headers up from one trusted header (links, commits, validator sets) and write `expected.tsv` |
 | `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
-| `fastindex` | build the IAVL fast-node index of an applied DB offline |
+| `fastindex`, `fastindex46` | build the IAVL fast-node index of an applied DB offline (SDK v0.50 / v0.46 stores) |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
 | `scripts/segment.sh` | run and check one re-execution segment |
@@ -180,7 +180,10 @@ max gas are in no header hash, so the source that provides them is trusted for
 them, as in the stock command. fsboot therefore requires at least two distinct
 `-rpc` servers, which must return identical values (`-allow-single-source`
 accepts one), and it checks them where it can: the priorities must name header
-`H`'s proposer, and the params' app version must equal header `H+1`'s. With `-src-data` the source is a node you run, which you trust for them. The
+`H`'s proposer, the params' app version must equal header `H+1`'s, and the
+params must equal those the local application DB stored at `H` (x/consensus,
+or the x/params `baseapp` subspace for app v1 to v3) when that DB is present.
+With `-src-data` the source is a node you run, which you trust for them. The
 tests run the stock `BootstrapStateWithGenProvider` and `fsboot` against the
 same RPC servers and require identical stores, and cover forged validator
 sets, priorities, consensus params, commit signatures, headers and trusted
@@ -189,6 +192,25 @@ hashes.
 With celestia-core v0.43 the offline state sync height is kept until the node
 stores its first block, so a first start that fails before that can simply be
 retried.
+
+### fastindex
+
+The appliers write with the IAVL fast-node index off. A node with the default
+`iavl-disable-fastnode = false` then rebuilds the index of every store inside
+its first `LoadVersion`, before it does anything else, which takes minutes or
+more on mainnet-size state and logs nothing at `log_level = warn`. `fastindex`
+does that rebuild offline, visibly, and checks that the commit id did not change
+(the index is not part of any hash):
+
+```sh
+fastindex   -db ~/.celestia-app/data -backend pebbledb -check   # exit 3: a node would rebuild
+fastindex   -db ~/.celestia-app/data -backend pebbledb          # app v4+ DB (SDK v0.50, IAVL v1)
+fastindex46 -db ~/.celestia-app/data -backend pebbledb          # app v1-v3 DB (SDK v0.46, IAVL v0.19)
+```
+
+The cost is one pass over the leaves of the final state; history does not
+matter. `fastindex46` is a separate module (`fastindex46/`) because it needs
+the SDK v0.46 store that celestia-app v3 uses.
 
 ### bsfix
 
