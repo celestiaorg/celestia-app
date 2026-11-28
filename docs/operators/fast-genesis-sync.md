@@ -2,12 +2,12 @@
 
 This guide is for operators who sync a node from genesis (or from a bootstrapped state) with the multiplexer build of `celestia-appd`. Syncing replays every app version era through the embedded binaries, so the settings below matter much more than they do at the tip.
 
-> **Status: draft.** Measured speeds are marked `TODO` and will be filled in before this guide is final. The sync speedup options describe open pull requests and can change before release.
+> **Status: draft.** Measured speeds are marked `TODO` and will be filled in from measurements before this guide is final. The sync speedup options, the storage settings and the [hybrid path](#hybrid-path-verified-changesets) describe open pull requests and can change before release.
 
 ## Quick checklist
 
 1. Edit the config files before the first start (see [Recommended config](#recommended-config)).
-2. Run the node under systemd with `KillMode=mixed` (see [Run under systemd](#run-under-systemd)).
+2. Run the node under systemd with `KillMode=mixed` and decide on `db_wal_fsync` (see [Run under systemd](#run-under-systemd) and [Storage settings while catching up](#storage-settings-while-catching-up)).
 3. Keep block retention off until the node is past the v4 upgrade, or start from an empty blockstore (see [Block retention](#block-retention)).
 4. Switch to the normal tip configuration once the node has caught up.
 
@@ -71,6 +71,46 @@ WantedBy=multi-user.target
 
 Use `Restart=on-failure` rather than `always` so that a deliberate stop or a `halt-height` is not restarted in a loop.
 
+## Storage settings while catching up
+
+These `config/config.toml` options are read by the parent's CometBFT, so they apply to every era. They change only how the node's databases are written, never what is computed. Both are pebbledb only.
+
+### `[storage] db_wal_fsync`
+
+```toml
+[storage]
+db_wal_fsync = "catchup"   # default; "always" restores stock behaviour
+```
+
+- `"catchup"` skips the fsync of the database write-ahead logs (WAL) only while block syncing. Every write still reaches the kernel before it returns, so a process crash (panic, SIGKILL, OOM kill, a `TimeoutStopSec` kill) loses nothing.
+- A WAL that skipped a sync is fsynced when it is closed, and every open WAL is fsynced before the node switches to consensus. At the tip the node fsyncs as stock does.
+- It does not touch the consensus WAL (`cs.wal`) or `priv_validator_state.json`.
+- Before the first skipped fsync the node writes `data/db_wal_fsync_skipped`, holding the OS boot ID. After a process crash (same boot) the node fsyncs the WALs, removes the marker and starts.
+- After a power loss or kernel crash during catch-up (different boot), the databases may be out of order with each other and the node refuses to start. Recover with one of:
+  1. `rollback`, which also clears the marker, then restart;
+  2. re-sync from a state sync snapshot, keeping `priv_validator_state.json` (never delete or reset it);
+  3. start once with `--accept_unsynced_db_crash` to try the handshake anyway.
+
+Set `db_wal_fsync = "always"` if you cannot accept that risk. Sources: [celestia-core#3819](https://github.com/celestiaorg/celestia-core/pull/3819) (backport [celestia-core#3822](https://github.com/celestiaorg/celestia-core/pull/3822)).
+
+### Pebble tuning and shared cache
+
+```toml
+[storage]
+pebble_tuning = true              # default
+pebble_cache_size_mb = 0          # 0 = automatic
+pebble_memory_reserve_mb = 20480  # default
+```
+
+With `pebble_tuning = true` every node database shares one block cache and gets bloom filters, larger blocks and files, and `clamp(CPUs / 4, 2, 8)` concurrent compactions. The on-disk format is unchanged; `false` restores the engine defaults (8 MiB cache per database). With `pebble_cache_size_mb = 0` the cache is sized from the machine:
+
+```text
+RAM   = min(MemTotal, smallest cgroup memory limit, v1 or v2)
+cache = clamp((RAM - pebble_memory_reserve_mb) * 2/5, 256 MiB, 64 GiB)
+```
+
+For example 32 GiB gives 4.8 GiB, 64 GiB gives 17.6 GiB and 128 GiB gives 43 GiB. The reserve is left for the embedded app process, the node's heap and the OS; the app should stay within about the reserve minus 4 GiB. The node's worst case is about twice the cache plus 2.5 GiB, because the cache lives on the Go heap. Source: [celestia-core#3821](https://github.com/celestiaorg/celestia-core/pull/3821) (on `main` only).
+
 ## Block retention
 
 The default `min-retain-blocks` is 9750 (`2 * SnapshotInterval`, see [`pkg/appconsts/initial_consts.go`](../../pkg/appconsts/initial_consts.go)). The first embedded child that returns a retain height is the v4 binary. At that point the parent prunes every block below the retain height synchronously inside block processing. After a long sync that is millions of blocks and the node stalls for hours (see [celestia-core#3793](https://github.com/celestiaorg/celestia-core/issues/3793)).
@@ -78,7 +118,16 @@ The default `min-retain-blocks` is 9750 (`2 * SnapshotInterval`, see [`pkg/appco
 Pick one:
 
 - **Retention off until past v4.** Set `min-retain-blocks = 0` in `config/app.toml` and restore it after the node has moved past the v4 upgrade height. Pruning then starts from a small backlog.
-- **Start from an empty blockstore.** Bootstrap the node at a recent height instead of replaying history. TODO: document the exact bootstrap command for the current release; the Go API is `node.BootstrapState` in celestia-core, and this guide does not yet have a verified CLI recipe.
+- **Start from an empty blockstore.** Bootstrap CometBFT at the height `H` of an application DB you already have (for example one built by the [hybrid path](#hybrid-path-verified-changesets)), instead of replaying history. The CometBFT state store and block store must be empty. Use either:
+  - the stock command, `celestia-appd comet bootstrap-state --height H`. It verifies `H` with a light client configured in `config.toml` `[statesync]` (`rpc_servers`, `trust_height`, `trust_hash`, `trust_period`), so the trust root must be inside the trusting period;
+  - `fsboot bootstrap` from `tools/fastsync` ([celestia-app#8808](https://github.com/celestiaorg/celestia-app/pull/8808), draft). It writes the same bytes as the stock command, checked against a verified header `H+1` from `fshdr`, so it needs no light client or trusting period. It requires at least two distinct `-rpc` servers that return identical values, unless you pass `-allow-single-source` or read from a node you run with `-src-data`.
+
+  ```sh
+  fsboot bootstrap -home ~/.celestia-app -height H -expected expected.tsv \
+    -rpc https://rpc-a.example,https://rpc-b.example
+  ```
+
+  No header authenticates validator proposer priorities or the consensus params other than block max bytes and max gas. Both commands take them from their source, so a single source is trusted for them.
 
 Note that the start hook only raises a non-zero `min-retain-blocks` to the minimum; `0` is left alone.
 
@@ -95,9 +144,18 @@ If the mode stays off, the binary logs the reason once at `info` level (`deferre
 
 ## Inter-block cache
 
-The multiplexer starts the v4 to v8 children with the inter-block cache disabled because of races with concurrent queries ([celestia-app#7750](https://github.com/celestiaorg/celestia-app/pull/7750)). A node that only syncs and serves no queries (RPC, gRPC, API all unused) can enable the cache safely; this measured about 21% faster. This is documentation only, not a bug: do not enable it on a node that serves queries.
+The multiplexer starts the v4 to v8 children with the inter-block cache disabled because of races with concurrent queries ([celestia-app#7750](https://github.com/celestiaorg/celestia-app/pull/7750)): a concurrent read can leave a stale value in the cache and fork the node. A patched v4 to v8 child can turn the cache on in a mode that serves nothing else ([celestia-app#8809](https://github.com/celestiaorg/celestia-app/pull/8809), draft):
 
-TODO: document how to enable it for the embedded children (flag or `app.toml` key) once the sync speedup options are final.
+```toml
+[performance]
+inter-block-cache = "sync-only"    # default "off"
+inter-block-cache-size = 100000    # entries per store, read only in "sync-only" mode
+```
+
+- While a v4 to v8 child runs in this mode it refuses CheckTx, ABCI queries (except peer filtering), every gRPC and REST request, Simulate and state sync. The node cannot accept transactions or answer queries until it is past v8. Block execution and `Info` are unchanged.
+- Only patched v4 to v8 children read the key; v3, v9 and later, and unpatched children ignore it. The parent validates both keys at startup.
+- `"off"` leaves the current behaviour unchanged. This key is distinct from the SDK's top-level `inter-block-cache` bool, which the multiplexer keeps forcing to `false` for v4 to v8.
+- Results, events, gas and the app hash do not change. A prototype measured about 21% more blocks per second in the v6 era.
 
 ## Sync speedups
 
@@ -119,7 +177,21 @@ Once every embedded child is patched, the eras get:
 
 An era only gets a speedup if the child embedded in your release is patched. An unpatched child ignores these keys. Patched builds of every embedded child (v3.13.0, v4.1.0, v5.0.12, v6.4.10, v7.0.3, v8.0.8, v9.0.8, v10.5.0 and v11.0.0) exist on unmerged branches and pass the multi-version determinism test ([celestia-app#8792](https://github.com/celestiaorg/celestia-app/pull/8792)). Check the release notes of the release you run.
 
-TODO: confirm the patched children embedded in the release this guide ships with.
+The patched children are on these celestia-app branches; the parent with every speedup is `claude/awesome-brahmagupta-sip7sa-parent-all`:
+
+| Embedded version | Branch |
+| --- | --- |
+| v3.13.0 | `claude/awesome-brahmagupta-sip7sa-child-v3.13.0` |
+| v4.1.0 | `claude/awesome-brahmagupta-sip7sa-child-v4.1.0` |
+| v5.0.12 | `claude/awesome-brahmagupta-sip7sa-child-v5.0.12` |
+| v6.4.10 | `claude/awesome-brahmagupta-sip7sa-child-v6.4.10` |
+| v7.0.3-mocha | `claude/awesome-brahmagupta-sip7sa-child-v7.0.3-mocha` |
+| v8.0.8 | `claude/awesome-brahmagupta-sip7sa-child-v8.0.8` |
+| v9.0.8 | `claude/awesome-brahmagupta-sip7sa-child-v9.0.8` |
+| v10.5.0 | `claude/awesome-brahmagupta-sip7sa-child-v10.5.0` |
+| v11.0.0 | `claude/awesome-brahmagupta-sip7sa-child-v11.0.0` |
+
+The multiplexer embeds release binaries by tag (`CELESTIA_V*_VERSION` in the `Makefile`). Before a release can embed a patched child, its pseudo-version dependencies must be replaced by tagged releases, the child must be tagged and released, and the `Makefile` must point to that tag. Until then a release embeds the unpatched children above.
 
 ### `config/config.toml`
 
@@ -127,7 +199,7 @@ TODO: confirm the patched children embedded in the release this guide ships with
 | --- | --- | --- | --- |
 | `parallel_commit_verify` (top level) | `true` | Verifies the signatures of large commits on several cores. Results are identical to sequential verification. | If it causes CPU contention with other processes on the host. |
 | `[blocksync] pipeline` | `true` | Prepares the next block (part set and commit verification) while the current one is applied. The synced blocks and state are identical. | If you suspect a blocksync problem; `false` prepares each block after the previous one is applied. |
-| `[blocksync] max_requesters` | `40` | Number of blocks requested ahead of the one being applied, in `[2, 1000]`; `0` means the default. Worst-case memory is `max_requesters` times the maximum block size. | Lower it on hosts with little memory. Raising it helps only when peers are slow. |
+| `[blocksync] max_requesters` | `40` | Number of blocks requested ahead of the one being applied, in `[2, 1000]`; `0` means the default. Worst-case memory is `max_requesters` times the maximum block size. | Lower it on hosts with little memory. Raising it helps only when peers are slow. A prototype measured a gain with `160` between heights 3.5M and 4.7M; whether the default changes is decided by the speed measurements. |
 
 ### `config/app.toml`
 
@@ -187,6 +259,26 @@ TODO: fill this table from measurements. Do not estimate. Record the hardware, d
 | v12 and later (native) | TODO | TODO | TODO |
 
 Hardware used for the measurements: TODO.
+
+## Hybrid path (verified changesets)
+
+Instead of executing every block, the hybrid writes recorded store changes into the application DB, checks the app hash at every height against verified headers, and bootstraps CometBFT at the target height. Block sync then continues with full execution. All parts are draft pull requests and experimental: run them on machines you can rebuild and keep the `expected.tsv` and logs of every run.
+
+1. **Get the changeset bundle.** A bundle of per-block changeset files with a signed `manifest.json`. `manifest verify` checks the ed25519 signature before parsing, then every file's size and sha256 ([celestia-app#8828](https://github.com/celestiaorg/celestia-app/pull/8828), [#8829](https://github.com/celestiaorg/celestia-app/pull/8829)). Where the bundle is hosted is a maintainer decision ([#8830](https://github.com/celestiaorg/celestia-app/pull/8830)).
+2. **Verify headers.** `fshdr verify` anchors one header (a light-client trust root inside the trusting period, or a header hash you supply) and checks the hash chain down to height 1. `fshdr forward` checks up from a trusted header, including commits and validator sets. Both write `expected.tsv`: the trusted app hash after each height ([#8805](https://github.com/celestiaorg/celestia-app/pull/8805) to [#8807](https://github.com/celestiaorg/celestia-app/pull/8807)).
+3. **Apply.** The appliers write the changesets and compare the app hash after every height with `expected.tsv`; a mismatch stops the run. There is one applier per store line: SDK v0.46 for app v1 to v3 ([cosmos-sdk#218](https://github.com/celestiaorg/cosmos-sdk/pull/218), [#231](https://github.com/celestiaorg/cosmos-sdk/pull/231) to [#233](https://github.com/celestiaorg/cosmos-sdk/pull/233)) and SDK v0.50 and later for app v4 and later ([cosmos-sdk#283](https://github.com/celestiaorg/cosmos-sdk/pull/283) to [#300](https://github.com/celestiaorg/cosmos-sdk/pull/300)).
+4. **Bootstrap.** `fsboot bootstrap` at the target height (see [Block retention](#block-retention)). `scripts/fastsync.sh` runs steps 2 to 4 end to end ([#8811](https://github.com/celestiaorg/celestia-app/pull/8811)).
+5. **Re-execute segments (optional).** For full verification, save checkpoint homes while applying and run a stock node over each segment `[c_k, c_k+1]` with `scripts/segment.sh`. Segments are independent and can run on separate machines ([#8831](https://github.com/celestiaorg/celestia-app/pull/8831) orchestrates this).
+
+Trust model:
+
+- You trust one root: a light-client trust height and hash (the same weak-subjectivity input as state sync), or one header hash obtained out of band from sources you trust. A trust root at genesis (the genesis validator set) is not implemented.
+- You trust the binaries you built.
+- RPC servers, block stores, changeset files, the bundle host and checkpoint buckets are untrusted; every value taken from them is checked.
+- The appliers are strict by default: a height is applied only once a trusted header app hash for it is known. A recorded hash alone is not enough.
+- After step 4 the application state has the committed app hash at every height, but the transitions were not executed locally. Execution bugs shared by +2/3 of validators would not be caught.
+- Step 5 executes every transition with stock code and checks each segment's boundary headers against the verified ones.
+- Proposer priorities and consensus params other than block max bytes and max gas are not in any header hash; `fsboot` trusts its source for them, as the stock command does.
 
 ## Disk space
 
