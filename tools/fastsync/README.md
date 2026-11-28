@@ -82,10 +82,11 @@ What no header authenticates (the same as in `comet bootstrap-state`):
 - consensus params other than block max bytes and max gas
   (`ConsensusParams.Hash` covers only those two).
 
-`fsboot` takes these from its source as the stock command does. With several
-`-rpc` servers it also requires all of them to return identical values, so one
-honest server is enough to detect a forgery. With `-src-data` they come from a
-node you run.
+`fsboot` takes these from its sources as the stock command does, so a single
+source is trusted for them. It requires at least two distinct `-rpc` servers
+that return identical values (one honest server detects a forgery) and checks
+them against header `H`'s proposer; with
+`-src-data` they come from a node you run.
 
 Without step 4, the application state is only known to have the committed app
 hash at each height; the transitions between heights were not executed locally.
@@ -172,11 +173,18 @@ fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv \
 fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv -src-data /srv/archive/data
 ```
 
-`-dry-run` runs every check and writes nothing. Pass two or more independent
-`-rpc` servers: the fields no header authenticates must then agree on all of
-them. The tests run the stock `BootstrapStateWithGenProvider` and `fsboot`
-against the same RPC server and require identical stores, and cover forged
-validator sets, consensus params, commit signatures, headers and trusted hashes.
+`-dry-run` runs every check and writes nothing.
+
+Proposer priorities and the consensus params other than block max bytes and
+max gas are in no header hash, so the source that provides them is trusted for
+them, as in the stock command. fsboot therefore requires at least two distinct
+`-rpc` servers, which must return identical values (`-allow-single-source`
+accepts one), and it checks them where it can: the priorities must name header
+`H`'s proposer, and the params' app version must equal header `H+1`'s. With `-src-data` the source is a node you run, which you trust for them. The
+tests run the stock `BootstrapStateWithGenProvider` and `fsboot` against the
+same RPC servers and require identical stores, and cover forged validator
+sets, priorities, consensus params, commit signatures, headers and trusted
+hashes.
 
 With celestia-core v0.43 the offline state sync height is kept until the node
 stores its first block, so a first start that fails before that can simply be

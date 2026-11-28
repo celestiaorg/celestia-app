@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -17,7 +18,7 @@ import (
 // *ResultConsensusParams) before the server returns it.
 type Forge func(method string, result any)
 
-// ServeRPC serves the JSON-RPC calls a light client and a state provider make
+// ServeRPC serves (over JSON-RPC POST and URI GET) the calls a light client and a state provider make
 // (commit, validators, consensus_params) for the chain.
 func (c *Chain) ServeRPC(t testing.TB, forge Forge) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -26,10 +27,19 @@ func (c *Chain) ServeRPC(t testing.TB, forge Forge) *httptest.Server {
 			Method string                     `json:"method"`
 			Params map[string]json.RawMessage `json:"params"`
 		}
-		body, _ := io.ReadAll(r.Body)
-		if err := json.Unmarshal(body, &req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		if r.Method == http.MethodGet { // URI style: /method?key=value
+			req.ID = json.RawMessage("-1")
+			req.Method = strings.TrimPrefix(r.URL.Path, "/")
+			req.Params = map[string]json.RawMessage{}
+			for k, v := range r.URL.Query() {
+				req.Params[k], _ = json.Marshal(v[0])
+			}
+		} else {
+			body, _ := io.ReadAll(r.Body)
+			if err := json.Unmarshal(body, &req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 		res, err := c.rpcResult(req.Method, req.Params)
 		resp := map[string]any{"jsonrpc": "2.0", "id": req.ID}

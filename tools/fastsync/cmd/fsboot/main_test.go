@@ -16,6 +16,7 @@ import (
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/expected"
 	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/testchain"
 )
 
@@ -71,7 +72,8 @@ func trustedHash(c *testchain.Chain) string { return fmt.Sprintf("%X", c.Header(
 // produce the same bytes.
 func TestEquivalentToStockBootstrap(t *testing.T) {
 	c := testchain.New(t, chainLen)
-	srv := c.ServeRPC(t, nil)
+	srv, srv2 := c.ServeRPC(t, nil), c.ServeRPC(t, nil)
+	rpcs := srv.URL + "," + srv2.URL
 
 	stock := newHome(t, c)
 	stock.StateSync.RPCServers = []string{srv.URL, srv.URL}
@@ -87,7 +89,7 @@ func TestEquivalentToStockBootstrap(t *testing.T) {
 	}
 
 	home := newHome(t, c)
-	out, err := run(t, home, "-trusted-hash", trustedHash(c), "-rpc", srv.URL)
+	out, err := run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs)
 	require.NoError(t, err, out)
 	require.Contains(t, out, "canonical")
 	require.Equal(t, want, dump(t, home), "fsboot (rpc) differs from bootstrap-state")
@@ -100,25 +102,37 @@ func TestEquivalentToStockBootstrap(t *testing.T) {
 	require.Equal(t, want, dump(t, home2), "fsboot (data dir) differs from bootstrap-state")
 
 	// a second bootstrap into the same home is refused, as in stock
-	_, err = run(t, home, "-trusted-hash", trustedHash(c), "-rpc", srv.URL)
+	_, err = run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs)
 	require.ErrorContains(t, err, "state not empty")
+
+	// one server is refused unless allowed (it would be trusted for priorities and params)
+	_, err = run(t, newHome(t, c), "-trusted-hash", trustedHash(c), "-rpc", srv.URL+","+srv.URL+"/", "-dry-run")
+	require.ErrorContains(t, err, "at least two distinct -rpc servers")
+	out, err = run(t, newHome(t, c), "-trusted-hash", trustedHash(c), "-rpc", srv.URL, "-allow-single-source", "-dry-run")
+	require.NoError(t, err, out)
 }
 
 func TestExpectedFile(t *testing.T) {
 	c := testchain.New(t, chainLen)
-	srv := c.ServeRPC(t, nil)
+	rpcs := c.ServeRPC(t, nil).URL + "," + c.ServeRPC(t, nil).URL
 	exp := filepath.Join(t.TempDir(), "expected.tsv")
+	head := expected.Header("verify", testchain.ChainID, "anchor=31:AB") + "\n"
 	row := fmt.Sprintf("%d\t%X\t%X\t%X\t%X\t%X\t%d\n", bootH, c.Header(bootH+1).AppHash, c.Header(bootH+1).Hash(),
 		c.Header(bootH+1).LastResultsHash, c.Header(bootH+1).ValidatorsHash, c.Header(bootH+1).NextValidatorsHash, testchain.AppVersion)
-	require.NoError(t, os.WriteFile(exp, []byte("# test\n"+row), 0o644))
-	out, err := run(t, newHome(t, c), "-expected", exp, "-rpc", srv.URL, "-dry-run")
+	require.NoError(t, os.WriteFile(exp, []byte(head+row), 0o644))
+	out, err := run(t, newHome(t, c), "-expected", exp, "-rpc", rpcs, "-dry-run")
 	require.NoError(t, err, out)
 	require.Contains(t, out, "dry run")
 
 	bad := strings.Replace(row, fmt.Sprintf("%X", c.Header(bootH+1).AppHash), strings.Repeat("AB", 32), 1)
-	require.NoError(t, os.WriteFile(exp, []byte(bad), 0o644))
-	_, err = run(t, newHome(t, c), "-expected", exp, "-rpc", srv.URL, "-dry-run")
+	require.NoError(t, os.WriteFile(exp, []byte(head+bad), 0o644))
+	_, err = run(t, newHome(t, c), "-expected", exp, "-rpc", rpcs, "-dry-run")
 	require.ErrorContains(t, err, "!= expected.tsv")
+
+	// rows without a verified fshdr header for this chain are refused
+	require.NoError(t, os.WriteFile(exp, []byte("# fshdr headers (UNVERIFIED)\n"+row), 0o644))
+	_, err = run(t, newHome(t, c), "-expected", exp, "-rpc", rpcs, "-dry-run")
+	require.ErrorContains(t, err, "not a verified fshdr header")
 }
 
 // TestForgedSource covers the forgeries an untrusted RPC can attempt.
@@ -133,8 +147,20 @@ func TestForgedSource(t *testing.T) {
 		}
 	}
 	valPower := forgeAt("validators", func(r any) { r.(*coretypes.ResultValidators).Validators[0].VotingPower++ })
-	priority := forgeAt("validators", func(r any) { r.(*coretypes.ResultValidators).Validators[0].ProposerPriority += 12345 })
+	// The priorities a source reports are those after height H's proposer was
+	// chosen, which leaves the proposer with the lowest one. Make another
+	// validator the lowest, so the priorities name a different proposer.
+	proposer := c.Header(bootH).ProposerAddress
+	priority := forgeAt("validators", func(r any) {
+		for _, v := range r.(*coretypes.ResultValidators).Validators {
+			if !bytes.Equal(v.Address, proposer) {
+				v.ProposerPriority -= 1_000_000
+				return
+			}
+		}
+	})
 	maxBytes := forgeAt("consensus_params", func(r any) { r.(*coretypes.ResultConsensusParams).ConsensusParams.Block.MaxBytes++ })
+	appVersion := forgeAt("consensus_params", func(r any) { r.(*coretypes.ResultConsensusParams).ConsensusParams.Version.App++ })
 	evidence := forgeAt("consensus_params", func(r any) {
 		r.(*coretypes.ResultConsensusParams).ConsensusParams.Evidence.MaxAgeNumBlocks++
 	})
@@ -155,32 +181,33 @@ func TestForgedSource(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		forge    testchain.Forge
-		withGood bool // a second, honest server
+		withGood bool // a second, honest server; else -allow-single-source
 		trusted  string
 		want     string
 	}{
-		{name: "validator power", forge: valPower, want: "validator"},
+		{name: "validator power", forge: valPower, want: "validator set hash"},
 		{name: "block max bytes", forge: maxBytes, want: "ConsensusHash"},
+		{name: "params app version", forge: appVersion, want: "app version"},
 		{name: "commit signature", forge: commitSig, want: "signature"},
-		{name: "header app hash", forge: appHash, want: "light block"},
-		{name: "wrong trusted hash", trusted: fmt.Sprintf("%X", c.Header(bootH).Hash()), want: "!= trusted"},
-		{name: "proposer priority, one server", forge: priority, want: ""},
-		{name: "evidence params, one server", forge: evidence, want: ""},
+		{name: "header app hash", forge: appHash, want: "hash chain broken at height 13"},
+		{name: "wrong trusted hash", trusted: fmt.Sprintf("%X", c.Header(bootH).Hash()), want: "hash chain broken"},
+		{name: "proposer priority, one server", forge: priority, want: "proposer"},
+		{name: "evidence params, one server", forge: evidence, want: ""}, // trusted, as by the stock command
 		{name: "proposer priority, two servers", forge: priority, withGood: true, want: "disagree"},
 		{name: "evidence params, two servers", forge: evidence, withGood: true, want: "disagree"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bad := c.ServeRPC(t, tc.forge)
-			rpcs := bad.URL
+			args := []string{"-rpc", bad.URL, "-allow-single-source"}
 			if tc.withGood {
-				rpcs = good.URL + "," + bad.URL
+				args = []string{"-rpc", good.URL + "," + bad.URL}
 			}
 			th := tc.trusted
 			if th == "" {
 				th = trustedHash(c)
 			}
-			out, err := run(t, newHome(t, c), "-trusted-hash", th, "-rpc", rpcs, "-dry-run")
-			if tc.want == "" { // not authenticated by any header: accepted, as by the stock command
+			out, err := run(t, newHome(t, c), append(args, "-trusted-hash", th, "-dry-run")...)
+			if tc.want == "" {
 				require.NoError(t, err, out)
 				return
 			}

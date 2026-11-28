@@ -4,16 +4,20 @@
 // or a trusting period, so it works at any height that expected.tsv covers.
 //
 //	fsboot bootstrap -home DIR -height H (-expected expected.tsv | -trusted-hash HEX)
-//	                 (-rpc URL[,URL...] | -src-data DIR [-src-backend B]) [-app-hash HEX] [-dry-run]
+//	                 (-rpc URL,URL[,...] [-allow-single-source] | -src-data DIR [-src-backend B])
+//	                 [-app-hash HEX] [-dry-run]
 //
-// The only trusted input is the hash of header H+1: row H, column 3 of
-// fshdr's expected.tsv, or -trusted-hash. Headers, validator sets, the commit
-// and the consensus params come from an untrusted source and are checked
-// against it (see internal/boot.Verify).
+// The trusted input is the hash of header H+1: row H, column 3 of fshdr's
+// expected.tsv (verified for this chain), or -trusted-hash. Headers,
+// validator sets, the commit and the consensus params come from untrusted
+// sources and are checked against it (see internal/boot.Verify).
 //
 // Not authenticated by any header, as in the stock command: proposer
 // priorities and the consensus params other than block max bytes and max
-// gas. With several -rpc servers, all of them must return identical values.
+// gas. Whatever source provides them is trusted for them. fsboot therefore
+// needs at least two distinct -rpc servers, which must return identical
+// values (or -allow-single-source); -src-data is a node the operator runs and
+// trusts for them. It also checks the priorities against header H's proposer.
 package main
 
 import (
@@ -36,6 +40,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/boot"
 	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/expected"
+	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/hdrchain"
 )
 
 func main() {
@@ -97,7 +102,8 @@ func cmdBootstrap(args []string, out io.Writer) error {
 	height := fs.Int64("height", 0, "height H: the application DB holds the state after H")
 	exp := fs.String("expected", "", "fshdr expected.tsv: row H column 3 is the verified hash of header H+1")
 	trusted := fs.String("trusted-hash", "", "verified hash of header H+1 (hex), instead of -expected")
-	rpcs := fs.String("rpc", "", "comma-separated RPC servers (untrusted source)")
+	rpcs := fs.String("rpc", "", "comma-separated RPC servers, at least two distinct (untrusted source)")
+	single := fs.Bool("allow-single-source", false, "accept one -rpc server: it is then trusted for proposer priorities and unhashed params")
 	srcData := fs.String("src-data", "", "untrusted source: data dir of a stopped node that synced past H+2")
 	srcBackend := fs.String("src-backend", "", "db backend of -src-data (default: this node's db_backend)")
 	appHash := fs.String("app-hash", "", "optional: app hash of the local application DB at H (must equal header(H+1).AppHash)")
@@ -124,7 +130,7 @@ func cmdBootstrap(args []string, out io.Writer) error {
 
 	var trustedHash, wantAppHash []byte
 	if *exp != "" {
-		row, err := expected.Find(*exp, h)
+		row, err := expected.Find(*exp, genDoc.ChainID, h)
 		if err != nil {
 			return fmt.Errorf("%s: %w", *exp, err)
 		}
@@ -134,23 +140,14 @@ func cmdBootstrap(args []string, out io.Writer) error {
 	}
 	logf("chain %s, H=%d, trusted hash(header %d) = %X", genDoc.ChainID, h, h+1, trustedHash)
 
-	var src boot.Source
-	if *rpcs != "" {
-		src, err = boot.NewRPCSource(genDoc.ChainID, strings.Split(*rpcs, ","))
-	} else {
-		b := *srcBackend
-		if b == "" {
-			b = conf.DBBackend
-		}
-		src, err = boot.OpenDataSource(*srcData, b)
-	}
+	srcs, closeSrcs, err := openSources(conf, *rpcs, *srcData, *srcBackend, *single)
 	if err != nil {
 		return err
 	}
-	defer src.Close()
-	logf("source: %s (untrusted; every item is checked)", src)
+	defer closeSrcs()
+	logf("sources: %s (untrusted; every item is checked)", strings.TrimPrefix(*rpcs+" "+*srcData, " "))
 
-	v, err := boot.Verify(context.Background(), src, genDoc.ChainID, h, trustedHash)
+	v, err := boot.Verify(context.Background(), srcs, genDoc.ChainID, h, trustedHash)
 	if err != nil {
 		return err
 	}
@@ -177,4 +174,30 @@ func cmdBootstrap(args []string, out io.Writer) error {
 	logf("DONE: state at height %d (app version %d, AppHash %X), seen commit %d, offline state sync height %d (%s)",
 		h, v.Next.Version.App, v.Next.AppHash, h, h, time.Since(t0).Round(time.Millisecond))
 	return nil
+}
+
+// openSources returns one source per distinct RPC server, or the data dir.
+func openSources(conf *cfg.Config, rpcs, srcData, srcBackend string, single bool) ([]boot.Source, func(), error) {
+	if srcData != "" {
+		if srcBackend == "" {
+			srcBackend = conf.DBBackend
+		}
+		s, err := hdrchain.OpenStores(srcData, srcBackend, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []boot.Source{s}, func() { _ = s.Close() }, nil
+	}
+	var srcs []boot.Source
+	seen := map[string]bool{}
+	for _, u := range strings.Split(rpcs, ",") {
+		if u = strings.TrimRight(strings.TrimSpace(u), "/"); u != "" && !seen[u] {
+			seen[u] = true
+			srcs = append(srcs, hdrchain.NewHTTPSource(u))
+		}
+	}
+	if len(srcs) < 2 && !single {
+		return nil, nil, errors.New("need at least two distinct -rpc servers: one server alone is trusted for proposer priorities and unhashed params (pass -allow-single-source to accept that)")
+	}
+	return srcs, func() {}, nil
 }
