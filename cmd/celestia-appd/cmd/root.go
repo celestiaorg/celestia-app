@@ -141,6 +141,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		if err := checkBBR(cmd); err != nil {
 			return err
 		}
+		if err := setupWALFsync(cmd, server.GetServerContextFromCmd(cmd).Logger); err != nil {
+			return err
+		}
 
 		return startCmdRunE(cmd, args)
 	}
@@ -148,6 +151,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 // addStartFlags adds flags to the start command.
 func addStartFlags(startCmd *cobra.Command) {
+	addWALFsyncFlag(startCmd)
 	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
 	if err := startCmd.Flags().MarkDeprecated(UpgradeHeightFlag, "This flag is deprecated and was only useful prior to v4."); err != nil {
 		panic(err)
