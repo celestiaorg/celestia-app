@@ -7,7 +7,8 @@ files written by the changeset recorder.
 cd tools/fastsync && make build   # ./build/manifest
 
 # once, offline: the private key never leaves the release machine; publish bundle.pub in the repo
-manifest keygen -key bundle.key -pub bundle.pub   # or: openssl genpkey -algorithm ed25519 -out bundle.key
+openssl genpkey -algorithm ed25519 -out bundle.key
+openssl pkey -in bundle.key -pubout -out bundle.pub
 
 # publisher
 manifest build -dir BUNDLE -chain-id celestia -last-height H -expected expected.tsv -out manifest.json
@@ -49,7 +50,7 @@ openssl pkeyutl -verify -pubin -inkey bundle.pub -rawin -in manifest.json -sigfi
 2. The manifest itself: strict JSON (unknown fields and trailing data are rejected), a known version, valid
    hashes and sizes, and file names that are plain base names (`[A-Za-z0-9][A-Za-z0-9._-]*`, no `..`). That
    rules out path traversal even under a validly signed manifest.
-3. The file set: no file outside the manifest (use `-allow-extra` or `-ignore NAME` to override), none
+3. The file set: no file outside the manifest (`-ignore NAME` skips a name), none
    missing, every entry a regular file (no symlinks or directories).
 4. All sizes, before any hashing, so a truncated download fails fast.
 5. Every sha256, streamed with a 1 MiB buffer per worker (`-j`, default 4). Memory use does not depend on

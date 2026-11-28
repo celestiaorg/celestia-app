@@ -1,58 +1,45 @@
 package main
 
-// Keys and signatures: PEM PKCS#8 / PKIX ed25519 keys (the format of `openssl genpkey -algorithm ed25519`)
-// and detached base64 signatures over the exact manifest bytes.
+// Keys and signatures: PEM PKCS#8 / PKIX ed25519 keys as openssl writes them
+// (`openssl genpkey -algorithm ed25519`, `openssl pkey -pubout`) and detached base64 signatures
+// over the exact manifest bytes.
 
 import (
 	"bufio"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/manifest"
 )
 
-// GenerateKey writes a new ed25519 private key (0600) and its public key as PEM files.
-func GenerateKey(privPath, pubPath string) error {
-	pub, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return err
-	}
-	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		return err
-	}
-	pubDER, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		return err
-	}
-	if err := writeNew(privPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privDER}), 0o600); err != nil {
-		return err
-	}
-	return writeNew(pubPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER}), 0o644)
-}
+// maxManifestBytes bounds how much of a manifest file is read.
+const maxManifestBytes = 64 << 20
 
-func writeNew(p string, b []byte, mode os.FileMode) error {
-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+// readLimited reads at most limit bytes of p and fails if the file is larger.
+func readLimited(p string, limit int64) ([]byte, error) {
+	f, err := os.Open(p)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := f.Write(b); err != nil {
-		f.Close()
-		return err
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
 	}
-	return f.Close()
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("%s: larger than %d bytes", p, limit)
+	}
+	return b, nil
 }
 
 func readPEM(p, wantType string) ([]byte, error) {
-	b, err := manifest.ReadLimited(p, 1<<16)
+	b, err := readLimited(p, 1<<16)
 	if err != nil {
 		return nil, err
 	}
@@ -137,26 +124,4 @@ func ReadRanges(p string) (map[string][2]int64, error) {
 		out[fs[0]] = [2]int64{a, b}
 	}
 	return out, sc.Err()
-}
-
-// LookupExpected returns the app hash after height h from an expected-hash TSV
-// ("height<TAB>app_hash_after[<TAB>...]", as written by fshdr verify).
-func LookupExpected(p string, h int64) (string, error) {
-	f, err := os.Open(p)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	want := strconv.FormatInt(h, 10)
-	for sc.Scan() {
-		fs := strings.Fields(sc.Text())
-		if len(fs) >= 2 && fs[0] == want {
-			return fs[1], nil
-		}
-	}
-	if err := sc.Err(); err != nil {
-		return "", err
-	}
-	return "", fmt.Errorf("%s: no entry for height %d", p, h)
 }
