@@ -82,10 +82,11 @@ What no header authenticates (the same as in `comet bootstrap-state`):
 - consensus params other than block max bytes and max gas
   (`ConsensusParams.Hash` covers only those two).
 
-`fsboot` takes these from its source as the stock command does. With several
-`-rpc` servers it also requires all of them to return identical values, so one
-honest server is enough to detect a forgery. With `-src-data` they come from a
-node you run.
+`fsboot` takes these from its sources as the stock command does, so a single
+source is trusted for them. It requires at least two distinct `-rpc` servers
+that return identical values (one honest server detects a forgery) and checks
+them against header `H`'s proposer; with
+`-src-data` they come from a node you run.
 
 Without step 4, the application state is only known to have the committed app
 hash at each height; the transitions between heights were not executed locally.
@@ -114,7 +115,6 @@ The tools land in a series of changes; this table lists the full set.
 | `fshdr forward` | verify headers up from one trusted header (links, commits, validator sets) and write `expected.tsv` |
 | `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
-| `fsboot inspect` | print the store heights and whether the node can start |
 | `fastindex` | build the IAVL fast-node index of an applied DB offline |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
@@ -156,6 +156,39 @@ One header type covers every mainnet height: the header and commit encoding
 and hashing are identical in the celestia-core v0.34 and v0.38-based lines
 (`internal/hdrchain`, mainnet fixtures in its `testdata`). A future encoding
 change adds a `HeaderType` there.
+
+### fsboot
+
+`fsboot bootstrap` writes the CometBFT state store and block store of a node
+home at height `H`: the bytes `celestia-appd comet bootstrap-state --height H`
+writes, from data checked against the verified hash of header `H+1`. It needs no
+light client and no trusting period, so it works at any height `expected.tsv`
+covers (checkpoints and old targets included). The node home must have empty
+CometBFT stores, as for the stock command.
+
+```sh
+fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv \
+  -rpc https://rpc-a.example,https://rpc-b.example
+# or take headers, commit, validator sets and params from a stopped node you run
+fsboot bootstrap -home ~/.celestia-app -height 1000000 -expected expected.tsv -src-data /srv/archive/data
+```
+
+`-dry-run` runs every check and writes nothing.
+
+Proposer priorities and the consensus params other than block max bytes and
+max gas are in no header hash, so the source that provides them is trusted for
+them, as in the stock command. fsboot therefore requires at least two distinct
+`-rpc` servers, which must return identical values (`-allow-single-source`
+accepts one), and it checks them where it can: the priorities must name header
+`H`'s proposer, and the params' app version must equal header `H+1`'s. With `-src-data` the source is a node you run, which you trust for them. The
+tests run the stock `BootstrapStateWithGenProvider` and `fsboot` against the
+same RPC servers and require identical stores, and cover forged validator
+sets, priorities, consensus params, commit signatures, headers and trusted
+hashes.
+
+With celestia-core v0.43 the offline state sync height is kept until the node
+stores its first block, so a first start that fails before that can simply be
+retried.
 
 ### bsfix
 
