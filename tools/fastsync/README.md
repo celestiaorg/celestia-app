@@ -226,6 +226,52 @@ bsfix -data ~/.celestia-app/data -backend pebbledb
 `bsfix` deletes only blocks above state height + 1. It does not touch the state
 store or the application DB.
 
+### scripts/fastsync.sh
+
+Runs steps 1 to 3 end to end: `fshdr verify`, the appliers (with the v0.46 to
+v0.50 handover), optional checkpoints and `fastindex`, then `fsboot`. It aborts
+at the first failure and bootstraps nothing unless every applied height matched
+`expected.tsv`. After an app hash mismatch it marks the application DB
+`POISONED` and refuses to resume it.
+
+```sh
+scripts/fastsync.sh --home ~/.celestia-app --changesets /srv/changesets --to 1000000 \
+  --rpc https://rpc-a.example,https://rpc-b.example --trust-height 16000000 --trust-hash <HEX> \
+  --applier ./cstool46 --applier50 ./cstool50 --checkpoints 250000,500000,750000 --fastindex
+```
+
+With RPC as the bootstrap source it needs two distinct `--rpc` servers (or
+`--allow-single-source`, which fsboot then also gets). A resumed run (the
+`applied-to` marker) keeps existing checkpoint homes and skips checkpoints the
+application DB is already past.
+
+`--dry-run` prints every command without running anything. Tools are found on
+`PATH` or through `--appd/--fshdr/--fsboot/--applier/--applier50` (or the
+`APPD`, `FSHDR`, `FSBOOT`, `APPLIER`, `APPLIER50`, `FASTINDEX46`, `FASTINDEX50`
+env vars).
+
+The appliers are added in a later change. The script expects this interface:
+`<applier> apply -db DIR -backend B -changesets DIR -expected FILE
+-require-trusted -to H [-parallel]`, exit code 2 for an app hash mismatch, a
+`HANDOVER` line when the changesets continue with SDK v0.50 store blocks, and a
+final `done ... to height N ... recorded hash only: 0` line.
+
+### scripts/segment.sh
+
+Re-executes one segment from a checkpoint home made by `fastsync.sh` and checks
+its boundary against the verified headers (`EXPECTED_TSV` must be fshdr output
+verified for the home's chain):
+
+```sh
+scripts/segment.sh ~/.celestia-app/fastsync/checkpoints/250000 500000 31 <peer-id>@10.0.0.2:26656 \
+  ~/.celestia-app/fastsync/expected.tsv
+# SEGMENT 250000..500000: OK (re-executed 250000 blocks in ...s, ...; boundary 499981..500000 matches the verified chain)
+```
+
+Run the segments in parallel on separate machines (or with distinct port
+prefixes on one machine). The run is fully verified when every segment
+`[c_k, c_k+1]`, plus the node that block-syncs on from `H`, passes.
+
 ## Headers
 
 One header type (`internal/hdrchain`) covers every mainnet height: the
