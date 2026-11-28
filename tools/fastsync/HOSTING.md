@@ -13,11 +13,6 @@ and their costs to inform that decision. It recommends one option but decides no
 - Optionally, the verified expected-hash TSV (`expected-all.tsv.zst`, ~0.5 GB). Users can rebuild it with
   `fshdr verify`, so hosting it is only a convenience.
 
-The prototype bundle currently sits in a development bucket split across several prefixes (`frontier/`,
-`rec-g0/`, `rec-s1..4/`, `hyb-rec*/`). One prefix (`rec-g0/`) contains a leftover `*.zst.tmp` and a `.bin`
-whose `.zst` was never finished. Before anything is published, the bundle has to be flattened into a single
-directory, cleaned up and run through `manifest build`. `manifest build` refuses stray files and gaps.
-
 ## Integrity does not depend on the host
 
 Whichever host is chosen, users should trust the bundle only through the signed manifest:
