@@ -43,7 +43,7 @@ jobs:
           done
           exit 1
       - name: shellcheck
-        run: shellcheck scripts/*.sh
+        run: shellcheck -x scripts/*.sh scripts/orchestrate/*.sh
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
