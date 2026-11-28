@@ -542,6 +542,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 
 // PreBlocker application updates every pre block
 func (app *App) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	app.walFsyncCatchUp(ctx.BlockTime())
 	return app.ModuleManager.PreBlock(ctx)
 }
 
