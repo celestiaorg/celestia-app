@@ -36,7 +36,7 @@ jobs:
         # retry: proxy.golang.org occasionally resets a stream mid-download
         run: |
           for i in 1 2 3; do
-            go mod download && (cd fastindex46 && go mod download) && (cd cstool46 && go mod download) && exit 0
+            go mod download && (cd fastindex46 && go mod download) && (cd cstool46 && go mod download) && (cd cstool50 && go mod download) && exit 0
             sleep $((i * 10))
           done
           exit 1
