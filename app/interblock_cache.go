@@ -61,8 +61,11 @@ type InterBlockCacheConfig struct {
 }
 
 // ParseInterBlockCacheConfig reads performance.inter-block-cache and
-// performance.inter-block-cache-size. A missing or empty mode means "off"; a
-// missing size means DefaultInterBlockCacheSize.
+// performance.inter-block-cache-size. A missing or empty mode means "off",
+// which leaves the app as it is without this setting. The size is read only in
+// "sync-only" mode; a missing size means DefaultInterBlockCacheSize. The
+// multiplexer validates the same keys (multiplexer/abci/interblock_cache.go on
+// the parent) and must accept exactly what this function accepts.
 func ParseInterBlockCacheConfig(appOpts servertypes.AppOptions) (InterBlockCacheConfig, error) {
 	cfg := InterBlockCacheConfig{Size: DefaultInterBlockCacheSize}
 	if appOpts == nil {
@@ -77,7 +80,7 @@ func ParseInterBlockCacheConfig(appOpts servertypes.AppOptions) (InterBlockCache
 	}
 	cfg.SyncOnly = mode == InterBlockCacheSyncOnly
 
-	if rawSize := appOpts.Get(FlagInterBlockCacheSize); rawSize != nil {
+	if rawSize := appOpts.Get(FlagInterBlockCacheSize); cfg.SyncOnly && rawSize != nil {
 		size, err := cast.ToInt64E(rawSize)
 		if err != nil || size <= 0 || size > math.MaxInt32 {
 			return cfg, fmt.Errorf("invalid %s %q: must be an integer between 1 and %d", FlagInterBlockCacheSize, fmt.Sprint(rawSize), math.MaxInt32)
@@ -97,12 +100,6 @@ func withInterBlockCache(cfg InterBlockCacheConfig, baseAppOptions []func(*basea
 	opts := make([]func(*baseapp.BaseApp), 0, len(baseAppOptions)+1)
 	opts = append(opts, baseAppOptions...)
 	return append(opts, baseapp.SetInterBlockCache(storecache.NewCommitKVStoreCacheManager(cfg.Size)))
-}
-
-// InterBlockCacheSyncOnly reports whether the inter-block cache is on and the
-// app refuses transactions, queries and state sync.
-func (app *App) InterBlockCacheSyncOnly() bool {
-	return app.interBlockCacheSyncOnly
 }
 
 // Query refuses every ABCI query except peer filtering in "sync-only" mode.
@@ -172,4 +169,27 @@ func refuseUnary(any, context.Context, func(any) error, grpc.UnaryServerIntercep
 
 func refuseStream(any, grpc.ServerStream) error {
 	return status.Error(codes.Unavailable, ErrInterBlockCacheSyncOnly.Error())
+}
+
+// WithoutInterBlockCache returns appOpts with performance.inter-block-cache
+// forced to "off". Offline commands that load an older height after app.New,
+// such as export --height, must use it: with the cache on, reloading a version
+// keeps the cache wrappers around the latest trees, so they would read the
+// latest state instead of the requested height.
+func WithoutInterBlockCache(appOpts servertypes.AppOptions) servertypes.AppOptions {
+	return interBlockCacheOffOptions{AppOptions: appOpts}
+}
+
+type interBlockCacheOffOptions struct {
+	servertypes.AppOptions
+}
+
+func (o interBlockCacheOffOptions) Get(key string) any {
+	if key == FlagInterBlockCache {
+		return InterBlockCacheOff
+	}
+	if o.AppOptions == nil {
+		return nil
+	}
+	return o.AppOptions.Get(key)
 }
