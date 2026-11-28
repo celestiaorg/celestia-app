@@ -56,6 +56,13 @@ What the operator trusts:
   own node.
 - **The binaries** built from this repository and celestia-appd.
 
+A trust root at genesis would remove the weak-subjectivity input: the genesis
+validator set (built by InitChain from the gentxs in `genesis.json`), whose hash
+must equal `ValidatorsHash` of header 1, followed by `fshdr forward` from
+height 1. Deriving that validator set from the gentxs is not implemented; see
+[Headers](#headers) for that and for the plan to ship verified headers next
+to the changesets.
+
 What is verified, and against what:
 
 | item | check |
@@ -103,13 +110,52 @@ The tools land in a series of changes; this table lists the full set.
 
 | command | purpose |
 |---|---|
-| `fshdr verify` | verify headers and write `expected.tsv` |
+| `fshdr verify` | verify headers down from one trusted header (hash chain) and write `expected.tsv` |
+| `fshdr forward` | verify headers up from one trusted header (links, commits, validator sets) and write `expected.tsv` |
+| `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
 | `fsboot inspect` | print the store heights and whether the node can start |
 | `fastindex` | build the IAVL fast-node index of an applied DB offline |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
 | `scripts/segment.sh` | run and check one re-execution segment |
+
+### fshdr
+
+Both modes write the same `expected.tsv`: row `h` holds, from header `h+1`, the
+app hash after `h`, the header hash, `LastResultsHash`, `ValidatorsHash`,
+`NextValidatorsHash` and the app version.
+
+`verify` walks down from an anchor. The anchor is either verified by a light
+client from a trust root inside the trusting period, or supplied by the
+operator. Headers come from RPC (`/blockchain`) or a block store and only need
+to hash-link, so this is fast (SHA-256 per header):
+
+```sh
+# light-client anchor at to+1, headers over RPC
+fshdr verify -chain-id celestia -rpc https://rpc-a.example,https://rpc-b.example \
+  -trust-height 16000000 -trust-hash <HEX> -from 1 -to 1000000 -out expected.tsv
+
+# operator anchor (hash of header 1000001 from sources you trust), headers from a local block store
+fshdr verify -chain-id celestia -blockstore ~/.celestia-app/data -backend pebbledb \
+  -anchor-height 1000001 -anchor-hash <HEX> -from 1 -to 1000000 -out expected.tsv
+```
+
+`forward` walks up from a trusted header and checks each height as a full node
+does: the hash link, the validator-set transition, that the previous commit is
+the canonical one, and that +2/3 of the validator set's power signed. It needs
+commits and validator sets but no trusting period, so it can run from an old
+checkpoint to the tip:
+
+```sh
+fshdr forward -chain-id celestia -data ~/.celestia-app/data -backend pebbledb \
+  -trusted-height 6680339 -trusted-hash <HEX> -to 6700000 -out expected.tsv
+```
+
+One header type covers every mainnet height: the header and commit encoding
+and hashing are identical in the celestia-core v0.34 and v0.38-based lines
+(`internal/hdrchain`, mainnet fixtures in its `testdata`). A future encoding
+change adds a `HeaderType` there.
 
 ### bsfix
 
