@@ -68,8 +68,6 @@ func newInterBlockCacheTestApps(t *testing.T, accounts []string) (off, syncOnly 
 func TestInterBlockCacheInstalledOnlyInSyncOnly(t *testing.T) {
 	off := newInterBlockCacheTestApp(app.InterBlockCacheOff)
 	syncOnly := newInterBlockCacheTestApp(app.InterBlockCacheSyncOnly)
-	require.False(t, off.InterBlockCacheSyncOnly())
-	require.True(t, syncOnly.InterBlockCacheSyncOnly())
 
 	for _, name := range []string{banktypes.StoreKey, "acc", "staking", "distribution"} {
 		require.IsType(t, &iavl.Store{}, off.CommitMultiStore().GetKVStore(off.GetKey(name)), name)
@@ -79,6 +77,14 @@ func TestInterBlockCacheInstalledOnlyInSyncOnly(t *testing.T) {
 
 func TestInterBlockCacheInvalidConfigPanics(t *testing.T) {
 	require.Panics(t, func() { newInterBlockCacheTestApp("on") })
+}
+
+func TestWithoutInterBlockCache(t *testing.T) {
+	opts := app.WithoutInterBlockCache(interBlockCacheAppOptions{app.FlagInterBlockCache: app.InterBlockCacheSyncOnly, "other": 1})
+	require.Equal(t, app.InterBlockCacheOff, opts.Get(app.FlagInterBlockCache))
+	require.Equal(t, 1, opts.Get("other"))
+	a := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, opts, baseapp.SetChainID(testutil.ChainID))
+	require.IsType(t, &iavl.Store{}, a.CommitMultiStore().GetKVStore(a.GetKey(banktypes.StoreKey)))
 }
 
 // TestInterBlockCacheSyncOnlyServesNoQueries checks that an app with the

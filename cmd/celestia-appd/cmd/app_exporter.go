@@ -19,7 +19,8 @@ func appExporter(
 	appOptions servertypes.AppOptions,
 	modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
-	application := app.New(logger, db, traceStore, 0, appOptions)
+	// The inter-block cache would make LoadHeight export the latest state.
+	application := app.New(logger, db, traceStore, 0, app.WithoutInterBlockCache(appOptions))
 	if height != -1 {
 		if err := application.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
