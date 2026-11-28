@@ -4,7 +4,7 @@
 re-executes one segment from such a home. These scripts spread that work over several VMs, with a bucket
 between them:
 
-```
+```text
              bundle (verified with cmd/manifest)
                       |
   apply VM:   apply-checkpoints.sh   -- applier, every height checked against expected.tsv (fshdr)
