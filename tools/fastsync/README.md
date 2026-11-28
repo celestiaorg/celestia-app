@@ -103,7 +103,7 @@ Build and test (the module is outside the repository's `go.work`):
 
 ```sh
 cd tools/fastsync
-make build   # binaries in ./build (the nested modules fastindex46, cstool46 are built too)
+make build   # binaries in ./build (the nested modules fastindex46, cstool46, cstool50 are built too)
 make test
 ```
 
@@ -117,6 +117,7 @@ The tools land in a series of changes; this table lists the full set.
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
 | `fastindex`, `fastindex46` | build the IAVL fast-node index of an applied DB offline (SDK v0.50 / v0.46 stores) |
 | `cstool46 apply` | apply changesets to an app v1-v3 DB, every height checked against `expected.tsv` |
+| `cstool50 apply`, `cstool50 hashes` | the same for app v4+ DBs (continuing a cstool46 DB at the handover); print recorded hashes |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
 | `scripts/segment.sh` | run and check one re-execution segment |
@@ -235,6 +236,16 @@ cstool46 apply -db ~/.celestia-app/data -backend pebbledb -changesets /srv/chang
 
 It is a separate module (`cstool46/`) pinned to the celestiaorg/cosmos-sdk
 v0.46 fork that carries the changeset recorder and applier.
+
+### cstool50
+
+The same command for app v4 and later (SDK v0.50 store fork, IAVL v1), with
+the same flags, checks and exit codes. It continues on the DB `cstool46` left
+at the handover: the first v0.50 block carries the store upgrade the v4 binary
+ran at load. It refuses blocks recorded by the v0.46 store. `cstool50 hashes
+-changesets DIR -from A -to B` prints the recorded app hashes (not trusted;
+for comparisons). It is a separate module (`cstool50/`) pinned to the
+celestiaorg/cosmos-sdk v0.50 store fork with the changeset applier.
 
 ### bsfix
 

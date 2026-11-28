@@ -1,11 +1,11 @@
 # fastsync: genesis-sync tooling. Own module (own go.mod), outside the
 # celestia-app go.work; GOWORK=off keeps builds hermetic to this go.mod.
 # The NESTED commands are separate modules, pinned to the SDK store their app
-# versions use (v0.46 for app v1-v3).
+# versions use (v0.46 for app v1-v3, the v0.50 store fork for app v4+).
 
 BUILDDIR := build
 GO       := GOWORK=off go
-NESTED   := fastindex46 cstool46
+NESTED   := fastindex46 cstool46 cstool50
 TESTFLAGS ?=
 
 .PHONY: build test vet tidy clean help
