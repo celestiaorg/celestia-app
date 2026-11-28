@@ -17,7 +17,9 @@ import (
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v12/app/appdb"
 	"github.com/celestiaorg/celestia-app/v12/multiplexer/appd"
+	"github.com/cometbft/cometbft/libs/walfsync"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -165,8 +167,11 @@ func TestGetAppFailsForUnsupportedAppVersion(t *testing.T) {
 // stopped when the test ends.
 func newTestMultiplexer(t *testing.T, versions Versions, appVersion uint64) *Multiplexer {
 	t.Helper()
+	svrCtx := server.NewDefaultContext()
+	svrCtx.Config.SetRoot(t.TempDir())
 	m := &Multiplexer{
 		logger:     log.NewNopLogger(),
+		svrCtx:     svrCtx,
 		versions:   versions,
 		appVersion: appVersion,
 	}
@@ -216,4 +221,47 @@ func readFile(t *testing.T, path string) string {
 	}
 	require.NoError(t, err)
 	return string(data)
+}
+
+// TestStopEmbeddedAppChecksAppDBMarker checks that stopping an embedded app
+// handles the marker a killed child leaves before the next app opens the app
+// DB: from this boot it is removed, from another boot the switch is refused.
+func TestStopEmbeddedAppChecksAppDBMarker(t *testing.T) {
+	bootID, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	if err != nil {
+		t.Skip("no boot ID on this platform")
+	}
+	for _, tc := range []struct {
+		name    string
+		boot    string
+		refused bool
+	}{
+		{name: "same boot", boot: strings.TrimSpace(string(bootID))},
+		{name: "other boot", boot: "another-boot", refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logPath := filepath.Join(t.TempDir(), "app.log")
+			a := newMockAppd(t, "v0.0.0-marker-test", mockAppdScript(logPath))
+			versions, err := NewVersions(Version{AppVersion: 1, ABCIVersion: ABCIClientVersion1, Appd: a})
+			require.NoError(t, err)
+			m := newTestMultiplexer(t, versions, 1)
+			_, err = m.getApp()
+			require.NoError(t, err)
+			require.Eventually(t, func() bool { return readFile(t, logPath) == "started\n" }, 5*time.Second, 10*time.Millisecond)
+
+			marker := filepath.Join(m.svrCtx.Config.RootDir, "data", appdb.EmbeddedAppMarkerFile)
+			require.NoError(t, os.MkdirAll(filepath.Dir(marker), 0o700))
+			require.NoError(t, os.WriteFile(marker, []byte(tc.boot+"\n"), 0o600))
+			err = m.stopEmbeddedApp()
+			require.True(t, a.IsStopped())
+			if tc.refused {
+				require.ErrorIs(t, err, walfsync.ErrUnsyncedCrash)
+				require.FileExists(t, marker)
+				require.NoError(t, os.Remove(marker))
+				return
+			}
+			require.NoError(t, err)
+			require.NoFileExists(t, marker)
+		})
+	}
 }

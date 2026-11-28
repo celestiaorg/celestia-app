@@ -152,9 +152,12 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	if err := addRollbackAppVersionCheck(rootCommand); err != nil {
 		panic(fmt.Errorf("failed to add rollback check: %w", err))
 	}
+	if err := addRollbackMarkerClearing(rootCommand); err != nil {
+		panic(fmt.Errorf("failed to add rollback marker clearing: %w", err))
+	}
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
+	if err := addPreStartHooks(rootCommand, setupDBWALFsync, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -174,6 +177,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")
 	startCmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "DANGER: allow the privval gRPC endpoint to listen on a non-localhost address without mutual TLS; anyone who can reach it can request signatures from the validator key")
 	addOTelMetricsFlag(startCmd)
+	addDBWALFsyncFlag(startCmd)
 
 	prevPostRunE := startCmd.PostRunE
 	startCmd.PostRunE = func(cmd *cobra.Command, args []string) error {
