@@ -48,11 +48,29 @@ func (c *Chain) BlockID(h int64) types.BlockID {
 	return types.BlockID{Hash: c.Blocks[h].Hash(), PartSetHeader: c.Parts[h].Header()}
 }
 
-// New builds a chain of n blocks signed by four validators whose voting
-// powers change with the height, so that consecutive validator sets differ.
-func New(t testing.TB, n int) *Chain {
+// Option changes how New builds a chain.
+type Option func(*options)
+
+type options struct {
+	appSwitch, valSwitch int64
+}
+
+// AppVersionFrom makes headers from height h on carry app version AppVersion+1.
+func AppVersionFrom(h int64) Option { return func(o *options) { o.appSwitch = h } }
+
+// ValidatorsChangeAt keeps one validator set (four validators of equal power)
+// until h-1 and switches to a set with a fifth validator from h on.
+func ValidatorsChangeAt(h int64) Option { return func(o *options) { o.valSwitch = h } }
+
+// New builds a chain of n blocks. By default four validators sign, and their
+// voting powers change with the height, so that consecutive sets differ.
+func New(t testing.TB, n int, opts ...Option) *Chain {
 	t.Helper()
-	pvs := make([]types.PrivValidator, 4)
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+	pvs := make([]types.PrivValidator, 5)
 	for i := range pvs {
 		pvs[i] = types.NewMockPV()
 	}
@@ -68,7 +86,7 @@ func New(t testing.TB, n int) *Chain {
 		PrivVals: pvs,
 	}
 	for h := 1; h <= n+1; h++ {
-		c.Vals[h] = valset(t, pvs, int64(h))
+		c.Vals[h] = valset(t, pvs, int64(h), o.valSwitch)
 	}
 	c.GenDoc = &types.GenesisDoc{
 		GenesisTime:     genTime,
@@ -89,6 +107,9 @@ func New(t testing.TB, n int) *Chain {
 	for h := int64(1); h <= int64(n); h++ {
 		b := types.MakeBlock(h, types.Data{Txs: types.MakeTxs(h, 2)}, lastCommit, nil)
 		b.Version = cmtversion.Consensus{Block: version.BlockProtocol, App: AppVersion}
+		if o.appSwitch > 0 && h >= o.appSwitch {
+			b.Version.App = AppVersion + 1
+		}
 		b.ChainID = ChainID
 		b.Time = genTime.Add(time.Duration(h) * time.Second)
 		b.LastBlockID = lastID
@@ -115,12 +136,19 @@ func Hash(tag string, h int64) []byte {
 	return s[:]
 }
 
-func valset(t testing.TB, pvs []types.PrivValidator, h int64) *types.ValidatorSet {
-	vals := make([]*types.Validator, len(pvs))
-	for i, pv := range pvs {
+func valset(t testing.TB, pvs []types.PrivValidator, h, switchAt int64) *types.ValidatorSet {
+	n, power := 4, func(i int) int64 { return 10 + int64(i) + (h%3)*int64(i) }
+	if switchAt > 0 {
+		power = func(int) int64 { return 10 }
+		if h >= switchAt {
+			n = 5
+		}
+	}
+	vals := make([]*types.Validator, n)
+	for i, pv := range pvs[:n] {
 		pk, err := pv.GetPubKey()
 		require.NoError(t, err)
-		vals[i] = types.NewValidator(pk, 10+int64(i)+(h%3)*int64(i))
+		vals[i] = types.NewValidator(pk, power(i))
 	}
 	return types.NewValidatorSet(vals)
 }
@@ -161,6 +189,15 @@ func (c *Chain) State(h int64) sm.State {
 		LastResultsHash:                  next.LastResultsHash,
 		AppHash:                          next.AppHash,
 	}
+}
+
+// MemBlockStore returns an in-memory block store holding blocks 1..N.
+func (c *Chain) MemBlockStore() *store.BlockStore {
+	bs := store.NewBlockStore(dbm.NewMemDB())
+	for h := int64(1); h <= c.N(); h++ {
+		bs.SaveBlock(c.Blocks[h], c.Parts[h], c.Commits[h])
+	}
+	return bs
 }
 
 // WriteStores writes blocks 1..blocksTo into dir/blockstore.db and the state

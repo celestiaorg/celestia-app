@@ -10,8 +10,6 @@ import (
 // that changes how headers are hashed or how commits are signed adds a new
 // implementation and maps the app versions that use it in ForAppVersion.
 type HeaderType interface {
-	// Name identifies the encoding in logs and in header-file manifests.
-	Name() string
 	// HeaderHash is the block hash: what the next header's LastBlockID.Hash
 	// and the commit's BlockID.Hash refer to.
 	HeaderHash(h *types.Header) []byte
@@ -33,8 +31,6 @@ type HeaderType interface {
 type CometBFT struct{}
 
 var _ HeaderType = CometBFT{}
-
-func (CometBFT) Name() string { return "cometbft-block11" }
 
 func (CometBFT) HeaderHash(h *types.Header) []byte { return h.Hash() }
 

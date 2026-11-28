@@ -93,7 +93,7 @@ type Verifier struct {
 
 // NewGenesisVerifier starts at the chain's first height. genesisValsHash is
 // the trust root: the hash of the validator set InitChain produced (for
-// Celestia, derived from the genesis gentxs, see HEADERS.md).
+// Celestia, derived from the genesis gentxs, see the README).
 func NewGenesisVerifier(chainID string, initialHeight int64, genesisValsHash []byte) (*Verifier, error) {
 	if chainID == "" || initialHeight < 1 || len(genesisValsHash) != 32 {
 		return nil, errors.New("need chain id, initial height >= 1 and a 32-byte validator set hash")
@@ -130,9 +130,6 @@ func NewTrustedVerifier(chainID string, sh *types.SignedHeader, trustedHash []by
 
 // Last returns the last accepted signed header (nil before the first).
 func (v *Verifier) Last() *types.SignedHeader { return v.last }
-
-// LastValidators returns the validator set of the last accepted header.
-func (v *Verifier) LastValidators() *types.ValidatorSet { return v.lastVals }
 
 // NeedValidators reports whether Verify needs a validator set for sh, or can
 // reuse the last one (same ValidatorsHash).

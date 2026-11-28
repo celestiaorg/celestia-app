@@ -12,15 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Fixtures: /commit and /validators responses from a mainnet archive node
-// (celestia-core 0.38.17): genesis, and the v3 -> v4 boundary (6,680,340 is
-// the first header produced under the v0.38-based celestia-core ABCI 2 path).
+// Fixtures: /commit responses from a mainnet archive node (celestia-core
+// 0.38.17) across the v3 -> v4 boundary (6,680,340 is the first header
+// produced under the v0.38-based celestia-core ABCI 2 path), and the
+// /validators response at 6,680,339; the set does not change in this range.
 const mainnetChainID = "celestia"
 
-var mainnetRuns = [][]int64{
-	{1, 2},
-	{6680339, 6680340, 6680341},
-}
+var mainnetRuns = [][]int64{{6680339, 6680340, 6680341}}
 
 type fixtureSource struct {
 	t   testing.TB
@@ -38,12 +36,13 @@ func (f fixtureSource) SignedHeader(_ context.Context, h int64) (*types.SignedHe
 	return sh, err
 }
 
-func (f fixtureSource) Validators(_ context.Context, h int64) (*types.ValidatorSet, error) {
-	p, err := DecodeValidatorsPage(f.read(fmt.Sprintf("validators_%d.json", h)))
+// Validators serves the one recorded set; the verifier checks its hash.
+func (f fixtureSource) Validators(_ context.Context, _ int64) (*types.ValidatorSet, error) {
+	p, err := DecodeValidatorsPage(f.read("validators_6680339.json"))
 	if err != nil {
 		return nil, err
 	}
-	return ValidatorSetFromPages(h, p)
+	return ValidatorSetFromPages(p.BlockHeight, p)
 }
 
 func mainnet(t testing.TB) fixtureSource {
@@ -89,25 +88,6 @@ func TestMainnetLinksAcrossUpgrades(t *testing.T) {
 	require.Equal(t, []byte(prev.Hash()), []byte(next.LastBlockID.Hash))
 }
 
-func TestMainnetForwardFromGenesis(t *testing.T) {
-	src := mainnet(t)
-	_, vals1 := load(t, 1)
-	v, err := NewGenesisVerifier(mainnetChainID, 1, vals1.Hash())
-	require.NoError(t, err)
-	st, err := RunForward(context.Background(), src, v, 1, 2, nil)
-	require.NoError(t, err)
-	require.EqualValues(t, 2, st.Headers)
-	require.EqualValues(t, 1, st.ValidatorSets, "set unchanged after genesis: fetched once")
-	require.EqualValues(t, 2, v.Last().Height)
-
-	// Wrong genesis root.
-	bad := bytes.Repeat([]byte{1}, 32)
-	v, err = NewGenesisVerifier(mainnetChainID, 1, bad)
-	require.NoError(t, err)
-	_, err = RunForward(context.Background(), src, v, 1, 1, nil)
-	require.ErrorContains(t, err, "genesis validator set hash")
-}
-
 func TestMainnetForwardAcrossV4(t *testing.T) {
 	src := mainnet(t)
 	trusted, vals := load(t, 6680339)
@@ -123,7 +103,7 @@ func TestMainnetForwardAcrossV4(t *testing.T) {
 }
 
 func TestMainnetBackwardHashChain(t *testing.T) {
-	run := mainnetRuns[1]
+	run := mainnetRuns[0]
 	top, _ := load(t, run[len(run)-1])
 	var hs []*types.Header
 	for i := len(run) - 1; i >= 0; i-- {

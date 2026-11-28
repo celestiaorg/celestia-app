@@ -125,6 +125,27 @@ bsfix -data ~/.celestia-app/data -backend pebbledb
 `bsfix` deletes only blocks above state height + 1. It does not touch the state
 store or the application DB.
 
+## Headers
+
+One header type (`internal/hdrchain`) covers every mainnet height: the
+header, commit, vote and validator-set encodings and hashes are identical in
+the celestia-core v0.34 line (app v1 to v3) and the v0.38-based line (app v4
+and later). A node synced from genesis with the multiplexer stores all heights
+in the current block store format, so its `blockstore.db` and `state.db` are
+the best header source; any archive RPC also works. Every source is untrusted.
+
+Plan, not implemented yet: ship verified headers next to the changesets, so a
+consumer needs no archive node.
+
+- Packed headers (about 3-4 GB for 16M heights) in segments aligned with the
+  changeset segments, with boundary hashes in the manifest so segments verify
+  in parallel. Commits for every height (about 130 GB) are too large to ship;
+  instead, a checkpoint commit and validator set every 10k heights and at each
+  upgrade (about 25 MB) gives a light-client skip chain from genesis.
+- A from-genesis trust root: the genesis validator set, which InitChain builds
+  from the gentxs in `genesis.json` (its hash must equal `ValidatorsHash` of
+  header 1). `hdrchain.NewGenesisVerifier` takes that hash.
+
 ## Status
 
 The tools were validated on a local devnet and on mainnet ranges. They are

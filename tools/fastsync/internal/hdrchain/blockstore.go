@@ -19,39 +19,40 @@ type BlockstoreSource struct {
 	State  sm.Store // optional: needed only for Validators
 }
 
-// SignedHeader returns header h with the canonical commit for h (stored with
-// block h+1), or the seen commit when h is the store's tip.
-func (s *BlockstoreSource) SignedHeader(_ context.Context, h int64) (sh *types.SignedHeader, err error) {
-	// The store panics on undecodable records; corrupted input is an error here.
+// guard runs load and turns a store panic on an undecodable record into an error.
+func guard[T any](what string, h int64, load func() (T, error)) (v T, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			sh, err = nil, fmt.Errorf("blockstore height %d: %v", h, r)
+			err = fmt.Errorf("%s %d: %v", what, h, r)
 		}
 	}()
-	meta := s.Blocks.LoadBlockMeta(h)
-	if meta == nil {
-		return nil, fmt.Errorf("blockstore: no block meta at %d", h)
-	}
-	commit := s.Blocks.LoadBlockCommit(h)
-	if commit == nil {
-		commit = s.Blocks.LoadSeenCommit(h)
-	}
-	if commit == nil {
-		return nil, fmt.Errorf("blockstore: no commit for %d", h)
-	}
-	hd := meta.Header
-	return &types.SignedHeader{Header: &hd, Commit: commit}, nil
+	return load()
+}
+
+// SignedHeader returns header h with the canonical commit for h (stored with
+// block h+1), or the seen commit when h is the store's tip.
+func (s *BlockstoreSource) SignedHeader(_ context.Context, h int64) (*types.SignedHeader, error) {
+	return guard("blockstore height", h, func() (*types.SignedHeader, error) {
+		meta := s.Blocks.LoadBlockMeta(h)
+		if meta == nil {
+			return nil, fmt.Errorf("blockstore: no block meta at %d", h)
+		}
+		commit := s.Blocks.LoadBlockCommit(h)
+		if commit == nil {
+			commit = s.Blocks.LoadSeenCommit(h)
+		}
+		if commit == nil {
+			return nil, fmt.Errorf("blockstore: no commit for %d", h)
+		}
+		hd := meta.Header
+		return &types.SignedHeader{Header: &hd, Commit: commit}, nil
+	})
 }
 
 // Validators returns the validator set for height h from state.db.
-func (s *BlockstoreSource) Validators(_ context.Context, h int64) (vals *types.ValidatorSet, err error) {
+func (s *BlockstoreSource) Validators(_ context.Context, h int64) (*types.ValidatorSet, error) {
 	if s.State == nil {
 		return nil, fmt.Errorf("blockstore source has no state store for validators")
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			vals, err = nil, fmt.Errorf("state store validators %d: %v", h, r)
-		}
-	}()
-	return s.State.LoadValidators(h)
+	return guard("state store validators", h, func() (*types.ValidatorSet, error) { return s.State.LoadValidators(h) })
 }

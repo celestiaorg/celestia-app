@@ -9,9 +9,10 @@
 // the version.Consensus proto messages are byte-identical between the two
 // lines, and so are Header.Hash, Commit.Hash, ValidatorSet.Hash and
 // VoteSignBytes. Vote extensions (ExtendedCommit) exist only in v0.38 and are
-// disabled on Celestia, so they never appear in a canonical commit. The
-// mainnet fixtures in testdata (headers from both lines) verify with these
-// types; see HEADERS.md for how this was cross-checked against the v0.34 types.
+// disabled on Celestia, so they never appear in a canonical commit. This was
+// cross-checked on real headers of both eras with both libraries (equal
+// hashes, proto bytes and sign bytes); the mainnet fixtures in testdata, which
+// span the v3 -> v4 boundary, verify with these types.
 //
 // The package uses the celestia-core types that celestia-app main builds
 // with (module github.com/cometbft/cometbft), so it decodes headers written
