@@ -24,6 +24,14 @@ APPD=${APPD:-celestia-appd} FSHDR=${FSHDR:-fshdr}
 [ "$END" -ge 20 ] || { echo "END_HEIGHT must be >= 20" >&2; exit 1; }
 C=$CK/config/config.toml
 [ -f "$C" ] && [ -f "$CK/CHECKPOINT" ] && [ -f "$EXP" ] || { echo "need $C, $CK/CHECKPOINT and $EXP" >&2; exit 1; }
+# EXPECTED_TSV must be fshdr output verified for this chain, not an unverified dump
+CHAIN_ID=$(grep -o '"chain_id": *"[^"]*"' "$CK/config/genesis.json" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+[ -n "$CHAIN_ID" ] || { echo "no chain_id in $CK/config/genesis.json" >&2; exit 1; }
+FIRST=$(head -1 "$EXP")
+case $FIRST in
+  "# fshdr verify chain=$CHAIN_ID "* | "# fshdr forward chain=$CHAIN_ID "*) ;;
+  *) echo "$EXP is not a verified fshdr file for chain $CHAIN_ID (first line: $FIRST)" >&2; exit 1 ;;
+esac
 START=$(awk -F'\t' '$1=="height"{print $2}' "$CK/CHECKPOINT")
 [ -n "$START" ] && [ "$START" -lt "$END" ] || { echo "checkpoint height '$START' must be below END $END" >&2; exit 1; }
 BACKEND=$(sed -n 's/^db_backend *= *"\(.*\)"/\1/p' "$C" | head -1)

@@ -240,6 +240,11 @@ scripts/fastsync.sh --home ~/.celestia-app --changesets /srv/changesets --to 100
   --applier ./cstool46 --applier50 ./cstool50 --checkpoints 250000,500000,750000 --fastindex
 ```
 
+With RPC as the bootstrap source it needs two distinct `--rpc` servers (or
+`--allow-single-source`, which fsboot then also gets). A resumed run (the
+`applied-to` marker) keeps existing checkpoint homes and skips checkpoints the
+application DB is already past.
+
 `--dry-run` prints every command without running anything. Tools are found on
 `PATH` or through `--appd/--fshdr/--fsboot/--applier/--applier50` (or the
 `APPD`, `FSHDR`, `FSBOOT`, `APPLIER`, `APPLIER50`, `FASTINDEX46`, `FASTINDEX50`
@@ -254,7 +259,8 @@ final `done ... to height N ... recorded hash only: 0` line.
 ### scripts/segment.sh
 
 Re-executes one segment from a checkpoint home made by `fastsync.sh` and checks
-its boundary against the verified headers:
+its boundary against the verified headers (`EXPECTED_TSV` must be fshdr output
+verified for the home's chain):
 
 ```sh
 scripts/segment.sh ~/.celestia-app/fastsync/checkpoints/250000 500000 31 <peer-id>@10.0.0.2:26656 \

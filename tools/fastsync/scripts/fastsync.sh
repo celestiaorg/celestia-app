@@ -23,8 +23,8 @@
 set -euo pipefail
 
 HOME_DIR='' CS_DIR='' RPC='' TRUST_H=0 TRUST_HASH='' TRUST_PERIOD=168h FROM=1 TO=0
-ANCHOR_H=0 ANCHOR_HASH='' BOOT_SRC_DATA='' HDR_BLOCKSTORE='' START_FLAGS='' CHECKPOINTS='' CK_EVERY=0
-PARALLEL=1 FASTINDEX=0 DRY_RUN=0
+ANCHOR_H=0 ANCHOR_HASH='' BOOT_SRC_DATA='' HDR_BLOCKSTORE='' START_FLAGS='' CHECKPOINTS=''
+PARALLEL=1 FASTINDEX=0 DRY_RUN=0 SINGLE_SOURCE=0
 APPD=${APPD:-celestia-appd} FSHDR=${FSHDR:-fshdr} FSBOOT=${FSBOOT:-fsboot}
 APPLIER=${APPLIER:-} APPLIER50=${APPLIER50:-} FASTINDEX46=${FASTINDEX46:-fastindex46} FASTINDEX50=${FASTINDEX50:-fastindex}
 
@@ -32,8 +32,10 @@ usage() {
   sed -n '2,6p' "$0"
   cat <<'EOF2'
 options: --from N (default 1)  --trust-period 168h  --header-blockstore DIR (headers from a local block store)
-         --boot-src-data DIR (fsboot: validator sets, commit and params from a stopped node instead of RPC)
-         --checkpoints h1,h2,...  --checkpoint-every N  (homes for parallel re-execution segments)
+         --boot-src-data DIR (fsboot: validator sets, commit and params from a stopped node you run and trust
+           for proposer priorities and unhashed params, instead of RPC)
+         --allow-single-source (fsboot from one --rpc server, which is then trusted for those fields)
+         --checkpoints h1,h2,...  (homes for parallel re-execution segments)
          --fastindex  --no-parallel  --start-flags "..."  --dry-run (print the commands, run nothing)
 tools:   --appd PATH --fshdr PATH --fsboot PATH --applier PATH --applier50 PATH (or the env vars APPD, FSHDR,
          FSBOOT, APPLIER, APPLIER50, FASTINDEX46, FASTINDEX50)
@@ -55,7 +57,7 @@ while [ $# -gt 0 ]; do
     --header-blockstore) HDR_BLOCKSTORE=$2; shift ;;
     --boot-src-data) BOOT_SRC_DATA=$2; shift ;;
     --checkpoints) CHECKPOINTS=$2; shift ;;
-    --checkpoint-every) CK_EVERY=$2; shift ;;
+    --allow-single-source) SINGLE_SOURCE=1 ;;
     --start-flags) START_FLAGS=$2; shift ;;
     --appd) APPD=$2; shift ;;
     --fshdr) FSHDR=$2; shift ;;
@@ -81,7 +83,7 @@ is_uint() { [[ $1 =~ ^[0-9]+$ ]]; }
 
 [ -n "$HOME_DIR" ] && [ -n "$CS_DIR" ] && [ -n "$RPC$HDR_BLOCKSTORE" ] || usage
 is_uint "$TO" && is_uint "$FROM" && [ "$TO" -ge "$FROM" ] && [ "$FROM" -ge 1 ] || die "need 1 <= --from <= --to"
-if ! { is_uint "$TRUST_H" && is_uint "$ANCHOR_H" && is_uint "$CK_EVERY"; }; then die "heights must be numbers"; fi
+if ! { is_uint "$TRUST_H" && is_uint "$ANCHOR_H"; }; then die "heights must be numbers"; fi
 if [ -n "$ANCHOR_HASH" ]; then
   [ "$ANCHOR_H" -gt "$TO" ] || die "--anchor-hash needs --anchor-height > --to"
 else
@@ -89,6 +91,10 @@ else
 fi
 [ -n "$APPLIER" ] || die "--applier is required"
 [ -n "$RPC" ] || [ -n "$BOOT_SRC_DATA" ] || die "fsboot needs --rpc or --boot-src-data"
+distinct_rpcs() { tr ',' '\n' <<< "$RPC" | sed 's#/*$##' | grep . | sort -u | wc -l; }
+if [ -z "$BOOT_SRC_DATA" ] && [ "$SINGLE_SOURCE" = 0 ] && [ "$(distinct_rpcs)" -lt 2 ]; then
+  die "fsboot needs two distinct --rpc servers: one alone is trusted for proposer priorities and unhashed params (--allow-single-source accepts that)"
+fi
 
 H=$TO
 CFG=$HOME_DIR/config/config.toml GEN=$HOME_DIR/config/genesis.json WORK=$HOME_DIR/fastsync
@@ -161,16 +167,18 @@ apply_to() { # $1 = target: applies (APPLIED, target], every height checked agai
   APPLIED=$tgt
   echo "$tgt" > "$WORK/applied-to"
 }
-bootstrap_home() { # $1 = home, $2 = height
+bootstrap_home() { # $1 = home, $2 = height, [$3 = app hash of the home's application DB at $2]
   local args=(bootstrap -home "$1" -height "$2" -expected "$WORK/expected.tsv")
   if [ -n "$BOOT_SRC_DATA" ]; then args+=(-src-data "$BOOT_SRC_DATA"); else args+=(-rpc "$RPC"); fi
+  [ "$SINGLE_SOURCE" = 1 ] && args+=(-allow-single-source)
+  [ -n "${3:-}" ] && args+=(-app-hash "$3")
   if [ "$DRY_RUN" = 1 ]; then run "$FSBOOT" "${args[@]}"; return 0; fi
   run mkdir -p "$1/fastsync"
   "$FSBOOT" "${args[@]}" > "$1/fastsync/bootstrap.log" 2>&1 || { tail -5 "$1/fastsync/bootstrap.log"; return 1; }
   grep '^\[fsboot' "$1/fastsync/bootstrap.log" | sed 's/^/    /'
 }
 make_checkpoint() { # $1 = height: a self-contained node home at $1 (app DB copy + bootstrapped CometBFT stores)
-  local ck=$1 d=$WORK/checkpoints/$1
+  local ck=$1 d=$WORK/checkpoints/$1 app_hash
   run rm -rf "$d"
   run mkdir -p "$d"
   # multiplexer homes: reuse the embedded child binaries instead of extracting them again
@@ -178,16 +186,20 @@ make_checkpoint() { # $1 = height: a self-contained node home at $1 (app DB copy
   run "$APPD" init "ckpt-$ck" --chain-id "$CHAIN_ID" --home "$d" # fresh node keys
   run cp "$GEN" "$CFG" "$HOME_DIR/config/app.toml" "$d/config/"
   run cp -a "$HOME_DIR/data/application.db" "$d/data/" # the applier exited: the DB is closed
-  bootstrap_home "$d" "$ck" || die "bootstrap of checkpoint $ck failed (see $d/fastsync/bootstrap.log)"
+  app_hash=$(awk -v h="$ck" -F'\t' '$1==h {print $2}' "$WORK/expected.tsv" 2>/dev/null || true)
+  bootstrap_home "$d" "$ck" "$app_hash" || die "bootstrap of checkpoint $ck failed (see $d/fastsync/bootstrap.log)"
   if [ "$DRY_RUN" = 0 ]; then
     awk -v h="$ck" -F'\t' '$1==h {print "height\t"$1"\napp_hash_after\t"$2"\nnext_header_hash\t"$3}' "$WORK/expected.tsv" > "$d/CHECKPOINT"
   fi
   log "checkpoint $ck -> $d"
 }
 CKS=${CHECKPOINTS//[, ]/$'\n'}
-[ "$CK_EVERY" -gt 0 ] && CKS=$(printf '%s\n' "$CKS" "$(seq "$CK_EVERY" "$CK_EVERY" "$H")")
 for ck in $(printf '%s\n' "$CKS" | grep -E '^[0-9]+$' | sort -n -u); do
   if [ "$ck" -lt "$FROM" ] || [ "$ck" -ge "$H" ]; then log "skip checkpoint $ck (outside $FROM..$((H - 1)))"; continue; fi
+  if [ "$ck" -le "$APPLIED" ]; then # resume: application.db is already past ck
+    if [ -f "$WORK/checkpoints/$ck/CHECKPOINT" ]; then log "checkpoint $ck exists"; else log "skip checkpoint $ck: application.db is already at $APPLIED"; fi
+    continue
+  fi
   apply_to "$ck"
   make_checkpoint "$ck"
 done

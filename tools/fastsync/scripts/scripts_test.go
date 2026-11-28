@@ -128,9 +128,9 @@ func TestFastsyncRunWithHandoverAndCheckpoints(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{
 		"applier46 apply to 10",
-		"fsboot bootstrap -home " + home + "/fastsync/checkpoints/10 -height 10 -expected " + home + "/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b",
+		"fsboot bootstrap -home " + home + "/fastsync/checkpoints/10 -height 10 -expected " + home + "/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b -app-hash " + hash("app", 10),
 		"applier46 apply to 20", "applier50 apply to 20",
-		"fsboot bootstrap -home " + home + "/fastsync/checkpoints/20 -height 20 -expected " + home + "/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b",
+		"fsboot bootstrap -home " + home + "/fastsync/checkpoints/20 -height 20 -expected " + home + "/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b -app-hash " + hash("app", 20),
 		"applier50 apply to 30",
 		"fsboot bootstrap -home " + home + " -height 30 -expected " + home + "/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
@@ -140,6 +140,33 @@ func TestFastsyncRunWithHandoverAndCheckpoints(t *testing.T) {
 	marker, err := os.ReadFile(filepath.Join(home, "fastsync", "applied-to"))
 	require.NoError(t, err)
 	require.Equal(t, "30\n", string(marker))
+
+	// a resumed run applies nothing and never rebuilds a checkpoint from a DB that is past it
+	require.NoError(t, os.Remove(envValue(env, "CALLS")))
+	out, err = runScript(t, env, "fastsync.sh", append([]string{"--home", home, "--checkpoints", "10,20,25"}, baseArgs...)...)
+	require.NoError(t, err, out)
+	require.Contains(t, out, "checkpoint 10 exists")
+	require.Contains(t, out, "skip checkpoint 25: application.db is already at 30")
+	calls, err = os.ReadFile(envValue(env, "CALLS"))
+	require.NoError(t, err)
+	require.Equal(t, "fsboot bootstrap -home "+home+" -height 30 -expected "+home+"/fastsync/expected.tsv -rpc http://rpc-a,http://rpc-b\n", string(calls))
+}
+
+func TestFastsyncSingleSource(t *testing.T) {
+	env := stubs(t, 1000, 1000)
+	args := []string{"--changesets", "/cs", "--rpc", "http://rpc-a,http://rpc-a/", "--trust-height", "100", "--trust-hash", strings.Repeat("AB", 32), "--to", "30"}
+	out, err := runScript(t, env, "fastsync.sh", append([]string{"--home", newHome(t)}, args...)...)
+	require.Error(t, err)
+	require.Contains(t, out, "two distinct --rpc servers")
+	home := newHome(t)
+	out, err = runScript(t, env, "fastsync.sh", append([]string{"--home", home, "--allow-single-source"}, args...)...)
+	require.NoError(t, err, out)
+	calls, err := os.ReadFile(envValue(env, "CALLS"))
+	require.NoError(t, err)
+	require.Contains(t, string(calls), "-rpc http://rpc-a,http://rpc-a/ -allow-single-source")
+	// a trusted data dir needs no second server
+	out, err = runScript(t, env, "fastsync.sh", append([]string{"--home", newHome(t), "--boot-src-data", "/srv/data"}, args...)...)
+	require.NoError(t, err, out)
 }
 
 func TestFastsyncMismatchPoisonsDB(t *testing.T) {
@@ -180,7 +207,9 @@ func segmentFixture(t *testing.T, appdBody string, rowsFrom func(h int) string) 
 	require.NoError(t, os.MkdirAll(filepath.Join(ck, "config"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(ck, "config", "config.toml"), []byte("db_backend = \"goleveldb\"\nladdr = \"tcp://0.0.0.0:26656\"\nladdr = \"tcp://127.0.0.1:26657\"\nproxy_app = \"tcp://127.0.0.1:26658\"\npersistent_peers = \"\"\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(ck, "CHECKPOINT"), []byte("height\t10\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ck, "config", "genesis.json"), []byte(`{"chain_id": "test-chain"}`), 0o644))
 	var e strings.Builder
+	e.WriteString("# fshdr verify chain=test-chain anchor=41:AB\n")
 	for h := 1; h <= 40; h++ {
 		e.WriteString(row(h) + "\n")
 	}
@@ -225,6 +254,16 @@ func TestSegment(t *testing.T) {
 	out, err = runScript(t, env, "segment.sh", ck, "30", "31", "id@x:1", exp)
 	require.Error(t, err)
 	require.Contains(t, out, "SEGMENT 10..30: FAILED")
+
+	ck, exp, env = segmentFixture(t, cleanHalt, row)
+	bz, err := os.ReadFile(exp)
+	require.NoError(t, err)
+	for _, first := range []string{"# fshdr headers (UNVERIFIED) block store base=1 height=40", "# fshdr verify chain=other-chain anchor=41:AB"} {
+		require.NoError(t, os.WriteFile(exp, []byte(first+"\n"+strings.SplitN(string(bz), "\n", 2)[1]), 0o644))
+		out, err = runScript(t, env, "segment.sh", ck, "30", "31", "id@x:1", exp)
+		require.Error(t, err)
+		require.Contains(t, out, "is not a verified fshdr file for chain test-chain")
+	}
 
 	ck, exp, env = segmentFixture(t, cleanHalt, row)
 	out, err = runScript(t, env, "segment.sh", "--dry-run", ck, "30", "31", "id@x:1", exp)
