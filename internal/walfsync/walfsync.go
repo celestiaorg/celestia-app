@@ -1,5 +1,5 @@
 // Copied from github.com/celestiaorg/celestia-core libs/walfsync at commit
-// b21d2ae6542c0d268c46379817a9a605717dc9c5 (celestia-core PR #3819). This app
+// c0213c3caf02ae929c48181acad7f79d80f49c7a (celestia-core PR #3819). This app
 // pins a celestia-core line without the package. Local change: MarkerFile is
 // "app_db_wal_fsync_skipped", so the marker of this app process never collides
 // with the marker of the node process in the same data directory.
@@ -73,8 +73,14 @@ func end() { catchingUp.Add(-1) }
 func IsWAL(name string) bool { return strings.HasSuffix(name, ".log") }
 
 // WrapFS wraps fs so that its WAL files follow the catch-up flag. Pass the
-// result as pebble.Options.FS.
-func WrapFS(fs vfs.FS) vfs.FS { return walFS{fs} }
+// result as pebble.Options.FS. An fs that WrapFS already wrapped is returned
+// unchanged, so each WAL file has exactly one wrapper.
+func WrapFS(fs vfs.FS) vfs.FS {
+	if w, ok := fs.(walFS); ok {
+		return w
+	}
+	return walFS{fs}
+}
 
 type walFS struct{ vfs.FS }
 
