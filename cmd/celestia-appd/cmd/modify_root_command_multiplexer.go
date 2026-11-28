@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v12/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v12/multiplexer/cmd"
 	"github.com/celestiaorg/celestia-app/v12/pkg/appconsts"
+	"github.com/cometbft/cometbft/libs/walfsync"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -45,6 +46,9 @@ func unsupportedFlags(appVersion uint64) map[string]struct{} {
 	result := map[string]struct{}{}
 	if appVersion <= 11 {
 		result[DynamicTimeoutCommitFlag] = struct{}{}
+		// The released embedded apps keep every database WAL fsync and have no
+		// crash marker to accept.
+		result[walfsync.AcceptFlag] = struct{}{}
 	}
 	if appVersion <= 9 {
 		result[flagOTelEndpoint] = struct{}{}
