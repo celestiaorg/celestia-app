@@ -44,10 +44,7 @@ import (
 	"strings"
 	"time"
 
-	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/light"
-	sm "github.com/cometbft/cometbft/state"
-	"github.com/cometbft/cometbft/store"
 	"github.com/cometbft/cometbft/types"
 
 	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/expected"
@@ -95,36 +92,6 @@ func splitList(s string) []string {
 		return nil
 	}
 	return strings.Split(s, ",")
-}
-
-// stores is a stopped node's block store and state store, an untrusted source.
-type stores struct {
-	bdb, sdb dbm.DB
-	src      *hdrchain.BlockstoreSource
-}
-
-func openStores(dir, backend string, withState bool) (*stores, error) {
-	bdb, err := dbm.NewDB("blockstore", dbm.BackendType(backend), dir)
-	if err != nil {
-		return nil, fmt.Errorf("open blockstore in %s (is the node stopped?): %w", dir, err)
-	}
-	s := &stores{bdb: bdb, src: &hdrchain.BlockstoreSource{Blocks: store.NewBlockStore(bdb)}}
-	if withState {
-		if s.sdb, err = dbm.NewDB("state", dbm.BackendType(backend), dir); err != nil {
-			_ = bdb.Close()
-			return nil, fmt.Errorf("open state in %s (is the node stopped?): %w", dir, err)
-		}
-		s.src.State = sm.NewStore(s.sdb, sm.StoreOptions{DiscardABCIResponses: true})
-	}
-	return s, nil
-}
-
-func (s *stores) Close() error {
-	err := s.bdb.Close()
-	if s.sdb != nil {
-		err = errors.Join(err, s.sdb.Close())
-	}
-	return err
 }
 
 type verifyFlags struct {
@@ -207,12 +174,12 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	// 2. untrusted header source
 	var src hdrchain.RangeSource
 	if f.bsDir != "" {
-		st, err := openStores(f.bsDir, f.backend, false)
+		st, err := hdrchain.OpenStores(f.bsDir, f.backend, false)
 		if err != nil {
 			return err
 		}
 		defer st.Close()
-		src = st.src
+		src = st
 		logf("header source: block store %s (untrusted, hash-chain checked)", f.bsDir)
 	} else {
 		src = hdrchain.Parallel(hdrchain.NewHTTPSource(servers...), f.parallel, hdrchain.MaxBlockchainMetas)
@@ -235,7 +202,7 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	header := fmt.Sprintf("# fshdr verify chain=%s anchor=%d:%X", f.chainID, f.anchorHeight, anchor)
+	header := expected.Header("verify", f.chainID, fmt.Sprintf("anchor=%d:%X", f.anchorHeight, anchor))
 	if err := w.finish(header, stdout); err != nil {
 		return err
 	}
@@ -266,12 +233,12 @@ func cmdForward(args []string, stdout io.Writer) error {
 	}
 	var src hdrchain.Source
 	if *data != "" {
-		st, err := openStores(*data, *backend, true)
+		st, err := hdrchain.OpenStores(*data, *backend, true)
 		if err != nil {
 			return err
 		}
 		defer st.Close()
-		src = st.src
+		src = st
 	} else {
 		src = hdrchain.NewHTTPSource(splitList(*rpcs)...)
 	}
@@ -292,32 +259,24 @@ func cmdForward(args []string, stdout io.Writer) error {
 	v.AllSignatures = *allSigs
 	v.OnAppVersion = func(h int64, from, to uint64) { logf("height %d: app version %d -> %d", h, from, to) }
 
-	w, err := newPartWriter(*out)
+	// rows arrive in ascending order: stream them to the output
+	o, err := newOutput(*out, stdout)
 	if err != nil {
 		return err
 	}
-	defer w.cleanup()
-	const batch = 50000
-	var rows []expected.Row
+	defer o.abort()
+	fmt.Fprintln(o.w, expected.Header("forward", *chainID, fmt.Sprintf("trusted=%d:%X", *trustedHeight, th)))
 	st, err := hdrchain.RunForward(ctx, src, v, *trustedHeight+1, *to+1, func(sh *types.SignedHeader) error {
-		rows = append(rows, expected.FromHeader(sh.Header))
-		if len(rows) < batch {
-			return nil
+		if sh.Height%50000 == 0 {
+			logf("verified height %d", sh.Height)
 		}
-		logf("verified heights %d..%d", rows[0].Height, rows[len(rows)-1].Height)
-		err := w.part(rows)
-		rows = rows[:0]
+		_, err := fmt.Fprintln(o.w, expected.FromHeader(sh.Header).String())
 		return err
 	})
 	if err != nil {
 		return err
 	}
-	if err := w.part(rows); err != nil {
-		return err
-	}
-	w.reverse() // parts were written bottom up
-	header := fmt.Sprintf("# fshdr forward chain=%s trusted=%d:%X", *chainID, *trustedHeight, th)
-	if err := w.finish(header, stdout); err != nil {
+	if err := o.commit(); err != nil {
 		return err
 	}
 	logf("OK: %d headers verified (%d validator sets fetched), rows %d..%d in %s",
@@ -325,8 +284,45 @@ func cmdForward(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// partWriter keeps rows in part files and joins them, last part first, into
-// the output; so windows written top down come out in ascending order.
+// output writes to a temporary file renamed into place by commit (or to
+// stdout when no file is given), so a failed run leaves no output file.
+type output struct {
+	w    *bufio.Writer
+	path string
+	f    *os.File
+}
+
+func newOutput(path string, stdout io.Writer) (*output, error) {
+	if path == "" {
+		return &output{w: bufio.NewWriter(stdout)}, nil
+	}
+	f, err := os.Create(path + ".tmp")
+	if err != nil {
+		return nil, err
+	}
+	return &output{w: bufio.NewWriter(f), path: path, f: f}, nil
+}
+
+func (o *output) commit() error {
+	if err := o.w.Flush(); err != nil || o.f == nil {
+		return err
+	}
+	if err := errors.Join(o.f.Sync(), o.f.Close()); err != nil {
+		return err
+	}
+	o.f = nil
+	return os.Rename(o.path+".tmp", o.path)
+}
+
+func (o *output) abort() {
+	if o.f != nil {
+		_ = o.f.Close()
+		_ = os.Remove(o.path + ".tmp")
+	}
+}
+
+// partWriter keeps each window's rows in a part file and joins them, last
+// part first, so windows verified top down come out in ascending order.
 type partWriter struct {
 	out, dir string
 	parts    []string
@@ -361,45 +357,25 @@ func (w *partWriter) part(rows []expected.Row) error {
 	return nil
 }
 
-func (w *partWriter) reverse() {
-	for i, j := 0, len(w.parts)-1; i < j; i, j = i+1, j-1 {
-		w.parts[i], w.parts[j] = w.parts[j], w.parts[i]
+func (w *partWriter) finish(header string, stdout io.Writer) error {
+	o, err := newOutput(w.out, stdout)
+	if err != nil {
+		return err
 	}
-}
-
-func (w *partWriter) finish(header string, stdout io.Writer) (err error) {
-	dst := stdout
-	var tmp *os.File
-	if w.out != "" {
-		if tmp, err = os.Create(w.out + ".tmp"); err != nil {
-			return err
-		}
-		defer tmp.Close()
-		dst = tmp
-	}
-	bw := bufio.NewWriter(dst)
-	fmt.Fprintln(bw, header)
+	defer o.abort()
+	fmt.Fprintln(o.w, header)
 	for i := len(w.parts) - 1; i >= 0; i-- {
 		f, err := os.Open(w.parts[i])
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(bw, f)
+		_, err = io.Copy(o.w, f)
 		f.Close()
 		if err != nil {
 			return err
 		}
 	}
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	if tmp == nil {
-		return nil
-	}
-	if err := tmp.Sync(); err != nil {
-		return err
-	}
-	return os.Rename(w.out+".tmp", w.out)
+	return o.commit()
 }
 
 func (w *partWriter) cleanup() { _ = os.RemoveAll(w.dir) }
@@ -416,12 +392,12 @@ func cmdHeaders(args []string, stdout io.Writer) error {
 	if *dir == "" {
 		return errors.New("-blockstore is required")
 	}
-	st, err := openStores(*dir, *backend, false)
+	st, err := hdrchain.OpenStores(*dir, *backend, false)
 	if err != nil {
 		return err
 	}
 	defer st.Close()
-	base, height := st.src.Blocks.Base(), st.src.Blocks.Height()
+	base, height := st.Blocks.Base(), st.Blocks.Height()
 	if *from == 0 {
 		*from = base
 	}
@@ -431,7 +407,7 @@ func cmdHeaders(args []string, stdout io.Writer) error {
 	if *from < 1 || *to < *from {
 		return fmt.Errorf("empty range %d..%d (block store %d..%d)", *from, *to, base, height)
 	}
-	hs, err := st.src.Headers(context.Background(), *from+1, *to+1)
+	hs, err := st.Headers(context.Background(), *from+1, *to+1)
 	if err != nil {
 		return err
 	}

@@ -60,7 +60,7 @@ A trust root at genesis would remove the weak-subjectivity input: the genesis
 validator set (built by InitChain from the gentxs in `genesis.json`), whose hash
 must equal `ValidatorsHash` of header 1, followed by `fshdr forward` from
 height 1. Deriving that validator set from the gentxs is not implemented; see
-[HEADERS.md](HEADERS.md) for that and for the plan to ship verified headers next
+[Headers](#headers) for that and for the plan to ship verified headers next
 to the changesets.
 
 What is verified, and against what:

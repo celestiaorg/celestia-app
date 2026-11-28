@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	dbm "github.com/cometbft/cometbft-db"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
 	"github.com/cometbft/cometbft/types"
@@ -17,6 +18,7 @@ import (
 type BlockstoreSource struct {
 	Blocks *store.BlockStore
 	State  sm.Store // optional: needed only for Validators
+	dbs    []dbm.DB // opened by OpenStores
 }
 
 // guard runs load and turns a store panic on an undecodable record into an error.
