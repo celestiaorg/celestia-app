@@ -30,6 +30,7 @@ func TestParseInterBlockCacheConfig(t *testing.T) {
 		{"size int", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: 5000}, true, 5000},
 		{"size int64 from toml", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: int64(7)}, true, 7},
 		{"size string from env", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: "20000"}, true, 20000},
+		{"size ignored when off", mapAppOptions{FlagInterBlockCache: "off", FlagInterBlockCacheSize: "many"}, false, DefaultInterBlockCacheSize},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {
@@ -51,10 +52,10 @@ func TestParseInterBlockCacheConfig(t *testing.T) {
 		{"unknown mode", mapAppOptions{FlagInterBlockCache: "on"}},
 		{"bool mode", mapAppOptions{FlagInterBlockCache: true}},
 		{"list mode", mapAppOptions{FlagInterBlockCache: []string{"sync-only"}}},
-		{"zero size", mapAppOptions{FlagInterBlockCacheSize: 0}},
-		{"negative size", mapAppOptions{FlagInterBlockCacheSize: -1}},
-		{"huge size", mapAppOptions{FlagInterBlockCacheSize: int64(1) << 40}},
-		{"non-integer size", mapAppOptions{FlagInterBlockCacheSize: "many"}},
+		{"zero size", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: 0}},
+		{"negative size", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: -1}},
+		{"huge size", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: int64(1) << 40}},
+		{"non-integer size", mapAppOptions{FlagInterBlockCache: "sync-only", FlagInterBlockCacheSize: "many"}},
 	}
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {
