@@ -21,15 +21,15 @@ import (
 // syncs ([storage] db_wal_fsync in config.toml, see celestia-core
 // libs/walfsync). The child applies the same setting to the app DB: it skips
 // the WAL fsyncs while the blocks it executes are old, judged by the block time
-// against the wall clock with the thresholds of deferred persistence. That only
+// against the wall clock. That only
 // changes when writes reach the disk, never what is computed or stored.
 
 const (
 	// ConfigDBWALFsync is the config.toml key of the parent node.
 	ConfigDBWALFsync = "storage.db_wal_fsync"
 
-	walFsyncEnterLag = 10 * time.Minute
-	walFsyncLeaveLag = time.Minute
+	// walFsyncLag is the block age above which the app is catching up.
+	walFsyncLag = 10 * time.Minute
 )
 
 var (
@@ -79,24 +79,26 @@ func PrepareWALFsync(appOpts servertypes.AppOptions, home string, withComet, acc
 	return nil
 }
 
-// walFsyncCatchUp starts skipping the app DB WAL fsyncs at the first block
-// older than walFsyncEnterLag, and fsyncs every WAL and stops skipping at the
-// first block younger than walFsyncLeaveLag. It reads the wall clock only to
-// decide when writes reach the disk.
+// walFsyncCatchUp skips the app DB WAL fsyncs while the block being executed is
+// older than walFsyncLag. At any younger block it fsyncs every WAL and stops
+// skipping at once, so the app DB is never left unsynced at the tip, whatever
+// the clock skew. After a chain halt longer than walFsyncLag the first resumed
+// block may still be written with its WAL fsync skipped; the barrier at the
+// next block makes it durable, and the crash marker covers that window. It
+// reads the wall clock only to decide when writes reach the disk.
 func (app *App) walFsyncCatchUp(blockTime time.Time) {
 	c := walFsync.Load()
 	if c == nil || blockTime.IsZero() {
 		return
 	}
-	switch lag := time.Since(blockTime); {
-	case lag > walFsyncEnterLag:
+	if time.Since(blockTime) > walFsyncLag {
 		if err := c.StartCatchup(); err != nil {
 			app.BaseApp.Logger().Error("Keeping app DB WAL fsyncs on", "err", err)
 		}
-	case lag < walFsyncLeaveLag:
-		if err := c.FinishCatchup(); err != nil {
-			app.BaseApp.Logger().Error("Failed to fsync the app DB WAL files", "err", err)
-		}
+		return
+	}
+	if err := c.FinishCatchup(); err != nil {
+		app.BaseApp.Logger().Error("Failed to fsync the app DB WAL files", "err", err)
 	}
 }
 

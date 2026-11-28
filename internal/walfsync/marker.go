@@ -1,5 +1,5 @@
 // Copied from github.com/celestiaorg/celestia-core libs/walfsync at commit
-// c0213c3caf02ae929c48181acad7f79d80f49c7a (celestia-core PR #3819). This app
+// 0226adc9c7eb47505538cda0a1d858b153c7ffdf (celestia-core PR #3819). This app
 // pins a celestia-core line without the package. Local change: MarkerFile is
 // "app_db_wal_fsync_skipped", so the marker of this app process never collides
 // with the marker of the node process in the same data directory.
@@ -131,7 +131,13 @@ func (c *Controller) FinishCatchup() error {
 //     accept is true, in which case the WAL files are fsynced, the marker is
 //     removed and the node goes on to the handshake.
 func CheckMarker(dirs []string, accept bool) (found bool, err error) {
-	path := filepath.Join(dirs[0], MarkerFile)
+	return CheckMarkerFile(MarkerFile, dirs, accept)
+}
+
+// CheckMarkerFile is CheckMarker for a marker named name in dirs[0], such as
+// the marker of an application process that shares the data directory.
+func CheckMarkerFile(name string, dirs []string, accept bool) (found bool, err error) {
+	path := filepath.Join(dirs[0], name)
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil

@@ -1,5 +1,5 @@
 // Copied from github.com/celestiaorg/celestia-core libs/walfsync at commit
-// c0213c3caf02ae929c48181acad7f79d80f49c7a (celestia-core PR #3819). This app
+// 0226adc9c7eb47505538cda0a1d858b153c7ffdf (celestia-core PR #3819). This app
 // pins a celestia-core line without the package. Local change: MarkerFile is
 // "app_db_wal_fsync_skipped", so the marker of this app process never collides
 // with the marker of the node process in the same data directory.

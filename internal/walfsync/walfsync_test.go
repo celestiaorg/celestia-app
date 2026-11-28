@@ -1,5 +1,5 @@
 // Copied from github.com/celestiaorg/celestia-core libs/walfsync at commit
-// c0213c3caf02ae929c48181acad7f79d80f49c7a (celestia-core PR #3819). This app
+// 0226adc9c7eb47505538cda0a1d858b153c7ffdf (celestia-core PR #3819). This app
 // pins a celestia-core line without the package. Local change: MarkerFile is
 // "app_db_wal_fsync_skipped", so the marker of this app process never collides
 // with the marker of the node process in the same data directory.
@@ -611,4 +611,26 @@ func TestWrapFSIdempotent(t *testing.T) {
 	require.NoError(t, Barrier())
 	require.Equal(t, before+1, counting.syncs.Load(), "barrier fsyncs the WAL once")
 	require.NoError(t, f.Close())
+}
+
+// TestCheckMarkerFile checks a marker with another name: refused from another
+// boot unless accepted, and the default marker is left alone.
+func TestCheckMarkerFile(t *testing.T) {
+	t.Cleanup(func() { bootID = defaultBootID })
+	bootID = func() string { return "boot-b" }
+	dir := t.TempDir()
+	const name = "app_marker"
+	require.NoError(t, os.WriteFile(dir+"/"+name, []byte("boot-a\n"), 0o600))
+	require.NoError(t, os.WriteFile(dir+"/"+MarkerFile, []byte("boot-a\n"), 0o600))
+
+	found, err := CheckMarkerFile(name, []string{dir}, false)
+	require.True(t, found)
+	require.ErrorIs(t, err, ErrUnsyncedCrash)
+	require.FileExists(t, dir+"/"+name)
+
+	found, err = CheckMarkerFile(name, []string{dir}, true)
+	require.True(t, found)
+	require.NoError(t, err)
+	require.NoFileExists(t, dir+"/"+name)
+	require.FileExists(t, dir+"/"+MarkerFile, "the default marker is not touched")
 }
