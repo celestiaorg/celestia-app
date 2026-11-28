@@ -66,7 +66,7 @@ Example:
 
 			// Create app instance to access stores
 			// serverCtx.Viper implements AppOptions interface
-			appInstance := NewAppServer(serverCtx.Logger, db, nil, serverCtx.Viper)
+			appInstance := NewAppServer(serverCtx.Logger, db, nil, app.WithoutInterBlockCache(serverCtx.Viper))
 
 			// Cast to *app.App to access app-specific methods
 			capp, ok := appInstance.(*app.App)
