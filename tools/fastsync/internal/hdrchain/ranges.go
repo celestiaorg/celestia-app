@@ -86,18 +86,15 @@ func (s *BlockstoreSource) Headers(ctx context.Context, lo, hi int64) ([]*types.
 	return out, nil
 }
 
-func (s *BlockstoreSource) header(h int64) (hd *types.Header, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			hd, err = nil, fmt.Errorf("blockstore height %d: %v", h, r)
+func (s *BlockstoreSource) header(h int64) (*types.Header, error) {
+	return guard("blockstore height", h, func() (*types.Header, error) {
+		meta := s.Blocks.LoadBlockMeta(h)
+		if meta == nil {
+			return nil, fmt.Errorf("blockstore: no block meta at %d", h)
 		}
-	}()
-	meta := s.Blocks.LoadBlockMeta(h)
-	if meta == nil {
-		return nil, fmt.Errorf("blockstore: no block meta at %d", h)
-	}
-	c := meta.Header
-	return &c, nil
+		c := meta.Header
+		return &c, nil
+	})
 }
 
 // Parallel splits each Headers call into chunks fetched by n concurrent workers.

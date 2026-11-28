@@ -127,17 +127,33 @@ func (g gap) Headers(ctx context.Context, lo, hi int64) ([]*types.Header, error)
 func TestRowRoundTripAndFind(t *testing.T) {
 	c := testchain.New(t, 5)
 	var sb strings.Builder
-	sb.WriteString("# header line\n")
+	sb.WriteString(Header("verify", testchain.ChainID, "anchor=6:AB") + "\n")
 	for h := int64(2); h <= 5; h++ {
 		sb.WriteString(FromHeader(c.Header(h)).String() + "\n")
 	}
-	r, err := find(strings.NewReader(sb.String()), 3)
+	file := sb.String()
+	r, err := find(strings.NewReader(file), testchain.ChainID, 3)
 	require.NoError(t, err)
 	require.Equal(t, FromHeader(c.Header(4)), r)
-	_, err = find(strings.NewReader(sb.String()), 9)
+	_, err = find(strings.NewReader(file), testchain.ChainID, 9)
 	require.ErrorContains(t, err, "no row for height 9")
 	for _, bad := range []string{"1\t2", "x\tAA\tAA\tAA\tAA\tAA\t1", "1\tAA\tZZ\tAA\tAA\tAA\t1", "1\tAA\tAA\tAA\tAA\tAA\t1"} {
 		_, err := ParseRow(bad)
 		require.Error(t, err, bad)
 	}
+}
+
+func TestFindRequiresVerifiedHeader(t *testing.T) {
+	rows := FromHeader(testchain.New(t, 3).Header(3)).String() + "\n"
+	for name, first := range map[string]string{
+		"unverified dump": "# fshdr headers (UNVERIFIED) block store base=1 height=3",
+		"other chain":     Header("verify", "other-chain", "anchor=3:AB"),
+		"chain prefix":    Header("forward", testchain.ChainID+"-2", "trusted=1:AB"),
+		"no header":       rows,
+	} {
+		_, err := find(strings.NewReader(first+"\n"+rows), testchain.ChainID, 2)
+		require.ErrorContains(t, err, "not a verified fshdr header", name)
+	}
+	_, err := find(strings.NewReader(Header("forward", testchain.ChainID, "trusted=1:AB")+"\n"+rows), testchain.ChainID, 2)
+	require.NoError(t, err)
 }

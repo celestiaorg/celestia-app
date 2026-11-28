@@ -75,19 +75,43 @@ func ParseRow(line string) (Row, error) {
 	return r, nil
 }
 
-// Find returns row h of the expected.tsv at path.
-func Find(path string, h int64) (Row, error) {
+// Header returns the first line fshdr writes for a verified file; mode is
+// "verify" or "forward" and rest describes the trust root.
+func Header(mode, chainID, rest string) string {
+	return fmt.Sprintf("# fshdr %s chain=%s %s", mode, chainID, rest)
+}
+
+// CheckHeader reports whether line is the first line of an expected.tsv that
+// fshdr verified for chainID. Rows dumped without verification do not pass.
+func CheckHeader(line, chainID string) error {
+	for _, mode := range []string{"verify", "forward"} {
+		if strings.HasPrefix(line, Header(mode, chainID, "")) {
+			return nil
+		}
+	}
+	return fmt.Errorf("first line %q is not a verified fshdr header for chain %q", line, chainID)
+}
+
+// Find returns row h of the expected.tsv at path, which fshdr must have
+// verified for chainID.
+func Find(path, chainID string, h int64) (Row, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return Row{}, err
 	}
 	defer f.Close()
-	return find(f, h)
+	return find(f, chainID, h)
 }
 
-func find(r io.Reader, h int64) (Row, error) {
+func find(r io.Reader, chainID string, h int64) (Row, error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 4096), 1<<16)
+	if !sc.Scan() {
+		return Row{}, errors.Join(errors.New("empty file"), sc.Err())
+	}
+	if err := CheckHeader(sc.Text(), chainID); err != nil {
+		return Row{}, err
+	}
 	key := strconv.FormatInt(h, 10) + "\t"
 	for sc.Scan() {
 		if line := sc.Text(); strings.HasPrefix(line, key) {
