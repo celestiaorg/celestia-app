@@ -156,7 +156,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	}
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics, setupDBWALFsync); err != nil {
+	if err := addPreStartHooks(rootCommand, setupDBWALFsync, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
