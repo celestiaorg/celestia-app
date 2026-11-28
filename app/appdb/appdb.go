@@ -26,13 +26,13 @@ func Open(rootDir string, backend dbm.BackendType) (dbm.DB, error) {
 
 var wrapOnce sync.Once
 
-// WrapWALFsync makes the pebble DBs this process opens afterwards without an FS
-// of their own (the app DB: cosmos-db takes no vfs.FS option) use
-// walfsync.WrapFS. Their WAL fsyncs then follow the node's [storage]
-// db_wal_fsync controller, and its barrier covers them. celestia-core DBs set
-// their own wrapped FS on top; a second wrapper changes nothing, since a
-// skipped sync of the outer file is redone through the inner one at the
-// barrier or on close.
+// WrapWALFsync makes every pebble DB this process opens afterwards without an
+// FS of its own use walfsync.WrapFS, so that WAL fsyncs follow the node's
+// [storage] db_wal_fsync controller and its barrier covers them. It replaces
+// pebble's default FS because cosmos-db takes no vfs.FS option, so the app DB
+// cannot be given one. The start command calls it once, before any pebble DB
+// opens. celestia-core DBs wrap the default FS again, and WrapFS returns an
+// already wrapped FS unchanged, so every WAL file has exactly one wrapper.
 func WrapWALFsync() {
 	wrapOnce.Do(func() { vfs.Default = walfsync.WrapFS(vfs.Default) })
 }
