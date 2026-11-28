@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -19,11 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// embeddedAppMarkerFile is the crash marker of an embedded app (a child process
-// of the multiplexer) in the app data directory. The embedded apps keep a
-// copy of libs/walfsync with this marker name.
-const embeddedAppMarkerFile = "app_db_wal_fsync_skipped"
-
 // addDBWALFsyncFlag adds the one-shot --accept_unsynced_db_crash flag. The
 // multiplexer forwards it to the embedded apps that support it.
 func addDBWALFsyncFlag(startCmd *cobra.Command) {
@@ -32,15 +24,24 @@ func addDBWALFsyncFlag(startCmd *cobra.Command) {
 }
 
 // setupDBWALFsync runs before the start command creates the app and the node.
-// It handles --accept_unsynced_db_crash, checks the crash marker over the app
-// data directory when that is outside the node's db_dir, and makes the app DB
-// of this process follow [storage] db_wal_fsync.
+// It handles --accept_unsynced_db_crash, checks the embedded app's crash
+// marker, checks the node's marker over the app data directory when that is
+// outside the node's db_dir, and makes the app DB of this process follow
+// [storage] db_wal_fsync.
 func setupDBWALFsync(cmd *cobra.Command, logger log.Logger) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 	cfg := sctx.Config
 	accept, err := cmd.Flags().GetBool(walfsync.AcceptFlag)
 	if err != nil {
 		return err
+	}
+	// An embedded app killed before its Close leaves its own marker.
+	found, err := appdb.CheckEmbeddedAppMarker(cfg.RootDir, accept)
+	if err != nil {
+		return err
+	}
+	if found {
+		logger.Info("An embedded app stopped while app DB WAL fsyncs were skipped; the app DB WAL files were fsynced")
 	}
 	appData := filepath.Join(cfg.RootDir, "data")
 	if !isWithin(appData, cfg.DBDir()) {
@@ -68,18 +69,8 @@ func clearDBWALFsyncMarkers(cfg *cmtcfg.Config) error {
 	if _, err := walfsync.CheckMarker(dbWALDirs(cfg, appData), true); err != nil {
 		return err
 	}
-	path := filepath.Join(appData, embeddedAppMarkerFile)
-	if err := os.Remove(path); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	d, err := os.Open(appData)
-	if err != nil {
-		return err
-	}
-	return errors.Join(d.Sync(), d.Close())
+	_, err := appdb.CheckEmbeddedAppMarker(cfg.RootDir, true)
+	return err
 }
 
 // addRollbackMarkerClearing clears the crash markers after a successful

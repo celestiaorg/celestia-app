@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v12/app/appdb"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/walfsync"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -57,6 +58,18 @@ func TestSetupDBWALFsync(t *testing.T) {
 		require.NoError(t, setupDBWALFsync(cmd, sctx.Logger))
 		require.FileExists(t, marker)
 	})
+	t.Run("embedded app marker from another boot", func(t *testing.T) {
+		cmd, sctx, marker := newDBWALFsyncCmd(t, "")
+		require.NoError(t, os.Remove(marker))
+		appMarker := filepath.Join(sctx.Config.RootDir, "data", appdb.EmbeddedAppMarkerFile)
+		require.NoError(t, os.WriteFile(appMarker, []byte("another-boot\n"), 0o600))
+		require.ErrorIs(t, setupDBWALFsync(cmd, sctx.Logger), walfsync.ErrUnsyncedCrash)
+		require.FileExists(t, appMarker)
+
+		require.NoError(t, cmd.Flags().Set(walfsync.AcceptFlag, "true"))
+		require.NoError(t, setupDBWALFsync(cmd, sctx.Logger))
+		require.NoFileExists(t, appMarker)
+	})
 	t.Run("app data outside db_dir is checked here", func(t *testing.T) {
 		cmd, sctx, marker := newDBWALFsyncCmd(t, "cmtdata")
 		require.ErrorIs(t, setupDBWALFsync(cmd, sctx.Logger), walfsync.ErrUnsyncedCrash)
@@ -70,7 +83,7 @@ func TestSetupDBWALFsync(t *testing.T) {
 
 func TestClearDBWALFsyncMarkers(t *testing.T) {
 	_, sctx, marker := newDBWALFsyncCmd(t, "")
-	appMarker := filepath.Join(sctx.Config.RootDir, "data", embeddedAppMarkerFile)
+	appMarker := filepath.Join(sctx.Config.RootDir, "data", appdb.EmbeddedAppMarkerFile)
 	require.NoError(t, os.WriteFile(appMarker, []byte("another-boot\n"), 0o600))
 
 	require.NoError(t, clearDBWALFsyncMarkers(sctx.Config))
