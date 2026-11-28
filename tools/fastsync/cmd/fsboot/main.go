@@ -5,7 +5,7 @@
 //
 //	fsboot bootstrap -home DIR -height H (-expected expected.tsv | -trusted-hash HEX)
 //	                 (-rpc URL,URL[,...] [-allow-single-source] | -src-data DIR [-src-backend B])
-//	                 [-app-hash HEX] [-dry-run]
+//	                 [-app-hash HEX] [-no-app-params-check] [-dry-run]
 //
 // The trusted input is the hash of header H+1: row H, column 3 of fshdr's
 // expected.tsv (verified for this chain), or -trusted-hash. Headers,
@@ -17,7 +17,8 @@
 // gas. Whatever source provides them is trusted for them. fsboot therefore
 // needs at least two distinct -rpc servers, which must return identical
 // values (or -allow-single-source); -src-data is a node the operator runs and
-// trusts for them. It also checks the priorities against header H's proposer.
+// trusts for them. It also checks the params against the ones the local
+// application DB stored at H, and the priorities against header H's proposer.
 package main
 
 import (
@@ -104,6 +105,7 @@ func cmdBootstrap(args []string, out io.Writer) error {
 	trusted := fs.String("trusted-hash", "", "verified hash of header H+1 (hex), instead of -expected")
 	rpcs := fs.String("rpc", "", "comma-separated RPC servers, at least two distinct (untrusted source)")
 	single := fs.Bool("allow-single-source", false, "accept one -rpc server: it is then trusted for proposer priorities and unhashed params")
+	noAppCheck := fs.Bool("no-app-params-check", false, "do not compare the consensus params with the local application DB")
 	srcData := fs.String("src-data", "", "untrusted source: data dir of a stopped node that synced past H+2")
 	srcBackend := fs.String("src-backend", "", "db backend of -src-data (default: this node's db_backend)")
 	appHash := fs.String("app-hash", "", "optional: app hash of the local application DB at H (must equal header(H+1).AppHash)")
@@ -164,6 +166,9 @@ func cmdBootstrap(args []string, out io.Writer) error {
 	} else {
 		logf("ok commit %d: all signatures valid, +2/3 of validators %d (a valid seen commit, not block %d's LastCommit)", h, h, h+1)
 	}
+	if err := checkAppParams(conf, v, *noAppCheck, logf); err != nil {
+		return err
+	}
 	if *dry {
 		logf("dry run: all checks passed, nothing written (%s)", time.Since(t0).Round(time.Millisecond))
 		return nil
@@ -200,4 +205,22 @@ func openSources(conf *cfg.Config, rpcs, srcData, srcBackend string, single bool
 		return nil, nil, errors.New("need at least two distinct -rpc servers: one server alone is trusted for proposer priorities and unhashed params (pass -allow-single-source to accept that)")
 	}
 	return srcs, func() {}, nil
+}
+
+// checkAppParams compares the verified params with the ones the local
+// application DB stored at H, when that DB is present.
+func checkAppParams(conf *cfg.Config, v *boot.Verified, skip bool, logf func(string, ...any)) error {
+	if _, err := os.Stat(filepath.Join(conf.DBDir(), "application.db")); err != nil || skip {
+		logf("WARNING: consensus params not compared with a local application DB (none found or -no-app-params-check)")
+		return nil
+	}
+	ap, err := boot.LocalAppParams(conf.DBDir(), conf.DBBackend, v.Height, v.Next.Version.App)
+	if err != nil {
+		return fmt.Errorf("read consensus params from the local application DB at %d (-no-app-params-check skips this): %w", v.Height, err)
+	}
+	if err := ap.Check(v.Params); err != nil {
+		return fmt.Errorf("consensus params %d differ from the local application DB: %w", v.Height+1, err)
+	}
+	logf("ok consensus params %d equal the ones the local application DB stored at %d", v.Height+1, v.Height)
+	return nil
 }

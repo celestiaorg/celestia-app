@@ -13,7 +13,11 @@ import (
 	dbm "github.com/cometbft/cometbft-db"
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	cosmosdb "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/iavl"
+	idb "github.com/cosmos/iavl/db"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/tools/fastsync/internal/expected"
@@ -214,4 +218,50 @@ func TestForgedSource(t *testing.T) {
 			require.ErrorContains(t, err, tc.want)
 		})
 	}
+}
+
+// writeAppParams writes an application DB whose x/consensus store holds p at
+// versions 1..h, as an app v4+ node leaves it.
+func writeAppParams(t *testing.T, dir string, h int64, p cmtproto.ConsensusParams) {
+	db, err := cosmosdb.NewDB("application", cosmosdb.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	defer db.Close()
+	tree := iavl.NewMutableTree(idb.NewWrapper(cosmosdb.NewPrefixDB(db, []byte("s/k:consensus/"))), 0, true, iavl.NewNopLogger())
+	bz, err := p.Marshal()
+	require.NoError(t, err)
+	for v := int64(1); v <= h; v++ {
+		_, err := tree.Set([]byte("Consensus"), bz)
+		require.NoError(t, err)
+		_, _, err = tree.SaveVersion()
+		require.NoError(t, err)
+	}
+}
+
+func TestAppParamsCheck(t *testing.T) {
+	c := testchain.New(t, chainLen, testchain.AppVersionFrom(1)) // app v4: x/consensus
+	c.Params.Version.App = testchain.AppVersion + 1
+	for i := range c.Blocks[1:] { // headers carry the params hash, which ignores the app version
+		require.Equal(t, c.Params.Hash(), []byte(c.Blocks[i+1].ConsensusHash))
+	}
+	rpcs := c.ServeRPC(t, nil).URL + "," + c.ServeRPC(t, nil).URL
+
+	home := newHome(t, c)
+	writeAppParams(t, home.DBDir(), bootH, c.Params.ToProto())
+	out, err := run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs, "-dry-run")
+	require.NoError(t, err, out)
+	require.Contains(t, out, "equal the ones the local application DB stored")
+
+	other := c.Params
+	other.Evidence.MaxAgeNumBlocks++
+	home = newHome(t, c)
+	writeAppParams(t, home.DBDir(), bootH, other.ToProto())
+	_, err = run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs, "-dry-run")
+	require.ErrorContains(t, err, "evidence params")
+	out, err = run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs, "-dry-run", "-no-app-params-check")
+	require.NoError(t, err, out)
+
+	home = newHome(t, c)
+	writeAppParams(t, home.DBDir(), bootH-1, c.Params.ToProto()) // the DB is not at H
+	_, err = run(t, home, "-trusted-hash", trustedHash(c), "-rpc", rpcs, "-dry-run")
+	require.ErrorContains(t, err, "local application DB at 12")
 }

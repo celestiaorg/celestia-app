@@ -85,7 +85,7 @@ What no header authenticates (the same as in `comet bootstrap-state`):
 `fsboot` takes these from its sources as the stock command does, so a single
 source is trusted for them. It requires at least two distinct `-rpc` servers
 that return identical values (one honest server detects a forgery) and checks
-them against header `H`'s proposer; with
+them against header `H`'s proposer and the local application DB; with
 `-src-data` they come from a node you run.
 
 Without step 4, the application state is only known to have the committed app
@@ -180,7 +180,10 @@ max gas are in no header hash, so the source that provides them is trusted for
 them, as in the stock command. fsboot therefore requires at least two distinct
 `-rpc` servers, which must return identical values (`-allow-single-source`
 accepts one), and it checks them where it can: the priorities must name header
-`H`'s proposer, and the params' app version must equal header `H+1`'s. With `-src-data` the source is a node you run, which you trust for them. The
+`H`'s proposer, the params' app version must equal header `H+1`'s, and the
+params must equal those the local application DB stored at `H` (x/consensus,
+or the x/params `baseapp` subspace for app v1 to v3) when that DB is present.
+With `-src-data` the source is a node you run, which you trust for them. The
 tests run the stock `BootstrapStateWithGenProvider` and `fsboot` against the
 same RPC servers and require identical stores, and cover forged validator
 sets, priorities, consensus params, commit signatures, headers and trusted
