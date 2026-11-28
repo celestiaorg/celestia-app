@@ -31,14 +31,12 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         with:
           go-version-file: tools/fastsync/go.mod
-          cache-dependency-path: |
-            tools/fastsync/go.sum
-            tools/fastsync/fastindex46/go.sum
+          cache-dependency-path: tools/fastsync/**/go.sum
       - name: download modules
         # retry: proxy.golang.org occasionally resets a stream mid-download
         run: |
           for i in 1 2 3; do
-            go mod download && (cd fastindex46 && go mod download) && exit 0
+            go mod download && (cd fastindex46 && go mod download) && (cd cstool46 && go mod download) && exit 0
             sleep $((i * 10))
           done
           exit 1
@@ -47,8 +45,8 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
-        run: go vet ./... && (cd fastindex46 && go vet ./...)
+        run: make vet
       - name: build
         run: make build
       - name: test
-        run: go test -race ./... && (cd fastindex46 && go test -race ./...)
+        run: make test TESTFLAGS=-race

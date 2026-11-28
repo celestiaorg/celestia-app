@@ -25,8 +25,8 @@ The hybrid splits genesis sync into a fast pass and an optional parallel check:
 2. **Apply changesets.** An applier writes the recorded store changes
    (changesets) of each block into the application database and, after each
    height, compares the resulting app hash with `expected.tsv`. A mismatch stops
-   the run. The appliers (one per store generation: SDK v0.46 for app v1 to v3,
-   SDK v0.50 for app v4 and later) are added in a later change.
+   the run. There is one applier per store generation: `cstool46` (SDK v0.46,
+   app v1 to v3) and `cstool50` (SDK v0.50 stores, app v4 and later).
 3. **Bootstrap CometBFT.** `fsboot` writes the CometBFT state store and block
    store at the target height `H`, the same bytes that `celestia-appd comet
    bootstrap-state` writes, from data it checks against the verified header
@@ -103,7 +103,7 @@ Build and test (the module is outside the repository's `go.work`):
 
 ```sh
 cd tools/fastsync
-make build   # binaries in ./build (fastindex46 is its own module, built by the same target)
+make build   # binaries in ./build (the nested modules fastindex46, cstool46 are built too)
 make test
 ```
 
@@ -116,6 +116,7 @@ The tools land in a series of changes; this table lists the full set.
 | `fshdr headers` | print the rows of a block store without verification, for comparisons |
 | `fsboot bootstrap` | write the CometBFT state and block store at `H` from verified data |
 | `fastindex`, `fastindex46` | build the IAVL fast-node index of an applied DB offline (SDK v0.50 / v0.46 stores) |
+| `cstool46 apply` | apply changesets to an app v1-v3 DB, every height checked against `expected.tsv` |
 | `bsfix` | delete blocks above state height + 1 after an unclean stop |
 | `scripts/fastsync.sh` | run steps 1 to 3 (and checkpoints) end to end |
 | `scripts/segment.sh` | run and check one re-execution segment |
@@ -212,6 +213,29 @@ The cost is one pass over the leaves of the final state; history does not
 matter. `fastindex46` is a separate module (`fastindex46/`) because it needs
 the SDK v0.46 store that celestia-app v3 uses.
 
+### cstool46
+
+Applies recorded changesets to an app v1 to v3 application DB (SDK v0.46,
+IAVL v0.19) in recorded order, commits each height and requires its app hash to
+equal row `h` of `expected.tsv`, which must be fshdr output verified for the
+node's chain (chain id from `DATA_DIR/../config/genesis.json`, or `-chain-id`):
+
+```sh
+cstool46 apply -db ~/.celestia-app/data -backend pebbledb -changesets /srv/changesets \
+  -expected ~/.celestia-app/fastsync/expected.tsv -to 6680339 -parallel
+```
+
+- A height whose row is missing is not applied: the run stops before it.
+- On a mismatch the height is rolled back, the tool prints `APP HASH MISMATCH`
+  and exits 2.
+- At the first block recorded by the SDK v0.50 store it stops and prints
+  `HANDOVER`; `cstool50` continues on the same DB.
+- `-allow-unverified` (for synthetic input only) applies heights without a
+  trusted hash against the recorded hash; the result is not verified.
+
+It is a separate module (`cstool46/`) pinned to the celestiaorg/cosmos-sdk
+v0.46 fork that carries the changeset recorder and applier.
+
 ### bsfix
 
 A node whose block sync saved a block ahead of execution can, after an unclean
@@ -250,7 +274,7 @@ application DB is already past.
 `APPD`, `FSHDR`, `FSBOOT`, `APPLIER`, `APPLIER50`, `FASTINDEX46`, `FASTINDEX50`
 env vars).
 
-The appliers are added in a later change. The script expects this interface:
+The script drives the appliers (`cstool46`, then `cstool50`) through this interface:
 `<applier> apply -db DIR -backend B -changesets DIR -expected FILE
 -require-trusted -to H [-parallel]`, exit code 2 for an app hash mismatch, a
 `HANDOVER` line when the changesets continue with SDK v0.50 store blocks, and a
