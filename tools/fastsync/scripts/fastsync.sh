@@ -73,13 +73,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-log() { echo "[fastsync $(date -u +%H:%M:%S)] $*"; }
-die() { echo "[fastsync] ABORT: $*" >&2; exit 1; }
-# run CMD...: execute, or print it with --dry-run.
-run() {
-  if [ "$DRY_RUN" = 1 ]; then echo "+ $*"; else "$@"; fi
-}
-is_uint() { [[ $1 =~ ^[0-9]+$ ]]; }
+# shellcheck source-path=SCRIPTDIR source=lib-apply.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib-apply.sh" # log, die, run, is_uint, apply_init, apply_to
 
 [ -n "$HOME_DIR" ] && [ -n "$CS_DIR" ] && [ -n "$RPC$HDR_BLOCKSTORE" ] || usage
 is_uint "$TO" && is_uint "$FROM" && [ "$TO" -ge "$FROM" ] && [ "$FROM" -ge 1 ] || die "need 1 <= --from <= --to"
@@ -129,44 +124,8 @@ fi
 run "$FSHDR" "${HDR_ARGS[@]}" || die "header verification failed"
 
 # ---- 2. apply (v0.46 applier, then the v0.50 applier after a HANDOVER), with checkpoints
-CUR=$APPLIER
-APPLIED=$(cat "$WORK/applied-to" 2>/dev/null || echo 0) # resume marker, written only after a verified apply
-apply_to() { # $1 = target: applies (APPLIED, target], every height checked against expected.tsv
-  local tgt=$1 rc done_line args
-  args=(apply -db "$HOME_DIR/data" -backend "$BACKEND" -changesets "$CS_DIR" -expected "$WORK/expected.tsv" -require-trusted -to "$tgt")
-  [ "$PARALLEL" = 1 ] && args+=(-parallel)
-  [ "$tgt" -le "$APPLIED" ] && return 0
-  if [ "$DRY_RUN" = 1 ]; then
-    run "$CUR" "${args[@]}"
-    APPLIED=$tgt
-    return 0
-  fi
-  while true; do
-    log "apply to $tgt: $CUR ${args[*]}"
-    set +e
-    "$CUR" "${args[@]}" > "$WORK/apply-$tgt.log" 2>&1
-    rc=$?
-    set -e
-    grep -v '^height .*applied=' "$WORK/apply-$tgt.log" | sed 's/^/    /' || true
-    if [ "$rc" = 2 ]; then # the applier committed the bad height before comparing: never resume this DB
-      echo "APP HASH MISMATCH while applying to $tgt with $CUR" > "$WORK/POISONED"
-      die "APP HASH MISMATCH during apply (see $WORK/apply-$tgt.log); nothing bootstrapped; DB marked POISONED"
-    fi
-    [ "$rc" = 0 ] || die "$CUR apply failed (rc=$rc)"
-    if grep -q '^HANDOVER' "$WORK/apply-$tgt.log" && [ "$CUR" = "$APPLIER" ]; then
-      [ -n "$APPLIER50" ] || die "the changesets continue with app v4+ blocks: rerun with --applier50 PATH"
-      CUR=$APPLIER50
-      log "handover to the v0.50 applier ($CUR)"
-      continue
-    fi
-    break
-  done
-  done_line=$(grep '^done' "$WORK/apply-$tgt.log" | tail -1)
-  [ "$(sed -n 's/.*to height \([0-9]*\).*/\1/p' <<< "$done_line")" = "$tgt" ] || die "applier stopped at '$done_line', expected $tgt"
-  grep -q 'recorded hash only: 0' <<< "$done_line" || die "some heights were not verified against trusted headers"
-  APPLIED=$tgt
-  echo "$tgt" > "$WORK/applied-to"
-}
+EXPECTED=$WORK/expected.tsv
+apply_init
 bootstrap_home() { # $1 = home, $2 = height, [$3 = app hash of the home's application DB at $2]
   local args=(bootstrap -home "$1" -height "$2" -expected "$WORK/expected.tsv")
   if [ -n "$BOOT_SRC_DATA" ]; then args+=(-src-data "$BOOT_SRC_DATA"); else args+=(-rpc "$RPC"); fi
