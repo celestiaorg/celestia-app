@@ -81,8 +81,8 @@ func TestPrepareWALFsyncMarker(t *testing.T) {
 	}
 }
 
-// TestWALFsyncCatchUp checks that the block time drives the controller and that
-// Close removes the marker.
+// TestWALFsyncCatchUp checks that the block time drives the controller with a
+// single threshold and that Close removes the marker.
 func TestWALFsyncCatchUp(t *testing.T) {
 	resetWALFsync(t)
 	home := t.TempDir()
@@ -94,14 +94,12 @@ func TestWALFsyncCatchUp(t *testing.T) {
 	app := &App{BaseApp: baseapp.NewBaseApp("test", log.NewNopLogger(), db, nil)}
 
 	app.walFsyncCatchUp(time.Now().Add(-5 * time.Minute))
-	require.NoFileExists(t, marker, "between the thresholds nothing changes")
-	app.walFsyncCatchUp(time.Now().Add(-time.Hour))
+	require.NoFileExists(t, marker, "a block younger than 10 minutes does not start a catch-up")
+	app.walFsyncCatchUp(time.Now().Add(-20 * time.Minute))
 	require.FileExists(t, marker, "an old block starts the catch-up")
 	require.NoError(t, db.SetSync([]byte("k"), []byte("v")))
 	app.walFsyncCatchUp(time.Now().Add(-5 * time.Minute))
-	require.FileExists(t, marker)
-	app.walFsyncCatchUp(time.Now())
-	require.NoFileExists(t, marker, "a recent block finishes the catch-up")
+	require.NoFileExists(t, marker, "a block 5 minutes old finishes the catch-up (clock skew)")
 
 	app.walFsyncCatchUp(time.Now().Add(-time.Hour))
 	require.FileExists(t, marker)
