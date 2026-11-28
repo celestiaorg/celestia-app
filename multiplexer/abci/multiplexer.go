@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/walfsync"
 	"github.com/cometbft/cometbft/mempool"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -857,6 +858,29 @@ func (m *Multiplexer) stopEmbeddedApp() error {
 	}
 	m.started = false
 	m.activeVersion = Version{}
+	return m.checkEmbeddedAppMarker()
+}
+
+// checkEmbeddedAppMarker runs after an embedded app stopped and before the next
+// app opens the shared app DB. A child killed before its Close leaves its
+// crash marker and an unsynced WAL tail; this fsyncs the app DB WALs and
+// removes the marker. Unit tests that build a Multiplexer without a server
+// context skip it.
+func (m *Multiplexer) checkEmbeddedAppMarker() error {
+	if m.svrCtx == nil {
+		return nil
+	}
+	var accept bool
+	if m.startFlags != nil {
+		accept, _ = m.startFlags.GetBool(walfsync.AcceptFlag)
+	}
+	found, err := appdb.CheckEmbeddedAppMarker(m.svrCtx.Config.RootDir, accept)
+	if err != nil {
+		return err
+	}
+	if found {
+		m.logger.Info("The embedded app stopped while app DB WAL fsyncs were skipped; the app DB WAL files were fsynced")
+	}
 	return nil
 }
 

@@ -36,3 +36,16 @@ var wrapOnce sync.Once
 func WrapWALFsync() {
 	wrapOnce.Do(func() { vfs.Default = walfsync.WrapFS(vfs.Default) })
 }
+
+// EmbeddedAppMarkerFile is the crash marker an embedded app (a multiplexer
+// child process) keeps in <home>/data while it skips app DB WAL fsyncs.
+const EmbeddedAppMarkerFile = "app_db_wal_fsync_skipped"
+
+// CheckEmbeddedAppMarker applies the walfsync.CheckMarker rules to the marker
+// of an embedded app before this process uses the shared app DB: from this
+// boot the app DB WALs are fsynced and the marker removed; from another boot
+// it refuses unless accept is set. A child killed before its Close (the
+// multiplexer kills it after a grace period) leaves such a marker.
+func CheckEmbeddedAppMarker(home string, accept bool) (found bool, err error) {
+	return walfsync.CheckMarkerFile(EmbeddedAppMarkerFile, []string{filepath.Join(home, "data")}, accept)
+}
