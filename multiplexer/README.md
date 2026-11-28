@@ -123,7 +123,7 @@ inter-block-cache = "sync-only"    # default "off"
 inter-block-cache-size = 100000    # entries per store
 ```
 
-While a v4-v8 app runs in this mode, it refuses CheckTx, QuerySequence, ABCI queries (except peer filtering), every app gRPC and REST request, and state sync. Block execution and `Info` are unchanged. The mode is meant for nodes syncing past the v4-v8 eras; v3 and v9+ ignore it. The multiplexer validates both keys at startup.
+`performance.inter-block-cache` is a new key, distinct from the SDK's top-level `inter-block-cache` bool, which the multiplexer keeps forcing to `false` for v4-v8. `"off"` leaves the current behavior unchanged, and the size is only read in `"sync-only"` mode. While a v4-v8 app runs in this mode, it refuses CheckTx, QuerySequence, ABCI queries (except peer filtering), every app gRPC and REST request, and state sync. Block execution and `Info` are unchanged. The mode is meant for nodes syncing past the v4-v8 eras; v3 and v9+ ignore it. The multiplexer validates both keys at startup.
 
 Only explicitly set start flags supported by the selected embedded version are forwarded. Cobra's parsed values are serialized as `--name=value`, preserving values that look like flags or subcommands. `Multiplexer` appends its mandatory overrides last.
 

@@ -24,6 +24,7 @@ func TestInterBlockCacheSyncOnlyConfig(t *testing.T) {
 		{" Sync-Only ", nil, true},
 		{"sync-only", int64(20000), true},
 		{"sync-only", "5000", true},
+		{"off", "many", false}, // the size is only read in sync-only mode
 	}
 	for _, tc := range valid {
 		v := viper.New()

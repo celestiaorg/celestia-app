@@ -26,7 +26,9 @@ const (
 
 // interBlockCacheSyncOnly validates performance.inter-block-cache and
 // performance.inter-block-cache-size and reports whether the mode is
-// "sync-only". A missing or empty mode means "off".
+// "sync-only". A missing or empty mode means "off". The size is checked only in
+// "sync-only" mode. It must accept exactly what ParseInterBlockCacheConfig in
+// the embedded v4-v8 apps (app/interblock_cache.go) accepts.
 func interBlockCacheSyncOnly(v *viper.Viper) (bool, error) {
 	raw := v.Get(configInterBlockCache)
 	mode, err := cast.ToStringE(raw)
@@ -34,7 +36,7 @@ func interBlockCacheSyncOnly(v *viper.Viper) (bool, error) {
 	if err != nil || (mode != "" && mode != interBlockCacheModeOff && mode != interBlockCacheModeSyncOnly) {
 		return false, fmt.Errorf("invalid %s %q: must be %q or %q", configInterBlockCache, fmt.Sprint(raw), interBlockCacheModeOff, interBlockCacheModeSyncOnly)
 	}
-	if rawSize := v.Get(configInterBlockCacheSize); rawSize != nil {
+	if rawSize := v.Get(configInterBlockCacheSize); mode == interBlockCacheModeSyncOnly && rawSize != nil {
 		size, err := cast.ToInt64E(rawSize)
 		if err != nil || size <= 0 || size > math.MaxInt32 {
 			return false, fmt.Errorf("invalid %s %q: must be an integer between 1 and %d", configInterBlockCacheSize, fmt.Sprint(rawSize), math.MaxInt32)
