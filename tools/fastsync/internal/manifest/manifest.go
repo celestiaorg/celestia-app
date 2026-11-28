@@ -17,15 +17,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // FormatVersion is the manifest format version written by build and accepted by verify.
 const FormatVersion = 1
-
-// MaxManifestBytes bounds how much of a manifest or signature file is read.
-const MaxManifestBytes = 64 << 20
 
 // maxFiles bounds the number of entries in a manifest (the mainnet bundle has ~1.6k files).
 const maxFiles = 1 << 20
@@ -40,7 +38,6 @@ type Manifest struct {
 	// LastAppHash is the app hash after executing LastHeight, i.e. the AppHash in header
 	// LastHeight+1 (the same convention as the expected-hash TSV written by fshdr).
 	LastAppHash string `json:"last_app_hash"`
-	CreatedAt   string `json:"created_at,omitempty"`
 	TotalBytes  int64  `json:"total_bytes"`
 	Files       []File `json:"files"`
 }
@@ -102,7 +99,6 @@ type BuildOptions struct {
 	Ignore      []string            // names in the directory that are neither listed nor rejected
 	Ranges      map[string][2]int64 // optional explicit per-file [first,last] heights
 	Workers     int
-	Now         time.Time
 }
 
 // Build hashes every file of dir and returns its manifest. Any file in dir that is not a
@@ -215,9 +211,6 @@ func Build(dir string, o BuildOptions) (*Manifest, error) {
 		LastHeight:  o.LastHeight,
 		LastAppHash: strings.ToUpper(o.LastAppHash),
 	}
-	if !o.Now.IsZero() {
-		m.CreatedAt = o.Now.UTC().Format(time.RFC3339)
-	}
 	for _, f := range cs {
 		m.Files = append(m.Files, File{Name: f.name, FirstHeight: f.first, LastHeight: f.last})
 	}
@@ -305,10 +298,9 @@ func Parse(b []byte) (*Manifest, error) {
 
 // VerifyOptions configures Verify.
 type VerifyOptions struct {
-	ChainID    string   // if set, the manifest's chain id must equal it
-	Ignore     []string // directory entries that are neither listed nor rejected (e.g. the manifest itself)
-	AllowExtra bool     // tolerate unlisted files instead of failing
-	Workers    int
+	ChainID string   // if set, the manifest's chain id must equal it
+	Ignore  []string // directory entries that are neither listed nor rejected (e.g. the manifest itself)
+	Workers int
 }
 
 // Verify checks sig over manifestBytes with pub, then checks that dir holds exactly the files of the
@@ -340,7 +332,7 @@ func Verify(dir string, manifestBytes, sig []byte, pub ed25519.PublicKey, o Veri
 	for _, e := range ents {
 		name := e.Name()
 		if _, ok := listed[name]; !ok {
-			if ignore[name] || o.AllowExtra {
+			if ignore[name] {
 				continue
 			}
 			return nil, fmt.Errorf("%s: unexpected file in bundle directory (not in manifest)", name)
@@ -386,21 +378,23 @@ func Verify(dir string, manifestBytes, sig []byte, pub ed25519.PublicKey, o Veri
 	return m, nil
 }
 
-// hashFile streams the file through sha256. It refuses non-regular files and, if want >= 0,
-// reads at most want+1 bytes and fails unless exactly want bytes were read.
+// hashFile streams the file through sha256. It opens p without following a symlink and without
+// blocking on a FIFO, then requires the opened file to be regular, so a name swapped after the
+// directory listing cannot redirect the read. If want >= 0, it reads at most want+1 bytes and fails
+// unless exactly want bytes were read.
 func hashFile(p string, want int64) (int64, string, error) {
-	st, err := os.Lstat(p)
+	f, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return 0, "", err
+	}
+	defer f.Close()
+	st, err := f.Stat()
 	if err != nil {
 		return 0, "", err
 	}
 	if !st.Mode().IsRegular() {
 		return 0, "", fmt.Errorf("%s: not a regular file", p)
 	}
-	f, err := os.Open(p)
-	if err != nil {
-		return 0, "", err
-	}
-	defer f.Close()
 	h := sha256.New()
 	var r io.Reader = f
 	if want >= 0 {
@@ -418,37 +412,12 @@ func hashFile(p string, want int64) (int64, string, error) {
 
 // forEachFile runs fn(0..n-1) on up to workers goroutines and returns the first error.
 func forEachFile(n, workers int, fn func(int) error) error {
-	workers = max(1, min(workers, n))
-	idx := make(chan int)
-	errs := make(chan error, workers)
-	var wg sync.WaitGroup
-	var once sync.Once
-	stop := make(chan struct{})
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range idx {
-				if err := fn(i); err != nil {
-					errs <- err
-					once.Do(func() { close(stop) })
-					return
-				}
-			}
-		}()
-	}
-feed:
+	var g errgroup.Group
+	g.SetLimit(max(1, workers))
 	for i := range n {
-		select {
-		case idx <- i:
-		case <-stop:
-			break feed
-		}
+		g.Go(func() error { return fn(i) })
 	}
-	close(idx)
-	wg.Wait()
-	close(errs)
-	return <-errs
+	return g.Wait()
 }
 
 func checkHash32(h string) error {
@@ -465,21 +434,4 @@ func setOf(xs []string) map[string]bool {
 		m[x] = true
 	}
 	return m
-}
-
-// ReadLimited reads at most limit bytes of p and fails if the file is larger.
-func ReadLimited(p string, limit int64) ([]byte, error) {
-	f, err := os.Open(p)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	b, err := io.ReadAll(io.LimitReader(f, limit+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(b)) > limit {
-		return nil, fmt.Errorf("%s: larger than %d bytes", p, limit)
-	}
-	return b, nil
 }

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +30,7 @@ func newBundle(t *testing.T) string {
 }
 
 func buildOpts() BuildOptions {
-	return BuildOptions{ChainID: "test-1", LastHeight: 25, LastAppHash: testAppHash, Extra: []string{"expected.tsv"}, Workers: 2, Now: time.Unix(0, 0)}
+	return BuildOptions{ChainID: "test-1", LastHeight: 25, LastAppHash: testAppHash, Extra: []string{"expected.tsv"}, Workers: 2}
 }
 
 type signed struct {
@@ -145,8 +145,6 @@ func TestVerifyUnexpectedAndMissingFiles(t *testing.T) {
 	writeFile(t, dir, "cs-000000000031.bin", "planted")
 	_, err := Verify(dir, s.b, s.sig, s.pub, VerifyOptions{})
 	require.ErrorContains(t, err, "unexpected file")
-	_, err = Verify(dir, s.b, s.sig, s.pub, VerifyOptions{AllowExtra: true})
-	require.NoError(t, err)
 	_, err = Verify(dir, s.b, s.sig, s.pub, VerifyOptions{Ignore: []string{"cs-000000000031.bin"}})
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(filepath.Join(dir, "cs-000000000031.bin")))
@@ -257,4 +255,18 @@ func TestBuildRejects(t *testing.T) {
 		_, err := Build(newBundle(t), o)
 		require.Error(t, err)
 	})
+}
+
+func TestHashFileRefusesSymlinkAndFIFO(t *testing.T) {
+	d := t.TempDir()
+	target := filepath.Join(d, "target")
+	writeFile(t, d, "target", "secret")
+	link := filepath.Join(d, "link")
+	require.NoError(t, os.Symlink(target, link))
+	_, _, err := hashFile(link, -1)
+	require.Error(t, err, "a symlink swapped in after the listing must not be followed")
+	fifo := filepath.Join(d, "fifo")
+	require.NoError(t, syscall.Mkfifo(fifo, 0o644))
+	_, _, err = hashFile(fifo, -1) // must return, not block waiting for a writer
+	require.ErrorContains(t, err, "not a regular file")
 }
